@@ -33,7 +33,7 @@ body {
 
 .route-transition-shell {
   min-height: calc(100vh - 1px);
-  will-change: opacity, transform;
+  will-change: opacity;
 }
 
 a {

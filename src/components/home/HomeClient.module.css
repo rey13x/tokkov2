@@ -6,6 +6,11 @@
   overflow-x: clip;
 }
 
+.pageLocked {
+  height: 100dvh;
+  overflow: hidden;
+}
+
 .hero {
   position: relative;
   min-height: clamp(600px, 78vh, 870px);
@@ -298,8 +303,8 @@
 .menuFab {
   position: fixed;
   left: 50%;
-  bottom: 24px;
   transform: translateX(-50%);
+  bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 50;
   min-width: 140px;
   height: 52px;
@@ -396,19 +401,25 @@
 }
 
 .menuPanelMain .menuNav {
-  margin-top: clamp(20px, 4vh, 48px);
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 .menuLabel {
-  margin-top: clamp(20px, 4vh, 48px);
+  margin-top: auto;
   font-size: 1.92rem;
+  margin-bottom: 8px;
 }
 
 .menuNav {
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+}
+
+.menuPanelSub .menuNav {
+  margin-bottom: auto;
 }
 
 .menuNav button {
@@ -481,10 +492,11 @@
 .introOverlay {
   position: fixed;
   inset: 0;
-  min-height: 100svh;
+  min-height: 100dvh;
   z-index: 120;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
 
@@ -501,8 +513,13 @@
 }
 
 .introCenter {
-  position: relative;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   z-index: 2;
+  width: max-content;
+  margin: 0 auto;
 }
 
 .introRing {
@@ -607,11 +624,11 @@
   }
 
   .menuPanelMain .menuNav {
-    margin-top: clamp(16px, 3vh, 34px);
+    margin-top: auto;
   }
 
   .menuLabel {
-    margin-top: clamp(14px, 3vh, 30px);
+    margin-top: auto;
     font-size: 1.58rem;
   }
 

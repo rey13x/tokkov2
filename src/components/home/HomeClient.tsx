@@ -107,10 +107,19 @@ export default function HomeClient() {
     return products.slice(0, 8);
   })();
 
-  function openMenu() {
+  const isViewportLocked = showIntro || menuMounted;
+
+  const activateMenu = () => {
     setTransitionDirection(1);
     setMenuMounted(true);
     setMenuLayer("main");
+  };
+
+  function openMenu() {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+    window.requestAnimationFrame(activateMenu);
   }
 
   function closeMenu() {
@@ -208,6 +217,9 @@ export default function HomeClient() {
 
     const timer = window.setTimeout(() => {
       if (!intro) {
+        const audio = new Audio("/assets/buy.mp3");
+        audio.volume = 0.82;
+        audio.play().catch(() => {});
         setShowIntro(false);
         return;
       }
@@ -216,7 +228,12 @@ export default function HomeClient() {
         opacity: 0,
         duration: 0.78,
         ease: "power3.inOut",
-        onComplete: () => setShowIntro(false),
+        onComplete: () => {
+          const audio = new Audio("/assets/buy.mp3");
+          audio.volume = 0.82;
+          audio.play().catch(() => {});
+          setShowIntro(false);
+        },
       });
     }, 3000);
 
@@ -304,11 +321,23 @@ export default function HomeClient() {
   }, [showIntro, bestSellerProducts.length]);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    // Selalu mulai dari paling atas saat refresh/load halaman.
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, []);
+
+  useEffect(() => {
     if (typeof document === "undefined") {
       return;
     }
 
-    const shouldLock = showIntro || menuMounted;
+    const shouldLock = isViewportLocked;
     const html = document.documentElement;
     const previousOverflow = document.body.style.overflow;
     const previousTouchAction = document.body.style.touchAction;
@@ -316,6 +345,7 @@ export default function HomeClient() {
     const previousHtmlOverscroll = html.style.overscrollBehaviorY;
 
     if (shouldLock) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       document.body.style.overflow = "hidden";
       document.body.style.touchAction = "none";
       html.style.overflow = "hidden";
@@ -328,7 +358,22 @@ export default function HomeClient() {
       html.style.overflow = previousHtmlOverflow;
       html.style.overscrollBehaviorY = previousHtmlOverscroll;
     };
-  }, [menuMounted, showIntro]);
+  }, [isViewportLocked]);
+
+  useEffect(() => {
+    if (!isViewportLocked) {
+      return;
+    }
+
+    const keepAtTop = () => {
+      if (window.scrollY > 0) {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      }
+    };
+
+    window.addEventListener("scroll", keepAtTop, { passive: true });
+    return () => window.removeEventListener("scroll", keepAtTop);
+  }, [isViewportLocked]);
 
   useEffect(() => {
     if (!menuMounted) {
@@ -340,7 +385,7 @@ export default function HomeClient() {
       gsap.set(overlay, { opacity: 0 });
       gsap.to(overlay, {
         opacity: 1,
-        duration: 0.48,
+        duration: 0.36,
         ease: "power3.out",
       });
     }
@@ -368,6 +413,16 @@ export default function HomeClient() {
     }
 
     const textNodes = incomingPanel.querySelectorAll<HTMLElement>("[data-menu-item]");
+    gsap.fromTo(
+      incomingPanel,
+      { y: 18, opacity: 0.9 },
+      {
+        y: 0,
+        opacity: 1,
+        duration: 0.34,
+        ease: "power2.out",
+      },
+    );
     if (textNodes.length > 0) {
       gsap.fromTo(
         textNodes,
@@ -378,9 +433,9 @@ export default function HomeClient() {
         {
           opacity: 1,
           y: 0,
-          duration: 0.48,
+          duration: 0.52,
           stagger: 0.05,
-          ease: "power3.out",
+          ease: "power2.out",
         },
       );
     }
@@ -408,12 +463,20 @@ export default function HomeClient() {
   } as CSSProperties;
 
   return (
-    <main className={styles.page} ref={rootRef}>
+    <main className={`${styles.page} ${isViewportLocked ? styles.pageLocked : ""}`} ref={rootRef}>
       {showIntro ? (
         <div className={styles.introOverlay} ref={introOverlayRef}>
           <Image src={heroImage} alt="" fill className={styles.introBackdrop} sizes="100vw" priority />
           <div className={styles.introShade} />
-          <div className={styles.introCenter}>
+          <div
+            className={styles.introCenter}
+            style={{
+              position: "fixed",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+            }}
+          >
             <div className={styles.introRing}>
               <div className={styles.introSpinner} ref={introSpinnerRef} />
               <div className={styles.introLogoWrap}>
