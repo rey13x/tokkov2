@@ -1,0 +1,156 @@
+.page {
+  min-height: 100vh;
+  padding: 18px;
+  display: grid;
+  place-items: center;
+}
+
+.authCard {
+  width: min(620px, 100%);
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 34px;
+  padding: clamp(20px, 3.5vw, 34px);
+  box-shadow: 0 22px 44px rgba(17, 25, 41, 0.12);
+}
+
+.headerBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tag {
+  width: fit-content;
+  border-radius: 999px;
+  background: #e8eef8;
+  color: #1e2a47;
+  font-size: 0.76rem;
+  padding: 6px 12px;
+}
+
+.headerBlock h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.description {
+  color: #5a6783;
+  line-height: 1.6;
+  font-size: 0.99rem;
+}
+
+.modeSwitch {
+  margin-top: 18px;
+  background: #f2f5fb;
+  border-radius: 999px;
+  padding: 4px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.modeSwitch button {
+  border: none;
+  height: 44px;
+  border-radius: 999px;
+  background: transparent;
+  color: #384560;
+  cursor: pointer;
+  font-size: 0.92rem;
+}
+
+.modeActive {
+  background: #111a31 !important;
+  color: #ffffff !important;
+}
+
+.form {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.92rem;
+  color: #212e4b;
+}
+
+.field input {
+  border: none;
+  border-radius: 14px;
+  height: 50px;
+  padding: 0 14px;
+  background: #f2f5fb;
+  outline: none;
+}
+
+.field input:focus {
+  box-shadow: inset 0 0 0 2px #84a1d7;
+}
+
+.errorText {
+  color: #b4233d;
+  font-size: 0.84rem;
+}
+
+.successText {
+  color: #0f6f2c;
+  font-size: 0.84rem;
+}
+
+.submitButton {
+  border: none;
+  border-radius: 999px;
+  height: 54px;
+  background: linear-gradient(90deg, #0a1330, #193363);
+  color: #ffffff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.googleButton {
+  border: 1px solid #cad3e7;
+  border-radius: 999px;
+  height: 52px;
+  background: #ffffff;
+  color: #1f2b46;
+  font-size: 0.96rem;
+  cursor: pointer;
+}
+
+.googleButton:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.extraAction {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.backLink {
+  color: #253657;
+}
+
+@media (max-width: 560px) {
+  .authCard {
+    border-radius: 26px;
+  }
+
+  .extraAction {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .backLink {
+    text-align: center;
+  }
+}
