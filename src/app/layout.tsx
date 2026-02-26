@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Sora, Space_Mono } from "next/font/google";
+import PageTransition from "@/components/layout/PageTransition";
 import SiteFooter from "@/components/layout/SiteFooter";
 import { AuthSessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
@@ -34,7 +35,7 @@ export default function RootLayout({
     <html lang="id">
       <body className={`${sora.variable} ${spaceMono.variable}`}>
         <AuthSessionProvider>
-          {children}
+          <PageTransition>{children}</PageTransition>
           <SiteFooter />
         </AuthSessionProvider>
       </body>

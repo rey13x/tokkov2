@@ -29,6 +29,7 @@
 }
 
 .actionLink {
+  border: none;
   border-radius: 999px;
   height: 38px;
   padding: 0 12px;
@@ -37,6 +38,7 @@
   background: #11151f;
   color: #ffffff;
   font-size: 0.8rem;
+  cursor: pointer;
 }
 
 .errorText {
@@ -214,4 +216,3 @@
     flex-direction: column;
   }
 }
-

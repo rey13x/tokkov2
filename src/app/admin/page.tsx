@@ -3,8 +3,10 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { signOut as firebaseSignOut } from "firebase/auth";
+import { signOut as nextAuthSignOut } from "next-auth/react";
 import { formatRupiah } from "@/data/products";
+import { getFirebaseClientAuth } from "@/lib/firebase-client";
 import type { StoreInformation, StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
 
@@ -42,8 +44,9 @@ const defaultInfoForm = {
 
 export default function AdminPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
 
+  const [authState, setAuthState] = useState<"checking" | "allowed" | "blocked">("checking");
+  const [adminEmail, setAdminEmail] = useState("");
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [informations, setInformations] = useState<StoreInformation[]>([]);
   const [series, setSeries] = useState<StatsPoint[]>([]);
@@ -91,22 +94,37 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.replace("/auth?redirect=/admin");
-      return;
-    }
-    if (status === "authenticated" && session.user.role !== "admin") {
-      router.replace("/");
-      return;
-    }
+    fetch("/api/admin/session", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) {
+          setAuthState("blocked");
+          router.replace("/admin/login");
+          return;
+        }
 
-    if (status === "authenticated" && session.user.role === "admin") {
-      Promise.allSettled([loadProducts(), loadInformations(), loadStats()]).catch(() => {});
-    }
-  }, [router, session, status]);
+        const payload = (await response.json()) as {
+          authenticated: boolean;
+          user?: { email?: string };
+        };
+
+        if (!payload.authenticated) {
+          setAuthState("blocked");
+          router.replace("/admin/login");
+          return;
+        }
+
+        setAdminEmail(payload.user?.email ?? "");
+        setAuthState("allowed");
+        await Promise.allSettled([loadProducts(), loadInformations(), loadStats()]);
+      })
+      .catch(() => {
+        setAuthState("blocked");
+        router.replace("/admin/login");
+      });
+  }, [router]);
 
   useEffect(() => {
-    if (status !== "authenticated" || session?.user?.role !== "admin") {
+    if (authState !== "allowed") {
       return;
     }
 
@@ -115,7 +133,17 @@ export default function AdminPage() {
     }, 5000);
 
     return () => window.clearInterval(timer);
-  }, [session, status]);
+  }, [authState]);
+
+  const onLogoutAdmin = async () => {
+    const auth = getFirebaseClientAuth();
+    if (auth) {
+      await firebaseSignOut(auth).catch(() => {});
+    }
+    await nextAuthSignOut({ redirect: false }).catch(() => {});
+    await fetch("/api/admin/session", { method: "DELETE" }).catch(() => {});
+    router.replace("/admin/login");
+  };
 
   const onCreateProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -246,7 +274,7 @@ export default function AdminPage() {
     await loadInformations();
   };
 
-  if (status === "loading") {
+  if (authState === "checking") {
     return (
       <main className={styles.page}>
         <p>Memuat admin panel...</p>
@@ -254,7 +282,7 @@ export default function AdminPage() {
     );
   }
 
-  if (status === "authenticated" && session.user.role !== "admin") {
+  if (authState !== "allowed") {
     return null;
   }
 
@@ -263,12 +291,18 @@ export default function AdminPage() {
       <header className={styles.header}>
         <div>
           <h1>Admin Dashboard</h1>
-          <p>Kelola produk, informasi, order, dan statistik realtime.</p>
+          <p>
+            Kelola produk, informasi, order, dan statistik realtime.
+            {adminEmail ? ` (${adminEmail})` : ""}
+          </p>
         </div>
         <div className={styles.headerActions}>
           <a href="/api/admin/orders/export" className={styles.actionLink}>
             Export CSV
           </a>
+          <button type="button" onClick={onLogoutAdmin} className={styles.actionLink}>
+            Logout Admin
+          </button>
           <Link href="/" className={styles.actionLink}>
             Ke Beranda
           </Link>
@@ -478,4 +512,3 @@ export default function AdminPage() {
     </main>
   );
 }
-

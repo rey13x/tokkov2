@@ -1,4 +1,5 @@
 import { createClient, type InArgs } from "@libsql/client";
+import { hash } from "bcryptjs";
 import type {
   InformationType,
   OrderSummary,
@@ -84,30 +85,6 @@ const defaultProducts: Array<
     price: 28000,
     imageUrl: "/assets/canva.jpg",
   },
-  {
-    name: "Boost Instagram Followers",
-    category: "My SMM",
-    shortDescription: "Followers bertahap dan stabil",
-    description: "Paket penambahan followers bertahap untuk branding akun.",
-    price: 45000,
-    imageUrl: "/assets/logo.png",
-  },
-  {
-    name: "Jasa Admin Marketplace",
-    category: "Seller",
-    shortDescription: "Kelola toko lebih efisien",
-    description: "Layanan admin toko online untuk upload produk dan optimasi judul.",
-    price: 350000,
-    imageUrl: "/assets/background.jpg",
-  },
-  {
-    name: "Landing Page Konversi",
-    category: "Jasa Website",
-    shortDescription: "Desain conversion-oriented",
-    description: "Pembuatan landing page fokus conversion dengan performa cepat.",
-    price: 650000,
-    imageUrl: "/assets/canva.jpg",
-  },
 ];
 
 const defaultInformations: Array<
@@ -123,11 +100,49 @@ const defaultInformations: Array<
   {
     type: "poll",
     title: "Polling Produk Favorit",
-    body: "Section ini bisa dipakai untuk polling produk dan masukan pelanggan.",
+    body: "Pilih kategori yang paling sering kamu beli minggu ini.",
     imageUrl: "/assets/canva.jpg",
-    pollOptions: ["App Premium", "Seller", "Jasa Website"],
+    pollOptions: ["App Premium"],
   },
 ];
+
+async function runOneTimeCatalogCleanup() {
+  const markerKey = "catalog-app-premium-only-v1";
+  const marker = await run("SELECT value FROM app_meta WHERE key = ? LIMIT 1", [markerKey]);
+  if (marker.rows.length > 0) {
+    return;
+  }
+
+  await run("DELETE FROM products WHERE lower(category) <> lower('App Premium')");
+  await run("INSERT INTO app_meta (key, value) VALUES (?, ?)", [markerKey, String(now())]);
+}
+
+async function ensureLocalAdminUser() {
+  const adminUsername = "Admin123x";
+  const adminEmail = "admin123x@local.tokko";
+  const adminPasswordHash = await hash("Admin123x", 10);
+
+  const existing = await run(
+    "SELECT id FROM users WHERE lower(username) = lower(?) OR lower(email) = lower(?) LIMIT 1",
+    [adminUsername, adminEmail],
+  );
+
+  if (existing.rows.length > 0) {
+    await run(
+      `UPDATE users
+       SET role = 'admin', password_hash = ?, updated_at = ?
+       WHERE id = ?`,
+      [adminPasswordHash, now(), String(existing.rows[0]?.id)],
+    );
+    return;
+  }
+
+  await run(
+    `INSERT INTO users (id, username, email, phone, password_hash, role, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'admin', ?, ?)`,
+    [randomId(), adminUsername, adminEmail, "", adminPasswordHash, now(), now()],
+  );
+}
 
 async function run(sql: string, args?: InArgs) {
   return db.execute({ sql, args });
@@ -185,6 +200,13 @@ export async function ensureDatabase() {
       );
 
       await run(
+        `CREATE TABLE IF NOT EXISTS app_meta (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )`,
+      );
+
+      await run(
         `CREATE TABLE IF NOT EXISTS products (
           id TEXT PRIMARY KEY,
           slug TEXT NOT NULL UNIQUE,
@@ -238,6 +260,8 @@ export async function ensureDatabase() {
       );
 
       await seedIfEmpty();
+      await runOneTimeCatalogCleanup();
+      await ensureLocalAdminUser();
       initialized = true;
     })();
   }

@@ -5,15 +5,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   FiArrowLeft,
   FiChevronRight,
   FiMenu,
-  FiSearch,
-  FiUser,
   FiX,
 } from "react-icons/fi";
 import heroImage from "@/app/assets/Background.jpg";
@@ -35,17 +32,19 @@ type HomeProduct = StoreProduct;
 type HomeInformation = StoreInformation;
 
 function mapFallbackProducts(): HomeProduct[] {
-  return fallbackProducts.map((product) => ({
-    id: String(product.id),
-    slug: product.slug,
-    name: product.name,
-    category: product.category,
-    shortDescription: product.shortDescription,
-    description: product.description,
-    price: product.price,
-    imageUrl: product.image.src,
-    isActive: true,
-  }));
+  return fallbackProducts
+    .filter((product) => product.category === "App Premium")
+    .map((product) => ({
+      id: String(product.id),
+      slug: product.slug,
+      name: product.name,
+      category: product.category,
+      shortDescription: product.shortDescription,
+      description: product.description,
+      price: product.price,
+      imageUrl: product.image.src,
+      isActive: true,
+    }));
 }
 
 function mapFallbackInformations(): HomeInformation[] {
@@ -64,7 +63,6 @@ export default function HomeClient() {
   const rootRef = useRef<HTMLElement | null>(null);
   const introOverlayRef = useRef<HTMLDivElement | null>(null);
   const introSpinnerRef = useRef<HTMLDivElement | null>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const mainPanelRef = useRef<HTMLDivElement | null>(null);
   const productsPanelRef = useRef<HTMLDivElement | null>(null);
@@ -72,7 +70,6 @@ export default function HomeClient() {
   const menuFabRef = useRef<HTMLButtonElement | null>(null);
   const previousLayerRef = useRef<MenuLayer>("closed");
   const router = useRouter();
-  const { data: session } = useSession();
 
   const [query, setQuery] = useState("");
   const [showIntro, setShowIntro] = useState(true);
@@ -141,11 +138,6 @@ export default function HomeClient() {
     setTransitionDirection(direction);
     setMenuLayer(nextLayer);
   }
-
-  const focusSearch = () => {
-    closeMenu();
-    window.setTimeout(() => searchInputRef.current?.focus(), 110);
-  };
 
   const chooseCategory = (category: string) => {
     closeMenu();
@@ -312,6 +304,26 @@ export default function HomeClient() {
   }, [showIntro, bestSellerProducts.length]);
 
   useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const shouldLock = showIntro || menuMounted;
+    const previousOverflow = document.body.style.overflow;
+    const previousTouchAction = document.body.style.touchAction;
+
+    if (shouldLock) {
+      document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none";
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.touchAction = previousTouchAction;
+    };
+  }, [menuMounted, showIntro]);
+
+  useEffect(() => {
     if (!menuMounted) {
       return;
     }
@@ -345,9 +357,8 @@ export default function HomeClient() {
 
     if (previousPanel && previousPanel !== incomingPanel) {
       gsap.to(previousPanel, {
-        x: transitionDirection > 0 ? -28 : 28,
         opacity: 0,
-        duration: 0.32,
+        duration: 0.24,
         ease: "power3.inOut",
         onComplete: () => {
           gsap.set(previousPanel, { display: "none" });
@@ -360,16 +371,35 @@ export default function HomeClient() {
       gsap.fromTo(
         incomingPanel,
         {
-          x: transitionDirection > 0 ? 34 : -34,
           opacity: 0,
         },
         {
-          x: 0,
           opacity: 1,
-          duration: 0.56,
+          duration: 0.32,
           ease: "power3.out",
         },
       );
+
+      const textNodes = incomingPanel.querySelectorAll<HTMLElement>("[data-menu-item]");
+      if (textNodes.length > 0) {
+        gsap.fromTo(
+          textNodes,
+          {
+            opacity: 0,
+            y: transitionDirection > 0 ? 24 : -20,
+            filter: "blur(7px)",
+          },
+          {
+            opacity: 1,
+            y: 0,
+            filter: "blur(0px)",
+            duration: 0.6,
+            stagger: 0.06,
+            ease: "expo.out",
+            clearProps: "filter",
+          },
+        );
+      }
     }
 
     previousLayerRef.current = menuLayer;
@@ -424,23 +454,12 @@ export default function HomeClient() {
 
         <div className={styles.heroTop} data-animate="hero">
           <Image src={logoImage} alt="Tokko Logo" className={styles.logo} priority />
-          <button
-            type="button"
-            className={styles.roundSearchButton}
-            onClick={() =>
-              router.push(session?.user?.id ? "/profil" : "/auth?redirect=/profil")
-            }
-            aria-label="Akun"
-          >
-            <FiUser />
-          </button>
         </div>
 
         <div className={styles.heroBottom} data-animate="hero">
           <h1 className={styles.heroTitle}>Tokko</h1>
           <div className={styles.heroSearchWrap}>
             <input
-              ref={searchInputRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               className={styles.heroSearchInput}
@@ -533,19 +552,16 @@ export default function HomeClient() {
             <section className={`${styles.menuPanel} ${styles.menuPanelMain}`} ref={mainPanelRef}>
               <div className={styles.menuTop}>
                 <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
-                <button type="button" onClick={focusSearch} className={styles.menuSearchButton}>
-                  <FiSearch />
-                </button>
               </div>
 
               <nav className={styles.menuNav} aria-label="Menu utama">
-                <button type="button" onClick={() => moveMenu("services", 1)}>
+                <button type="button" onClick={() => moveMenu("services", 1)} data-menu-item>
                   Semua Layanan
                   <span>
                     <FiChevronRight />
                   </span>
                 </button>
-                <button type="button" onClick={() => moveMenu("products", 1)}>
+                <button type="button" onClick={() => moveMenu("products", 1)} data-menu-item>
                   Semua Produk
                   <span>
                     <FiChevronRight />
@@ -562,25 +578,14 @@ export default function HomeClient() {
                       });
                     }, 110);
                   }}
+                  data-menu-item
                 >
                   Panduan
                 </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(
-                      session?.user?.id ? "/profil" : "/auth?redirect=/profil",
-                    )
-                  }
-                >
-                  Akun
+                <button type="button" onClick={() => router.push("/admin")} data-menu-item>
+                  Admin
                 </button>
-                {session?.user?.role === "admin" ? (
-                  <button type="button" onClick={() => router.push("/admin")}>
-                    Admin
-                  </button>
-                ) : null}
-                <button type="button" onClick={() => router.push("/troli")}>
+                <button type="button" onClick={() => router.push("/troli")} data-menu-item>
                   Troli ({cartCount})
                 </button>
               </nav>
@@ -598,14 +603,13 @@ export default function HomeClient() {
             <section className={`${styles.menuPanel} ${styles.menuPanelSub}`} ref={productsPanelRef}>
               <div className={styles.menuTop}>
                 <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
-                <button type="button" onClick={focusSearch} className={styles.menuSearchButton}>
-                  <FiSearch />
-                </button>
               </div>
-              <p className={styles.menuLabel}>Semua Produk</p>
+              <p className={styles.menuLabel} data-menu-item>
+                Semua Produk
+              </p>
               <nav className={styles.menuNav} aria-label="Menu produk">
                 {productMenuItems.map((item) => (
-                  <button key={item} type="button" onClick={() => chooseCategory(item)}>
+                  <button key={item} type="button" onClick={() => chooseCategory(item)} data-menu-item>
                     {item}
                     <span>
                       <FiChevronRight />
@@ -637,14 +641,13 @@ export default function HomeClient() {
             <section className={`${styles.menuPanel} ${styles.menuPanelSub}`} ref={servicesPanelRef}>
               <div className={styles.menuTop}>
                 <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
-                <button type="button" onClick={focusSearch} className={styles.menuSearchButton}>
-                  <FiSearch />
-                </button>
               </div>
-              <p className={styles.menuLabel}>Semua Layanan</p>
+              <p className={styles.menuLabel} data-menu-item>
+                Semua Layanan
+              </p>
               <nav className={styles.menuNav} aria-label="Menu layanan">
                 {serviceMenuItems.map((item) => (
-                  <button key={item} type="button" onClick={() => chooseCategory(item)}>
+                  <button key={item} type="button" onClick={() => chooseCategory(item)} data-menu-item>
                     {item}
                     <span>
                       <FiChevronRight />

@@ -331,7 +331,7 @@ export const informationItems: InformationItem[] = [
     id: "info-2",
     title: "Polling Produk Favorit",
     description:
-      "Section ini bisa dipakai untuk polling produk, voting layanan, dan masukan pelanggan.",
+      "Gunakan polling ini untuk vote layanan favorit dan masukan pelanggan.",
     date: "10 Juli 2025",
     image: canvaImage,
   },

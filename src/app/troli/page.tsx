@@ -40,6 +40,8 @@ export default function CartPage() {
   const { status } = useSession();
   const [cartLines, setCartLines] = useState<CartLine[]>(getInitialCartLines);
   const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [activeCategory, setActiveCategory] = useState("Semua");
+  const [query, setQuery] = useState("");
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -80,6 +82,20 @@ export default function CartPage() {
       })
       .filter((line): line is NonNullable<typeof line> => Boolean(line));
   }, [cartLines, products]);
+
+  const categories = useMemo(() => {
+    const set = new Set(detailedItems.map((item) => item.product.category));
+    return ["Semua", ...set];
+  }, [detailedItems]);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredItems = detailedItems.filter((item) => {
+    const byCategory =
+      activeCategory === "Semua" || item.product.category === activeCategory;
+    const searchable = `${item.product.name} ${item.product.category}`.toLowerCase();
+    const byQuery = normalizedQuery.length === 0 || searchable.includes(normalizedQuery);
+    return byCategory && byQuery;
+  });
 
   const subtotal = detailedItems
     .filter((item) => item.selected)
@@ -188,64 +204,95 @@ export default function CartPage() {
       {isClient && detailedItems.length > 0 ? (
         <section className={styles.cartLayout}>
           <div className={styles.itemsPanel}>
-            {detailedItems.map((item) => (
-              <article key={item.slug} className={styles.cartItem}>
-                <div className={styles.checkboxCell}>
-                  <input
-                    type="checkbox"
-                    checked={item.selected}
-                    onChange={() => toggleSelected(item.slug)}
-                    aria-label={`Pilih ${item.product.name}`}
-                  />
-                </div>
+            <div className={styles.filterWrap}>
+              <div className={styles.searchWrap}>
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Cari di troli..."
+                />
+              </div>
+              <div className={styles.categoryRow}>
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => setActiveCategory(category)}
+                    className={`${styles.categoryChip} ${
+                      activeCategory === category ? styles.categoryChipActive : ""
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-                <div className={styles.thumbWrap}>
-                  <Image
-                    src={item.product.imageUrl}
-                    alt={item.product.name}
-                    fill
-                    className={styles.thumb}
-                    sizes="100px"
-                    unoptimized
-                  />
-                </div>
-
-                <div className={styles.itemContent}>
-                  <div className={styles.itemHead}>
-                    <h2>{item.product.name}</h2>
-                    <button
-                      type="button"
-                      onClick={() => removeLine(item.slug)}
-                      className={styles.removeButton}
-                      aria-label={`Hapus ${item.product.name}`}
-                    >
-                      x
-                    </button>
+            {filteredItems.length > 0 ? (
+              filteredItems.map((item) => (
+                <article key={item.slug} className={styles.cartItem}>
+                  <div className={styles.checkboxCell}>
+                    <input
+                      type="checkbox"
+                      checked={item.selected}
+                      onChange={() => toggleSelected(item.slug)}
+                      aria-label={`Pilih ${item.product.name}`}
+                    />
                   </div>
-                  <p className={styles.metaLine}>{item.product.category}</p>
-                  <p className={styles.metaLineMuted}>NON REFUNDABLE</p>
-                </div>
 
-                <div className={styles.actionCol}>
-                  <div className={styles.qtyControl}>
-                    <button
-                      type="button"
-                      onClick={() => changeQuantity(item.slug, item.quantity - 1)}
-                    >
-                      -
-                    </button>
-                    <span>{item.quantity}</span>
-                    <button
-                      type="button"
-                      onClick={() => changeQuantity(item.slug, item.quantity + 1)}
-                    >
-                      +
-                    </button>
+                  <div className={styles.thumbWrap}>
+                    <Image
+                      src={item.product.imageUrl}
+                      alt={item.product.name}
+                      fill
+                      className={styles.thumb}
+                      sizes="100px"
+                      unoptimized
+                    />
                   </div>
-                  <strong>{formatRupiah(item.lineTotal)}</strong>
-                </div>
-              </article>
-            ))}
+
+                  <div className={styles.itemContent}>
+                    <div className={styles.itemHead}>
+                      <h2>{item.product.name}</h2>
+                      <button
+                        type="button"
+                        onClick={() => removeLine(item.slug)}
+                        className={styles.removeButton}
+                        aria-label={`Hapus ${item.product.name}`}
+                      >
+                        x
+                      </button>
+                    </div>
+                    <p className={styles.metaLine}>{item.product.category}</p>
+                    <p className={styles.metaLineMuted}>NON REFUNDABLE</p>
+                  </div>
+
+                  <div className={styles.actionCol}>
+                    <div className={styles.qtyControl}>
+                      <button
+                        type="button"
+                        onClick={() => changeQuantity(item.slug, item.quantity - 1)}
+                      >
+                        -
+                      </button>
+                      <span>{item.quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => changeQuantity(item.slug, item.quantity + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <strong>{formatRupiah(item.lineTotal)}</strong>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <p className={styles.emptyFilterText}>
+                Tidak ada item yang cocok dengan filter ini.
+              </p>
+            )}
           </div>
 
           <aside className={styles.summaryPanel}>
@@ -277,4 +324,3 @@ export default function CartPage() {
     </main>
   );
 }
-
