@@ -9,9 +9,20 @@
   width: min(1200px, 100%);
   margin: 0 auto;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 20px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  border-radius: 10px;
+  opacity: 0.95;
 }
 
 .brand h2 {
@@ -43,4 +54,3 @@
     gap: 14px;
   }
 }
-

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
@@ -26,6 +27,7 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [googleAvailable, setGoogleAvailable] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const redirectTarget =
     typeof window === "undefined"
@@ -41,9 +43,9 @@ export default function AuthPage() {
         {
           y: 0,
           opacity: 1,
-          duration: 0.72,
-          stagger: 0.08,
-          ease: "back.out(1.26)",
+          duration: 0.88,
+          stagger: 0.1,
+          ease: "power3.out",
         },
       );
     }, rootRef);
@@ -137,12 +139,26 @@ export default function AuthPage() {
   return (
     <main className={styles.page} ref={rootRef}>
       <section className={styles.authCard} data-auth="intro">
+        <div className={styles.banner} data-auth="intro">
+          {Array.from({ length: 9 }).map((_, index) => (
+            <div key={`logo-${index}`} className={styles.bannerLogoWrap}>
+              <Image
+                src="/assets/logo.png"
+                alt="Logo"
+                width={38}
+                height={38}
+                className={styles.bannerLogo}
+                unoptimized
+              />
+            </div>
+          ))}
+        </div>
+
         <div className={styles.headerBlock}>
-          <p className={styles.tag}>Akses Akun</p>
-          <h1>{mode === "login" ? "Login Akun" : "Buat Akun Baru"}</h1>
+          <h1>{mode === "login" ? "Login" : "Buat Akun Baru"}</h1>
           <p className={styles.description}>
             {mode === "login"
-              ? "Masuk untuk lanjutkan pesanan kamu."
+              ? "Create an account"
               : "Lengkapi data akun dulu sebelum login."}
           </p>
         </div>
@@ -194,6 +210,15 @@ export default function AuthPage() {
             <button type="submit" className={styles.submitButton} disabled={isLoading}>
               {isLoading ? "Loading..." : "Login"}
             </button>
+
+            <label className={styles.rememberRow}>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(event) => setRememberMe(event.target.checked)}
+              />
+              <span>Keep me logged in</span>
+            </label>
 
             {googleAvailable ? (
               <button
@@ -274,7 +299,7 @@ export default function AuthPage() {
 
         <div className={styles.extraAction} data-auth="intro">
           <Link href="/" className={styles.backLink}>
-            Kembali ke beranda
+            Forgot password?
           </Link>
         </div>
       </section>

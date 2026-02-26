@@ -161,8 +161,8 @@ export default function HomeClient() {
 
     gsap.to(overlay, {
       opacity: 0,
-      duration: 0.24,
-      ease: "power2.inOut",
+      duration: 0.42,
+      ease: "power3.inOut",
       onComplete: () => {
         setMenuLayer("closed");
         setMenuMounted(false);
@@ -238,7 +238,7 @@ export default function HomeClient() {
     const spinnerTween = spinner
       ? gsap.to(spinner, {
           rotation: 360,
-          duration: 1.1,
+          duration: 1.35,
           repeat: -1,
           ease: "none",
         })
@@ -256,8 +256,8 @@ export default function HomeClient() {
 
       gsap.to(intro, {
         opacity: 0,
-        duration: 0.45,
-        ease: "power2.inOut",
+        duration: 0.78,
+        ease: "power3.inOut",
         onComplete: () => setShowIntro(false),
       });
     }, 3000);
@@ -355,7 +355,7 @@ export default function HomeClient() {
       gsap.set(overlay, { opacity: 0 });
       gsap.to(overlay, {
         opacity: 1,
-        duration: 0.32,
+        duration: 0.48,
         ease: "power3.out",
       });
     }
@@ -381,8 +381,8 @@ export default function HomeClient() {
       gsap.to(previousPanel, {
         x: transitionDirection > 0 ? -28 : 28,
         opacity: 0,
-        duration: 0.19,
-        ease: "power2.inOut",
+        duration: 0.32,
+        ease: "power3.inOut",
         onComplete: () => {
           gsap.set(previousPanel, { display: "none" });
         },
@@ -400,8 +400,8 @@ export default function HomeClient() {
         {
           x: 0,
           opacity: 1,
-          duration: 0.36,
-          ease: "back.out(1.25)",
+          duration: 0.56,
+          ease: "power3.out",
         },
       );
     }
@@ -526,9 +526,6 @@ export default function HomeClient() {
         <div className={styles.sectionHead}>
           <h2>Informasi</h2>
         </div>
-        <p className={styles.infoHint}>
-          Section ini siap untuk konten custom admin: pesan, polling, pengumuman, dll.
-        </p>
         <div className={styles.infoList}>
           {informations.map((item) => (
             <article key={item.id} className={styles.infoCard}>

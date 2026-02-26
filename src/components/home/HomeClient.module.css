@@ -203,12 +203,6 @@
   line-height: 1;
 }
 
-.infoHint {
-  margin-bottom: 12px;
-  color: #606884;
-  font-size: 0.88rem;
-}
-
 .infoList {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -379,7 +373,7 @@
 }
 
 .menuPanelMain .menuNav {
-  margin-top: clamp(150px, 26vh, 220px);
+  margin-top: clamp(99px, 0vh, 100px);
 }
 
 .menuLabel {
@@ -391,7 +385,7 @@
   margin-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .menuNav button {
@@ -593,4 +587,3 @@
     font-size: 1rem;
   }
 }
-
