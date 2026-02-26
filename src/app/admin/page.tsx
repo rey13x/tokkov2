@@ -1,13 +1,14 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut as firebaseSignOut } from "firebase/auth";
 import { signOut as nextAuthSignOut } from "next-auth/react";
 import { formatRupiah } from "@/data/products";
 import { getFirebaseClientAuth } from "@/lib/firebase-client";
-import type { StoreInformation, StoreProduct } from "@/types/store";
+import type { StoreInformation, StoreProduct, StoreTestimonial } from "@/types/store";
 import styles from "./page.module.css";
 
 type StatsPoint = {
@@ -42,6 +43,26 @@ const defaultInfoForm = {
   pollOptions: "",
 };
 
+const defaultTestimonialForm = {
+  name: "",
+  message: "",
+  rating: 5,
+  audioUrl: "/assets/bagas.mp3",
+};
+
+function formatRupiahInput(value: string) {
+  const digits = value.replace(/[^\d]/g, "");
+  if (!digits) {
+    return "";
+  }
+  return new Intl.NumberFormat("id-ID").format(Number(digits));
+}
+
+function parseRupiahInput(value: string) {
+  const digits = value.replace(/[^\d]/g, "");
+  return Number(digits || 0);
+}
+
 export default function AdminPage() {
   const router = useRouter();
 
@@ -49,10 +70,16 @@ export default function AdminPage() {
   const [adminEmail, setAdminEmail] = useState("");
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [informations, setInformations] = useState<StoreInformation[]>([]);
+  const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
   const [series, setSeries] = useState<StatsPoint[]>([]);
   const [latestOrders, setLatestOrders] = useState<OrderLite[]>([]);
   const [productForm, setProductForm] = useState(defaultProductForm);
+  const [priceInput, setPriceInput] = useState("");
   const [infoForm, setInfoForm] = useState(defaultInfoForm);
+  const [testimonialForm, setTestimonialForm] = useState(defaultTestimonialForm);
+  const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
+  const [isUploadingInfoImage, setIsUploadingInfoImage] = useState(false);
+  const [isUploadingTestimonialAudio, setIsUploadingTestimonialAudio] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -61,6 +88,100 @@ export default function AdminPage() {
     () => Math.max(1, ...series.map((item) => item.totalOrders)),
     [series],
   );
+  const totalRevenue = useMemo(
+    () => latestOrders.reduce((sum, order) => sum + order.total, 0),
+    [latestOrders],
+  );
+
+  const uploadMedia = async (file: File, folder: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", folder);
+
+    const response = await fetch("/api/admin/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const payload = (await response.json()) as { message?: string; url?: string };
+    if (!response.ok || !payload.url) {
+      throw new Error(payload.message ?? "Upload gambar gagal.");
+    }
+
+    return payload.url;
+  };
+
+  const onSelectProductImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsUploadingProductImage(true);
+    try {
+      const uploaded = await uploadMedia(file, "products");
+      setProductForm((current) => ({
+        ...current,
+        imageUrl: uploaded,
+      }));
+      setMessage("Gambar produk berhasil diupload.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload gambar gagal.");
+    } finally {
+      setIsUploadingProductImage(false);
+      event.target.value = "";
+    }
+  };
+
+  const onSelectInfoImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsUploadingInfoImage(true);
+    try {
+      const uploaded = await uploadMedia(file, "informations");
+      setInfoForm((current) => ({
+        ...current,
+        imageUrl: uploaded,
+      }));
+      setMessage("Gambar informasi berhasil diupload.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload gambar gagal.");
+    } finally {
+      setIsUploadingInfoImage(false);
+      event.target.value = "";
+    }
+  };
+
+  const onSelectTestimonialAudio = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsUploadingTestimonialAudio(true);
+    try {
+      const uploaded = await uploadMedia(file, "testimonials-audio");
+      setTestimonialForm((current) => ({
+        ...current,
+        audioUrl: uploaded,
+      }));
+      setMessage("Voice testimonial berhasil diupload.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload voice gagal.");
+    } finally {
+      setIsUploadingTestimonialAudio(false);
+      event.target.value = "";
+    }
+  };
 
   const loadProducts = async () => {
     const response = await fetch("/api/admin/products", { cache: "no-store" });
@@ -78,6 +199,15 @@ export default function AdminPage() {
     }
     const result = (await response.json()) as { informations: StoreInformation[] };
     setInformations(result.informations);
+  };
+
+  const loadTestimonials = async () => {
+    const response = await fetch("/api/admin/testimonials", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil testimonial");
+    }
+    const result = (await response.json()) as { testimonials: StoreTestimonial[] };
+    setTestimonials(result.testimonials);
   };
 
   const loadStats = async () => {
@@ -115,7 +245,12 @@ export default function AdminPage() {
 
         setAdminEmail(payload.user?.email ?? "");
         setAuthState("allowed");
-        await Promise.allSettled([loadProducts(), loadInformations(), loadStats()]);
+        await Promise.allSettled([
+          loadProducts(),
+          loadInformations(),
+          loadTestimonials(),
+          loadStats(),
+        ]);
       })
       .catch(() => {
         setAuthState("blocked");
@@ -168,6 +303,7 @@ export default function AdminPage() {
 
       setMessage("Produk baru berhasil ditambahkan.");
       setProductForm(defaultProductForm);
+      setPriceInput("");
       await loadProducts();
     } catch {
       setError("Gagal tambah produk.");
@@ -210,6 +346,34 @@ export default function AdminPage() {
     }
   };
 
+  const onCreateTestimonial = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/admin/testimonials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(testimonialForm),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        setError(result.message ?? "Gagal tambah testimonial.");
+        return;
+      }
+
+      setMessage("Testimonial berhasil ditambahkan.");
+      setTestimonialForm(defaultTestimonialForm);
+      await loadTestimonials();
+    } catch {
+      setError("Gagal tambah testimonial.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const onDeleteAllProducts = async () => {
     if (!window.confirm("Yakin hapus semua produk?")) {
       return;
@@ -226,6 +390,11 @@ export default function AdminPage() {
   const onDeleteInformation = async (id: string) => {
     await fetch(`/api/admin/informations/${id}`, { method: "DELETE" });
     await loadInformations();
+  };
+
+  const onDeleteTestimonial = async (id: string) => {
+    await fetch(`/api/admin/testimonials/${id}`, { method: "DELETE" });
+    await loadTestimonials();
   };
 
   const onQuickEditProduct = async (product: StoreProduct) => {
@@ -314,6 +483,32 @@ export default function AdminPage() {
 
       <section className={styles.grid}>
         <article className={styles.card}>
+          <h2>Ringkasan Cepat</h2>
+          <div className={styles.quickStats}>
+            <div>
+              <strong>{products.length}</strong>
+              <span>Total Produk</span>
+            </div>
+            <div>
+              <strong>{informations.length}</strong>
+              <span>Informasi Aktif</span>
+            </div>
+            <div>
+              <strong>{testimonials.length}</strong>
+              <span>Testimonial</span>
+            </div>
+            <div>
+              <strong>{latestOrders.length}</strong>
+              <span>Order Terkini</span>
+            </div>
+            <div>
+              <strong>{formatRupiah(totalRevenue)}</strong>
+              <span>Omzet (terbaru)</span>
+            </div>
+          </div>
+        </article>
+
+        <article className={styles.card}>
           <h2>Grafik Order Realtime</h2>
           <div className={styles.chart}>
             {series.length === 0 ? <p>Belum ada data order.</p> : null}
@@ -398,13 +593,17 @@ export default function AdminPage() {
               required
             />
             <input
-              type="number"
-              value={productForm.price}
-              onChange={(event) =>
-                setProductForm((current) => ({ ...current, price: Number(event.target.value) }))
-              }
-              placeholder="Harga"
-              min={0}
+              type="text"
+              value={priceInput}
+              onChange={(event) => {
+                const formatted = formatRupiahInput(event.target.value);
+                setPriceInput(formatted);
+                setProductForm((current) => ({
+                  ...current,
+                  price: parseRupiahInput(formatted),
+                }));
+              }}
+              placeholder="Harga (Rp)"
               required
             />
             <input
@@ -415,6 +614,25 @@ export default function AdminPage() {
               placeholder="URL gambar (contoh /assets/background.jpg)"
               required
             />
+            <label className={styles.fileField}>
+              Upload Foto Produk
+              <input type="file" accept="image/*" onChange={onSelectProductImage} />
+              <small>{isUploadingProductImage ? "Uploading..." : "Pilih gambar dari device"}</small>
+            </label>
+            <div className={styles.previewCard}>
+              <Image
+                src={productForm.imageUrl || "/assets/background.jpg"}
+                alt="Preview produk"
+                width={72}
+                height={72}
+                className={styles.previewImage}
+                unoptimized
+              />
+              <div>
+                <p>{productForm.name || "Preview nama produk"}</p>
+                <span>{formatRupiah(Number(productForm.price || 0))}</span>
+              </div>
+            </div>
             <button type="submit" disabled={isLoading}>
               Tambah Produk
             </button>
@@ -423,9 +641,22 @@ export default function AdminPage() {
           <div className={styles.list}>
             {products.map((product) => (
               <div key={product.id} className={styles.listItem}>
-                <p>
-                  {product.name} - {formatRupiah(product.price)}
-                </p>
+                <div className={styles.listPreview}>
+                  <Image
+                    src={product.imageUrl}
+                    alt={product.name}
+                    width={56}
+                    height={56}
+                    className={styles.listThumb}
+                    unoptimized
+                  />
+                  <div>
+                    <p>
+                      {product.name} - {formatRupiah(product.price)}
+                    </p>
+                    <span>{product.category}</span>
+                  </div>
+                </div>
                 <div className={styles.rowActions}>
                   <button type="button" onClick={() => onQuickEditProduct(product)}>
                     Edit
@@ -478,6 +709,11 @@ export default function AdminPage() {
               }
               placeholder="URL gambar"
             />
+            <label className={styles.fileField}>
+              Upload Foto Informasi
+              <input type="file" accept="image/*" onChange={onSelectInfoImage} />
+              <small>{isUploadingInfoImage ? "Uploading..." : "Pilih gambar dari device"}</small>
+            </label>
             <input
               value={infoForm.pollOptions}
               onChange={(event) =>
@@ -485,6 +721,20 @@ export default function AdminPage() {
               }
               placeholder="Opsi polling pisahkan koma"
             />
+            <div className={styles.previewCard}>
+              <Image
+                src={infoForm.imageUrl || "/assets/background.jpg"}
+                alt="Preview informasi"
+                width={72}
+                height={72}
+                className={styles.previewImage}
+                unoptimized
+              />
+              <div>
+                <p>{infoForm.title || "Preview judul informasi"}</p>
+                <span>{infoForm.type.toUpperCase()}</span>
+              </div>
+            </div>
             <button type="submit" disabled={isLoading}>
               Tambah Informasi
             </button>
@@ -493,14 +743,107 @@ export default function AdminPage() {
           <div className={styles.list}>
             {informations.map((information) => (
               <div key={information.id} className={styles.listItem}>
-                <p>
-                  [{information.type}] {information.title}
-                </p>
+                <div className={styles.listPreview}>
+                  <Image
+                    src={information.imageUrl || "/assets/background.jpg"}
+                    alt={information.title}
+                    width={56}
+                    height={56}
+                    className={styles.listThumb}
+                    unoptimized
+                  />
+                  <div>
+                    <p>
+                      [{information.type}] {information.title}
+                    </p>
+                    <span>{new Date(information.createdAt).toLocaleDateString("id-ID")}</span>
+                  </div>
+                </div>
                 <div className={styles.rowActions}>
                   <button type="button" onClick={() => onQuickEditInformation(information)}>
                     Edit
                   </button>
                   <button type="button" onClick={() => onDeleteInformation(information.id)}>
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className={styles.card}>
+          <h2>CRUD Testimonial + Voice</h2>
+          <form className={styles.form} onSubmit={onCreateTestimonial}>
+            <input
+              value={testimonialForm.name}
+              onChange={(event) =>
+                setTestimonialForm((current) => ({ ...current, name: event.target.value }))
+              }
+              placeholder="Nama pemberi testimoni"
+              required
+            />
+            <textarea
+              value={testimonialForm.message}
+              onChange={(event) =>
+                setTestimonialForm((current) => ({ ...current, message: event.target.value }))
+              }
+              placeholder="Isi testimoni"
+              required
+            />
+            <select
+              value={testimonialForm.rating}
+              onChange={(event) =>
+                setTestimonialForm((current) => ({
+                  ...current,
+                  rating: Number(event.target.value),
+                }))
+              }
+            >
+              <option value={5}>Bintang 5</option>
+              <option value={4}>Bintang 4</option>
+              <option value={3}>Bintang 3</option>
+              <option value={2}>Bintang 2</option>
+              <option value={1}>Bintang 1</option>
+            </select>
+            <input
+              value={testimonialForm.audioUrl}
+              onChange={(event) =>
+                setTestimonialForm((current) => ({
+                  ...current,
+                  audioUrl: event.target.value,
+                }))
+              }
+              placeholder="URL voice"
+              required
+            />
+            <label className={styles.fileField}>
+              Upload Voice Testimoni
+              <input type="file" accept="audio/*" onChange={onSelectTestimonialAudio} />
+              <small>
+                {isUploadingTestimonialAudio ? "Uploading..." : "Pilih file suara (mp3/wav)"}
+              </small>
+            </label>
+            <audio controls src={testimonialForm.audioUrl} className={styles.audioPreview} />
+            <button type="submit" disabled={isLoading}>
+              Tambah Testimoni
+            </button>
+          </form>
+
+          <div className={styles.list}>
+            {testimonials.map((testimonial) => (
+              <div key={testimonial.id} className={styles.listItem}>
+                <div className={styles.listPreview}>
+                  <div>
+                    <p>
+                      {"★".repeat(Math.max(1, Math.min(5, testimonial.rating)))} {testimonial.name}
+                    </p>
+                    <span>{testimonial.message}</span>
+                    <audio controls src={testimonial.audioUrl} className={styles.audioPreview} />
+                  </div>
+                </div>
+                <div className={styles.rowActions}>
+                  <button type="button" onClick={() => onDeleteTestimonial(testimonial.id)}>
                     Hapus
                   </button>
                 </div>

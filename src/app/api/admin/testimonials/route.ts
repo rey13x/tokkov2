@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
-import { createInformation, listInformations } from "@/server/store-data";
+import { createTestimonial, listTestimonials } from "@/server/store-data";
 
-const informationSchema = z.object({
-  type: z.enum(["message", "poll", "update"]),
-  title: z.string().min(2).max(160),
-  body: z.string().min(4).max(3000),
-  imageUrl: z.string().max(1000).default(""),
-  pollOptions: z.array(z.string().min(1).max(80)).default([]),
+const testimonialSchema = z.object({
+  name: z.string().min(2).max(120),
+  message: z.string().min(6).max(4000),
+  rating: z.number().int().min(1).max(5),
+  audioUrl: z.string().min(1).max(1000),
 });
 
 export async function GET() {
@@ -17,8 +16,8 @@ export async function GET() {
     return auth.response;
   }
 
-  const informations = await listInformations();
-  return NextResponse.json({ informations });
+  const testimonials = await listTestimonials();
+  return NextResponse.json({ testimonials });
 }
 
 export async function POST(request: Request) {
@@ -29,9 +28,9 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const payload = informationSchema.parse(body);
-    const information = await createInformation(payload);
-    return NextResponse.json({ information }, { status: 201 });
+    const payload = testimonialSchema.parse(body);
+    const testimonial = await createTestimonial(payload);
+    return NextResponse.json({ testimonial }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -41,7 +40,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { message: "Gagal menambah informasi." },
+      { message: "Gagal menambah testimonial." },
       { status: 500 },
     );
   }

@@ -22,6 +22,15 @@ export type StoreInformation = {
   createdAt: string;
 };
 
+export type StoreTestimonial = {
+  id: string;
+  name: string;
+  message: string;
+  rating: number;
+  audioUrl: string;
+  createdAt: string;
+};
+
 export type OrderItemInput = {
   productId: string;
   quantity: number;
@@ -35,4 +44,3 @@ export type OrderSummary = {
   status: string;
   createdAt: string;
 };
-

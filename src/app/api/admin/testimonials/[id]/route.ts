@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
-import { deleteProduct, updateProduct } from "@/server/store-data";
+import { deleteTestimonial, updateTestimonial } from "@/server/store-data";
 
 const updateSchema = z.object({
   name: z.string().min(2).max(120).optional(),
-  category: z.string().min(2).max(50).optional(),
-  shortDescription: z.string().min(3).max(140).optional(),
-  description: z.string().min(6).max(2000).optional(),
-  price: z.number().int().min(0).optional(),
-  imageUrl: z.string().min(1).max(1000).optional(),
-  isActive: z.boolean().optional(),
+  message: z.string().min(6).max(4000).optional(),
+  rating: z.number().int().min(1).max(5).optional(),
+  audioUrl: z.string().min(1).max(1000).optional(),
 });
 
 type Params = Promise<{ id: string }>;
@@ -25,13 +22,16 @@ export async function PATCH(request: Request, context: { params: Params }) {
     const { id } = await context.params;
     const body = await request.json();
     const payload = updateSchema.parse(body);
-    const product = await updateProduct(id, payload);
+    const testimonial = await updateTestimonial(id, payload);
 
-    if (!product) {
-      return NextResponse.json({ message: "Produk tidak ditemukan." }, { status: 404 });
+    if (!testimonial) {
+      return NextResponse.json(
+        { message: "Testimonial tidak ditemukan." },
+        { status: 404 },
+      );
     }
 
-    return NextResponse.json({ product });
+    return NextResponse.json({ testimonial });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -40,7 +40,10 @@ export async function PATCH(request: Request, context: { params: Params }) {
       );
     }
 
-    return NextResponse.json({ message: "Gagal update produk." }, { status: 500 });
+    return NextResponse.json(
+      { message: "Gagal update testimonial." },
+      { status: 500 },
+    );
   }
 }
 
@@ -51,6 +54,6 @@ export async function DELETE(_request: Request, context: { params: Params }) {
   }
 
   const { id } = await context.params;
-  await deleteProduct(id);
-  return NextResponse.json({ message: "Produk berhasil dihapus." });
+  await deleteTestimonial(id);
+  return NextResponse.json({ message: "Testimonial berhasil dihapus." });
 }

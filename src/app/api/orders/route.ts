@@ -5,7 +5,7 @@ import {
   createOrder,
   getProductById,
   listOrders,
-} from "@/server/db";
+} from "@/server/store-data";
 import {
   appendOrderToCsv,
   sendTelegramOrderNotification,

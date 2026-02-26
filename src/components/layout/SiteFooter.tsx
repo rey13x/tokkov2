@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import styles from "./SiteFooter.module.css";
 
 export default function SiteFooter() {
@@ -6,16 +7,22 @@ export default function SiteFooter() {
     <footer className={styles.footer}>
       <div className={styles.inner}>
         <div className={styles.brand}>
-          <Image
-            src="/assets/logo.png"
-            alt="Tokko Logo"
-            width={86}
-            height={86}
-            className={styles.logo}
-            unoptimized
-          />
+          <Link href="/" aria-label="Beranda">
+            <Image
+              src="/assets/logo.png"
+              alt="Tokko Logo"
+              width={86}
+              height={86}
+              className={styles.logo}
+              unoptimized
+            />
+          </Link>
           <div>
-            <h2>Tokko</h2>
+            <h2>
+              Tokko
+              <br />
+              Ramadhan
+            </h2>
           </div>
         </div>
         <nav className={styles.links} aria-label="Footer link">

@@ -5,7 +5,7 @@ import {
   createProduct,
   deleteAllProducts,
   listAllProducts,
-} from "@/server/db";
+} from "@/server/store-data";
 
 const productSchema = z.object({
   name: z.string().min(2).max(120),
@@ -61,4 +61,3 @@ export async function DELETE() {
   await deleteAllProducts();
   return NextResponse.json({ message: "Semua produk berhasil dihapus." });
 }
-

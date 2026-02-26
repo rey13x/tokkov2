@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
-import { deleteInformation, updateInformation } from "@/server/db";
+import { deleteInformation, updateInformation } from "@/server/store-data";
 
 const updateSchema = z.object({
   type: z.enum(["message", "poll", "update"]).optional(),
@@ -58,4 +58,3 @@ export async function DELETE(_request: Request, context: { params: Params }) {
   await deleteInformation(id);
   return NextResponse.json({ message: "Informasi berhasil dihapus." });
 }
-

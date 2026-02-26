@@ -23,13 +23,15 @@ import {
 } from "@/data/products";
 import { getCartCount } from "@/lib/cart";
 import { fetchStoreData } from "@/lib/store-client";
-import type { StoreInformation, StoreProduct } from "@/types/store";
+import VoiceWavePlayer from "@/components/media/VoiceWavePlayer";
+import type { StoreInformation, StoreProduct, StoreTestimonial } from "@/types/store";
 import styles from "./HomeClient.module.css";
 
 type MenuLayer = "closed" | "main" | "products" | "services";
 
 type HomeProduct = StoreProduct;
 type HomeInformation = StoreInformation;
+type HomeTestimonial = StoreTestimonial;
 
 function mapFallbackProducts(): HomeProduct[] {
   return fallbackProducts
@@ -59,6 +61,20 @@ function mapFallbackInformations(): HomeInformation[] {
   }));
 }
 
+function mapFallbackTestimonials(): HomeTestimonial[] {
+  return [
+    {
+      id: "fallback-testi-1",
+      name: "StrezKING User",
+      message:
+        "StrezKING memang sangat baik untuk mendapatkan tidur yang lebih baik. Saya coba 10 sachet dan terasa membantu.",
+      rating: 5,
+      audioUrl: "/assets/bagas.mp3",
+      createdAt: new Date().toISOString(),
+    },
+  ];
+}
+
 export default function HomeClient() {
   const rootRef = useRef<HTMLElement | null>(null);
   const introOverlayRef = useRef<HTMLDivElement | null>(null);
@@ -81,6 +97,20 @@ export default function HomeClient() {
   const [informations, setInformations] = useState<HomeInformation[]>(
     mapFallbackInformations,
   );
+  const [testimonials, setTestimonials] = useState<HomeTestimonial[]>(
+    mapFallbackTestimonials,
+  );
+  const [bagasImageIndex, setBagasImageIndex] = useState(0);
+
+  const bagasImageCandidates = [
+    "/assets/Bagas.png",
+    "/assets/Bagas.jpg",
+    "/assets/Bagas.jpeg",
+    "/assets/Bagas.webp",
+    "/assets/bagas.png",
+    "/assets/bagas.jpg",
+    "/assets/logo.png",
+  ];
 
   const categories = useMemo(() => {
     const set = new Set(products.map((product) => product.category));
@@ -185,6 +215,9 @@ export default function HomeClient() {
         }
         if (data.informations.length > 0) {
           setInformations(data.informations);
+        }
+        if (data.testimonials?.length > 0) {
+          setTestimonials(data.testimonials);
         }
       })
       .catch(() => {});
@@ -480,7 +513,9 @@ export default function HomeClient() {
             <div className={styles.introRing}>
               <div className={styles.introSpinner} ref={introSpinnerRef} />
               <div className={styles.introLogoWrap}>
-                <Image src={logoImage} alt="Tokko" className={styles.introLogo} priority />
+                <Link href="/" aria-label="Beranda">
+                  <Image src={logoImage} alt="Tokko" className={styles.introLogo} priority />
+                </Link>
               </div>
             </div>
           </div>
@@ -499,11 +534,16 @@ export default function HomeClient() {
         <div className={styles.heroShade} />
 
         <div className={styles.heroTop} data-animate="hero">
-          <Image src={logoImage} alt="Tokko Logo" className={styles.logo} priority />
+          <Link href="/" aria-label="Beranda">
+            <Image src={logoImage} alt="Tokko Logo" className={styles.logo} priority />
+          </Link>
         </div>
 
         <div className={styles.heroBottom} data-animate="hero">
-          <h1 className={styles.heroTitle}>Tokko</h1>
+          <h1 className={styles.heroTitle}>
+            <span>Tokko</span>
+            <span>Ramadhan</span>
+          </h1>
           <div className={styles.heroSearchWrap}>
             <input
               value={query}
@@ -584,6 +624,44 @@ export default function HomeClient() {
         </div>
       </section>
 
+      <section className={styles.section} data-animate="section">
+        <div className={styles.bagasFeature}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={bagasImageCandidates[bagasImageIndex]}
+            alt="Bagas"
+            className={styles.bagasImage}
+            onError={() => {
+              if (bagasImageIndex < bagasImageCandidates.length - 1) {
+                setBagasImageIndex((prev) => prev + 1);
+              }
+            }}
+          />
+          <VoiceWavePlayer
+            srcCandidates={["/assets/bagas.mp3", "/assets/Bagas.mp3", "/assets/buy.mp3"]}
+            title="Voice Bagas"
+          />
+        </div>
+      </section>
+
+      <section className={styles.section} data-animate="section">
+        <div className={styles.sectionHead}>
+          <h2>Apa Kata Mereka?</h2>
+        </div>
+        <div className={styles.testimonialList}>
+          {testimonials.map((item) => (
+            <article key={item.id} className={styles.testimonialCard}>
+              <p className={styles.testimonialStars}>{"★".repeat(Math.max(1, Math.min(5, item.rating)))}</p>
+              <p className={styles.testimonialText}>{item.message}</p>
+              <p className={styles.testimonialName}>{item.name}</p>
+              <VoiceWavePlayer
+                srcCandidates={[item.audioUrl, "/assets/bagas.mp3", "/assets/buy.mp3"]}
+              />
+            </article>
+          ))}
+        </div>
+      </section>
+
       <button type="button" className={styles.menuFab} onClick={openMenu} ref={menuFabRef}>
         <FiMenu />
         Menu
@@ -602,7 +680,9 @@ export default function HomeClient() {
               ref={mainPanelRef}
             >
               <div className={styles.menuTop}>
-                <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
+                <Link href="/" aria-label="Beranda">
+                  <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
+                </Link>
               </div>
 
               <nav className={styles.menuNav} aria-label="Menu utama">
@@ -633,9 +713,6 @@ export default function HomeClient() {
                 >
                   Panduan
                 </button>
-                <button type="button" onClick={() => router.push("/admin")} data-menu-item>
-                  Admin
-                </button>
                 <button type="button" onClick={() => router.push("/troli")} data-menu-item>
                   Troli ({cartCount})
                 </button>
@@ -658,7 +735,9 @@ export default function HomeClient() {
               ref={productsPanelRef}
             >
               <div className={styles.menuTop}>
-                <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
+                <Link href="/" aria-label="Beranda">
+                  <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
+                </Link>
               </div>
               <p className={styles.menuLabel} data-menu-item>
                 Semua Produk
@@ -701,7 +780,9 @@ export default function HomeClient() {
               ref={servicesPanelRef}
             >
               <div className={styles.menuTop}>
-                <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
+                <Link href="/" aria-label="Beranda">
+                  <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
+                </Link>
               </div>
               <p className={styles.menuLabel} data-menu-item>
                 Semua Layanan

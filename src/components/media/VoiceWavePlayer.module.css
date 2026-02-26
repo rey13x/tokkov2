@@ -1,0 +1,51 @@
+.player {
+  width: min(480px, 100%);
+  border-radius: 14px;
+  background: #f5f6fb;
+  border: 1px solid #d9dfeb;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title {
+  font-size: 0.82rem;
+  color: #4e5873;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.playButton {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: #1a214f;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.playButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.wave {
+  width: 100%;
+  height: 48px;
+  border-radius: 10px;
+  background: #e8ebf4;
+}
+
+.player input[type="range"] {
+  width: 100%;
+  accent-color: #1a214f;
+}

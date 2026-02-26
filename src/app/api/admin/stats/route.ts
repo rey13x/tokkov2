@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/server/admin";
-import { getOrderStatsLastHours, listOrders } from "@/server/db";
+import { getOrderStatsLastHours, listOrders } from "@/server/store-data";
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -18,4 +18,3 @@ export async function GET() {
     latestOrders,
   });
 }
-

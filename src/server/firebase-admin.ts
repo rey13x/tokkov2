@@ -1,5 +1,7 @@
 import { cert, getApp, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 export const ADMIN_SESSION_COOKIE = "tokko-admin-session";
 export const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 5;
@@ -8,7 +10,7 @@ function normalizePrivateKey(value: string) {
   return value.replace(/\\n/g, "\n");
 }
 
-function getFirebaseAdminApp(): App | null {
+export function getFirebaseAdminApp(): App | null {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
@@ -28,6 +30,25 @@ function getFirebaseAdminApp(): App | null {
       privateKey: normalizePrivateKey(privateKey),
     }),
   });
+}
+
+export function getFirebaseFirestore() {
+  const app = getFirebaseAdminApp();
+  if (!app) {
+    return null;
+  }
+  return getFirestore(app);
+}
+
+export function getFirebaseStorageBucket() {
+  const app = getFirebaseAdminApp();
+  if (!app) {
+    return null;
+  }
+
+  const bucketName =
+    process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID}.appspot.com`;
+  return getStorage(app).bucket(bucketName);
 }
 
 function getAllowedAdminEmails() {
