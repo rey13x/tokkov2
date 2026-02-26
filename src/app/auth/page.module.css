@@ -166,12 +166,25 @@
 .extraAction {
   margin-top: 16px;
   display: flex;
+  align-items: center;
+  gap: 10px;
   justify-content: center;
 }
 
 .backLink {
   color: #5562cc;
   font-size: 1rem;
+}
+
+.returnButton {
+  border: none;
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 0 14px;
+  background: #1b1d44;
+  color: #ffffff;
+  font-size: 0.92rem;
+  cursor: pointer;
 }
 
 @media (max-width: 560px) {
@@ -184,4 +197,3 @@
     font-size: 1.95rem;
   }
 }
-

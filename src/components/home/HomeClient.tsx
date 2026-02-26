@@ -8,6 +8,14 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import {
+  FiArrowLeft,
+  FiChevronRight,
+  FiMenu,
+  FiSearch,
+  FiUser,
+  FiX,
+} from "react-icons/fi";
 import heroImage from "@/app/assets/Background.jpg";
 import logoImage from "@/app/assets/Logo.png";
 import {
@@ -21,7 +29,6 @@ import { fetchStoreData } from "@/lib/store-client";
 import type { StoreInformation, StoreProduct } from "@/types/store";
 import styles from "./HomeClient.module.css";
 
-type CategoryFilter = "Semua" | string;
 type MenuLayer = "closed" | "main" | "products" | "services";
 
 type HomeProduct = StoreProduct;
@@ -53,33 +60,6 @@ function mapFallbackInformations(): HomeInformation[] {
   }));
 }
 
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="11" cy="11" r="6.7" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M16 16.2 20 20.2"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function MenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M4.5 7h15M4.5 12h15M4.5 17h15"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 export default function HomeClient() {
   const rootRef = useRef<HTMLElement | null>(null);
   const introOverlayRef = useRef<HTMLDivElement | null>(null);
@@ -96,7 +76,6 @@ export default function HomeClient() {
 
   const [query, setQuery] = useState("");
   const [showIntro, setShowIntro] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<CategoryFilter>("Semua");
   const [menuLayer, setMenuLayer] = useState<MenuLayer>("closed");
   const [menuMounted, setMenuMounted] = useState(false);
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
@@ -105,8 +84,6 @@ export default function HomeClient() {
   const [informations, setInformations] = useState<HomeInformation[]>(
     mapFallbackInformations,
   );
-
-  const normalizedQuery = query.trim().toLowerCase();
 
   const categories = useMemo(() => {
     const set = new Set(products.map((product) => product.category));
@@ -132,17 +109,6 @@ export default function HomeClient() {
 
     return products.slice(0, 8);
   })();
-
-  const collectionProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchCategory =
-        activeCategory === "Semua" || product.category === activeCategory;
-      const searchText =
-        `${product.name} ${product.category} ${product.shortDescription}`.toLowerCase();
-      const matchQuery = normalizedQuery.length === 0 || searchText.includes(normalizedQuery);
-      return matchCategory && matchQuery;
-    });
-  }, [activeCategory, normalizedQuery, products]);
 
   function openMenu() {
     setTransitionDirection(1);
@@ -182,8 +148,8 @@ export default function HomeClient() {
   };
 
   const chooseCategory = (category: string) => {
-    setActiveCategory(category);
     closeMenu();
+    router.push(`/koleksi?category=${encodeURIComponent(category)}`);
   };
 
   useEffect(() => {
@@ -343,7 +309,7 @@ export default function HomeClient() {
       ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
       ctx.revert();
     };
-  }, [showIntro, collectionProducts.length, bestSellerProducts.length]);
+  }, [showIntro, bestSellerProducts.length]);
 
   useEffect(() => {
     if (!menuMounted) {
@@ -461,10 +427,12 @@ export default function HomeClient() {
           <button
             type="button"
             className={styles.roundSearchButton}
-            onClick={() => searchInputRef.current?.focus()}
-            aria-label="Cari produk"
+            onClick={() =>
+              router.push(session?.user?.id ? "/profil" : "/auth?redirect=/profil")
+            }
+            aria-label="Akun"
           >
-            <SearchIcon />
+            <FiUser />
           </button>
         </div>
 
@@ -490,7 +458,7 @@ export default function HomeClient() {
           <button
             type="button"
             className={styles.inlineAction}
-            onClick={() => setActiveCategory("Semua")}
+            onClick={() => router.push("/koleksi")}
           >
             Liat Semua <span>{">"}</span>
           </button>
@@ -514,7 +482,9 @@ export default function HomeClient() {
                     <p>{product.name}</p>
                     <span>{formatRupiah(product.price)}</span>
                   </div>
-                  <i>{">"}</i>
+                  <i>
+                    <FiChevronRight />
+                  </i>
                 </div>
               </Link>
             </article>
@@ -549,67 +519,8 @@ export default function HomeClient() {
         </div>
       </section>
 
-      <section className={styles.section} data-animate="section" id="produk">
-        <div className={styles.sectionHead}>
-          <h2>Our Collections</h2>
-        </div>
-        <div className={styles.categoryRow}>
-          <button
-            type="button"
-            onClick={() => setActiveCategory("Semua")}
-            className={`${styles.categoryChip} ${
-              activeCategory === "Semua" ? styles.categoryChipActive : ""
-            }`}
-          >
-            Semua
-          </button>
-          {categories.map((category) => (
-            <button
-              key={category}
-              type="button"
-              onClick={() => setActiveCategory(category)}
-              className={`${styles.categoryChip} ${
-                activeCategory === category ? styles.categoryChipActive : ""
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-
-        {collectionProducts.length > 0 ? (
-          <div className={styles.productGrid}>
-            {collectionProducts.map((product) => (
-              <article key={`collection-${product.id}`} className={styles.productShell} data-card="product">
-                <Link href={`/produk/${product.slug}`} className={styles.productCard}>
-                  <div className={styles.productImageWrap}>
-                    <Image
-                      src={product.imageUrl}
-                      alt={product.name}
-                      fill
-                      className={styles.productImage}
-                      sizes="(max-width: 760px) 44vw, (max-width: 1140px) 30vw, 20vw"
-                      unoptimized
-                    />
-                  </div>
-                  <div className={styles.floatingMeta}>
-                    <div>
-                      <p>{product.name}</p>
-                      <span>{formatRupiah(product.price)}</span>
-                    </div>
-                    <i>{">"}</i>
-                  </div>
-                </Link>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className={styles.emptyState}>Produk tidak ditemukan untuk filter ini.</p>
-        )}
-      </section>
-
       <button type="button" className={styles.menuFab} onClick={openMenu} ref={menuFabRef}>
-        <MenuIcon />
+        <FiMenu />
         Menu
       </button>
 
@@ -623,18 +534,22 @@ export default function HomeClient() {
               <div className={styles.menuTop}>
                 <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
                 <button type="button" onClick={focusSearch} className={styles.menuSearchButton}>
-                  <SearchIcon />
+                  <FiSearch />
                 </button>
               </div>
 
               <nav className={styles.menuNav} aria-label="Menu utama">
                 <button type="button" onClick={() => moveMenu("services", 1)}>
                   Semua Layanan
-                  <span>{">"}</span>
+                  <span>
+                    <FiChevronRight />
+                  </span>
                 </button>
                 <button type="button" onClick={() => moveMenu("products", 1)}>
                   Semua Produk
-                  <span>{">"}</span>
+                  <span>
+                    <FiChevronRight />
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -672,7 +587,9 @@ export default function HomeClient() {
 
               <div className={styles.menuFooterMain}>
                 <button type="button" onClick={closeMenu} className={styles.menuActionButton}>
-                  <span className={styles.menuActionIcon}>x</span>
+                  <span className={styles.menuActionIcon}>
+                    <FiX />
+                  </span>
                   Tutup
                 </button>
               </div>
@@ -682,7 +599,7 @@ export default function HomeClient() {
               <div className={styles.menuTop}>
                 <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
                 <button type="button" onClick={focusSearch} className={styles.menuSearchButton}>
-                  <SearchIcon />
+                  <FiSearch />
                 </button>
               </div>
               <p className={styles.menuLabel}>Semua Produk</p>
@@ -690,7 +607,9 @@ export default function HomeClient() {
                 {productMenuItems.map((item) => (
                   <button key={item} type="button" onClick={() => chooseCategory(item)}>
                     {item}
-                    <span>{">"}</span>
+                    <span>
+                      <FiChevronRight />
+                    </span>
                   </button>
                 ))}
               </nav>
@@ -701,11 +620,15 @@ export default function HomeClient() {
                   className={styles.menuActionButton}
                   onClick={() => moveMenu("main", -1)}
                 >
-                  <span className={styles.menuActionIcon}>{"<"}</span>
+                  <span className={styles.menuActionIcon}>
+                    <FiArrowLeft />
+                  </span>
                   Kembali
                 </button>
                 <button type="button" className={styles.menuActionButton} onClick={closeMenu}>
-                  <span className={styles.menuActionIcon}>x</span>
+                  <span className={styles.menuActionIcon}>
+                    <FiX />
+                  </span>
                   Tutup
                 </button>
               </div>
@@ -715,7 +638,7 @@ export default function HomeClient() {
               <div className={styles.menuTop}>
                 <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
                 <button type="button" onClick={focusSearch} className={styles.menuSearchButton}>
-                  <SearchIcon />
+                  <FiSearch />
                 </button>
               </div>
               <p className={styles.menuLabel}>Semua Layanan</p>
@@ -723,7 +646,9 @@ export default function HomeClient() {
                 {serviceMenuItems.map((item) => (
                   <button key={item} type="button" onClick={() => chooseCategory(item)}>
                     {item}
-                    <span>{">"}</span>
+                    <span>
+                      <FiChevronRight />
+                    </span>
                   </button>
                 ))}
               </nav>
@@ -734,11 +659,15 @@ export default function HomeClient() {
                   className={styles.menuActionButton}
                   onClick={() => moveMenu("main", -1)}
                 >
-                  <span className={styles.menuActionIcon}>{"<"}</span>
+                  <span className={styles.menuActionIcon}>
+                    <FiArrowLeft />
+                  </span>
                   Kembali
                 </button>
                 <button type="button" className={styles.menuActionButton} onClick={closeMenu}>
-                  <span className={styles.menuActionIcon}>x</span>
+                  <span className={styles.menuActionIcon}>
+                    <FiX />
+                  </span>
                   Tutup
                 </button>
               </div>

@@ -28,6 +28,7 @@ export default function AuthPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [googleAvailable, setGoogleAvailable] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [suppressAutoRedirect, setSuppressAutoRedirect] = useState(false);
 
   const redirectTarget =
     typeof window === "undefined"
@@ -54,10 +55,10 @@ export default function AuthPage() {
   }, []);
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && !suppressAutoRedirect) {
       router.replace(safeRedirect);
     }
-  }, [router, safeRedirect, status]);
+  }, [router, safeRedirect, status, suppressAutoRedirect]);
 
   useEffect(() => {
     fetch("/api/auth/providers", { cache: "no-store" })
@@ -126,6 +127,12 @@ export default function AuthPage() {
       return;
     }
 
+    setSuppressAutoRedirect(true);
+    if (typeof window !== "undefined") {
+      const audio = new Audio("/assets/buy.mp3");
+      audio.volume = 0.8;
+      await audio.play().catch(() => {});
+    }
     router.push(result?.url ?? safeRedirect);
   };
 
@@ -133,6 +140,11 @@ export default function AuthPage() {
     setError("");
     setMessage("");
     setIsGoogleLoading(true);
+    if (typeof window !== "undefined") {
+      const audio = new Audio("/assets/buy.mp3");
+      audio.volume = 0.8;
+      await audio.play().catch(() => {});
+    }
     await signIn("google", { callbackUrl: safeRedirect });
   };
 
@@ -298,6 +310,9 @@ export default function AuthPage() {
         )}
 
         <div className={styles.extraAction} data-auth="intro">
+          <button type="button" className={styles.returnButton} onClick={() => router.back()}>
+            Kembali
+          </button>
           <Link href="/" className={styles.backLink}>
             Forgot password?
           </Link>
