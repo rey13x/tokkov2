@@ -355,10 +355,15 @@
   inset: 0;
   display: none;
   flex-direction: column;
+  justify-content: flex-start;
   min-height: 100dvh;
   padding: 26px clamp(16px, 3vw, 30px) clamp(18px, 4vh, 30px);
   color: #ffffff;
   overflow: hidden;
+}
+
+.menuPanelActive {
+  display: flex;
 }
 
 .menuTop {
@@ -391,11 +396,11 @@
 }
 
 .menuPanelMain .menuNav {
-  margin-top: clamp(54px, 9vh, 100px);
+  margin-top: clamp(20px, 4vh, 48px);
 }
 
 .menuLabel {
-  margin-top: clamp(56px, 9vh, 108px);
+  margin-top: clamp(20px, 4vh, 48px);
   font-size: 1.92rem;
 }
 
@@ -433,13 +438,15 @@
 }
 
 .menuFooterMain {
-  margin-top: clamp(18px, 5vh, 44px);
+  margin-top: auto;
+  padding-top: 14px;
   display: flex;
   justify-content: center;
 }
 
 .menuFooterDouble {
-  margin-top: clamp(18px, 5vh, 44px);
+  margin-top: auto;
+  padding-top: 14px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
@@ -474,6 +481,7 @@
 .introOverlay {
   position: fixed;
   inset: 0;
+  min-height: 100svh;
   z-index: 120;
   display: grid;
   place-items: center;
@@ -599,11 +607,11 @@
   }
 
   .menuPanelMain .menuNav {
-    margin-top: clamp(36px, 8vh, 82px);
+    margin-top: clamp(16px, 3vh, 34px);
   }
 
   .menuLabel {
-    margin-top: clamp(34px, 8vh, 72px);
+    margin-top: clamp(14px, 3vh, 30px);
     font-size: 1.58rem;
   }
 

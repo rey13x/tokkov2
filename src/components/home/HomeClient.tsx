@@ -309,17 +309,24 @@ export default function HomeClient() {
     }
 
     const shouldLock = showIntro || menuMounted;
+    const html = document.documentElement;
     const previousOverflow = document.body.style.overflow;
     const previousTouchAction = document.body.style.touchAction;
+    const previousHtmlOverflow = html.style.overflow;
+    const previousHtmlOverscroll = html.style.overscrollBehaviorY;
 
     if (shouldLock) {
       document.body.style.overflow = "hidden";
       document.body.style.touchAction = "none";
+      html.style.overflow = "hidden";
+      html.style.overscrollBehaviorY = "none";
     }
 
     return () => {
       document.body.style.overflow = previousOverflow;
       document.body.style.touchAction = previousTouchAction;
+      html.style.overflow = previousHtmlOverflow;
+      html.style.overscrollBehaviorY = previousHtmlOverscroll;
     };
   }, [menuMounted, showIntro]);
 
@@ -352,54 +359,30 @@ export default function HomeClient() {
 
     const incomingPanel = panelMap[menuLayer];
     const previousLayer = previousLayerRef.current;
-    const previousPanel =
-      previousLayer === "closed" ? null : panelMap[previousLayer as Exclude<MenuLayer, "closed">];
-
-    if (previousPanel && previousPanel !== incomingPanel) {
-      gsap.to(previousPanel, {
-        opacity: 0,
-        duration: 0.24,
-        ease: "power3.inOut",
-        onComplete: () => {
-          gsap.set(previousPanel, { display: "none" });
-        },
-      });
+    if (previousLayer === menuLayer) {
+      return;
     }
 
-    if (incomingPanel) {
-      gsap.set(incomingPanel, { display: "flex" });
+    if (!incomingPanel) {
+      return;
+    }
+
+    const textNodes = incomingPanel.querySelectorAll<HTMLElement>("[data-menu-item]");
+    if (textNodes.length > 0) {
       gsap.fromTo(
-        incomingPanel,
+        textNodes,
         {
           opacity: 0,
+          y: transitionDirection > 0 ? 24 : -20,
         },
         {
           opacity: 1,
-          duration: 0.32,
+          y: 0,
+          duration: 0.48,
+          stagger: 0.05,
           ease: "power3.out",
         },
       );
-
-      const textNodes = incomingPanel.querySelectorAll<HTMLElement>("[data-menu-item]");
-      if (textNodes.length > 0) {
-        gsap.fromTo(
-          textNodes,
-          {
-            opacity: 0,
-            y: transitionDirection > 0 ? 24 : -20,
-            filter: "blur(7px)",
-          },
-          {
-            opacity: 1,
-            y: 0,
-            filter: "blur(0px)",
-            duration: 0.6,
-            stagger: 0.06,
-            ease: "expo.out",
-            clearProps: "filter",
-          },
-        );
-      }
     }
 
     previousLayerRef.current = menuLayer;
@@ -549,7 +532,12 @@ export default function HomeClient() {
           <div className={styles.menuBackdropShade} />
 
           <div className={styles.menuPanels}>
-            <section className={`${styles.menuPanel} ${styles.menuPanelMain}`} ref={mainPanelRef}>
+            <section
+              className={`${styles.menuPanel} ${styles.menuPanelMain} ${
+                menuLayer === "main" ? styles.menuPanelActive : ""
+              }`}
+              ref={mainPanelRef}
+            >
               <div className={styles.menuTop}>
                 <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
               </div>
@@ -600,7 +588,12 @@ export default function HomeClient() {
               </div>
             </section>
 
-            <section className={`${styles.menuPanel} ${styles.menuPanelSub}`} ref={productsPanelRef}>
+            <section
+              className={`${styles.menuPanel} ${styles.menuPanelSub} ${
+                menuLayer === "products" ? styles.menuPanelActive : ""
+              }`}
+              ref={productsPanelRef}
+            >
               <div className={styles.menuTop}>
                 <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
               </div>
@@ -638,7 +631,12 @@ export default function HomeClient() {
               </div>
             </section>
 
-            <section className={`${styles.menuPanel} ${styles.menuPanelSub}`} ref={servicesPanelRef}>
+            <section
+              className={`${styles.menuPanel} ${styles.menuPanelSub} ${
+                menuLayer === "services" ? styles.menuPanelActive : ""
+              }`}
+              ref={servicesPanelRef}
+            >
               <div className={styles.menuTop}>
                 <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
               </div>
