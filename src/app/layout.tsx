@@ -16,8 +16,13 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tokko Marketplace",
-  description: "Marketplace produk digital dan jasa modern",
+  title: "Tokk'o Ramadhan",
+  description: "Tokk'o Ramadhan",
+  icons: {
+    icon: "/assets/logo.png",
+    shortcut: "/assets/logo.png",
+    apple: "/assets/logo.png",
+  },
 };
 
 export default function RootLayout({
