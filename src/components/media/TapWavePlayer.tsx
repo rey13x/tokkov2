@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./TapWavePlayer.module.css";
 
 type TapWavePlayerProps = {
@@ -75,7 +75,7 @@ export default function TapWavePlayer({ srcCandidates }: TapWavePlayerProps) {
               className={`${styles.barButton} ${active ? styles.barActive : ""} ${
                 boosted ? styles.barBoost : ""
               }`}
-              style={{ ["--h" as const]: `${height}px` }}
+              style={{ "--h": `${height}px` } as CSSProperties}
               onClick={() => seekAndPlay(index)}
               aria-label={`Play from section ${index + 1}`}
             />
