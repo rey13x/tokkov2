@@ -5,6 +5,7 @@ import { deleteTestimonial, updateTestimonial } from "@/server/store-data";
 
 const updateSchema = z.object({
   name: z.string().min(2).max(120).optional(),
+  country: z.enum(["Indonesia", "Inggris", "Filipina"]).optional(),
   message: z.string().min(6).max(4000).optional(),
   rating: z.number().int().min(1).max(5).optional(),
   audioUrl: z.string().min(1).max(1000).optional(),

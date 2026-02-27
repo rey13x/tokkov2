@@ -5,6 +5,7 @@ import type {
   OrderSummary,
   StoreInformation,
   StoreProduct,
+  StoreTestimonial,
 } from "@/types/store";
 
 const now = () => Date.now();
@@ -58,6 +59,18 @@ function mapInfo(row: Record<string, unknown>): StoreInformation {
   };
 }
 
+function mapTestimonial(row: Record<string, unknown>): StoreTestimonial {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    country: String(row.country ?? "Indonesia"),
+    message: String(row.message),
+    rating: Math.max(1, Math.min(5, Number(row.rating ?? 5))),
+    audioUrl: String(row.audio_url ?? "/assets/notif.mp3"),
+    createdAt: new Date(Number(row.created_at ?? now())).toISOString(),
+  };
+}
+
 const defaultProducts: Array<
   Omit<StoreProduct, "id" | "slug" | "isActive"> & { slug?: string }
 > = [
@@ -103,6 +116,18 @@ const defaultInformations: Array<
     body: "Pilih kategori yang paling sering kamu beli minggu ini.",
     imageUrl: "/assets/canva.jpg",
     pollOptions: ["App Premium"],
+  },
+];
+
+const defaultTestimonials: Array<
+  Omit<StoreTestimonial, "id" | "createdAt"> & { createdAt?: string }
+> = [
+  {
+    name: "Founder",
+    country: "Indonesia",
+    message: "Hasil lebih Penting dari Janji",
+    rating: 5,
+    audioUrl: "/assets/notif.mp3",
   },
 ];
 
@@ -177,6 +202,29 @@ async function seedIfEmpty() {
       );
     }
   }
+
+  const testimonialCount = await run("SELECT COUNT(*) AS count FROM testimonials");
+  const totalTestimonials = Number(testimonialCount.rows[0]?.count ?? 0);
+
+  if (totalTestimonials === 0) {
+    for (const item of defaultTestimonials) {
+      await run(
+        `INSERT INTO testimonials
+          (id, name, country, message, rating, audio_url, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          randomId(),
+          item.name,
+          item.country,
+          item.message,
+          item.rating,
+          item.audioUrl,
+          now(),
+          now(),
+        ],
+      );
+    }
+  }
 }
 
 export async function ensureDatabase() {
@@ -245,6 +293,19 @@ export async function ensureDatabase() {
           total INTEGER NOT NULL,
           status TEXT NOT NULL DEFAULT 'new',
           created_at INTEGER NOT NULL
+        )`,
+      );
+
+      await run(
+        `CREATE TABLE IF NOT EXISTS testimonials (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          country TEXT NOT NULL DEFAULT 'Indonesia',
+          message TEXT NOT NULL,
+          rating INTEGER NOT NULL DEFAULT 5,
+          audio_url TEXT NOT NULL DEFAULT '/assets/notif.mp3',
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
         )`,
       );
 
@@ -553,6 +614,86 @@ export async function updateInformation(
 export async function deleteInformation(id: string) {
   await ensureDatabase();
   await run("DELETE FROM informations WHERE id = ?", [id]);
+}
+
+export async function listTestimonials() {
+  await ensureDatabase();
+  const res = await run("SELECT * FROM testimonials ORDER BY created_at DESC");
+  return res.rows.map((row) => mapTestimonial(row as Record<string, unknown>));
+}
+
+export async function createTestimonial(input: {
+  name: string;
+  country: string;
+  message: string;
+  rating: number;
+  audioUrl: string;
+}) {
+  await ensureDatabase();
+  const id = randomId();
+  await run(
+    `INSERT INTO testimonials
+      (id, name, country, message, rating, audio_url, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.name,
+      input.country,
+      input.message,
+      Math.max(1, Math.min(5, input.rating)),
+      input.audioUrl,
+      now(),
+      now(),
+    ],
+  );
+
+  const res = await run("SELECT * FROM testimonials WHERE id = ? LIMIT 1", [id]);
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  return row ? mapTestimonial(row) : null;
+}
+
+export async function updateTestimonial(
+  id: string,
+  input: Partial<{
+    name: string;
+    country: string;
+    message: string;
+    rating: number;
+    audioUrl: string;
+  }>,
+) {
+  await ensureDatabase();
+  const res = await run("SELECT * FROM testimonials WHERE id = ? LIMIT 1", [id]);
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    return null;
+  }
+  const current = mapTestimonial(row);
+
+  await run(
+    `UPDATE testimonials
+     SET name = ?, country = ?, message = ?, rating = ?, audio_url = ?, updated_at = ?
+     WHERE id = ?`,
+    [
+      input.name ?? current.name,
+      input.country ?? current.country,
+      input.message ?? current.message,
+      input.rating === undefined
+        ? current.rating
+        : Math.max(1, Math.min(5, input.rating)),
+      input.audioUrl ?? current.audioUrl,
+      now(),
+      id,
+    ],
+  );
+
+  const updated = await run("SELECT * FROM testimonials WHERE id = ? LIMIT 1", [id]);
+  return mapTestimonial(updated.rows[0] as Record<string, unknown>);
+}
+
+export async function deleteTestimonial(id: string) {
+  await ensureDatabase();
+  await run("DELETE FROM testimonials WHERE id = ?", [id]);
 }
 
 export async function createOrder(input: {

@@ -25,6 +25,7 @@ export type StoreInformation = {
 export type StoreTestimonial = {
   id: string;
   name: string;
+  country: string;
   message: string;
   rating: number;
   audioUrl: string;

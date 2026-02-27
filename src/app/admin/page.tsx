@@ -26,6 +26,16 @@ type OrderLite = {
   createdAt: string;
 };
 
+type AdminSection = "overview" | "products" | "informations" | "testimonials" | "preview";
+
+const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
+  { id: "overview", label: "Ringkasan", desc: "Statistik & order" },
+  { id: "products", label: "Produk", desc: "CRUD produk" },
+  { id: "informations", label: "Informasi", desc: "CRUD informasi" },
+  { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
+  { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
+];
+
 const defaultProductForm = {
   name: "",
   category: "",
@@ -45,6 +55,7 @@ const defaultInfoForm = {
 
 const defaultTestimonialForm = {
   name: "",
+  country: "Indonesia" as "Indonesia" | "Inggris" | "Filipina",
   message: "",
   rating: 5,
   audioUrl: "/assets/bagas.mp3",
@@ -67,6 +78,7 @@ export default function AdminPage() {
   const router = useRouter();
 
   const [authState, setAuthState] = useState<"checking" | "allowed" | "blocked">("checking");
+  const [activeSection, setActiveSection] = useState<AdminSection>("overview");
   const [adminEmail, setAdminEmail] = useState("");
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [informations, setInformations] = useState<StoreInformation[]>([]);
@@ -75,8 +87,12 @@ export default function AdminPage() {
   const [latestOrders, setLatestOrders] = useState<OrderLite[]>([]);
   const [productForm, setProductForm] = useState(defaultProductForm);
   const [priceInput, setPriceInput] = useState("");
+  const [productEditId, setProductEditId] = useState<string | null>(null);
   const [infoForm, setInfoForm] = useState(defaultInfoForm);
+  const [infoEditId, setInfoEditId] = useState<string | null>(null);
   const [testimonialForm, setTestimonialForm] = useState(defaultTestimonialForm);
+  const [testimonialEditId, setTestimonialEditId] = useState<string | null>(null);
+  const [previewVersion, setPreviewVersion] = useState(0);
   const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
   const [isUploadingInfoImage, setIsUploadingInfoImage] = useState(false);
   const [isUploadingTestimonialAudio, setIsUploadingTestimonialAudio] = useState(false);
@@ -92,6 +108,26 @@ export default function AdminPage() {
     () => latestOrders.reduce((sum, order) => sum + order.total, 0),
     [latestOrders],
   );
+
+  const bumpPreview = () => {
+    setPreviewVersion((current) => current + 1);
+  };
+
+  const resetProductForm = () => {
+    setProductEditId(null);
+    setProductForm(defaultProductForm);
+    setPriceInput("");
+  };
+
+  const resetInfoForm = () => {
+    setInfoEditId(null);
+    setInfoForm(defaultInfoForm);
+  };
+
+  const resetTestimonialForm = () => {
+    setTestimonialEditId(null);
+    setTestimonialForm(defaultTestimonialForm);
+  };
 
   const uploadMedia = async (file: File, folder: string) => {
     const formData = new FormData();
@@ -280,95 +316,109 @@ export default function AdminPage() {
     router.replace("/admin/login");
   };
 
-  const onCreateProduct = async (event: FormEvent<HTMLFormElement>) => {
+  const onSaveProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setMessage("");
     setIsLoading(true);
 
+    const payload = {
+      ...productForm,
+      price: Number(productForm.price),
+    };
+
     try {
-      const response = await fetch("/api/admin/products", {
-        method: "POST",
+      const endpoint = productEditId ? `/api/admin/products/${productEditId}` : "/api/admin/products";
+      const method = productEditId ? "PATCH" : "POST";
+      const response = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...productForm,
-          price: Number(productForm.price),
-        }),
+        body: JSON.stringify(payload),
       });
       const result = (await response.json()) as { message?: string };
       if (!response.ok) {
-        setError(result.message ?? "Gagal tambah produk.");
+        setError(result.message ?? "Gagal simpan produk.");
         return;
       }
 
-      setMessage("Produk baru berhasil ditambahkan.");
-      setProductForm(defaultProductForm);
-      setPriceInput("");
+      setMessage(productEditId ? "Produk berhasil diperbarui." : "Produk baru berhasil ditambahkan.");
+      resetProductForm();
       await loadProducts();
+      bumpPreview();
     } catch {
-      setError("Gagal tambah produk.");
+      setError("Gagal simpan produk.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const onCreateInformation = async (event: FormEvent<HTMLFormElement>) => {
+  const onSaveInformation = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setMessage("");
     setIsLoading(true);
 
+    const payload = {
+      ...infoForm,
+      pollOptions: infoForm.pollOptions
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    };
+
     try {
-      const response = await fetch("/api/admin/informations", {
-        method: "POST",
+      const endpoint = infoEditId ? `/api/admin/informations/${infoEditId}` : "/api/admin/informations";
+      const method = infoEditId ? "PATCH" : "POST";
+      const response = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...infoForm,
-          pollOptions: infoForm.pollOptions
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean),
-        }),
+        body: JSON.stringify(payload),
       });
       const result = (await response.json()) as { message?: string };
       if (!response.ok) {
-        setError(result.message ?? "Gagal tambah informasi.");
+        setError(result.message ?? "Gagal simpan informasi.");
         return;
       }
 
-      setMessage("Informasi berhasil ditambahkan.");
-      setInfoForm(defaultInfoForm);
+      setMessage(infoEditId ? "Informasi berhasil diperbarui." : "Informasi berhasil ditambahkan.");
+      resetInfoForm();
       await loadInformations();
+      bumpPreview();
     } catch {
-      setError("Gagal tambah informasi.");
+      setError("Gagal simpan informasi.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const onCreateTestimonial = async (event: FormEvent<HTMLFormElement>) => {
+  const onSaveTestimonial = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setMessage("");
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/admin/testimonials", {
-        method: "POST",
+      const endpoint = testimonialEditId
+        ? `/api/admin/testimonials/${testimonialEditId}`
+        : "/api/admin/testimonials";
+      const method = testimonialEditId ? "PATCH" : "POST";
+      const response = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(testimonialForm),
       });
       const result = (await response.json()) as { message?: string };
       if (!response.ok) {
-        setError(result.message ?? "Gagal tambah testimonial.");
+        setError(result.message ?? "Gagal simpan testimonial.");
         return;
       }
 
-      setMessage("Testimonial berhasil ditambahkan.");
-      setTestimonialForm(defaultTestimonialForm);
+      setMessage(testimonialEditId ? "Testimonial berhasil diperbarui." : "Testimonial berhasil ditambahkan.");
+      resetTestimonialForm();
       await loadTestimonials();
+      bumpPreview();
     } catch {
-      setError("Gagal tambah testimonial.");
+      setError("Gagal simpan testimonial.");
     } finally {
       setIsLoading(false);
     }
@@ -379,68 +429,74 @@ export default function AdminPage() {
       return;
     }
     await fetch("/api/admin/products", { method: "DELETE" });
+    resetProductForm();
     await loadProducts();
+    bumpPreview();
   };
 
   const onDeleteProduct = async (id: string) => {
     await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+    if (productEditId === id) {
+      resetProductForm();
+    }
     await loadProducts();
+    bumpPreview();
   };
 
   const onDeleteInformation = async (id: string) => {
     await fetch(`/api/admin/informations/${id}`, { method: "DELETE" });
+    if (infoEditId === id) {
+      resetInfoForm();
+    }
     await loadInformations();
+    bumpPreview();
   };
 
   const onDeleteTestimonial = async (id: string) => {
     await fetch(`/api/admin/testimonials/${id}`, { method: "DELETE" });
+    if (testimonialEditId === id) {
+      resetTestimonialForm();
+    }
     await loadTestimonials();
+    bumpPreview();
   };
 
-  const onQuickEditProduct = async (product: StoreProduct) => {
-    const nextName = window.prompt("Nama produk", product.name);
-    if (!nextName) {
-      return;
-    }
-    const nextPriceRaw = window.prompt("Harga", String(product.price));
-    if (!nextPriceRaw) {
-      return;
-    }
-    const nextPrice = Number(nextPriceRaw);
-    if (!Number.isFinite(nextPrice)) {
-      return;
-    }
-
-    await fetch(`/api/admin/products/${product.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: nextName,
-        price: nextPrice,
-      }),
+  const onEditProduct = (product: StoreProduct) => {
+    setActiveSection("products");
+    setProductEditId(product.id);
+    setProductForm({
+      name: product.name,
+      category: product.category,
+      shortDescription: product.shortDescription,
+      description: product.description,
+      price: product.price,
+      imageUrl: product.imageUrl,
     });
-    await loadProducts();
+    setPriceInput(formatRupiahInput(String(product.price)));
   };
 
-  const onQuickEditInformation = async (information: StoreInformation) => {
-    const nextTitle = window.prompt("Judul informasi", information.title);
-    if (!nextTitle) {
-      return;
-    }
-    const nextBody = window.prompt("Isi informasi", information.body);
-    if (!nextBody) {
-      return;
-    }
-
-    await fetch(`/api/admin/informations/${information.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: nextTitle,
-        body: nextBody,
-      }),
+  const onEditInformation = (information: StoreInformation) => {
+    setActiveSection("informations");
+    setInfoEditId(information.id);
+    setInfoForm({
+      type: information.type,
+      title: information.title,
+      body: information.body,
+      imageUrl: information.imageUrl,
+      pollOptions: information.pollOptions.join(", "),
     });
-    await loadInformations();
+  };
+
+  const onEditTestimonial = (testimonial: StoreTestimonial) => {
+    setActiveSection("testimonials");
+    setTestimonialEditId(testimonial.id);
+    setTestimonialForm({
+      name: testimonial.name,
+      country: (testimonial.country || "Indonesia") as "Indonesia" | "Inggris" | "Filipina",
+      message: testimonial.message,
+      rating: testimonial.rating,
+      audioUrl: testimonial.audioUrl,
+    });
   };
 
   if (authState === "checking") {
@@ -461,7 +517,7 @@ export default function AdminPage() {
         <div>
           <h1>Admin Dashboard</h1>
           <p>
-            Kelola produk, informasi, order, dan statistik realtime.
+            Kelola semua konten dengan panel rapi dan preview realtime.
             {adminEmail ? ` (${adminEmail})` : ""}
           </p>
         </div>
@@ -481,7 +537,29 @@ export default function AdminPage() {
       {error ? <p className={styles.errorText}>{error}</p> : null}
       {message ? <p className={styles.successText}>{message}</p> : null}
 
-      <section className={styles.grid}>
+      <div className={styles.shell}>
+        <aside className={styles.sidebar}>
+          <div className={styles.sidebarCard}>
+            <p className={styles.sidebarTitle}>Navigasi Admin</p>
+            <nav className={styles.sidebarNav}>
+              {sidebarItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`${styles.sidebarButton} ${activeSection === item.id ? styles.sidebarButtonActive : ""}`}
+                  onClick={() => setActiveSection(item.id)}
+                >
+                  <strong>{item.label}</strong>
+                  <span>{item.desc}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+        </aside>
+
+        <section className={styles.content}>
+      {activeSection === "overview" ? (
+      <section className={styles.sectionGrid}>
         <article className={styles.card}>
           <h2>Ringkasan Cepat</h2>
           <div className={styles.quickStats}>
@@ -546,17 +624,20 @@ export default function AdminPage() {
           </div>
         </article>
       </section>
+      ) : null}
 
-      <section className={styles.grid}>
+      {activeSection !== "overview" ? (
+      <section className={styles.sectionGrid}>
+        {activeSection === "products" ? (
         <article className={styles.card}>
           <div className={styles.cardHead}>
-            <h2>CRUD Produk</h2>
+            <h2>{productEditId ? "Edit Produk" : "CRUD Produk"}</h2>
             <button type="button" className={styles.deleteAll} onClick={onDeleteAllProducts}>
               Hapus Semua
             </button>
           </div>
 
-          <form className={styles.form} onSubmit={onCreateProduct}>
+          <form className={styles.form} onSubmit={onSaveProduct}>
             <input
               value={productForm.name}
               onChange={(event) =>
@@ -633,9 +714,16 @@ export default function AdminPage() {
                 <span>{formatRupiah(Number(productForm.price || 0))}</span>
               </div>
             </div>
-            <button type="submit" disabled={isLoading}>
-              Tambah Produk
-            </button>
+            <div className={styles.formActions}>
+              <button type="submit" disabled={isLoading}>
+                {productEditId ? "Simpan Perubahan" : "Tambah Produk"}
+              </button>
+              {productEditId ? (
+                <button type="button" className={styles.secondaryButton} onClick={resetProductForm}>
+                  Batal Edit
+                </button>
+              ) : null}
+            </div>
           </form>
 
           <div className={styles.list}>
@@ -658,7 +746,7 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div className={styles.rowActions}>
-                  <button type="button" onClick={() => onQuickEditProduct(product)}>
+                  <button type="button" onClick={() => onEditProduct(product)}>
                     Edit
                   </button>
                   <button type="button" onClick={() => onDeleteProduct(product.id)}>
@@ -669,10 +757,12 @@ export default function AdminPage() {
             ))}
           </div>
         </article>
+        ) : null}
 
+        {activeSection === "informations" ? (
         <article className={styles.card}>
-          <h2>CRUD Informasi</h2>
-          <form className={styles.form} onSubmit={onCreateInformation}>
+          <h2>{infoEditId ? "Edit Informasi" : "CRUD Informasi"}</h2>
+          <form className={styles.form} onSubmit={onSaveInformation}>
             <select
               value={infoForm.type}
               onChange={(event) =>
@@ -735,9 +825,16 @@ export default function AdminPage() {
                 <span>{infoForm.type.toUpperCase()}</span>
               </div>
             </div>
-            <button type="submit" disabled={isLoading}>
-              Tambah Informasi
-            </button>
+            <div className={styles.formActions}>
+              <button type="submit" disabled={isLoading}>
+                {infoEditId ? "Simpan Perubahan" : "Tambah Informasi"}
+              </button>
+              {infoEditId ? (
+                <button type="button" className={styles.secondaryButton} onClick={resetInfoForm}>
+                  Batal Edit
+                </button>
+              ) : null}
+            </div>
           </form>
 
           <div className={styles.list}>
@@ -760,7 +857,7 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div className={styles.rowActions}>
-                  <button type="button" onClick={() => onQuickEditInformation(information)}>
+                  <button type="button" onClick={() => onEditInformation(information)}>
                     Edit
                   </button>
                   <button type="button" onClick={() => onDeleteInformation(information.id)}>
@@ -771,10 +868,12 @@ export default function AdminPage() {
             ))}
           </div>
         </article>
+        ) : null}
 
+        {activeSection === "testimonials" ? (
         <article className={styles.card}>
-          <h2>CRUD Testimonial + Voice</h2>
-          <form className={styles.form} onSubmit={onCreateTestimonial}>
+          <h2>{testimonialEditId ? "Edit Testimonial" : "CRUD Testimonial + Voice"}</h2>
+          <form className={styles.form} onSubmit={onSaveTestimonial}>
             <input
               value={testimonialForm.name}
               onChange={(event) =>
@@ -791,6 +890,19 @@ export default function AdminPage() {
               placeholder="Isi testimoni"
               required
             />
+            <select
+              value={testimonialForm.country}
+              onChange={(event) =>
+                setTestimonialForm((current) => ({
+                  ...current,
+                  country: event.target.value as "Indonesia" | "Inggris" | "Filipina",
+                }))
+              }
+            >
+              <option value="Indonesia">Indonesia</option>
+              <option value="Inggris">Inggris</option>
+              <option value="Filipina">Filipina</option>
+            </select>
             <select
               value={testimonialForm.rating}
               onChange={(event) =>
@@ -825,9 +937,16 @@ export default function AdminPage() {
               </small>
             </label>
             <audio controls src={testimonialForm.audioUrl} className={styles.audioPreview} />
-            <button type="submit" disabled={isLoading}>
-              Tambah Testimoni
-            </button>
+            <div className={styles.formActions}>
+              <button type="submit" disabled={isLoading}>
+                {testimonialEditId ? "Simpan Perubahan" : "Tambah Testimoni"}
+              </button>
+              {testimonialEditId ? (
+                <button type="button" className={styles.secondaryButton} onClick={resetTestimonialForm}>
+                  Batal Edit
+                </button>
+              ) : null}
+            </div>
           </form>
 
           <div className={styles.list}>
@@ -836,13 +955,17 @@ export default function AdminPage() {
                 <div className={styles.listPreview}>
                   <div>
                     <p>
-                      {"★".repeat(Math.max(1, Math.min(5, testimonial.rating)))} {testimonial.name}
+                      {"\u2605".repeat(Math.max(1, Math.min(5, testimonial.rating)))} {testimonial.name}
                     </p>
+                    <span>{testimonial.country}</span>
                     <span>{testimonial.message}</span>
                     <audio controls src={testimonial.audioUrl} className={styles.audioPreview} />
                   </div>
                 </div>
                 <div className={styles.rowActions}>
+                  <button type="button" onClick={() => onEditTestimonial(testimonial)}>
+                    Edit
+                  </button>
                   <button type="button" onClick={() => onDeleteTestimonial(testimonial.id)}>
                     Hapus
                   </button>
@@ -851,7 +974,38 @@ export default function AdminPage() {
             ))}
           </div>
         </article>
+        ) : null}
+
+        {activeSection === "preview" ? (
+        <article className={styles.card}>
+          <div className={styles.cardHead}>
+            <h2>Preview Realtime</h2>
+            <div className={styles.rowActions}>
+              <button type="button" onClick={bumpPreview}>
+                Refresh Preview
+              </button>
+              <a href="/" target="_blank" rel="noreferrer" className={styles.inlineLink}>
+                Buka Tab Baru
+              </a>
+            </div>
+          </div>
+          <p className={styles.previewHint}>
+            Setiap create/update/delete akan otomatis refresh preview ini.
+          </p>
+          <div className={styles.previewViewport}>
+            <iframe
+              key={previewVersion}
+              src={`/?adminPreview=${previewVersion}`}
+              title="Preview Beranda Tokko"
+              className={styles.previewFrame}
+            />
+          </div>
+        </article>
+        ) : null}
       </section>
+      ) : null}
+      </section>
+      </div>
     </main>
   );
 }

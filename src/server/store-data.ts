@@ -9,17 +9,21 @@ import {
   createInformation as createInformationDb,
   createOrder as createOrderDb,
   createProduct as createProductDb,
+  createTestimonial as createTestimonialDb,
   deleteAllProducts as deleteAllProductsDb,
   deleteInformation as deleteInformationDb,
   deleteProduct as deleteProductDb,
+  deleteTestimonial as deleteTestimonialDb,
   getOrderStatsLastHours as getOrderStatsLastHoursDb,
   getProductById as getProductByIdDb,
   listAllProducts as listAllProductsDb,
   listInformations as listInformationsDb,
   listOrders as listOrdersDb,
   listProducts as listProductsDb,
+  listTestimonials as listTestimonialsDb,
   updateInformation as updateInformationDb,
   updateProduct as updateProductDb,
+  updateTestimonial as updateTestimonialDb,
 } from "@/server/db";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
 
@@ -81,18 +85,6 @@ function mapInformationDoc(
   };
 }
 
-const fallbackTestimonials: StoreTestimonial[] = [
-  {
-    id: "testi-1",
-    name: "StrezKING User",
-    message:
-      "StrezKING memang sangat baik untuk mendapatkan tidur yang lebih baik. Saya coba 10 sachet dan sangat membantu.",
-    rating: 5,
-    audioUrl: "/assets/bagas.mp3",
-    createdAt: new Date().toISOString(),
-  },
-];
-
 function mapTestimonialDoc(
   id: string,
   data: Record<string, unknown> | undefined,
@@ -100,6 +92,7 @@ function mapTestimonialDoc(
   return {
     id,
     name: String(data?.name ?? ""),
+    country: String(data?.country ?? "Indonesia"),
     message: String(data?.message ?? ""),
     rating: Number(data?.rating ?? 5),
     audioUrl: String(data?.audioUrl ?? "/assets/bagas.mp3"),
@@ -368,7 +361,7 @@ export async function deleteInformation(id: string) {
 export async function listTestimonials() {
   const firestore = getFirebaseFirestore();
   if (!firestore) {
-    return fallbackTestimonials;
+    return listTestimonialsDb();
   }
 
   const snapshot = await firestore
@@ -383,19 +376,21 @@ export async function listTestimonials() {
 
 export async function createTestimonial(input: {
   name: string;
+  country: string;
   message: string;
   rating: number;
   audioUrl: string;
 }) {
   const firestore = getFirebaseFirestore();
   if (!firestore) {
-    throw new Error("Firebase belum dikonfigurasi.");
+    return createTestimonialDb(input);
   }
 
   const id = crypto.randomUUID();
   const createdAt = now();
   await firestore.collection("testimonials").doc(id).set({
     name: input.name,
+    country: input.country,
     message: input.message,
     rating: Math.max(1, Math.min(5, input.rating)),
     audioUrl: input.audioUrl,
@@ -411,6 +406,7 @@ export async function updateTestimonial(
   id: string,
   input: Partial<{
     name: string;
+    country: string;
     message: string;
     rating: number;
     audioUrl: string;
@@ -418,7 +414,7 @@ export async function updateTestimonial(
 ) {
   const firestore = getFirebaseFirestore();
   if (!firestore) {
-    throw new Error("Firebase belum dikonfigurasi.");
+    return updateTestimonialDb(id, input);
   }
 
   const ref = firestore.collection("testimonials").doc(id);
@@ -429,6 +425,7 @@ export async function updateTestimonial(
 
   await ref.update({
     ...(input.name !== undefined ? { name: input.name } : {}),
+    ...(input.country !== undefined ? { country: input.country } : {}),
     ...(input.message !== undefined ? { message: input.message } : {}),
     ...(input.rating !== undefined ? { rating: Math.max(1, Math.min(5, input.rating)) } : {}),
     ...(input.audioUrl !== undefined ? { audioUrl: input.audioUrl } : {}),
@@ -442,7 +439,8 @@ export async function updateTestimonial(
 export async function deleteTestimonial(id: string) {
   const firestore = getFirebaseFirestore();
   if (!firestore) {
-    throw new Error("Firebase belum dikonfigurasi.");
+    await deleteTestimonialDb(id);
+    return;
   }
   await firestore.collection("testimonials").doc(id).delete();
 }

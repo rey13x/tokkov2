@@ -14,6 +14,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import heroImage from "@/app/assets/Background.jpg";
+import bagasPhoto from "@/app/assets/Bagas.jpg";
 import logoImage from "@/app/assets/Logo.png";
 import {
   featuredProducts,
@@ -32,6 +33,8 @@ type MenuLayer = "closed" | "main" | "products" | "services";
 type HomeProduct = StoreProduct;
 type HomeInformation = StoreInformation;
 type HomeTestimonial = StoreTestimonial;
+const TESTIMONIAL_COUNTRY_FILTERS = ["Semua", "Indonesia", "Inggris", "Filipina"] as const;
+type TestimonialCountryFilter = (typeof TESTIMONIAL_COUNTRY_FILTERS)[number];
 
 function mapFallbackProducts(): HomeProduct[] {
   return fallbackProducts
@@ -65,11 +68,29 @@ function mapFallbackTestimonials(): HomeTestimonial[] {
   return [
     {
       id: "fallback-testi-1",
-      name: "StrezKING User",
-      message:
-        "StrezKING memang sangat baik untuk mendapatkan tidur yang lebih baik. Saya coba 10 sachet dan terasa membantu.",
+      name: "Founder",
+      country: "Indonesia",
+      message: "Hasil lebih Penting dari Janji",
       rating: 5,
-      audioUrl: "/assets/bagas.mp3",
+      audioUrl: "/assets/notif.mp3",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "fallback-testi-2",
+      name: "Charlotte",
+      country: "Inggris",
+      message: "The website service is smooth and reliable. Delivery was on time and support was helpful.",
+      rating: 5,
+      audioUrl: "/assets/notif.mp3",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "fallback-testi-3",
+      name: "Miguel",
+      country: "Filipina",
+      message: "Great service for app development, clear updates, and very responsive team.",
+      rating: 4,
+      audioUrl: "/assets/notif.mp3",
       createdAt: new Date().toISOString(),
     },
   ];
@@ -87,7 +108,6 @@ export default function HomeClient() {
   const previousLayerRef = useRef<MenuLayer>("closed");
   const router = useRouter();
 
-  const [query, setQuery] = useState("");
   const [showIntro, setShowIntro] = useState(true);
   const [menuLayer, setMenuLayer] = useState<MenuLayer>("closed");
   const [menuMounted, setMenuMounted] = useState(false);
@@ -100,17 +120,7 @@ export default function HomeClient() {
   const [testimonials, setTestimonials] = useState<HomeTestimonial[]>(
     mapFallbackTestimonials,
   );
-  const [bagasImageIndex, setBagasImageIndex] = useState(0);
-
-  const bagasImageCandidates = [
-    "/assets/Bagas.png",
-    "/assets/Bagas.jpg",
-    "/assets/Bagas.jpeg",
-    "/assets/Bagas.webp",
-    "/assets/bagas.png",
-    "/assets/bagas.jpg",
-    "/assets/logo.png",
-  ];
+  const [testimonialFilter, setTestimonialFilter] = useState<TestimonialCountryFilter>("Semua");
 
   const categories = useMemo(() => {
     const set = new Set(products.map((product) => product.category));
@@ -136,6 +146,12 @@ export default function HomeClient() {
 
     return products.slice(0, 8);
   })();
+  const filteredTestimonials = useMemo(() => {
+    if (testimonialFilter === "Semua") {
+      return testimonials;
+    }
+    return testimonials.filter((item) => (item.country || "Indonesia") === testimonialFilter);
+  }, [testimonials, testimonialFilter]);
 
   const isViewportLocked = showIntro || menuMounted;
 
@@ -542,17 +558,16 @@ export default function HomeClient() {
         <div className={styles.heroBottom} data-animate="hero">
           <h1 className={styles.heroTitle}>
             <span>Tokko</span>
-            <span>Ramadhan</span>
+            <span></span>
           </h1>
           <div className={styles.heroSearchWrap}>
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className={styles.heroSearchInput}
-              type="search"
-              placeholder="Tokko"
-              aria-label="Cari produk dan layanan"
-            />
+            <button
+              type="button"
+              className={styles.heroSearchButton}
+              onClick={() => router.push("/koleksi")}
+            >
+              Liat Semua
+            </button>
           </div>
         </div>
       </section>
@@ -625,40 +640,56 @@ export default function HomeClient() {
       </section>
 
       <section className={styles.section} data-animate="section">
-        <div className={styles.bagasFeature}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={bagasImageCandidates[bagasImageIndex]}
-            alt="Bagas"
-            className={styles.bagasImage}
-            onError={() => {
-              if (bagasImageIndex < bagasImageCandidates.length - 1) {
-                setBagasImageIndex((prev) => prev + 1);
-              }
-            }}
-          />
-          <VoiceWavePlayer
-            srcCandidates={["/assets/bagas.mp3", "/assets/Bagas.mp3", "/assets/buy.mp3"]}
-            title="Voice Bagas"
-          />
-        </div>
-      </section>
-
-      <section className={styles.section} data-animate="section">
-        <div className={styles.sectionHead}>
+        <div className={styles.partnerHeader}>
           <h2>Apa Kata Mereka?</h2>
         </div>
-        <div className={styles.testimonialList}>
-          {testimonials.map((item) => (
-            <article key={item.id} className={styles.testimonialCard}>
-              <p className={styles.testimonialStars}>{"★".repeat(Math.max(1, Math.min(5, item.rating)))}</p>
-              <p className={styles.testimonialText}>{item.message}</p>
-              <p className={styles.testimonialName}>{item.name}</p>
-              <VoiceWavePlayer
-                srcCandidates={[item.audioUrl, "/assets/bagas.mp3", "/assets/buy.mp3"]}
-              />
-            </article>
+        <div className={styles.partnerFilterRow} role="tablist" aria-label="Filter negara testimonial">
+          {TESTIMONIAL_COUNTRY_FILTERS.map((country) => (
+            <button
+              key={country}
+              type="button"
+              role="tab"
+              aria-selected={testimonialFilter === country}
+              className={`${styles.partnerFilterChip} ${
+                testimonialFilter === country ? styles.partnerFilterChipActive : ""
+              }`}
+              onClick={() => setTestimonialFilter(country)}
+            >
+              {country}
+            </button>
           ))}
+        </div>
+        <div className={styles.partnerGrid}>
+          {filteredTestimonials.length > 0 ? (
+            filteredTestimonials.map((item, index) => (
+              <article key={`${item.id}-${index}`} className={styles.partnerCard}>
+                <div className={styles.partnerTop}>
+                  <div className={styles.partnerPhoto}>
+                    <Image
+                      src={bagasPhoto}
+                      alt={item.name}
+                      fill
+                      className={styles.bagasImage}
+                      sizes="(max-width: 820px) 72vw, 220px"
+                    />
+                  </div>
+                  <div className={styles.partnerMeta}>
+                    <span className={styles.bagasPill}>{"\u2605".repeat(Math.max(1, Math.min(5, item.rating)))}</span>
+                    <span className={styles.bagasPill}>
+                      {(item.country || "Indonesia") === "Indonesia" ? "Founder Tokko" : item.country || "Indonesia"}
+                    </span>
+                  </div>
+                </div>
+                <h3 className={styles.bagasName}>{item.name}</h3>
+                <p className={styles.testimonialText}>{item.message}</p>
+                <VoiceWavePlayer
+                  srcCandidates={[item.audioUrl, "/assets/notif.mp3", "/assets/Notif.mp3", "/assets/buy.mp3"]}
+                />
+              </article>
+            ))
+          ) : (
+            <p className={styles.emptyState}>Belum ada testimonial untuk negara ini.</p>
+          )}
         </div>
       </section>
 
