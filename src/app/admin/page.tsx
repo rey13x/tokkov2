@@ -762,13 +762,24 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(paymentSettingsForm),
       });
-      const result = (await response.json()) as { message?: string };
+      const result = (await response.json()) as {
+        message?: string;
+        paymentSettings?: StorePaymentSettings;
+      };
       if (!response.ok) {
         setError(result.message ?? "Gagal simpan pengaturan pembayaran.");
         return;
       }
+      if (result.paymentSettings) {
+        setPaymentSettingsForm({
+          title: result.paymentSettings.title,
+          qrisImageUrl: result.paymentSettings.qrisImageUrl,
+          instructionText: result.paymentSettings.instructionText,
+          expiryMinutes: result.paymentSettings.expiryMinutes,
+        });
+      }
       setMessage("Pengaturan pembayaran berhasil disimpan.");
-      await loadPaymentSettings();
+      await loadPaymentSettings().catch(() => {});
       bumpPreview();
     } catch {
       setError("Gagal simpan pengaturan pembayaran.");

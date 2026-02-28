@@ -3,9 +3,20 @@ import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
 import { getPaymentSettings, upsertPaymentSettings } from "@/server/store-data";
 
+const MAX_QRIS_DATA_URL_LENGTH = 900_000;
+
 const paymentSettingsSchema = z.object({
   title: z.string().min(2).max(80),
-  qrisImageUrl: z.string().max(3000000),
+  qrisImageUrl: z
+    .string()
+    .max(3000000)
+    .refine(
+      (value) => !value.startsWith("data:") || value.length <= MAX_QRIS_DATA_URL_LENGTH,
+      {
+        message:
+          "Gambar QRIS terlalu besar untuk mode inline. Kompres gambar atau aktifkan bucket upload.",
+      },
+    ),
   instructionText: z.string().min(10).max(400),
   expiryMinutes: z.number().int().min(5).max(180),
 });
@@ -54,4 +65,3 @@ export async function PUT(request: Request) {
     );
   }
 }
-
