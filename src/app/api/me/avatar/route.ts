@@ -3,8 +3,9 @@ import { getServerAuthSession } from "@/server/auth";
 import { updateUserById } from "@/server/db";
 import { getFirebaseStorageBucket } from "@/server/firebase-admin";
 
-const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif"]);
+const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_INLINE_AVATAR_SIZE_BYTES = 2 * 1024 * 1024;
 
 function sanitizeFileName(name: string) {
   return name
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
 
     if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
       return NextResponse.json(
-        { message: "Hanya PNG, JPG, dan GIF yang diizinkan." },
+        { message: "Hanya PNG, JPG, GIF, dan WEBP yang diizinkan." },
         { status: 400 },
       );
     }
@@ -55,6 +56,15 @@ export async function POST(request: Request) {
 
     let avatarUrl = "";
     if (!fileUploadEnabled || !bucket) {
+      if (buffer.length > MAX_INLINE_AVATAR_SIZE_BYTES) {
+        return NextResponse.json(
+          {
+            message:
+              "Ukuran avatar terlalu besar untuk mode inline. Maksimal 2MB atau aktifkan upload bucket.",
+          },
+          { status: 400 },
+        );
+      }
       avatarUrl = toInlineDataUrl(file, buffer);
     } else {
       const fileName = sanitizeFileName(file.name.replace(/\.[^/.]+$/, "") || "avatar");

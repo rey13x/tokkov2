@@ -3,7 +3,8 @@ import { requireAdmin } from "@/server/admin";
 import { getFirebaseStorageBucket } from "@/server/firebase-admin";
 
 export const runtime = "nodejs";
-const MAX_INLINE_FILE_SIZE_BYTES = 8 * 1024 * 1024;
+const MAX_UPLOAD_SIZE_BYTES = 8 * 1024 * 1024;
+const MAX_INLINE_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 
 function sanitizeFileName(name: string) {
   return name
@@ -16,6 +17,19 @@ function sanitizeFileName(name: string) {
 function toInlineDataUrl(file: File, buffer: Buffer) {
   const mimeType = file.type || "application/octet-stream";
   return `data:${mimeType};base64,${buffer.toString("base64")}`;
+}
+
+function inferExtensionByMimeType(mimeType: string) {
+  if (mimeType.startsWith("image/")) {
+    return mimeType.replace("image/", "").replace(/[^a-z0-9]/gi, "") || "jpg";
+  }
+  if (mimeType.startsWith("audio/")) {
+    return mimeType.replace("audio/", "").replace(/[^a-z0-9]/gi, "") || "mp3";
+  }
+  if (mimeType.startsWith("video/")) {
+    return mimeType.replace("video/", "").replace(/[^a-z0-9]/gi, "") || "mp4";
+  }
+  return "bin";
 }
 
 export async function POST(request: Request) {
@@ -45,7 +59,7 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    if (buffer.length > MAX_INLINE_FILE_SIZE_BYTES) {
+    if (buffer.length > MAX_UPLOAD_SIZE_BYTES) {
       return NextResponse.json(
         { message: "Ukuran file terlalu besar. Maksimal 8MB." },
         { status: 400 },
@@ -55,10 +69,21 @@ export async function POST(request: Request) {
     const fileUploadEnabled = process.env.FILE_UPLOAD_ENABLED === "true";
     const bucket = getFirebaseStorageBucket();
     if (!fileUploadEnabled || !bucket) {
+      if (buffer.length > MAX_INLINE_FILE_SIZE_BYTES) {
+        return NextResponse.json(
+          {
+            message:
+              "Ukuran file terlalu besar untuk mode inline. Maksimal 2MB atau aktifkan upload bucket.",
+          },
+          { status: 400 },
+        );
+      }
       return NextResponse.json({ url: toInlineDataUrl(file, buffer) });
     }
 
-    const extension = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+    const extensionFromName = file.name.includes(".") ? file.name.split(".").pop() : "";
+    const cleanExtension = (extensionFromName ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const extension = cleanExtension || inferExtensionByMimeType(file.type);
     const fileName = sanitizeFileName(file.name.replace(/\.[^/.]+$/, ""));
     const objectPath = `${folder}/${Date.now()}-${fileName}.${extension}`;
     const object = bucket.file(objectPath);
