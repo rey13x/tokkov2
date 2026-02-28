@@ -9,9 +9,12 @@ import {
   createUser,
   findUserByEmail,
   findUserByIdentifier,
+  updateUserById,
 } from "@/server/db";
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
 
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
@@ -50,11 +53,11 @@ const providers: NextAuthOptions["providers"] = [
   }),
 ];
 
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+if (googleClientId && googleClientSecret) {
   providers.push(
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
     }),
   );
 }
@@ -69,25 +72,34 @@ export const authOptions: NextAuthOptions = {
   },
   providers,
   callbacks: {
-    async signIn({ account, profile }) {
+    async signIn({ account, profile, user }) {
       if (account?.provider !== "google") {
         return true;
       }
 
-      const email = profile?.email?.toLowerCase();
+      const email = (profile?.email ?? user?.email ?? "").trim().toLowerCase();
       if (!email) {
         return false;
       }
 
-      const existing = await findUserByEmail(email);
-      if (!existing) {
-        const displayName =
-          (profile?.name?.trim() || email.split("@")[0] || "User Tokko").slice(0, 50);
-        const rawProfile = profile as Record<string, unknown> | null | undefined;
-        const profilePicture =
-          rawProfile && typeof rawProfile.picture === "string"
-            ? rawProfile.picture
-            : "";
+      const displayName =
+        (profile?.name?.trim() || user?.name?.trim() || email.split("@")[0] || "User Tokko").slice(
+          0,
+          50,
+        );
+      const rawProfile = profile as Record<string, unknown> | null | undefined;
+      const profilePicture =
+        rawProfile && typeof rawProfile.picture === "string" ? rawProfile.picture : "";
+
+      try {
+        const existing = await findUserByEmail(email);
+        if (existing) {
+          if (profilePicture && profilePicture !== existing.avatarUrl) {
+            await updateUserById(existing.id, { avatarUrl: profilePicture });
+          }
+          return true;
+        }
+
         await createUser({
           username: displayName,
           email,
@@ -96,6 +108,12 @@ export const authOptions: NextAuthOptions = {
           passwordHash: null,
           role: adminEmail && email === adminEmail ? "admin" : "user",
         });
+      } catch (error) {
+        console.error("Failed to sync Google user to database:", error);
+        const fallbackUser = await findUserByEmail(email);
+        if (!fallbackUser) {
+          return false;
+        }
       }
 
       return true;

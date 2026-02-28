@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn, useSession } from "next-auth/react";
+import { getProviders, signIn, useSession } from "next-auth/react";
 import { FcGoogle } from "react-icons/fc";
 import styles from "./page.module.css";
 
@@ -20,10 +20,25 @@ function getSafeRedirect(pathname: string | null) {
   return pathname;
 }
 
+function getAuthErrorMessage(code: string | null) {
+  switch (code) {
+    case "OAuthSignin":
+    case "OAuthCallback":
+    case "OAuthCreateAccount":
+      return "Login Google gagal. Cek konfigurasi OAuth di Google Cloud lalu coba lagi.";
+    case "AccessDenied":
+      return "Akses login ditolak.";
+    case "Configuration":
+      return "Konfigurasi login Google belum lengkap di server.";
+    default:
+      return "Login gagal. Coba lagi.";
+  }
+}
+
 export default function AuthPage() {
   const router = useRouter();
   const { status } = useSession();
-  const canUseGoogleSignIn = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "false";
+  const googleUiEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "false";
   const canUseEmailOtp = process.env.NEXT_PUBLIC_EMAIL_OTP_ENABLED === "true";
 
   const [mode, setMode] = useState<AuthMode>("signin");
@@ -44,6 +59,9 @@ export default function AuthPage() {
   const [isRequestingCode, setIsRequestingCode] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [redirectTarget, setRedirectTarget] = useState("/");
+  const [googleProviderEnabled, setGoogleProviderEnabled] = useState(false);
+
+  const canUseGoogleSignIn = googleUiEnabled && googleProviderEnabled;
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -51,7 +69,26 @@ export default function AuthPage() {
     }
     const params = new URLSearchParams(window.location.search);
     setRedirectTarget(getSafeRedirect(params.get("redirect")));
+    const authError = params.get("error");
+    if (authError) {
+      setError(getAuthErrorMessage(authError));
+    }
   }, []);
+
+  useEffect(() => {
+    if (!googleUiEnabled) {
+      setGoogleProviderEnabled(false);
+      return;
+    }
+
+    getProviders()
+      .then((providers) => {
+        setGoogleProviderEnabled(Boolean(providers?.google));
+      })
+      .catch(() => {
+        setGoogleProviderEnabled(false);
+      });
+  }, [googleUiEnabled]);
 
   const resolveRedirectAfterAuth = useCallback(async () => {
     const response = await fetch("/api/me", { cache: "no-store" });
@@ -202,6 +239,11 @@ export default function AuthPage() {
     setIsGoogleSubmitting(true);
 
     try {
+      if (!canUseGoogleSignIn) {
+        setError("Login Google belum aktif di server.");
+        setIsGoogleSubmitting(false);
+        return;
+      }
       await signIn("google", { callbackUrl: redirectTarget });
     } catch {
       setError("Login Google gagal. Coba lagi.");
