@@ -81,7 +81,7 @@ const defaultInfoForm = {
 
 const defaultTestimonialForm = {
   name: "",
-  country: "Indonesia" as "Indonesia" | "Inggris" | "Filipina",
+  country: "Indonesia",
   roleLabel: "Founder Tokko",
   message: "",
   rating: 5,
@@ -933,7 +933,7 @@ export default function AdminPage() {
     setTestimonialEditId(testimonial.id);
     setTestimonialForm({
       name: testimonial.name,
-      country: (testimonial.country || "Indonesia") as "Indonesia" | "Inggris" | "Filipina",
+      country: testimonial.country || "Indonesia",
       roleLabel: testimonial.roleLabel || "Founder Tokko",
       message: testimonial.message,
       rating: testimonial.rating,
@@ -1548,19 +1548,17 @@ export default function AdminPage() {
               placeholder="Isi testimoni"
               required
             />
-            <select
+            <input
               value={testimonialForm.country}
               onChange={(event) =>
                 setTestimonialForm((current) => ({
                   ...current,
-                  country: event.target.value as "Indonesia" | "Inggris" | "Filipina",
+                  country: event.target.value,
                 }))
               }
-            >
-              <option value="Indonesia">Indonesia</option>
-              <option value="Inggris">Inggris</option>
-              <option value="Filipina">Filipina</option>
-            </select>
+              placeholder="Country (bebas isi)"
+              required
+            />
             <input
               value={testimonialForm.roleLabel}
               onChange={(event) =>
