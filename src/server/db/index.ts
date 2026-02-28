@@ -12,6 +12,7 @@ import type {
   StoreTestimonial,
 } from "@/types/store";
 import { resolveMediaUrl } from "@/lib/media";
+import { getFirebaseFirestore } from "@/server/firebase-admin";
 
 const now = () => Date.now();
 
@@ -608,21 +609,44 @@ function mapUser(row: Record<string, unknown>): DbUser {
   };
 }
 
-export async function findUserByEmail(email: string) {
+function mapFirestoreUser(id: string, data: Record<string, unknown> | undefined): DbUser {
+  return {
+    id,
+    username: String(data?.username ?? ""),
+    email: String(data?.email ?? ""),
+    phone: String(data?.phone ?? ""),
+    avatarUrl: String(data?.avatarUrl ?? ""),
+    role: (String(data?.role ?? "user") as "user" | "admin"),
+    passwordHash:
+      data?.passwordHash === null || data?.passwordHash === undefined
+        ? null
+        : String(data.passwordHash),
+  };
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function normalizeUsername(value: string) {
+  return value.trim().toLowerCase();
+}
+
+async function findLocalUserByEmail(email: string) {
   await ensureDatabase();
   const res = await run("SELECT * FROM users WHERE lower(email) = lower(?) LIMIT 1", [email]);
   const row = res.rows[0] as Record<string, unknown> | undefined;
   return row ? mapUser(row) : null;
 }
 
-export async function findUserById(id: string) {
+async function findLocalUserById(id: string) {
   await ensureDatabase();
   const res = await run("SELECT * FROM users WHERE id = ? LIMIT 1", [id]);
   const row = res.rows[0] as Record<string, unknown> | undefined;
   return row ? mapUser(row) : null;
 }
 
-export async function findUserByIdentifier(identifier: string) {
+async function findLocalUserByIdentifier(identifier: string) {
   await ensureDatabase();
   const res = await run(
     `SELECT * FROM users
@@ -634,6 +658,187 @@ export async function findUserByIdentifier(identifier: string) {
   return row ? mapUser(row) : null;
 }
 
+async function findFirestoreUserById(id: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return null;
+  }
+
+  const doc = await firestore.collection("users").doc(id).get();
+  if (!doc.exists) {
+    return null;
+  }
+  return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
+}
+
+async function findFirestoreUserByEmail(email: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return null;
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  let snapshot = await firestore
+    .collection("users")
+    .where("emailLower", "==", normalizedEmail)
+    .limit(1)
+    .get();
+
+  if (snapshot.empty) {
+    snapshot = await firestore
+      .collection("users")
+      .where("email", "==", email.trim())
+      .limit(1)
+      .get();
+  }
+
+  if (snapshot.empty) {
+    return null;
+  }
+
+  const doc = snapshot.docs[0];
+  return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
+}
+
+async function findFirestoreUserByIdentifier(identifier: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return null;
+  }
+
+  const normalized = identifier.trim().toLowerCase();
+
+  const byEmailLower = await firestore
+    .collection("users")
+    .where("emailLower", "==", normalized)
+    .limit(1)
+    .get();
+  if (!byEmailLower.empty) {
+    const doc = byEmailLower.docs[0];
+    return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
+  }
+
+  const byUsernameLower = await firestore
+    .collection("users")
+    .where("usernameLower", "==", normalized)
+    .limit(1)
+    .get();
+  if (!byUsernameLower.empty) {
+    const doc = byUsernameLower.docs[0];
+    return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
+  }
+
+  const rawIdentifier = identifier.trim();
+  const byEmailRaw = await firestore
+    .collection("users")
+    .where("email", "==", rawIdentifier)
+    .limit(1)
+    .get();
+  if (!byEmailRaw.empty) {
+    const doc = byEmailRaw.docs[0];
+    return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
+  }
+
+  const byUsernameRaw = await firestore
+    .collection("users")
+    .where("username", "==", rawIdentifier)
+    .limit(1)
+    .get();
+  if (!byUsernameRaw.empty) {
+    const doc = byUsernameRaw.docs[0];
+    return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
+  }
+
+  return null;
+}
+
+async function upsertLocalUserMirror(user: DbUser) {
+  await ensureDatabase();
+  const existing = await run("SELECT id FROM users WHERE id = ? LIMIT 1", [user.id]);
+  if (existing.rows.length > 0) {
+    await run(
+      `UPDATE users
+       SET username = ?, email = ?, phone = ?, avatar_url = ?, password_hash = ?, role = ?, updated_at = ?
+       WHERE id = ?`,
+      [
+        user.username,
+        user.email,
+        user.phone,
+        user.avatarUrl,
+        user.passwordHash,
+        user.role,
+        now(),
+        user.id,
+      ],
+    );
+    return;
+  }
+
+  await run(
+    `INSERT INTO users (id, username, email, phone, avatar_url, password_hash, role, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      user.id,
+      user.username,
+      user.email,
+      user.phone,
+      user.avatarUrl,
+      user.passwordHash,
+      user.role,
+      now(),
+      now(),
+    ],
+  );
+}
+
+export async function findUserByEmail(email: string) {
+  const firestore = getFirebaseFirestore();
+  if (firestore) {
+    try {
+      const firebaseUser = await findFirestoreUserByEmail(email);
+      if (firebaseUser) {
+        return firebaseUser;
+      }
+    } catch (error) {
+      console.error("Failed to read user by email from Firestore:", error);
+    }
+  }
+
+  return findLocalUserByEmail(email);
+}
+
+export async function findUserById(id: string) {
+  const firestore = getFirebaseFirestore();
+  if (firestore) {
+    try {
+      const firebaseUser = await findFirestoreUserById(id);
+      if (firebaseUser) {
+        return firebaseUser;
+      }
+    } catch (error) {
+      console.error("Failed to read user by id from Firestore:", error);
+    }
+  }
+
+  return findLocalUserById(id);
+}
+
+export async function findUserByIdentifier(identifier: string) {
+  const firestore = getFirebaseFirestore();
+  if (firestore) {
+    try {
+      const firebaseUser = await findFirestoreUserByIdentifier(identifier);
+      if (firebaseUser) {
+        return firebaseUser;
+      }
+    } catch (error) {
+      console.error("Failed to read user by identifier from Firestore:", error);
+    }
+  }
+
+  return findLocalUserByIdentifier(identifier);
+}
+
 export async function createUser(input: {
   username: string;
   email: string;
@@ -642,16 +847,54 @@ export async function createUser(input: {
   passwordHash: string | null;
   role?: "user" | "admin";
 }) {
-  await ensureDatabase();
   const id = randomId();
   const role = input.role ?? "user";
   const avatarUrl = (input.avatarUrl ?? "").trim();
+  const normalizedEmail = normalizeEmail(input.email);
+  const normalizedUsername = normalizeUsername(input.username);
+  const firestore = getFirebaseFirestore();
+
+  if (firestore) {
+    const createdAt = now();
+    await firestore.collection("users").doc(id).set({
+      username: input.username.trim(),
+      usernameLower: normalizedUsername,
+      email: normalizedEmail,
+      emailLower: normalizedEmail,
+      phone: input.phone.trim(),
+      avatarUrl,
+      passwordHash: input.passwordHash,
+      role,
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    const created = await findFirestoreUserById(id);
+    if (!created) {
+      throw new Error("Failed to read created Firestore user.");
+    }
+
+    await upsertLocalUserMirror(created).catch(() => {});
+    return created;
+  }
+
+  await ensureDatabase();
   await run(
     `INSERT INTO users (id, username, email, phone, avatar_url, password_hash, role, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, input.username, input.email, input.phone, avatarUrl, input.passwordHash, role, now(), now()],
+    [
+      id,
+      input.username.trim(),
+      normalizedEmail,
+      input.phone.trim(),
+      avatarUrl,
+      input.passwordHash,
+      role,
+      now(),
+      now(),
+    ],
   );
-  return findUserById(id);
+  return findLocalUserById(id);
 }
 
 export async function updateUserById(
@@ -665,8 +908,48 @@ export async function updateUserById(
     role: "user" | "admin";
   }>,
 ) {
+  const firestore = getFirebaseFirestore();
+  if (firestore) {
+    const current = (await findFirestoreUserById(id)) ?? (await findLocalUserById(id));
+    if (!current) {
+      return null;
+    }
+
+    const nextUsername = (input.username ?? current.username).trim();
+    const nextEmail = normalizeEmail(input.email ?? current.email);
+    const nextPhone = (input.phone ?? current.phone).trim();
+    const nextAvatarUrl =
+      input.avatarUrl === undefined ? current.avatarUrl : input.avatarUrl.trim();
+    const nextPasswordHash =
+      input.passwordHash === undefined ? current.passwordHash : input.passwordHash;
+    const nextRole = input.role ?? current.role;
+
+    await firestore.collection("users").doc(id).set(
+      {
+        username: nextUsername,
+        usernameLower: normalizeUsername(nextUsername),
+        email: nextEmail,
+        emailLower: nextEmail,
+        phone: nextPhone,
+        avatarUrl: nextAvatarUrl,
+        passwordHash: nextPasswordHash,
+        role: nextRole,
+        updatedAt: now(),
+      },
+      { merge: true },
+    );
+
+    const updated = await findFirestoreUserById(id);
+    if (!updated) {
+      return null;
+    }
+
+    await upsertLocalUserMirror(updated).catch(() => {});
+    return updated;
+  }
+
   await ensureDatabase();
-  const current = await findUserById(id);
+  const current = await findLocalUserById(id);
   if (!current) {
     return null;
   }
@@ -680,7 +963,7 @@ export async function updateUserById(
      WHERE id = ?`,
     [
       input.username ?? current.username,
-      input.email ?? current.email,
+      normalizeEmail(input.email ?? current.email),
       input.phone ?? current.phone,
       nextAvatarUrl,
       input.passwordHash ?? current.passwordHash,
@@ -689,7 +972,7 @@ export async function updateUserById(
       id,
     ],
   );
-  return findUserById(id);
+  return findLocalUserById(id);
 }
 
 export async function listProducts() {

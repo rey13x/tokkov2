@@ -12,7 +12,10 @@ function normalizeEnvValue(value: string) {
 }
 
 function normalizePrivateKey(value: string) {
-  return normalizeEnvValue(value).replace(/\\n/g, "\n");
+  return normalizeEnvValue(value)
+    .replace(/\\\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\\r?\n/g, "\n");
 }
 
 export function getFirebaseAdminApp(): App | null {
