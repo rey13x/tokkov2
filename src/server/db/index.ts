@@ -1476,7 +1476,7 @@ export async function createOrder(input: {
   await run(
     `INSERT INTO orders
       (id, user_id, user_name, user_email, user_phone, total, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'new', ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, 'process', ?)`,
     [id, input.userId, input.userName, input.userEmail, input.userPhone, total, now()],
   );
 
@@ -1501,6 +1501,43 @@ export async function createOrder(input: {
     id,
     total,
   };
+}
+
+export async function updateOrderStatus(
+  id: string,
+  status: "process" | "done" | "error",
+) {
+  await ensureDatabase();
+  const existing = await getOrderById(id);
+  if (!existing) {
+    return null;
+  }
+
+  await run(
+    `UPDATE orders
+     SET status = ?
+     WHERE id = ?`,
+    [status, id],
+  );
+
+  return getOrderById(id);
+}
+
+export async function getAppMetaValue(key: string) {
+  await ensureDatabase();
+  const res = await run("SELECT value FROM app_meta WHERE key = ? LIMIT 1", [key]);
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  return row ? String(row.value ?? "") : null;
+}
+
+export async function upsertAppMetaValue(key: string, value: string) {
+  await ensureDatabase();
+  await run(
+    `INSERT INTO app_meta (key, value)
+     VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [key, value],
+  );
 }
 
 export async function listOrders(limit = 100) {

@@ -12,7 +12,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { data: session, status, update } = useSession();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const isFileUploadEnabled = process.env.NEXT_PUBLIC_FILE_UPLOAD_ENABLED !== "false";
+  const isFileUploadEnabled = true;
   const canUseEmailOtp = process.env.NEXT_PUBLIC_EMAIL_OTP_ENABLED === "true";
 
   const [name, setName] = useState("");

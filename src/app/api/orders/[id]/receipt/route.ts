@@ -3,6 +3,7 @@ import path from "path";
 import PDFDocument from "pdfkit";
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
+import { getAdminIdentity } from "@/server/admin";
 import { getOrderById, listOrderItemsByOrderId } from "@/server/store-data";
 
 type Params = Promise<{ id: string }>;
@@ -29,6 +30,8 @@ async function buildReceiptPdf(input: {
   orderId: string;
   userName: string;
   userEmail: string;
+  userPhone: string;
+  status: string;
   createdAt: string;
   items: Array<{
     productName: string;
@@ -62,6 +65,8 @@ async function buildReceiptPdf(input: {
   doc.text(`Tanggal: ${formatDateLabel(input.createdAt)}`);
   doc.text(`Nama: ${input.userName}`);
   doc.text(`Gmail: ${input.userEmail}`);
+  doc.text(`No HP: ${input.userPhone || "-"}`);
+  doc.text(`Status: ${input.status}`);
   doc.moveDown(0.4);
   doc.text("========================================");
   doc.moveDown(0.2);
@@ -98,7 +103,8 @@ export const runtime = "nodejs";
 
 export async function GET(_request: Request, context: { params: Params }) {
   const session = await getServerAuthSession();
-  if (!session?.user?.id) {
+  const adminIdentity = await getAdminIdentity();
+  if (!session?.user?.id && !adminIdentity) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
@@ -108,8 +114,8 @@ export async function GET(_request: Request, context: { params: Params }) {
     return NextResponse.json({ message: "Order tidak ditemukan." }, { status: 404 });
   }
 
-  const isAdmin = session.user.role === "admin";
-  const ownEmail = (session.user.email ?? "").toLowerCase();
+  const isAdmin = Boolean(adminIdentity) || session?.user?.role === "admin";
+  const ownEmail = (session?.user?.email ?? "").toLowerCase();
   if (!isAdmin && ownEmail !== order.userEmail.toLowerCase()) {
     return NextResponse.json({ message: "Akses struk ditolak." }, { status: 403 });
   }
@@ -119,6 +125,8 @@ export async function GET(_request: Request, context: { params: Params }) {
     orderId: order.id,
     userName: order.userName,
     userEmail: order.userEmail,
+    userPhone: order.userPhone,
+    status: order.status,
     createdAt: order.createdAt,
     items: items.map((item) => ({
       productName: item.productName,

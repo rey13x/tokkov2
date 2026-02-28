@@ -312,6 +312,124 @@
   cursor: pointer;
 }
 
+.paymentPanel {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #d8dce5;
+  background: #f8f9fc;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paymentPanel h4 {
+  font-size: 1rem;
+}
+
+.qrisImageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #eef1f7;
+}
+
+.qrisImage {
+  object-fit: contain;
+  display: block;
+}
+
+.timerLabel {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1e2850;
+}
+
+.paymentHint {
+  font-size: 0.74rem;
+  color: #5f6780;
+}
+
+.paymentButtons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.cancelButton,
+.confirmButton {
+  height: 42px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.cancelButton {
+  border: 1px solid #9b1a2f;
+  background: #ffffff;
+  color: #9b1a2f;
+}
+
+.confirmButton {
+  border: none;
+  background: #0b1020;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.statusPanel {
+  margin-top: 8px;
+  border-top: 1px solid #e9ecf3;
+  padding-top: 10px;
+}
+
+.statusPanel h4 {
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+}
+
+.statusList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.statusItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #dbe0ea;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.statusItem p {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.statusItem span {
+  display: block;
+  color: #6a738d;
+  font-size: 0.72rem;
+}
+
+.statusItem strong {
+  display: inline-flex;
+  margin-top: 2px;
+  font-size: 0.74rem;
+}
+
+.statusActions button {
+  border: 1px solid #10131a;
+  background: #fff;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+}
+
 @media (max-width: 980px) {
   .cartLayout {
     grid-template-columns: minmax(0, 1fr);

@@ -9,8 +9,10 @@ import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
 import { getFirebaseClientAuth } from "@/lib/firebase-client";
 import type {
+  OrderSummary,
   StoreInformation,
   StoreMarqueeItem,
+  StorePaymentSettings,
   StorePrivacyPolicyPage,
   StoreProduct,
   StoreTestimonial,
@@ -34,19 +36,23 @@ type OrderLite = {
 
 type AdminSection =
   | "overview"
+  | "orders"
   | "products"
   | "informations"
   | "testimonials"
   | "marquees"
+  | "paymentSettings"
   | "privacyPolicy"
   | "preview";
 
 const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "overview", label: "Ringkasan", desc: "Statistik & order" },
+  { id: "orders", label: "Order", desc: "Status pesanan user" },
   { id: "products", label: "Produk", desc: "CRUD produk" },
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
+  { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
     id: "privacyPolicy",
     label: "Kebijakan Privasi",
@@ -96,6 +102,14 @@ const defaultPrivacyPolicyForm = {
   contentHtml: "<p>Tulis isi kebijakan privasi di sini.</p>",
 };
 
+const defaultPaymentSettingsForm: Omit<StorePaymentSettings, "id" | "updatedAt"> = {
+  title: "Qriss",
+  qrisImageUrl: "/assets/logo.png",
+  instructionText:
+    "Scan Qriss diatas ini untuk proses produk kamu. Pastikan benar-benar sudah membayar",
+  expiryMinutes: 30,
+};
+
 function formatRupiahInput(value: string) {
   const digits = value.replace(/[^\d]/g, "");
   if (!digits) {
@@ -119,6 +133,8 @@ export default function AdminPage() {
   const [informations, setInformations] = useState<StoreInformation[]>([]);
   const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
   const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, "process" | "done" | "error">>({});
   const [series, setSeries] = useState<StatsPoint[]>([]);
   const [latestOrders, setLatestOrders] = useState<OrderLite[]>([]);
   const [productForm, setProductForm] = useState(defaultProductForm);
@@ -131,6 +147,7 @@ export default function AdminPage() {
   const [marqueeForm, setMarqueeForm] = useState(defaultMarqueeForm);
   const [marqueeEditId, setMarqueeEditId] = useState<string | null>(null);
   const [privacyPolicyForm, setPrivacyPolicyForm] = useState(defaultPrivacyPolicyForm);
+  const [paymentSettingsForm, setPaymentSettingsForm] = useState(defaultPaymentSettingsForm);
   const [previewVersion, setPreviewVersion] = useState(0);
   const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
   const [isUploadingInfoImage, setIsUploadingInfoImage] = useState(false);
@@ -138,6 +155,7 @@ export default function AdminPage() {
   const [isUploadingTestimonialAudio, setIsUploadingTestimonialAudio] = useState(false);
   const [isUploadingMarqueeImage, setIsUploadingMarqueeImage] = useState(false);
   const [isUploadingPrivacyBanner, setIsUploadingPrivacyBanner] = useState(false);
+  const [isUploadingPaymentQris, setIsUploadingPaymentQris] = useState(false);
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -373,6 +391,30 @@ export default function AdminPage() {
     }
   };
 
+  const onSelectPaymentQris = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsUploadingPaymentQris(true);
+    try {
+      const uploaded = await uploadMedia(file, "payment-settings");
+      setPaymentSettingsForm((current) => ({
+        ...current,
+        qrisImageUrl: uploaded,
+      }));
+      setMessage("Gambar QRIS berhasil diupload.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload QRIS gagal.");
+    } finally {
+      setIsUploadingPaymentQris(false);
+      event.target.value = "";
+    }
+  };
+
   const loadProducts = async () => {
     const response = await fetch("/api/admin/products", { cache: "no-store" });
     if (!response.ok) {
@@ -423,6 +465,40 @@ export default function AdminPage() {
     });
   };
 
+  const loadPaymentSettings = async () => {
+    const response = await fetch("/api/admin/payment-settings", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil pengaturan pembayaran");
+    }
+    const result = (await response.json()) as { paymentSettings: StorePaymentSettings };
+    setPaymentSettingsForm({
+      title: result.paymentSettings.title,
+      qrisImageUrl: result.paymentSettings.qrisImageUrl,
+      instructionText: result.paymentSettings.instructionText,
+      expiryMinutes: result.paymentSettings.expiryMinutes,
+    });
+  };
+
+  const loadOrders = async () => {
+    const response = await fetch("/api/admin/orders", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil order");
+    }
+    const result = (await response.json()) as { orders: OrderSummary[] };
+    setOrders(result.orders);
+    setOrderStatusDrafts((current) => {
+      const next = { ...current };
+      for (const order of result.orders) {
+        if (!next[order.id]) {
+          const normalized =
+            order.status === "done" || order.status === "error" ? order.status : "process";
+          next[order.id] = normalized;
+        }
+      }
+      return next;
+    });
+  };
+
   const loadStats = async () => {
     const response = await fetch("/api/admin/stats", { cache: "no-store" });
     if (!response.ok) {
@@ -463,6 +539,8 @@ export default function AdminPage() {
           loadTestimonials(),
           loadMarquees(),
           loadPrivacyPolicy(),
+          loadPaymentSettings(),
+          loadOrders(),
           loadStats(),
         ]);
       })
@@ -668,6 +746,58 @@ export default function AdminPage() {
       setError("Gagal simpan kebijakan privasi.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const onSavePaymentSettings = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/admin/payment-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(paymentSettingsForm),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        setError(result.message ?? "Gagal simpan pengaturan pembayaran.");
+        return;
+      }
+      setMessage("Pengaturan pembayaran berhasil disimpan.");
+      await loadPaymentSettings();
+      bumpPreview();
+    } catch {
+      setError("Gagal simpan pengaturan pembayaran.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onSaveOrderStatus = async (orderId: string) => {
+    const statusDraft = orderStatusDrafts[orderId] ?? "process";
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/admin/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: statusDraft }),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        setError(result.message ?? "Gagal update status order.");
+        return;
+      }
+
+      setMessage("Status order berhasil diperbarui.");
+      await loadOrders();
+      await loadStats();
+    } catch {
+      setError("Gagal update status order.");
     }
   };
 
@@ -959,6 +1089,130 @@ export default function AdminPage() {
 
       {activeSection !== "overview" ? (
       <section className={styles.sectionGrid}>
+        {activeSection === "orders" ? (
+        <article className={styles.card}>
+          <div className={styles.cardHead}>
+            <h2>Kelola Status Pesanan</h2>
+            <button type="button" className={styles.secondaryButton} onClick={() => loadOrders()}>
+              Refresh
+            </button>
+          </div>
+          <div className={styles.list}>
+            {orders.map((order) => (
+              <div key={order.id} className={styles.listItem}>
+                <div className={styles.listPreview}>
+                  <div>
+                    <p>{order.userName} - {order.id.slice(0, 8).toUpperCase()}</p>
+                    <span>
+                      {formatRupiah(order.total)} - {new Date(order.createdAt).toLocaleString("id-ID")}
+                    </span>
+                    <span>Status: {order.status}</span>
+                  </div>
+                </div>
+                <div className={styles.rowActions}>
+                  <select
+                    value={orderStatusDrafts[order.id] ?? "process"}
+                    onChange={(event) =>
+                      setOrderStatusDrafts((current) => ({
+                        ...current,
+                        [order.id]: event.target.value as "process" | "done" | "error",
+                      }))
+                    }
+                  >
+                    <option value="process">Proses</option>
+                    <option value="done">Habis</option>
+                    <option value="error">Error</option>
+                  </select>
+                  <button type="button" onClick={() => onSaveOrderStatus(order.id)}>
+                    Simpan
+                  </button>
+                  <a
+                    href={`/api/orders/${order.id}/receipt`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.inlineLink}
+                  >
+                    Struk
+                  </a>
+                </div>
+              </div>
+            ))}
+            {orders.length === 0 ? <p>Belum ada order.</p> : null}
+          </div>
+        </article>
+        ) : null}
+
+        {activeSection === "paymentSettings" ? (
+        <article className={styles.card}>
+          <h2>Pengaturan Pembayaran QRIS</h2>
+          <form className={styles.form} onSubmit={onSavePaymentSettings}>
+            <input
+              value={paymentSettingsForm.title}
+              onChange={(event) =>
+                setPaymentSettingsForm((current) => ({ ...current, title: event.target.value }))
+              }
+              placeholder="Judul pembayaran"
+              required
+            />
+            <input
+              value={paymentSettingsForm.qrisImageUrl}
+              readOnly
+              placeholder="URL gambar QRIS otomatis"
+              required
+            />
+            <label className={styles.fileField}>
+              Upload Gambar QRIS
+              <input type="file" accept="image/*" onChange={onSelectPaymentQris} />
+              <small>{isUploadingPaymentQris ? "Uploading..." : "Pilih gambar QRIS dari device"}</small>
+            </label>
+            <textarea
+              value={paymentSettingsForm.instructionText}
+              onChange={(event) =>
+                setPaymentSettingsForm((current) => ({
+                  ...current,
+                  instructionText: event.target.value,
+                }))
+              }
+              placeholder="Teks instruksi pembayaran"
+              required
+            />
+            <input
+              type="number"
+              min={5}
+              max={180}
+              value={paymentSettingsForm.expiryMinutes}
+              onChange={(event) =>
+                setPaymentSettingsForm((current) => ({
+                  ...current,
+                  expiryMinutes: Number(event.target.value || 30),
+                }))
+              }
+              placeholder="Durasi batas pembayaran (menit)"
+              required
+            />
+            <div className={styles.previewCard}>
+              <FlexibleMedia
+                src={paymentSettingsForm.qrisImageUrl}
+                alt={paymentSettingsForm.title}
+                width={72}
+                height={72}
+                className={styles.previewImage}
+                unoptimized
+              />
+              <div>
+                <p>{paymentSettingsForm.title}</p>
+                <span>{paymentSettingsForm.expiryMinutes} menit</span>
+              </div>
+            </div>
+            <div className={styles.formActions}>
+              <button type="submit" disabled={isLoading}>
+                Simpan Pengaturan Pembayaran
+              </button>
+            </div>
+          </form>
+        </article>
+        ) : null}
+
         {activeSection === "products" ? (
         <article className={styles.card}>
           <div className={styles.cardHead}>

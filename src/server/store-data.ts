@@ -5,6 +5,7 @@ import type {
   StoreMarqueeItem,
   StoreOrderDetail,
   StoreOrderItem,
+  StorePaymentSettings,
   StorePrivacyPolicyPage,
   StoreProduct,
   StoreTestimonial,
@@ -20,6 +21,7 @@ import {
   deleteMarquee as deleteMarqueeDb,
   deleteProduct as deleteProductDb,
   deleteTestimonial as deleteTestimonialDb,
+  getAppMetaValue as getAppMetaValueDb,
   getInformationById as getInformationByIdDb,
   getMarqueeById as getMarqueeByIdDb,
   getOrderStatsLastHours as getOrderStatsLastHoursDb,
@@ -34,8 +36,10 @@ import {
   listOrders as listOrdersDb,
   listProducts as listProductsDb,
   listTestimonials as listTestimonialsDb,
+  upsertAppMetaValue as upsertAppMetaValueDb,
   updateInformation as updateInformationDb,
   updateMarquee as updateMarqueeDb,
+  updateOrderStatus as updateOrderStatusDb,
   updateProduct as updateProductDb,
   updateTestimonial as updateTestimonialDb,
   upsertPrivacyPolicyPage as upsertPrivacyPolicyPageDb,
@@ -202,6 +206,35 @@ function mapPrivacyPolicyDoc(
     bannerImageUrl: resolveMediaUrl(String(data?.bannerImageUrl ?? fallback.bannerImageUrl)),
     contentHtml: String(data?.contentHtml ?? fallback.contentHtml),
     updatedAt: new Date(Number(data?.updatedAt ?? now())).toISOString(),
+  };
+}
+
+const PAYMENT_SETTINGS_META_KEY = "payment-settings-v1";
+
+function defaultPaymentSettings(): StorePaymentSettings {
+  return {
+    id: "main",
+    title: "Qriss",
+    qrisImageUrl: "/assets/logo.png",
+    instructionText:
+      "Scan Qriss diatas ini untuk proses produk kamu. Pastikan benar-benar sudah membayar",
+    expiryMinutes: 30,
+    updatedAt: new Date(now()).toISOString(),
+  };
+}
+
+function normalizePaymentSettings(
+  raw: Partial<StorePaymentSettings> | null | undefined,
+): StorePaymentSettings {
+  const fallback = defaultPaymentSettings();
+  return {
+    id: "main",
+    title: String(raw?.title ?? fallback.title).trim() || fallback.title,
+    qrisImageUrl: resolveMediaUrl(String(raw?.qrisImageUrl ?? fallback.qrisImageUrl)),
+    instructionText:
+      String(raw?.instructionText ?? fallback.instructionText).trim() || fallback.instructionText,
+    expiryMinutes: Math.max(5, Math.min(180, Number(raw?.expiryMinutes ?? fallback.expiryMinutes))),
+    updatedAt: new Date(Number(raw?.updatedAt ?? now())).toISOString(),
   };
 }
 
@@ -968,7 +1001,7 @@ export async function createOrder(input: {
       userEmail: input.userEmail,
       userPhone: input.userPhone,
       total,
-      status: "new",
+      status: "process",
       createdAt,
       items: input.items,
     });
@@ -977,6 +1010,33 @@ export async function createOrder(input: {
   } catch (error) {
     console.error("Failed to create order in Firestore. Falling back to local database.", error);
     return createOrderDb(input);
+  }
+}
+
+export async function updateOrderStatus(
+  id: string,
+  status: "process" | "done" | "error",
+) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return updateOrderStatusDb(id, status);
+  }
+
+  try {
+    const ref = firestore.collection("orders").doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return null;
+    }
+
+    await ref.update({
+      status,
+      updatedAt: now(),
+    });
+    return getOrderById(id);
+  } catch (error) {
+    console.error("Failed to update order status in Firestore. Falling back to local database.", error);
+    return updateOrderStatusDb(id, status);
   }
 }
 
@@ -1146,5 +1206,76 @@ export async function getOrderStatsLastHours(hours = 12) {
   } catch (error) {
     console.error("Failed to read order stats from Firestore. Falling back to local database.", error);
     return getOrderStatsLastHoursDb(hours);
+  }
+}
+
+export async function getPaymentSettings() {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    try {
+      const raw = await getAppMetaValueDb(PAYMENT_SETTINGS_META_KEY);
+      if (!raw) {
+        return defaultPaymentSettings();
+      }
+      return normalizePaymentSettings(JSON.parse(raw) as Partial<StorePaymentSettings>);
+    } catch {
+      return defaultPaymentSettings();
+    }
+  }
+
+  try {
+    const doc = await firestore.collection("paymentSettings").doc("main").get();
+    if (!doc.exists) {
+      return defaultPaymentSettings();
+    }
+    return normalizePaymentSettings(doc.data() as Partial<StorePaymentSettings>);
+  } catch (error) {
+    console.error("Failed to read payment settings from Firestore. Falling back to local database.", error);
+    try {
+      const raw = await getAppMetaValueDb(PAYMENT_SETTINGS_META_KEY);
+      if (!raw) {
+        return defaultPaymentSettings();
+      }
+      return normalizePaymentSettings(JSON.parse(raw) as Partial<StorePaymentSettings>);
+    } catch {
+      return defaultPaymentSettings();
+    }
+  }
+}
+
+export async function upsertPaymentSettings(input: {
+  title: string;
+  qrisImageUrl: string;
+  instructionText: string;
+  expiryMinutes: number;
+}) {
+  const next = normalizePaymentSettings({
+    id: "main",
+    title: input.title,
+    qrisImageUrl: input.qrisImageUrl,
+    instructionText: input.instructionText,
+    expiryMinutes: input.expiryMinutes,
+    updatedAt: new Date(now()).toISOString(),
+  });
+
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    await upsertAppMetaValueDb(PAYMENT_SETTINGS_META_KEY, JSON.stringify(next));
+    return next;
+  }
+
+  try {
+    await firestore.collection("paymentSettings").doc("main").set(
+      {
+        ...next,
+        updatedAt: now(),
+      },
+      { merge: true },
+    );
+    return getPaymentSettings();
+  } catch (error) {
+    console.error("Failed to write payment settings to Firestore. Falling back to local database.", error);
+    await upsertAppMetaValueDb(PAYMENT_SETTINGS_META_KEY, JSON.stringify(next));
+    return next;
   }
 }

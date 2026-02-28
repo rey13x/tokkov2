@@ -53,6 +53,15 @@ export type StorePrivacyPolicyPage = {
   updatedAt: string;
 };
 
+export type StorePaymentSettings = {
+  id: string;
+  title: string;
+  qrisImageUrl: string;
+  instructionText: string;
+  expiryMinutes: number;
+  updatedAt: string;
+};
+
 export type OrderItemInput = {
   productId: string;
   quantity: number;
