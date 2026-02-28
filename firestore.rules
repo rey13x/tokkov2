@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Optional: allow Firebase-auth admin clients (if custom claim is set).
+    function isAdmin() {
+      return signedIn() &&
+        (
+          request.auth.token.admin == true ||
+          request.auth.token.role == "admin"
+        );
+    }
+
+    // Public storefront content (safe to read by anyone).
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /informations/{informationId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /marquees/{marqueeId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /privacyPolicyPages/{pageId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Sensitive collections:
+    // this app writes users/orders from server (firebase-admin),
+    // so direct client access is blocked by default.
+    match /users/{userId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Deny everything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
