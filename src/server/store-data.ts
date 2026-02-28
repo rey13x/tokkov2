@@ -744,12 +744,21 @@ export async function getPrivacyPolicyPage() {
     return getPrivacyPolicyPageDb();
   }
 
-  const doc = await firestore.collection("privacyPolicyPages").doc("main").get();
-  if (!doc.exists) {
-    return defaultPrivacyPolicyPage();
-  }
+  try {
+    const doc = await firestore.collection("privacyPolicyPages").doc("main").get();
+    if (!doc.exists) {
+      return defaultPrivacyPolicyPage();
+    }
 
-  return mapPrivacyPolicyDoc(doc.id, doc.data() as Record<string, unknown>);
+    return mapPrivacyPolicyDoc(doc.id, doc.data() as Record<string, unknown>);
+  } catch (error) {
+    console.error("Failed to read privacy policy from Firestore. Falling back to database.", error);
+    try {
+      return await getPrivacyPolicyPageDb();
+    } catch {
+      return defaultPrivacyPolicyPage();
+    }
+  }
 }
 
 export async function upsertPrivacyPolicyPage(input: {
@@ -763,23 +772,28 @@ export async function upsertPrivacyPolicyPage(input: {
     return upsertPrivacyPolicyPageDb(input);
   }
 
-  const current = await getPrivacyPolicyPage();
-  const next = {
-    title: input.title.trim() || current.title,
-    updatedLabel: input.updatedLabel.trim() || current.updatedLabel,
-    bannerImageUrl: resolveMediaUrl(input.bannerImageUrl) || current.bannerImageUrl,
-    contentHtml: input.contentHtml.trim() || current.contentHtml,
-  };
+  try {
+    const current = await getPrivacyPolicyPage();
+    const next = {
+      title: input.title.trim() || current.title,
+      updatedLabel: input.updatedLabel.trim() || current.updatedLabel,
+      bannerImageUrl: resolveMediaUrl(input.bannerImageUrl) || current.bannerImageUrl,
+      contentHtml: input.contentHtml.trim() || current.contentHtml,
+    };
 
-  await firestore.collection("privacyPolicyPages").doc("main").set(
-    {
-      ...next,
-      updatedAt: now(),
-    },
-    { merge: true },
-  );
+    await firestore.collection("privacyPolicyPages").doc("main").set(
+      {
+        ...next,
+        updatedAt: now(),
+      },
+      { merge: true },
+    );
 
-  return getPrivacyPolicyPage();
+    return getPrivacyPolicyPage();
+  } catch (error) {
+    console.error("Failed to write privacy policy to Firestore. Falling back to database.", error);
+    return upsertPrivacyPolicyPageDb(input);
+  }
 }
 
 export async function createOrder(input: {

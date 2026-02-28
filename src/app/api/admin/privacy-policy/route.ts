@@ -16,8 +16,15 @@ export async function GET() {
     return auth.response;
   }
 
-  const privacyPolicy = await getPrivacyPolicyPage();
-  return NextResponse.json({ privacyPolicy });
+  try {
+    const privacyPolicy = await getPrivacyPolicyPage();
+    return NextResponse.json({ privacyPolicy });
+  } catch {
+    return NextResponse.json(
+      { message: "Gagal memuat halaman kebijakan privasi." },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PUT(request: Request) {
