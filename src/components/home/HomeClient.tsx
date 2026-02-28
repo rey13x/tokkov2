@@ -38,6 +38,8 @@ type HomeMarquee = StoreMarqueeItem;
 const MARQUEE_LOOP_COUNT = 4;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
+const INTRO_MIN_DURATION_MS = 3000;
+const INTRO_MAX_WAIT_MS = 12000;
 const heroImage = "/assets/ramadhan.jpg";
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
@@ -57,10 +59,14 @@ export default function HomeClient() {
   const testimonialDragStartRef = useRef(0);
   const testimonialStartScrollRef = useRef(0);
   const previousLayerRef = useRef<MenuLayer>("closed");
+  const introClosingRef = useRef(false);
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
 
   const [showIntro, setShowIntro] = useState(true);
+  const [storeDataReady, setStoreDataReady] = useState(false);
+  const [introMinimumElapsed, setIntroMinimumElapsed] = useState(false);
+  const [introForceClose, setIntroForceClose] = useState(false);
   const [menuLayer, setMenuLayer] = useState<MenuLayer>("closed");
   const [menuMounted, setMenuMounted] = useState(false);
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
@@ -228,6 +234,12 @@ export default function HomeClient() {
 
   useEffect(() => {
     let mounted = true;
+    const forceCloseTimer = window.setTimeout(() => {
+      if (!mounted) {
+        return;
+      }
+      setIntroForceClose(true);
+    }, INTRO_MAX_WAIT_MS);
 
     fetchStoreData()
       .then((data) => {
@@ -239,10 +251,17 @@ export default function HomeClient() {
         setTestimonials(data.testimonials ?? []);
         setMarquees(data.marquees ?? []);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!mounted) {
+          return;
+        }
+        setStoreDataReady(true);
+      });
 
     return () => {
       mounted = false;
+      window.clearTimeout(forceCloseTimer);
     };
   }, []);
 
@@ -358,33 +377,55 @@ export default function HomeClient() {
       gsap.set(intro, { opacity: 1 });
     }
 
-    const timer = window.setTimeout(() => {
-      if (!intro) {
-        const audio = new Audio("/assets/buy.mp3");
-        audio.volume = 0.82;
-        audio.play().catch(() => {});
-        setShowIntro(false);
-        return;
-      }
-
-      gsap.to(intro, {
-        opacity: 0,
-        duration: 0.78,
-        ease: "power3.inOut",
-        onComplete: () => {
-          const audio = new Audio("/assets/buy.mp3");
-          audio.volume = 0.82;
-          audio.play().catch(() => {});
-          setShowIntro(false);
-        },
-      });
-    }, 3000);
-
     return () => {
       spinnerTween?.kill();
+    };
+  }, [showIntro]);
+
+  useEffect(() => {
+    if (!showIntro) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setIntroMinimumElapsed(true);
+    }, INTRO_MIN_DURATION_MS);
+
+    return () => {
       window.clearTimeout(timer);
     };
   }, [showIntro]);
+
+  useEffect(() => {
+    if (!showIntro || introClosingRef.current) {
+      return;
+    }
+
+    if (!introForceClose && !introMinimumElapsed) {
+      return;
+    }
+
+    introClosingRef.current = true;
+    const intro = introOverlayRef.current;
+    const closeIntro = () => {
+      const audio = new Audio("/assets/buy.mp3");
+      audio.volume = 0.82;
+      audio.play().catch(() => {});
+      setShowIntro(false);
+    };
+
+    if (!intro) {
+      closeIntro();
+      return;
+    }
+
+    gsap.to(intro, {
+      opacity: 0,
+      duration: 0.78,
+      ease: "power3.inOut",
+      onComplete: closeIntro,
+    });
+  }, [showIntro, introForceClose, introMinimumElapsed, storeDataReady]);
 
   useEffect(() => {
     if (showIntro) {
@@ -679,6 +720,8 @@ export default function HomeClient() {
           </div>
         </div>
       </section>
+
+      {!storeDataReady ? <div className={styles.storeLoadingBadge}>Memuat data katalog...</div> : null}
 
       {bestSellerProducts.length > 0 ? (
       <section className={styles.section} data-animate="section">

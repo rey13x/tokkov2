@@ -150,6 +150,44 @@
   margin-top: 28px;
 }
 
+.storeLoadingBadge {
+  position: sticky;
+  top: 10px;
+  z-index: 40;
+  width: fit-content;
+  margin: 12px auto 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(10, 14, 23, 0.85);
+  color: #ffffff;
+  font-size: 0.84rem;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 10px 20px rgba(8, 12, 22, 0.22);
+}
+
+.storeLoadingBadge::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: badgeSpin 0.9s linear infinite;
+}
+
+@keyframes badgeSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .sectionHead {
   display: flex;
   align-items: center;
