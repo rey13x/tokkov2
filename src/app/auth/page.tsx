@@ -23,7 +23,7 @@ function getSafeRedirect(pathname: string | null) {
 export default function AuthPage() {
   const router = useRouter();
   const { status } = useSession();
-  const canUseGoogleSignIn = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
+  const canUseGoogleSignIn = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "false";
   const canUseEmailOtp = process.env.NEXT_PUBLIC_EMAIL_OTP_ENABLED === "true";
 
   const [mode, setMode] = useState<AuthMode>("signin");
@@ -64,12 +64,6 @@ export default function AuthPage() {
     }
     return redirectTarget;
   }, [redirectTarget]);
-
-  useEffect(() => {
-    if (!canUseEmailOtp && mode === "signup") {
-      setMode("signin");
-    }
-  }, [canUseEmailOtp, mode]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -147,6 +141,24 @@ export default function AuthPage() {
     setIsSubmitting(true);
 
     try {
+      if (!canUseEmailOtp) {
+        const registerResponse = await fetch("/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: signupUsername,
+            email: signupEmail,
+            phone: signupPhone,
+            password: signupPassword,
+            confirmPassword: signupConfirmPassword,
+          }),
+        });
+        const registerResult = (await registerResponse.json()) as { message?: string };
+        if (!registerResponse.ok) {
+          setError(registerResult.message ?? "Pendaftaran gagal.");
+          return;
+        }
+      } else {
       const verifyResponse = await fetch("/api/auth/signup/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -159,6 +171,7 @@ export default function AuthPage() {
       if (!verifyResponse.ok) {
         setError(verifyResult.message ?? "Verifikasi kode gagal.");
         return;
+      }
       }
 
       const loginResult = await signIn("credentials", {
@@ -209,14 +222,10 @@ export default function AuthPage() {
 
         <header className={styles.headerBlock}>
           <h1>Login</h1>
-          <p className={styles.description}>
-            {canUseEmailOtp
-              ? "Masuk atau daftar akun untuk lanjut belanja."
-              : "Masuk akun untuk lanjut belanja."}
-          </p>
+          <p className={styles.description}>Masuk atau daftar akun untuk lanjut belanja.</p>
         </header>
 
-        <div className={`${styles.modeSwitch} ${!canUseEmailOtp ? styles.modeSwitchSingle : ""}`}>
+        <div className={styles.modeSwitch}>
           <button
             type="button"
             onClick={() => {
@@ -228,23 +237,18 @@ export default function AuthPage() {
           >
             Sign In
           </button>
-          {canUseEmailOtp ? (
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signup");
-                setError("");
-                setSuccess("");
-              }}
-              className={mode === "signup" ? styles.modeActive : ""}
-            >
-              Sign Up
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setMode("signup");
+              setError("");
+              setSuccess("");
+            }}
+            className={mode === "signup" ? styles.modeActive : ""}
+          >
+            Sign Up
+          </button>
         </div>
-        {!canUseEmailOtp ? (
-          <p className={styles.disabledInfo}>Pendaftaran akun via email OTP sedang dimatikan.</p>
-        ) : null}
 
         {mode === "signin" && canUseGoogleSignIn ? (
           <button
@@ -338,32 +342,42 @@ export default function AuthPage() {
                 required
               />
             </label>
-            <button
-              type="button"
-              className={styles.returnButton}
-              onClick={onRequestCode}
-              disabled={isRequestingCode}
-            >
-              {isRequestingCode ? "Mengirim kode..." : isCodeSent ? "Kirim Ulang Kode" : "Kirim Kode Verifikasi"}
-            </button>
-            <label className={styles.field}>
-              Kode Verifikasi
-              <input
-                type="text"
-                value={signupCode}
-                onChange={(event) => setSignupCode(event.target.value)}
-                placeholder="Masukkan 6 digit kode"
-                inputMode="numeric"
-                maxLength={6}
-                required
-              />
-            </label>
+            {canUseEmailOtp ? (
+              <>
+                <button
+                  type="button"
+                  className={styles.returnButton}
+                  onClick={onRequestCode}
+                  disabled={isRequestingCode}
+                >
+                  {isRequestingCode
+                    ? "Mengirim kode..."
+                    : isCodeSent
+                      ? "Kirim Ulang Kode"
+                      : "Kirim Kode Verifikasi"}
+                </button>
+                <label className={styles.field}>
+                  Kode Verifikasi
+                  <input
+                    type="text"
+                    value={signupCode}
+                    onChange={(event) => setSignupCode(event.target.value)}
+                    placeholder="Masukkan 6 digit kode"
+                    inputMode="numeric"
+                    maxLength={6}
+                    required
+                  />
+                </label>
+              </>
+            ) : (
+              <p className={styles.disabledInfo}>Mode daftar cepat aktif: tanpa OTP email.</p>
+            )}
             {error ? <p className={styles.errorText}>{error}</p> : null}
             {success ? <p className={styles.successText}>{success}</p> : null}
             <button
               type="submit"
               className={styles.submitButton}
-              disabled={isSubmitting || !isCodeSent}
+              disabled={isSubmitting || (canUseEmailOtp && !isCodeSent)}
             >
               {isSubmitting ? "Memproses..." : "Daftar dan Masuk"}
             </button>
