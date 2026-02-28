@@ -44,6 +44,7 @@
 
 .image {
   object-fit: cover;
+  display: block;
 }
 
 .content {
@@ -79,6 +80,12 @@
   color: #0c111d;
   font-size: clamp(1.35rem, 2.5vw, 2.14rem);
   font-weight: 700;
+}
+
+.duration {
+  color: #2d364d;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .qtyRow {
@@ -140,8 +147,8 @@
 .successMessage {
   width: fit-content;
   border-radius: 999px;
-  background: #dff4e5;
-  color: #0f6f2c;
+  background: #e7efff;
+  color: #214ebd;
   padding: 8px 14px;
   font-size: 0.78rem;
 }

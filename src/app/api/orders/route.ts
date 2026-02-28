@@ -55,6 +55,7 @@ export async function POST(request: Request) {
     const enrichedItems: Array<{
       productId: string;
       productName: string;
+      productDuration: string;
       quantity: number;
       unitPrice: number;
     }> = [];
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
       enrichedItems.push({
         productId: product.id,
         productName: product.name,
+        productDuration: product.duration ?? "",
         quantity: item.quantity,
         unitPrice: product.price,
       });
@@ -94,7 +96,11 @@ export async function POST(request: Request) {
         userEmail: session.user.email ?? "-",
         userPhone: session.user.phone ?? "",
         total: created.total,
-        items: enrichedItems,
+        items: enrichedItems.map((item) => ({
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
       }),
       sendTelegramOrderNotification({
         orderId: created.id,
@@ -117,6 +123,8 @@ export async function POST(request: Request) {
         message: "Order berhasil dibuat.",
         orderId: created.id,
         total: created.total,
+        createdAt,
+        itemCount: enrichedItems.length,
       },
       { status: 201 },
     );

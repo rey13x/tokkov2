@@ -1,10 +1,11 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
@@ -16,6 +17,7 @@ import {
 import heroImage from "@/app/assets/Background.jpg";
 import bagasPhoto from "@/app/assets/Bagas.jpg";
 import logoImage from "@/app/assets/Logo.png";
+import FlexibleMedia from "@/components/media/FlexibleMedia";
 import {
   featuredProducts,
   formatRupiah,
@@ -25,7 +27,12 @@ import {
 import { getCartCount } from "@/lib/cart";
 import { fetchStoreData } from "@/lib/store-client";
 import VoiceWavePlayer from "@/components/media/VoiceWavePlayer";
-import type { StoreInformation, StoreProduct, StoreTestimonial } from "@/types/store";
+import type {
+  StoreInformation,
+  StoreMarqueeItem,
+  StoreProduct,
+  StoreTestimonial,
+} from "@/types/store";
 import styles from "./HomeClient.module.css";
 
 type MenuLayer = "closed" | "main" | "products" | "services";
@@ -33,8 +40,23 @@ type MenuLayer = "closed" | "main" | "products" | "services";
 type HomeProduct = StoreProduct;
 type HomeInformation = StoreInformation;
 type HomeTestimonial = StoreTestimonial;
-const TESTIMONIAL_COUNTRY_FILTERS = ["Semua", "Indonesia", "Inggris", "Filipina"] as const;
-type TestimonialCountryFilter = (typeof TESTIMONIAL_COUNTRY_FILTERS)[number];
+type HomeMarquee = StoreMarqueeItem;
+const MARQUEE_LOOP_COUNT = 4;
+const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
+const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
+const FALLBACK_CREATED_AT = "2026-01-01T00:00:00.000Z";
+const FALLBACK_MARQUEES: HomeMarquee[] = Array.from({ length: 5 }, (_, index) => ({
+  id: `fallback-marquee-${index + 1}`,
+  label: `Logo ${index + 1}`,
+  imageUrl: "/assets/logo.png",
+  isActive: true,
+  sortOrder: index + 1,
+  createdAt: FALLBACK_CREATED_AT,
+}));
+
+function getTestimonialMediaSrc(item: HomeTestimonial) {
+  return item.name.trim().toLowerCase() === "founder" ? bagasPhoto.src : item.mediaUrl;
+}
 
 function mapFallbackProducts(): HomeProduct[] {
   return fallbackProducts
@@ -46,6 +68,7 @@ function mapFallbackProducts(): HomeProduct[] {
       category: product.category,
       shortDescription: product.shortDescription,
       description: product.description,
+      duration: "",
       price: product.price,
       imageUrl: product.image.src,
       isActive: true,
@@ -60,6 +83,7 @@ function mapFallbackInformations(): HomeInformation[] {
     body: item.description,
     imageUrl: item.image.src,
     pollOptions: [],
+    pollVotes: {},
     createdAt: new Date().toISOString(),
   }));
 }
@@ -72,28 +96,35 @@ function mapFallbackTestimonials(): HomeTestimonial[] {
       country: "Indonesia",
       message: "Hasil lebih Penting dari Janji",
       rating: 5,
+      mediaUrl: "/assets/logo.png",
       audioUrl: "/assets/notif.mp3",
-      createdAt: new Date().toISOString(),
+      createdAt: FALLBACK_CREATED_AT,
     },
     {
       id: "fallback-testi-2",
       name: "Charlotte",
       country: "Inggris",
-      message: "The website service is smooth and reliable. Delivery was on time and support was helpful.",
+      message: "Layanan website rapi, stabil, dan supportnya responsif dari awal sampai selesai.",
       rating: 5,
+      mediaUrl: "/assets/logo.png",
       audioUrl: "/assets/notif.mp3",
-      createdAt: new Date().toISOString(),
+      createdAt: FALLBACK_CREATED_AT,
     },
     {
       id: "fallback-testi-3",
       name: "Miguel",
       country: "Filipina",
-      message: "Great service for app development, clear updates, and very responsive team.",
+      message: "Pengembangan aplikasi jelas progresnya, komunikasi cepat, dan hasil sesuai kebutuhan.",
       rating: 4,
+      mediaUrl: "/assets/logo.png",
       audioUrl: "/assets/notif.mp3",
-      createdAt: new Date().toISOString(),
+      createdAt: FALLBACK_CREATED_AT,
     },
   ];
+}
+
+function mapFallbackMarquees(): HomeMarquee[] {
+  return FALLBACK_MARQUEES;
 }
 
 export default function HomeClient() {
@@ -105,8 +136,12 @@ export default function HomeClient() {
   const productsPanelRef = useRef<HTMLDivElement | null>(null);
   const servicesPanelRef = useRef<HTMLDivElement | null>(null);
   const menuFabRef = useRef<HTMLButtonElement | null>(null);
+  const testimonialViewportRef = useRef<HTMLDivElement | null>(null);
+  const testimonialDragStartRef = useRef(0);
+  const testimonialStartScrollRef = useRef(0);
   const previousLayerRef = useRef<MenuLayer>("closed");
   const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
 
   const [showIntro, setShowIntro] = useState(true);
   const [menuLayer, setMenuLayer] = useState<MenuLayer>("closed");
@@ -120,7 +155,11 @@ export default function HomeClient() {
   const [testimonials, setTestimonials] = useState<HomeTestimonial[]>(
     mapFallbackTestimonials,
   );
-  const [testimonialFilter, setTestimonialFilter] = useState<TestimonialCountryFilter>("Semua");
+  const [marquees, setMarquees] = useState<HomeMarquee[]>(mapFallbackMarquees);
+  const [isTestimonialDragging, setIsTestimonialDragging] = useState(false);
+  const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
+  const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
+  const [profileAvatarPreview, setProfileAvatarPreview] = useState("");
 
   const categories = useMemo(() => {
     const set = new Set(products.map((product) => product.category));
@@ -146,14 +185,35 @@ export default function HomeClient() {
 
     return products.slice(0, 8);
   })();
-  const filteredTestimonials = useMemo(() => {
-    if (testimonialFilter === "Semua") {
-      return testimonials;
-    }
-    return testimonials.filter((item) => (item.country || "Indonesia") === testimonialFilter);
-  }, [testimonials, testimonialFilter]);
+  const shouldAutoSlideTestimonials = testimonials.length > 1;
+  const activeMarquees = useMemo(() => {
+    const activeItems = marquees
+      .filter((item) => item.isActive)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
 
+    return activeItems.length > 0 ? activeItems : mapFallbackMarquees();
+  }, [marquees]);
+  const testimonialCarouselItems = useMemo(
+    () =>
+      shouldAutoSlideTestimonials
+        ? [...testimonials, ...testimonials, ...testimonials]
+        : testimonials,
+    [testimonials, shouldAutoSlideTestimonials],
+  );
   const isViewportLocked = showIntro || menuMounted;
+  const profileImageSource =
+    sessionStatus === "authenticated"
+      ? profileAvatarPreview || session?.user?.image || ""
+      : "";
+
+  const profileLabel = (() => {
+    const source =
+      session?.user?.username ||
+      session?.user?.name ||
+      session?.user?.email ||
+      "P";
+    return source.trim().charAt(0).toUpperCase() || "P";
+  })();
 
   const activateMenu = () => {
     setTransitionDirection(1);
@@ -199,9 +259,55 @@ export default function HomeClient() {
     router.push(`/koleksi?category=${encodeURIComponent(category)}`);
   };
 
+  const onTestimonialPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const viewport = testimonialViewportRef.current;
+    if (!viewport) {
+      return;
+    }
+    setIsTestimonialDragging(true);
+    testimonialDragStartRef.current = event.clientX;
+    testimonialStartScrollRef.current = viewport.scrollLeft;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onTestimonialPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isTestimonialDragging) {
+      return;
+    }
+    const viewport = testimonialViewportRef.current;
+    if (!viewport) {
+      return;
+    }
+    const diff = event.clientX - testimonialDragStartRef.current;
+    viewport.scrollLeft = testimonialStartScrollRef.current - diff;
+  };
+
+  const onTestimonialPointerUp = () => {
+    const viewport = testimonialViewportRef.current;
+    if (viewport && shouldAutoSlideTestimonials) {
+      const segment = viewport.scrollWidth / 3;
+      if (viewport.scrollLeft < segment * 0.5) {
+        viewport.scrollLeft += segment;
+      } else if (viewport.scrollLeft > segment * 2.5) {
+        viewport.scrollLeft -= segment;
+      }
+    }
+    setIsTestimonialDragging(false);
+  };
+
   useEffect(() => {
     const syncState = () => {
       setCartCount(getCartCount());
+      if (sessionStatus !== "authenticated") {
+        setProfileAvatarPreview("");
+        return;
+      }
+      try {
+        const avatar = window.localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY) ?? "";
+        setProfileAvatarPreview(avatar);
+      } catch {
+        setProfileAvatarPreview("");
+      }
     };
 
     syncState();
@@ -216,7 +322,7 @@ export default function HomeClient() {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("storage", onStorage);
     };
-  }, []);
+  }, [sessionStatus]);
 
   useEffect(() => {
     let mounted = true;
@@ -235,6 +341,10 @@ export default function HomeClient() {
         if (data.testimonials?.length > 0) {
           setTestimonials(data.testimonials);
         }
+        const storeMarquees = data.marquees ?? [];
+        if (storeMarquees.length > 0) {
+          setMarquees(storeMarquees);
+        }
       })
       .catch(() => {});
 
@@ -242,6 +352,97 @@ export default function HomeClient() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(POLL_VOTE_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      setPollSelections(parsed);
+    } catch {}
+  }, []);
+
+  const onVotePoll = async (informationId: string, option: string) => {
+    if (pollSelections[informationId]) {
+      return;
+    }
+
+    setActivePollVoteId(informationId);
+    try {
+      const response = await fetch(`/api/informations/${informationId}/vote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ option }),
+      });
+      const payload = (await response.json()) as {
+        message?: string;
+        information?: HomeInformation;
+      };
+      if (!response.ok || !payload.information) {
+        return;
+      }
+
+      setInformations((current) =>
+        current.map((item) =>
+          item.id === informationId ? payload.information ?? item : item,
+        ),
+      );
+      setPollSelections((current) => {
+        const next = {
+          ...current,
+          [informationId]: option,
+        };
+        try {
+          window.localStorage.setItem(POLL_VOTE_STORAGE_KEY, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    } catch {
+    } finally {
+      setActivePollVoteId(null);
+    }
+  };
+
+  useEffect(() => {
+    const viewport = testimonialViewportRef.current;
+    if (!viewport) {
+      return;
+    }
+    if (shouldAutoSlideTestimonials) {
+      viewport.scrollLeft = viewport.scrollWidth / 3;
+      return;
+    }
+    viewport.scrollLeft = 0;
+  }, [testimonialCarouselItems.length, shouldAutoSlideTestimonials]);
+
+  useEffect(() => {
+    if (!shouldAutoSlideTestimonials) {
+      return;
+    }
+
+    let frameId = 0;
+    const tick = () => {
+      const viewport = testimonialViewportRef.current;
+      if (viewport && !isTestimonialDragging) {
+        viewport.scrollLeft += 0.35;
+        const segment = viewport.scrollWidth / 3;
+        if (viewport.scrollLeft >= segment * 2) {
+          viewport.scrollLeft = segment + (viewport.scrollLeft - segment * 2);
+        }
+      }
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [shouldAutoSlideTestimonials, isTestimonialDragging, testimonialCarouselItems.length]);
 
   useEffect(() => {
     if (!showIntro) {
@@ -553,6 +754,20 @@ export default function HomeClient() {
           <Link href="/" aria-label="Beranda">
             <Image src={logoImage} alt="Tokko Logo" className={styles.logo} priority />
           </Link>
+          {sessionStatus === "authenticated" ? (
+            <button
+              type="button"
+              className={styles.profileShortcut}
+              onClick={() => router.push("/profil")}
+            >
+              {profileImageSource ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profileImageSource} alt="Profil" className={styles.profileShortcutImage} />
+              ) : (
+                <span>{profileLabel}</span>
+              )}
+            </button>
+          ) : null}
         </div>
 
         <div className={styles.heroBottom} data-animate="hero">
@@ -588,7 +803,7 @@ export default function HomeClient() {
             <article key={product.id} className={styles.productShell} data-card="product">
               <Link href={`/produk/${product.slug}`} className={styles.productCard}>
                 <div className={styles.productImageWrap}>
-                  <Image
+                  <FlexibleMedia
                     src={product.imageUrl}
                     alt={product.name}
                     fill
@@ -620,8 +835,8 @@ export default function HomeClient() {
           {informations.map((item) => (
             <article key={item.id} className={styles.infoCard}>
               <div className={styles.infoImageWrap}>
-                <Image
-                  src={item.imageUrl || "/assets/background.jpg"}
+                <FlexibleMedia
+                  src={item.imageUrl}
                   alt={item.title}
                   fill
                   className={styles.infoImage}
@@ -632,6 +847,41 @@ export default function HomeClient() {
               <div className={styles.infoBody}>
                 <h3>{item.title}</h3>
                 <p>{item.body}</p>
+                {item.type === "poll" && item.pollOptions.length > 0 ? (
+                  <div className={styles.pollCard}>
+                    {item.pollOptions.map((option) => {
+                      const totalVotes = item.pollOptions.reduce(
+                        (total, currentOption) => total + (item.pollVotes[currentOption] ?? 0),
+                        0,
+                      );
+                      const votes = item.pollVotes[option] ?? 0;
+                      const percent = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                      const isSelected = pollSelections[item.id] === option;
+                      const hasVoted = Boolean(pollSelections[item.id]);
+                      return (
+                        <button
+                          key={`${item.id}-${option}`}
+                          type="button"
+                          className={`${styles.pollOptionButton} ${isSelected ? styles.pollOptionButtonActive : ""}`}
+                          onClick={() => onVotePoll(item.id, option)}
+                          disabled={hasVoted || activePollVoteId === item.id}
+                        >
+                          <span>{option}</span>
+                          <strong>{votes} suara</strong>
+                          <i style={{ width: `${percent}%` }} />
+                        </button>
+                      );
+                    })}
+                    <p className={styles.pollMeta}>
+                      Total suara:{" "}
+                      {item.pollOptions.reduce(
+                        (total, option) => total + (item.pollVotes[option] ?? 0),
+                        0,
+                      )}
+                      {pollSelections[item.id] ? " - Vote kamu sudah tersimpan" : ""}
+                    </p>
+                  </div>
+                ) : null}
                 <time>{new Date(item.createdAt).toLocaleDateString("id-ID")}</time>
               </div>
             </article>
@@ -643,53 +893,76 @@ export default function HomeClient() {
         <div className={styles.partnerHeader}>
           <h2>Apa Kata Mereka?</h2>
         </div>
-        <div className={styles.partnerFilterRow} role="tablist" aria-label="Filter negara testimonial">
-          {TESTIMONIAL_COUNTRY_FILTERS.map((country) => (
-            <button
-              key={country}
-              type="button"
-              role="tab"
-              aria-selected={testimonialFilter === country}
-              className={`${styles.partnerFilterChip} ${
-                testimonialFilter === country ? styles.partnerFilterChipActive : ""
-              }`}
-              onClick={() => setTestimonialFilter(country)}
-            >
-              {country}
-            </button>
-          ))}
+        <div
+          className={styles.partnerCarousel}
+          ref={testimonialViewportRef}
+          onPointerDown={onTestimonialPointerDown}
+          onPointerMove={onTestimonialPointerMove}
+          onPointerUp={onTestimonialPointerUp}
+          onPointerCancel={onTestimonialPointerUp}
+          style={{ cursor: isTestimonialDragging ? "grabbing" : "grab" }}
+        >
+          {testimonials.length > 0 ? (
+            <div className={styles.partnerTrack}>
+              {testimonialCarouselItems.map((item, index) => (
+                <article key={`${item.id}-${index}`} className={styles.partnerCard}>
+                  <div className={styles.partnerTop}>
+                    <div className={styles.partnerPhoto}>
+                      <FlexibleMedia
+                        src={getTestimonialMediaSrc(item)}
+                        alt={item.name}
+                        fill
+                        className={styles.bagasImage}
+                        sizes="(max-width: 820px) 72vw, 220px"
+                      />
+                    </div>
+                    <div className={styles.partnerMeta}>
+                      <span className={styles.bagasPill}>
+                        {"\u2605".repeat(Math.max(1, Math.min(5, item.rating)))}
+                      </span>
+                      <span className={styles.bagasPill}>
+                        {(item.country || "Indonesia") === "Indonesia" ? "Founder Tokko" : item.country || "Indonesia"}
+                      </span>
+                    </div>
+                  </div>
+                  <h3 className={styles.bagasName}>{item.name}</h3>
+                  <p className={styles.testimonialText}>{item.message}</p>
+                  <VoiceWavePlayer
+                    srcCandidates={[item.audioUrl, "/assets/notif.mp3", "/assets/Notif.mp3", "/assets/buy.mp3"]}
+                  />
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.emptyState}>Belum ada testimonial.</p>
+          )}
         </div>
-        <div className={styles.partnerGrid}>
-          {filteredTestimonials.length > 0 ? (
-            filteredTestimonials.map((item, index) => (
-              <article key={`${item.id}-${index}`} className={styles.partnerCard}>
-                <div className={styles.partnerTop}>
-                  <div className={styles.partnerPhoto}>
-                    <Image
-                      src={bagasPhoto}
-                      alt={item.name}
+
+        <div className={styles.logoMarquee}>
+          <div
+            className={styles.logoTrack}
+            style={{ ["--logo-count" as const]: activeMarquees.length } as CSSProperties}
+          >
+            {Array.from({ length: MARQUEE_LOOP_COUNT }).map((_, loopIndex) => (
+              <div
+                key={`logo-segment-${loopIndex}`}
+                className={styles.logoSegment}
+                aria-hidden={loopIndex > 0}
+              >
+                {activeMarquees.map((item, logoIndex) => (
+                  <div key={`${item.id}-${loopIndex}-${logoIndex}`} className={styles.logoGlyph}>
+                    <FlexibleMedia
+                      src={item.imageUrl}
+                      alt={item.label}
                       fill
-                      className={styles.bagasImage}
-                      sizes="(max-width: 820px) 72vw, 220px"
+                      className={styles.logoImage}
+                      sizes="58px"
                     />
                   </div>
-                  <div className={styles.partnerMeta}>
-                    <span className={styles.bagasPill}>{"\u2605".repeat(Math.max(1, Math.min(5, item.rating)))}</span>
-                    <span className={styles.bagasPill}>
-                      {(item.country || "Indonesia") === "Indonesia" ? "Founder Tokko" : item.country || "Indonesia"}
-                    </span>
-                  </div>
-                </div>
-                <h3 className={styles.bagasName}>{item.name}</h3>
-                <p className={styles.testimonialText}>{item.message}</p>
-                <VoiceWavePlayer
-                  srcCandidates={[item.audioUrl, "/assets/notif.mp3", "/assets/Notif.mp3", "/assets/buy.mp3"]}
-                />
-              </article>
-            ))
-          ) : (
-            <p className={styles.emptyState}>Belum ada testimonial untuk negara ini.</p>
-          )}
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -724,7 +997,7 @@ export default function HomeClient() {
                   </span>
                 </button>
                 <button type="button" onClick={() => moveMenu("products", 1)} data-menu-item>
-                  Semua Produk
+                  Katalog
                   <span>
                     <FiChevronRight />
                   </span>
@@ -743,6 +1016,17 @@ export default function HomeClient() {
                   data-menu-item
                 >
                   Panduan
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      sessionStatus === "authenticated" ? "/profil" : "/auth?redirect=/profil",
+                    )
+                  }
+                  data-menu-item
+                >
+                  Profil
                 </button>
                 <button type="button" onClick={() => router.push("/troli")} data-menu-item>
                   Troli ({cartCount})
@@ -771,7 +1055,7 @@ export default function HomeClient() {
                 </Link>
               </div>
               <p className={styles.menuLabel} data-menu-item>
-                Semua Produk
+                Katalog
               </p>
               <nav className={styles.menuNav} aria-label="Menu produk">
                 {productMenuItems.map((item) => (

@@ -1,14 +1,20 @@
 "use client";
 
-import { type ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import { type ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut as firebaseSignOut } from "firebase/auth";
 import { signOut as nextAuthSignOut } from "next-auth/react";
+import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
 import { getFirebaseClientAuth } from "@/lib/firebase-client";
-import type { StoreInformation, StoreProduct, StoreTestimonial } from "@/types/store";
+import type {
+  StoreInformation,
+  StoreMarqueeItem,
+  StorePrivacyPolicyPage,
+  StoreProduct,
+  StoreTestimonial,
+} from "@/types/store";
 import styles from "./page.module.css";
 
 type StatsPoint = {
@@ -26,13 +32,26 @@ type OrderLite = {
   createdAt: string;
 };
 
-type AdminSection = "overview" | "products" | "informations" | "testimonials" | "preview";
+type AdminSection =
+  | "overview"
+  | "products"
+  | "informations"
+  | "testimonials"
+  | "marquees"
+  | "privacyPolicy"
+  | "preview";
 
 const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "overview", label: "Ringkasan", desc: "Statistik & order" },
   { id: "products", label: "Produk", desc: "CRUD produk" },
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
+  { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
+  {
+    id: "privacyPolicy",
+    label: "Kebijakan Privasi",
+    desc: "Atur konten halaman privasi",
+  },
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
 ];
 
@@ -41,16 +60,17 @@ const defaultProductForm = {
   category: "",
   shortDescription: "",
   description: "",
+  duration: "",
   price: 0,
-  imageUrl: "/assets/background.jpg",
+  imageUrl: "/assets/logo.png",
 };
 
 const defaultInfoForm = {
   type: "update" as "message" | "poll" | "update",
   title: "",
   body: "",
-  imageUrl: "/assets/background.jpg",
-  pollOptions: "",
+  imageUrl: "/assets/logo.png",
+  pollOptions: ["", ""],
 };
 
 const defaultTestimonialForm = {
@@ -58,7 +78,22 @@ const defaultTestimonialForm = {
   country: "Indonesia" as "Indonesia" | "Inggris" | "Filipina",
   message: "",
   rating: 5,
-  audioUrl: "/assets/bagas.mp3",
+  mediaUrl: "/assets/logo.png",
+  audioUrl: "/assets/notif.mp3",
+};
+
+const defaultMarqueeForm = {
+  label: "",
+  imageUrl: "/assets/logo.png",
+  isActive: true,
+  sortOrder: 1,
+};
+
+const defaultPrivacyPolicyForm = {
+  title: "Kebijakan Privasi & Sertifikasi Layanan",
+  updatedLabel: "Terakhir diperbarui: 28 Februari 2026",
+  bannerImageUrl: "/assets/background.jpg",
+  contentHtml: "<p>Tulis isi kebijakan privasi di sini.</p>",
 };
 
 function formatRupiahInput(value: string) {
@@ -83,6 +118,7 @@ export default function AdminPage() {
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [informations, setInformations] = useState<StoreInformation[]>([]);
   const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
+  const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
   const [series, setSeries] = useState<StatsPoint[]>([]);
   const [latestOrders, setLatestOrders] = useState<OrderLite[]>([]);
   const [productForm, setProductForm] = useState(defaultProductForm);
@@ -92,13 +128,21 @@ export default function AdminPage() {
   const [infoEditId, setInfoEditId] = useState<string | null>(null);
   const [testimonialForm, setTestimonialForm] = useState(defaultTestimonialForm);
   const [testimonialEditId, setTestimonialEditId] = useState<string | null>(null);
+  const [marqueeForm, setMarqueeForm] = useState(defaultMarqueeForm);
+  const [marqueeEditId, setMarqueeEditId] = useState<string | null>(null);
+  const [privacyPolicyForm, setPrivacyPolicyForm] = useState(defaultPrivacyPolicyForm);
   const [previewVersion, setPreviewVersion] = useState(0);
   const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
   const [isUploadingInfoImage, setIsUploadingInfoImage] = useState(false);
+  const [isUploadingTestimonialMedia, setIsUploadingTestimonialMedia] = useState(false);
   const [isUploadingTestimonialAudio, setIsUploadingTestimonialAudio] = useState(false);
+  const [isUploadingMarqueeImage, setIsUploadingMarqueeImage] = useState(false);
+  const [isUploadingPrivacyBanner, setIsUploadingPrivacyBanner] = useState(false);
+  const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const privacyEditorRef = useRef<HTMLDivElement | null>(null);
 
   const maxOrderCount = useMemo(
     () => Math.max(1, ...series.map((item) => item.totalOrders)),
@@ -129,6 +173,44 @@ export default function AdminPage() {
     setTestimonialForm(defaultTestimonialForm);
   };
 
+  const resetMarqueeForm = () => {
+    setMarqueeEditId(null);
+    setMarqueeForm(defaultMarqueeForm);
+  };
+
+  useEffect(() => {
+    if (!privacyEditorRef.current) {
+      return;
+    }
+    if (privacyEditorRef.current.innerHTML === privacyPolicyForm.contentHtml) {
+      return;
+    }
+    privacyEditorRef.current.innerHTML = privacyPolicyForm.contentHtml;
+  }, [privacyPolicyForm.contentHtml]);
+
+  const applyPrivacyEditorCommand = (command: string, value?: string) => {
+    if (!privacyEditorRef.current) {
+      return;
+    }
+    privacyEditorRef.current.focus();
+    document.execCommand(command, false, value);
+    setPrivacyPolicyForm((current) => ({
+      ...current,
+      contentHtml: privacyEditorRef.current?.innerHTML || current.contentHtml,
+    }));
+  };
+
+  const onPrivacyEditorInput = () => {
+    if (!privacyEditorRef.current) {
+      return;
+    }
+    const nextHtml = privacyEditorRef.current.innerHTML;
+    setPrivacyPolicyForm((current) => ({
+      ...current,
+      contentHtml: nextHtml,
+    }));
+  };
+
   const uploadMedia = async (file: File, folder: string) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -141,7 +223,7 @@ export default function AdminPage() {
 
     const payload = (await response.json()) as { message?: string; url?: string };
     if (!response.ok || !payload.url) {
-      throw new Error(payload.message ?? "Upload gambar gagal.");
+      throw new Error(payload.message ?? "Upload media gagal.");
     }
 
     return payload.url;
@@ -162,9 +244,9 @@ export default function AdminPage() {
         ...current,
         imageUrl: uploaded,
       }));
-      setMessage("Gambar produk berhasil diupload.");
+      setMessage("Media produk berhasil diupload.");
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload gambar gagal.");
+      setError(uploadError instanceof Error ? uploadError.message : "Upload media gagal.");
     } finally {
       setIsUploadingProductImage(false);
       event.target.value = "";
@@ -186,11 +268,35 @@ export default function AdminPage() {
         ...current,
         imageUrl: uploaded,
       }));
-      setMessage("Gambar informasi berhasil diupload.");
+      setMessage("Media informasi berhasil diupload.");
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload gambar gagal.");
+      setError(uploadError instanceof Error ? uploadError.message : "Upload media gagal.");
     } finally {
       setIsUploadingInfoImage(false);
+      event.target.value = "";
+    }
+  };
+
+  const onSelectTestimonialMedia = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsUploadingTestimonialMedia(true);
+    try {
+      const uploaded = await uploadMedia(file, "testimonials-media");
+      setTestimonialForm((current) => ({
+        ...current,
+        mediaUrl: uploaded,
+      }));
+      setMessage("Media testimonial berhasil diupload.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload media gagal.");
+    } finally {
+      setIsUploadingTestimonialMedia(false);
       event.target.value = "";
     }
   };
@@ -215,6 +321,54 @@ export default function AdminPage() {
       setError(uploadError instanceof Error ? uploadError.message : "Upload voice gagal.");
     } finally {
       setIsUploadingTestimonialAudio(false);
+      event.target.value = "";
+    }
+  };
+
+  const onSelectMarqueeImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsUploadingMarqueeImage(true);
+    try {
+      const uploaded = await uploadMedia(file, "marquees");
+      setMarqueeForm((current) => ({
+        ...current,
+        imageUrl: uploaded,
+      }));
+      setMessage("Logo marquee berhasil diupload.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload logo marquee gagal.");
+    } finally {
+      setIsUploadingMarqueeImage(false);
+      event.target.value = "";
+    }
+  };
+
+  const onSelectPrivacyBanner = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsUploadingPrivacyBanner(true);
+    try {
+      const uploaded = await uploadMedia(file, "privacy-policy");
+      setPrivacyPolicyForm((current) => ({
+        ...current,
+        bannerImageUrl: uploaded,
+      }));
+      setMessage("Banner kebijakan privasi berhasil diupload.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload banner gagal.");
+    } finally {
+      setIsUploadingPrivacyBanner(false);
       event.target.value = "";
     }
   };
@@ -244,6 +398,29 @@ export default function AdminPage() {
     }
     const result = (await response.json()) as { testimonials: StoreTestimonial[] };
     setTestimonials(result.testimonials);
+  };
+
+  const loadMarquees = async () => {
+    const response = await fetch("/api/admin/marquees", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil marquee");
+    }
+    const result = (await response.json()) as { marquees: StoreMarqueeItem[] };
+    setMarquees(result.marquees);
+  };
+
+  const loadPrivacyPolicy = async () => {
+    const response = await fetch("/api/admin/privacy-policy", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil kebijakan privasi");
+    }
+    const result = (await response.json()) as { privacyPolicy: StorePrivacyPolicyPage };
+    setPrivacyPolicyForm({
+      title: result.privacyPolicy.title,
+      updatedLabel: result.privacyPolicy.updatedLabel,
+      bannerImageUrl: result.privacyPolicy.bannerImageUrl,
+      contentHtml: result.privacyPolicy.contentHtml,
+    });
   };
 
   const loadStats = async () => {
@@ -285,6 +462,8 @@ export default function AdminPage() {
           loadProducts(),
           loadInformations(),
           loadTestimonials(),
+          loadMarquees(),
+          loadPrivacyPolicy(),
           loadStats(),
         ]);
       })
@@ -360,10 +539,10 @@ export default function AdminPage() {
 
     const payload = {
       ...infoForm,
-      pollOptions: infoForm.pollOptions
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+      pollOptions:
+        infoForm.type === "poll"
+          ? infoForm.pollOptions.map((item) => item.trim()).filter(Boolean)
+          : [],
     };
 
     try {
@@ -424,6 +603,75 @@ export default function AdminPage() {
     }
   };
 
+  const onSaveMarquee = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const endpoint = marqueeEditId ? `/api/admin/marquees/${marqueeEditId}` : "/api/admin/marquees";
+      const method = marqueeEditId ? "PATCH" : "POST";
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(marqueeForm),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        setError(result.message ?? "Gagal simpan logo marquee.");
+        return;
+      }
+
+      setMessage(marqueeEditId ? "Logo marquee berhasil diperbarui." : "Logo marquee berhasil ditambahkan.");
+      resetMarqueeForm();
+      await loadMarquees();
+      bumpPreview();
+    } catch {
+      setError("Gagal simpan logo marquee.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onSavePrivacyPolicy = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/admin/privacy-policy", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(privacyPolicyForm),
+      });
+      const result = (await response.json()) as {
+        message?: string;
+        privacyPolicy?: StorePrivacyPolicyPage;
+      };
+      if (!response.ok) {
+        setError(result.message ?? "Gagal simpan kebijakan privasi.");
+        return;
+      }
+
+      if (result.privacyPolicy) {
+        setPrivacyPolicyForm({
+          title: result.privacyPolicy.title,
+          updatedLabel: result.privacyPolicy.updatedLabel,
+          bannerImageUrl: result.privacyPolicy.bannerImageUrl,
+          contentHtml: result.privacyPolicy.contentHtml,
+        });
+      }
+      setMessage("Kebijakan privasi berhasil diperbarui.");
+      bumpPreview();
+    } catch {
+      setError("Gagal simpan kebijakan privasi.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const onDeleteAllProducts = async () => {
     if (!window.confirm("Yakin hapus semua produk?")) {
       return;
@@ -461,6 +709,68 @@ export default function AdminPage() {
     bumpPreview();
   };
 
+  const onDeleteMarquee = async (id: string) => {
+    await fetch(`/api/admin/marquees/${id}`, { method: "DELETE" });
+    if (marqueeEditId === id) {
+      resetMarqueeForm();
+    }
+    await loadMarquees();
+    bumpPreview();
+  };
+
+  const onVoteInformation = async (informationId: string, option: string) => {
+    setActivePollVoteId(informationId);
+    try {
+      const response = await fetch(`/api/informations/${informationId}/vote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ option }),
+      });
+      const payload = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        setError(payload.message ?? "Gagal vote polling.");
+        return;
+      }
+
+      await loadInformations();
+      bumpPreview();
+    } catch {
+      setError("Gagal vote polling.");
+    } finally {
+      setActivePollVoteId(null);
+    }
+  };
+
+  const updateInfoPollOption = (index: number, value: string) => {
+    setInfoForm((current) => {
+      const next = [...current.pollOptions];
+      next[index] = value;
+      return {
+        ...current,
+        pollOptions: next,
+      };
+    });
+  };
+
+  const addInfoPollOption = () => {
+    setInfoForm((current) => ({
+      ...current,
+      pollOptions: [...current.pollOptions, ""],
+    }));
+  };
+
+  const removeInfoPollOption = (index: number) => {
+    setInfoForm((current) => {
+      const next = current.pollOptions.filter((_, optionIndex) => optionIndex !== index);
+      return {
+        ...current,
+        pollOptions: next.length > 0 ? next : [""],
+      };
+    });
+  };
+
   const onEditProduct = (product: StoreProduct) => {
     setActiveSection("products");
     setProductEditId(product.id);
@@ -469,6 +779,7 @@ export default function AdminPage() {
       category: product.category,
       shortDescription: product.shortDescription,
       description: product.description,
+      duration: product.duration ?? "",
       price: product.price,
       imageUrl: product.imageUrl,
     });
@@ -483,7 +794,7 @@ export default function AdminPage() {
       title: information.title,
       body: information.body,
       imageUrl: information.imageUrl,
-      pollOptions: information.pollOptions.join(", "),
+      pollOptions: information.pollOptions.length > 0 ? information.pollOptions : ["", ""],
     });
   };
 
@@ -495,7 +806,19 @@ export default function AdminPage() {
       country: (testimonial.country || "Indonesia") as "Indonesia" | "Inggris" | "Filipina",
       message: testimonial.message,
       rating: testimonial.rating,
+      mediaUrl: testimonial.mediaUrl || "/assets/logo.png",
       audioUrl: testimonial.audioUrl,
+    });
+  };
+
+  const onEditMarquee = (marquee: StoreMarqueeItem) => {
+    setActiveSection("marquees");
+    setMarqueeEditId(marquee.id);
+    setMarqueeForm({
+      label: marquee.label,
+      imageUrl: marquee.imageUrl || "/assets/logo.png",
+      isActive: marquee.isActive,
+      sortOrder: marquee.sortOrder,
     });
   };
 
@@ -522,8 +845,11 @@ export default function AdminPage() {
           </p>
         </div>
         <div className={styles.headerActions}>
-          <a href="/api/admin/orders/export" className={styles.actionLink}>
+          <a href="/api/admin/orders/export?format=csv" className={styles.actionLink}>
             Export CSV
+          </a>
+          <a href="/api/admin/orders/export?format=xlsx" className={styles.actionLink}>
+            Export XLSX
           </a>
           <button type="button" onClick={onLogoutAdmin} className={styles.actionLink}>
             Logout Admin
@@ -574,6 +900,10 @@ export default function AdminPage() {
             <div>
               <strong>{testimonials.length}</strong>
               <span>Testimonial</span>
+            </div>
+            <div>
+              <strong>{marquees.length}</strong>
+              <span>Logo Marquee</span>
             </div>
             <div>
               <strong>{latestOrders.length}</strong>
@@ -674,6 +1004,13 @@ export default function AdminPage() {
               required
             />
             <input
+              value={productForm.duration}
+              onChange={(event) =>
+                setProductForm((current) => ({ ...current, duration: event.target.value }))
+              }
+              placeholder="Durasi (contoh: 1 Bulan / 30 Hari / Lifetime)"
+            />
+            <input
               type="text"
               value={priceInput}
               onChange={(event) => {
@@ -692,17 +1029,16 @@ export default function AdminPage() {
               onChange={(event) =>
                 setProductForm((current) => ({ ...current, imageUrl: event.target.value }))
               }
-              placeholder="URL gambar (contoh /assets/background.jpg)"
-              required
+              placeholder="URL media produk (opsional, image/video)"
             />
             <label className={styles.fileField}>
-              Upload Foto Produk
-              <input type="file" accept="image/*" onChange={onSelectProductImage} />
-              <small>{isUploadingProductImage ? "Uploading..." : "Pilih gambar dari device"}</small>
+              Upload Media Produk (Foto/Video)
+              <input type="file" accept="image/*,video/*" onChange={onSelectProductImage} />
+              <small>{isUploadingProductImage ? "Uploading..." : "Pilih file media dari device"}</small>
             </label>
             <div className={styles.previewCard}>
-              <Image
-                src={productForm.imageUrl || "/assets/background.jpg"}
+              <FlexibleMedia
+                src={productForm.imageUrl}
                 alt="Preview produk"
                 width={72}
                 height={72}
@@ -730,7 +1066,7 @@ export default function AdminPage() {
             {products.map((product) => (
               <div key={product.id} className={styles.listItem}>
                 <div className={styles.listPreview}>
-                  <Image
+                  <FlexibleMedia
                     src={product.imageUrl}
                     alt={product.name}
                     width={56}
@@ -742,7 +1078,10 @@ export default function AdminPage() {
                     <p>
                       {product.name} - {formatRupiah(product.price)}
                     </p>
-                    <span>{product.category}</span>
+                    <span>
+                      {product.category}
+                      {product.duration ? ` - ${product.duration}` : ""}
+                    </span>
                   </div>
                 </div>
                 <div className={styles.rowActions}>
@@ -765,12 +1104,19 @@ export default function AdminPage() {
           <form className={styles.form} onSubmit={onSaveInformation}>
             <select
               value={infoForm.type}
-              onChange={(event) =>
+              onChange={(event) => {
+                const nextType = event.target.value as "message" | "poll" | "update";
                 setInfoForm((current) => ({
                   ...current,
-                  type: event.target.value as "message" | "poll" | "update",
-                }))
-              }
+                  type: nextType,
+                  pollOptions:
+                    nextType === "poll"
+                      ? current.pollOptions.length > 0
+                        ? current.pollOptions
+                        : ["", ""]
+                      : current.pollOptions,
+                }));
+              }}
             >
               <option value="update">Update</option>
               <option value="message">Message</option>
@@ -797,23 +1143,57 @@ export default function AdminPage() {
               onChange={(event) =>
                 setInfoForm((current) => ({ ...current, imageUrl: event.target.value }))
               }
-              placeholder="URL gambar"
+              placeholder="URL media informasi (opsional, image/video)"
             />
             <label className={styles.fileField}>
-              Upload Foto Informasi
-              <input type="file" accept="image/*" onChange={onSelectInfoImage} />
-              <small>{isUploadingInfoImage ? "Uploading..." : "Pilih gambar dari device"}</small>
+              Upload Media Informasi (Foto/Video)
+              <input type="file" accept="image/*,video/*" onChange={onSelectInfoImage} />
+              <small>{isUploadingInfoImage ? "Uploading..." : "Pilih file media dari device"}</small>
             </label>
-            <input
-              value={infoForm.pollOptions}
-              onChange={(event) =>
-                setInfoForm((current) => ({ ...current, pollOptions: event.target.value }))
-              }
-              placeholder="Opsi polling pisahkan koma"
-            />
+            {infoForm.type === "poll" ? (
+              <div className={styles.pollBuilder}>
+                <p>Opsi Polling</p>
+                {infoForm.pollOptions.map((option, index) => (
+                  <div key={`poll-option-${index}`} className={styles.pollBuilderRow}>
+                    <input
+                      value={option}
+                      onChange={(event) => updateInfoPollOption(index, event.target.value)}
+                      placeholder={`Isi opsi ${index + 1}`}
+                    />
+                    <button
+                      type="button"
+                      className={styles.pollBuilderRemove}
+                      onClick={() => removeInfoPollOption(index)}
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                ))}
+                <div className={styles.pollBuilderActions}>
+                  <button
+                    type="button"
+                    className={styles.pollBuilderAdd}
+                    onClick={addInfoPollOption}
+                  >
+                    + Tambah Opsi
+                  </button>
+                </div>
+                <select className={styles.pollBuilderPreview} disabled>
+                  <option>Pilih opsi polling</option>
+                  {infoForm.pollOptions
+                    .map((item) => item.trim())
+                    .filter(Boolean)
+                    .map((item, index) => (
+                      <option key={`preview-${index}-${item}`} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            ) : null}
             <div className={styles.previewCard}>
-              <Image
-                src={infoForm.imageUrl || "/assets/background.jpg"}
+              <FlexibleMedia
+                src={infoForm.imageUrl}
                 alt="Preview informasi"
                 width={72}
                 height={72}
@@ -841,8 +1221,8 @@ export default function AdminPage() {
             {informations.map((information) => (
               <div key={information.id} className={styles.listItem}>
                 <div className={styles.listPreview}>
-                  <Image
-                    src={information.imageUrl || "/assets/background.jpg"}
+                  <FlexibleMedia
+                    src={information.imageUrl}
                     alt={information.title}
                     width={56}
                     height={56}
@@ -854,6 +1234,35 @@ export default function AdminPage() {
                       [{information.type}] {information.title}
                     </p>
                     <span>{new Date(information.createdAt).toLocaleDateString("id-ID")}</span>
+                    {information.type === "poll" && information.pollOptions.length > 0 ? (
+                      <div className={styles.pollSummary}>
+                        <strong>
+                          Total:{" "}
+                          {information.pollOptions.reduce(
+                            (sum, option) => sum + (information.pollVotes[option] ?? 0),
+                            0,
+                          )}{" "}
+                          suara
+                        </strong>
+                        <div className={styles.pollSummaryButtons}>
+                          {information.pollOptions.map((option) => (
+                            <button
+                              key={`${information.id}-${option}-vote`}
+                              type="button"
+                              onClick={() => onVoteInformation(information.id, option)}
+                              disabled={activePollVoteId === information.id}
+                            >
+                              Vote {option}
+                            </button>
+                          ))}
+                        </div>
+                        {information.pollOptions.map((option) => (
+                          <span key={`${information.id}-${option}`}>
+                            {option}: {information.pollVotes[option] ?? 0}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <div className={styles.rowActions}>
@@ -919,6 +1328,37 @@ export default function AdminPage() {
               <option value={1}>Bintang 1</option>
             </select>
             <input
+              value={testimonialForm.mediaUrl}
+              onChange={(event) =>
+                setTestimonialForm((current) => ({
+                  ...current,
+                  mediaUrl: event.target.value,
+                }))
+              }
+              placeholder="URL media profil testimonial (opsional, image/video)"
+            />
+            <label className={styles.fileField}>
+              Upload Media Testimoni (Foto/Video)
+              <input type="file" accept="image/*,video/*" onChange={onSelectTestimonialMedia} />
+              <small>
+                {isUploadingTestimonialMedia ? "Uploading..." : "Pilih file media dari device"}
+              </small>
+            </label>
+            <div className={styles.previewCard}>
+              <FlexibleMedia
+                src={testimonialForm.mediaUrl}
+                alt={testimonialForm.name || "Preview testimonial"}
+                width={72}
+                height={72}
+                className={styles.previewImage}
+                unoptimized
+              />
+              <div>
+                <p>{testimonialForm.name || "Preview nama testimonial"}</p>
+                <span>{testimonialForm.country}</span>
+              </div>
+            </div>
+            <input
               value={testimonialForm.audioUrl}
               onChange={(event) =>
                 setTestimonialForm((current) => ({
@@ -926,8 +1366,7 @@ export default function AdminPage() {
                   audioUrl: event.target.value,
                 }))
               }
-              placeholder="URL voice"
-              required
+              placeholder="URL voice (opsional)"
             />
             <label className={styles.fileField}>
               Upload Voice Testimoni
@@ -959,6 +1398,14 @@ export default function AdminPage() {
                     </p>
                     <span>{testimonial.country}</span>
                     <span>{testimonial.message}</span>
+                    <FlexibleMedia
+                      src={testimonial.mediaUrl}
+                      alt={testimonial.name}
+                      width={56}
+                      height={56}
+                      className={styles.listThumb}
+                      unoptimized
+                    />
                     <audio controls src={testimonial.audioUrl} className={styles.audioPreview} />
                   </div>
                 </div>
@@ -973,6 +1420,252 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
+        </article>
+        ) : null}
+
+        {activeSection === "marquees" ? (
+        <article className={styles.card}>
+          <h2>{marqueeEditId ? "Edit Logo Marquee" : "CRUD Logo Marquee"}</h2>
+          <form className={styles.form} onSubmit={onSaveMarquee}>
+            <input
+              value={marqueeForm.label}
+              onChange={(event) =>
+                setMarqueeForm((current) => ({
+                  ...current,
+                  label: event.target.value,
+                }))
+              }
+              placeholder="Label logo"
+              required
+            />
+            <input
+              type="number"
+              min={0}
+              value={marqueeForm.sortOrder}
+              onChange={(event) =>
+                setMarqueeForm((current) => ({
+                  ...current,
+                  sortOrder: Number(event.target.value || 0),
+                }))
+              }
+              placeholder="Urutan tampil"
+            />
+            <input
+              value={marqueeForm.imageUrl}
+              onChange={(event) =>
+                setMarqueeForm((current) => ({
+                  ...current,
+                  imageUrl: event.target.value,
+                }))
+              }
+              placeholder="URL logo marquee"
+            />
+            <label className={styles.fileField}>
+              Upload Logo Marquee
+              <input type="file" accept="image/*,video/*" onChange={onSelectMarqueeImage} />
+              <small>
+                {isUploadingMarqueeImage ? "Uploading..." : "Pilih logo dari device"}
+              </small>
+            </label>
+            <label className={styles.checkField}>
+              <input
+                type="checkbox"
+                checked={marqueeForm.isActive}
+                onChange={(event) =>
+                  setMarqueeForm((current) => ({
+                    ...current,
+                    isActive: event.target.checked,
+                  }))
+                }
+              />
+              Aktif ditampilkan di beranda
+            </label>
+            <div className={styles.previewCard}>
+              <FlexibleMedia
+                src={marqueeForm.imageUrl}
+                alt={marqueeForm.label || "Preview logo marquee"}
+                width={72}
+                height={72}
+                className={styles.previewImage}
+                unoptimized
+              />
+              <div>
+                <p>{marqueeForm.label || "Preview label marquee"}</p>
+                <span>Urutan: {marqueeForm.sortOrder}</span>
+              </div>
+            </div>
+            <div className={styles.formActions}>
+              <button type="submit" disabled={isLoading}>
+                {marqueeEditId ? "Simpan Perubahan" : "Tambah Logo"}
+              </button>
+              {marqueeEditId ? (
+                <button type="button" className={styles.secondaryButton} onClick={resetMarqueeForm}>
+                  Batal Edit
+                </button>
+              ) : null}
+            </div>
+          </form>
+
+          <div className={styles.list}>
+            {marquees.map((marquee) => (
+              <div key={marquee.id} className={styles.listItem}>
+                <div className={styles.listPreview}>
+                  <FlexibleMedia
+                    src={marquee.imageUrl}
+                    alt={marquee.label}
+                    width={56}
+                    height={56}
+                    className={styles.listThumb}
+                    unoptimized
+                  />
+                  <div>
+                    <p>{marquee.label}</p>
+                    <span>Urutan: {marquee.sortOrder}</span>
+                    <span>{marquee.isActive ? "Aktif" : "Nonaktif"}</span>
+                  </div>
+                </div>
+                <div className={styles.rowActions}>
+                  <button type="button" onClick={() => onEditMarquee(marquee)}>
+                    Edit
+                  </button>
+                  <button type="button" onClick={() => onDeleteMarquee(marquee.id)}>
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            ))}
+            {marquees.length === 0 ? <p>Belum ada logo marquee.</p> : null}
+          </div>
+        </article>
+        ) : null}
+
+        {activeSection === "privacyPolicy" ? (
+        <article className={styles.card}>
+          <h2>Pengaturan Kebijakan Privasi</h2>
+          <form className={styles.form} onSubmit={onSavePrivacyPolicy}>
+            <input
+              value={privacyPolicyForm.title}
+              onChange={(event) =>
+                setPrivacyPolicyForm((current) => ({
+                  ...current,
+                  title: event.target.value,
+                }))
+              }
+              placeholder="Judul halaman"
+              required
+            />
+            <input
+              value={privacyPolicyForm.updatedLabel}
+              onChange={(event) =>
+                setPrivacyPolicyForm((current) => ({
+                  ...current,
+                  updatedLabel: event.target.value,
+                }))
+              }
+              placeholder="Label tanggal update"
+              required
+            />
+            <input
+              value={privacyPolicyForm.bannerImageUrl}
+              onChange={(event) =>
+                setPrivacyPolicyForm((current) => ({
+                  ...current,
+                  bannerImageUrl: event.target.value,
+                }))
+              }
+              placeholder="URL banner horizontal"
+              required
+            />
+            <label className={styles.fileField}>
+              Upload Banner Kebijakan Privasi
+              <input type="file" accept="image/*" onChange={onSelectPrivacyBanner} />
+              <small>
+                {isUploadingPrivacyBanner ? "Uploading..." : "Pilih file banner dari device"}
+              </small>
+            </label>
+
+            <div className={styles.richToolbar}>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("bold")}>
+                Bold
+              </button>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("italic")}>
+                Italic
+              </button>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("underline")}>
+                Underline
+              </button>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("formatBlock", "<p>")}>
+                Paragraf
+              </button>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("formatBlock", "<h2>")}>
+                Heading
+              </button>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("formatBlock", "<h3>")}>
+                Subheading
+              </button>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("fontSize", "2")}>
+                Kecil
+              </button>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("fontSize", "3")}>
+                Normal
+              </button>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("fontSize", "5")}>
+                Besar
+              </button>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("insertUnorderedList")}>
+                Bullet List
+              </button>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("insertOrderedList")}>
+                Number List
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const linkUrl = window.prompt("Masukkan URL link");
+                  if (!linkUrl) {
+                    return;
+                  }
+                  applyPrivacyEditorCommand("createLink", linkUrl);
+                }}
+              >
+                Link
+              </button>
+              <button type="button" onClick={() => applyPrivacyEditorCommand("unlink")}>
+                Unlink
+              </button>
+            </div>
+
+            <div
+              ref={privacyEditorRef}
+              className={styles.richEditor}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={onPrivacyEditorInput}
+            />
+
+            <div className={styles.policyPreviewCard}>
+              <p className={styles.previewDateText}>{privacyPolicyForm.updatedLabel}</p>
+              <FlexibleMedia
+                src={privacyPolicyForm.bannerImageUrl}
+                alt="Preview banner kebijakan privasi"
+                width={320}
+                height={46}
+                className={styles.policyBannerImage}
+                unoptimized
+              />
+            </div>
+
+            <div
+              className={styles.policyHtmlPreview}
+              dangerouslySetInnerHTML={{ __html: privacyPolicyForm.contentHtml }}
+            />
+
+            <div className={styles.formActions}>
+              <button type="submit" disabled={isLoading}>
+                Simpan Kebijakan Privasi
+              </button>
+            </div>
+          </form>
         </article>
         ) : null}
 

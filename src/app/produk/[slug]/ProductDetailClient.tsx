@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { gsap } from "gsap";
+import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
 import { addToCart } from "@/lib/cart";
 import type { StoreProduct } from "@/types/store";
@@ -15,9 +15,12 @@ type ProductDetailClientProps = {
   product: StoreProduct;
 };
 
+const PENDING_CART_ACTION_KEY = "tokko_pending_cart_action";
+
 export default function ProductDetailClient({ product }: ProductDetailClientProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const noticeRef = useRef<HTMLParagraphElement | null>(null);
+  const hasHandledPendingRef = useRef(false);
   const router = useRouter();
   const { status } = useSession();
 
@@ -54,12 +57,52 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     );
   }, [added]);
 
+  useEffect(() => {
+    if (status !== "authenticated" || hasHandledPendingRef.current || typeof window === "undefined") {
+      return;
+    }
+
+    const raw = window.sessionStorage.getItem(PENDING_CART_ACTION_KEY);
+    if (!raw) {
+      return;
+    }
+
+    hasHandledPendingRef.current = true;
+    try {
+      const pending = JSON.parse(raw) as { slug?: string; quantity?: number };
+      if (pending.slug !== product.slug) {
+        return;
+      }
+
+      const safeQty = Math.min(99, Math.max(1, Number(pending.quantity ?? 1)));
+      window.sessionStorage.removeItem(PENDING_CART_ACTION_KEY);
+      const timer = window.setTimeout(() => {
+        addToCart(product.slug, safeQty);
+        setAdded(true);
+        router.replace("/troli");
+      }, 550);
+
+      return () => window.clearTimeout(timer);
+    } catch {
+      window.sessionStorage.removeItem(PENDING_CART_ACTION_KEY);
+    }
+  }, [status, product.slug, router]);
+
   const onAddToCart = () => {
     if (status === "loading") {
       return;
     }
 
     if (status === "unauthenticated") {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(
+          PENDING_CART_ACTION_KEY,
+          JSON.stringify({
+            slug: product.slug,
+            quantity,
+          }),
+        );
+      }
       router.push(`/auth?redirect=${encodeURIComponent(`/produk/${product.slug}`)}`);
       return;
     }
@@ -99,7 +142,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
       <section className={styles.detailLayout} data-detail="intro">
         <div className={styles.imageWrap}>
-          <Image
+          <FlexibleMedia
             src={product.imageUrl}
             alt={product.name}
             fill
@@ -115,9 +158,12 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           <h1>{product.name}</h1>
           <p className={styles.description}>{product.description}</p>
           <p className={styles.price}>{formatRupiah(product.price)}</p>
+          <p className={styles.duration}>
+            Durasi: {product.duration?.trim() ? product.duration : "-"}
+          </p>
 
           <div className={styles.qtyRow}>
-            <p>Qty</p>
+            <p>Jumlah</p>
             <div className={styles.qtyControl}>
               <button type="button" onClick={decreaseQty} aria-label="Kurangi jumlah">
                 -

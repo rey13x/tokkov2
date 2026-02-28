@@ -6,7 +6,7 @@
 }
 
 .authCard {
-  width: min(380px, 100%);
+  width: min(460px, 100%);
   padding: 14px 0 10px;
 }
 
@@ -114,7 +114,7 @@
 }
 
 .successText {
-  color: #0f6f2c;
+  color: #214ebd;
   font-size: 0.84rem;
 }
 

@@ -36,7 +36,7 @@ export default function SiteFooter() {
           </nav>
           <nav className={styles.policyLinks} aria-label="Kebijakan dan sertifikasi">
             <Link href="/kebijakan-privasi-sertifikasi">
-              Privacy Policy & Sertifikasi Layanan
+              Kebijakan Privasi & Sertifikasi Layanan
             </Link>
           </nav>
         </div>

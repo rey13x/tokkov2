@@ -2,11 +2,16 @@ import { createClient, type InArgs } from "@libsql/client";
 import { hash } from "bcryptjs";
 import type {
   InformationType,
+  StoreOrderDetail,
+  StoreOrderItem,
   OrderSummary,
   StoreInformation,
+  StoreMarqueeItem,
+  StorePrivacyPolicyPage,
   StoreProduct,
   StoreTestimonial,
 } from "@/types/store";
+import { resolveMediaUrl } from "@/lib/media";
 
 const now = () => Date.now();
 
@@ -31,6 +36,75 @@ function slugify(value: string) {
     .slice(0, 80);
 }
 
+function parseJsonArray(value: unknown): string[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(String(value));
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .map((item) => String(item).trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function parseJsonRecord(value: unknown): Record<string, number> {
+  if (!value) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(String(value)) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") {
+      return {};
+    }
+
+    const record: Record<string, number> = {};
+    for (const [key, raw] of Object.entries(parsed)) {
+      if (!key.trim()) {
+        continue;
+      }
+      const votes = Number(raw ?? 0);
+      record[key] = Number.isFinite(votes) ? Math.max(0, Math.floor(votes)) : 0;
+    }
+    return record;
+  } catch {
+    return {};
+  }
+}
+
+function normalizePollOptions(options: string[]) {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const option of options) {
+    const next = option.trim();
+    if (!next) {
+      continue;
+    }
+    const key = next.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    normalized.push(next);
+  }
+  return normalized;
+}
+
+function normalizePollVotes(options: string[], rawVotes: Record<string, number>) {
+  const votes: Record<string, number> = {};
+  for (const option of options) {
+    votes[option] = Math.max(0, Math.floor(Number(rawVotes[option] ?? 0)));
+  }
+  return votes;
+}
+
 function mapProduct(row: Record<string, unknown>): StoreProduct {
   return {
     id: String(row.id),
@@ -39,22 +113,25 @@ function mapProduct(row: Record<string, unknown>): StoreProduct {
     category: String(row.category),
     shortDescription: String(row.short_description),
     description: String(row.description),
+    duration: String(row.duration ?? ""),
     price: Number(row.price),
-    imageUrl: String(row.image_url),
+    imageUrl: resolveMediaUrl(String(row.image_url ?? "")),
     isActive: Number(row.is_active) === 1,
   };
 }
 
 function mapInfo(row: Record<string, unknown>): StoreInformation {
-  const pollOptionsRaw = row.poll_options ? String(row.poll_options) : "[]";
+  const pollOptions = normalizePollOptions(parseJsonArray(row.poll_options));
+  const pollVotes = normalizePollVotes(pollOptions, parseJsonRecord(row.poll_votes));
 
   return {
     id: String(row.id),
     type: String(row.type) as InformationType,
     title: String(row.title),
     body: String(row.body),
-    imageUrl: String(row.image_url ?? ""),
-    pollOptions: JSON.parse(pollOptionsRaw) as string[],
+    imageUrl: resolveMediaUrl(String(row.image_url ?? "")),
+    pollOptions,
+    pollVotes,
     createdAt: new Date(Number(row.created_at)).toISOString(),
   };
 }
@@ -66,8 +143,66 @@ function mapTestimonial(row: Record<string, unknown>): StoreTestimonial {
     country: String(row.country ?? "Indonesia"),
     message: String(row.message),
     rating: Math.max(1, Math.min(5, Number(row.rating ?? 5))),
+    mediaUrl: resolveMediaUrl(String(row.media_url ?? "")),
     audioUrl: String(row.audio_url ?? "/assets/notif.mp3"),
     createdAt: new Date(Number(row.created_at ?? now())).toISOString(),
+  };
+}
+
+function mapMarquee(row: Record<string, unknown>): StoreMarqueeItem {
+  return {
+    id: String(row.id),
+    label: String(row.label ?? "Logo"),
+    imageUrl: resolveMediaUrl(String(row.image_url ?? "")),
+    isActive: Number(row.is_active ?? 1) === 1,
+    sortOrder: Number(row.sort_order ?? 0),
+    createdAt: new Date(Number(row.created_at ?? now())).toISOString(),
+  };
+}
+
+const PRIVACY_POLICY_PAGE_ID = "main";
+
+const defaultPrivacyPolicyPage: Omit<StorePrivacyPolicyPage, "id" | "updatedAt"> = {
+  title: "Kebijakan Privasi & Sertifikasi Layanan",
+  updatedLabel: "Terakhir diperbarui: 28 Februari 2026",
+  bannerImageUrl: "/assets/background.jpg",
+  contentHtml: `
+<h2>Kebijakan Privasi</h2>
+<p>Tokko berkomitmen menjaga keamanan dan kerahasiaan data pelanggan.</p>
+<ul>
+  <li>Data digunakan hanya untuk proses transaksi, dukungan, dan evaluasi layanan.</li>
+  <li>Data tidak diperjualbelikan kepada pihak ketiga tanpa persetujuan pelanggan.</li>
+  <li>Akses data dibatasi hanya untuk personel yang berwenang.</li>
+</ul>
+<h2>Sertifikasi & Standar Layanan</h2>
+<p>Kami menerapkan verifikasi berlapis dan audit kualitas berkala.</p>
+<ul>
+  <li>Kepatuhan kebijakan perlindungan data pribadi berbasis regulasi Indonesia (UU PDP).</li>
+  <li>Seleksi mitra panel layanan berdasarkan stabilitas dan kualitas.</li>
+</ul>
+<h2>Kontak</h2>
+<p>Hubungi tim kami lewat kanal resmi untuk informasi kebijakan lebih rinci.</p>
+`.trim(),
+};
+
+function getDefaultPrivacyPolicyPage(): StorePrivacyPolicyPage {
+  return {
+    id: PRIVACY_POLICY_PAGE_ID,
+    ...defaultPrivacyPolicyPage,
+    updatedAt: new Date(now()).toISOString(),
+  };
+}
+
+function mapPrivacyPolicyPage(row: Record<string, unknown>): StorePrivacyPolicyPage {
+  return {
+    id: String(row.id ?? PRIVACY_POLICY_PAGE_ID),
+    title: String(row.title ?? defaultPrivacyPolicyPage.title),
+    updatedLabel: String(row.updated_label ?? defaultPrivacyPolicyPage.updatedLabel),
+    bannerImageUrl: resolveMediaUrl(
+      String(row.banner_image_url ?? defaultPrivacyPolicyPage.bannerImageUrl),
+    ),
+    contentHtml: String(row.content_html ?? defaultPrivacyPolicyPage.contentHtml),
+    updatedAt: new Date(Number(row.updated_at ?? now())).toISOString(),
   };
 }
 
@@ -79,6 +214,7 @@ const defaultProducts: Array<
     category: "App Premium",
     shortDescription: "Akun private HD + garansi",
     description: "Akun private siap pakai kualitas HD dengan garansi.",
+    duration: "1 Bulan",
     price: 59000,
     imageUrl: "/assets/background.jpg",
   },
@@ -87,6 +223,7 @@ const defaultProducts: Array<
     category: "App Premium",
     shortDescription: "Anti iklan, mode offline",
     description: "Upgrade akun Spotify tanpa iklan dan mode offline aktif.",
+    duration: "1 Bulan",
     price: 25000,
     imageUrl: "/assets/prime-video.jpg",
   },
@@ -95,6 +232,7 @@ const defaultProducts: Array<
     category: "App Premium",
     shortDescription: "No ads, aktivasi cepat",
     description: "Nikmati YouTube tanpa iklan dengan dukungan login aman.",
+    duration: "1 Bulan",
     price: 28000,
     imageUrl: "/assets/canva.jpg",
   },
@@ -109,6 +247,7 @@ const defaultInformations: Array<
     body: "Admin bisa mengisi pesan campaign terbaru dan instruksi pembelian.",
     imageUrl: "/assets/background.jpg",
     pollOptions: [],
+    pollVotes: {},
   },
   {
     type: "poll",
@@ -116,6 +255,7 @@ const defaultInformations: Array<
     body: "Pilih kategori yang paling sering kamu beli minggu ini.",
     imageUrl: "/assets/canva.jpg",
     pollOptions: ["App Premium"],
+    pollVotes: { "App Premium": 0 },
   },
 ];
 
@@ -127,8 +267,19 @@ const defaultTestimonials: Array<
     country: "Indonesia",
     message: "Hasil lebih Penting dari Janji",
     rating: 5,
+    mediaUrl: "/assets/logo.png",
     audioUrl: "/assets/notif.mp3",
   },
+];
+
+const defaultMarquees: Array<
+  Omit<StoreMarqueeItem, "id" | "createdAt"> & { createdAt?: string }
+> = [
+  { label: "Logo 1", imageUrl: "/assets/logo.png", isActive: true, sortOrder: 1 },
+  { label: "Logo 2", imageUrl: "/assets/logo.png", isActive: true, sortOrder: 2 },
+  { label: "Logo 3", imageUrl: "/assets/logo.png", isActive: true, sortOrder: 3 },
+  { label: "Logo 4", imageUrl: "/assets/logo.png", isActive: true, sortOrder: 4 },
+  { label: "Logo 5", imageUrl: "/assets/logo.png", isActive: true, sortOrder: 5 },
 ];
 
 async function runOneTimeCatalogCleanup() {
@@ -182,9 +333,21 @@ async function seedIfEmpty() {
       const slug = item.slug ?? slugify(item.name);
       await run(
         `INSERT INTO products
-          (id, slug, name, category, short_description, description, price, image_url, is_active, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-        [randomId(), slug, item.name, item.category, item.shortDescription, item.description, item.price, item.imageUrl, now(), now()],
+          (id, slug, name, category, short_description, description, duration, price, image_url, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+        [
+          randomId(),
+          slug,
+          item.name,
+          item.category,
+          item.shortDescription,
+          item.description,
+          item.duration,
+          item.price,
+          item.imageUrl,
+          now(),
+          now(),
+        ],
       );
     }
   }
@@ -194,11 +357,23 @@ async function seedIfEmpty() {
 
   if (totalInfos === 0) {
     for (const item of defaultInformations) {
+      const pollOptions = normalizePollOptions(item.pollOptions);
+      const pollVotes = normalizePollVotes(pollOptions, item.pollVotes);
       await run(
         `INSERT INTO informations
-          (id, type, title, body, image_url, poll_options, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [randomId(), item.type, item.title, item.body, item.imageUrl, JSON.stringify(item.pollOptions), now(), now()],
+          (id, type, title, body, image_url, poll_options, poll_votes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          randomId(),
+          item.type,
+          item.title,
+          item.body,
+          item.imageUrl,
+          JSON.stringify(pollOptions),
+          JSON.stringify(pollVotes),
+          now(),
+          now(),
+        ],
       );
     }
   }
@@ -210,14 +385,15 @@ async function seedIfEmpty() {
     for (const item of defaultTestimonials) {
       await run(
         `INSERT INTO testimonials
-          (id, name, country, message, rating, audio_url, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          (id, name, country, message, rating, media_url, audio_url, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           randomId(),
           item.name,
           item.country,
           item.message,
           item.rating,
+          item.mediaUrl,
           item.audioUrl,
           now(),
           now(),
@@ -225,6 +401,43 @@ async function seedIfEmpty() {
       );
     }
   }
+
+  const marqueeCount = await run("SELECT COUNT(*) AS count FROM marquees");
+  const totalMarquees = Number(marqueeCount.rows[0]?.count ?? 0);
+
+  if (totalMarquees === 0) {
+    for (const item of defaultMarquees) {
+      await run(
+        `INSERT INTO marquees
+          (id, label, image_url, is_active, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          randomId(),
+          item.label,
+          item.imageUrl,
+          Number(item.isActive),
+          item.sortOrder,
+          now(),
+          now(),
+        ],
+      );
+    }
+  }
+
+  await run(
+    `INSERT OR IGNORE INTO privacy_policy_pages
+      (id, title, updated_label, banner_image_url, content_html, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      PRIVACY_POLICY_PAGE_ID,
+      defaultPrivacyPolicyPage.title,
+      defaultPrivacyPolicyPage.updatedLabel,
+      defaultPrivacyPolicyPage.bannerImageUrl,
+      defaultPrivacyPolicyPage.contentHtml,
+      now(),
+      now(),
+    ],
+  );
 }
 
 export async function ensureDatabase() {
@@ -240,12 +453,16 @@ export async function ensureDatabase() {
           username TEXT NOT NULL,
           email TEXT NOT NULL UNIQUE,
           phone TEXT NOT NULL DEFAULT '',
+          avatar_url TEXT NOT NULL DEFAULT '',
           password_hash TEXT,
           role TEXT NOT NULL DEFAULT 'user',
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
       );
+      await run(
+        "ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS app_meta (
@@ -262,6 +479,7 @@ export async function ensureDatabase() {
           category TEXT NOT NULL,
           short_description TEXT NOT NULL,
           description TEXT NOT NULL,
+          duration TEXT NOT NULL DEFAULT '',
           price INTEGER NOT NULL,
           image_url TEXT NOT NULL,
           is_active INTEGER NOT NULL DEFAULT 1,
@@ -269,6 +487,9 @@ export async function ensureDatabase() {
           updated_at INTEGER NOT NULL
         )`,
       );
+      await run(
+        "ALTER TABLE products ADD COLUMN duration TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS informations (
@@ -278,10 +499,14 @@ export async function ensureDatabase() {
           body TEXT NOT NULL,
           image_url TEXT NOT NULL DEFAULT '',
           poll_options TEXT NOT NULL DEFAULT '[]',
+          poll_votes TEXT NOT NULL DEFAULT '{}',
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
       );
+      await run(
+        "ALTER TABLE informations ADD COLUMN poll_votes TEXT NOT NULL DEFAULT '{}'",
+      ).catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS orders (
@@ -303,11 +528,57 @@ export async function ensureDatabase() {
           country TEXT NOT NULL DEFAULT 'Indonesia',
           message TEXT NOT NULL,
           rating INTEGER NOT NULL DEFAULT 5,
+          media_url TEXT NOT NULL DEFAULT '/assets/logo.png',
           audio_url TEXT NOT NULL DEFAULT '/assets/notif.mp3',
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
       );
+      await run(
+        "ALTER TABLE testimonials ADD COLUMN media_url TEXT NOT NULL DEFAULT '/assets/logo.png'",
+      ).catch(() => {});
+
+      await run(
+        `CREATE TABLE IF NOT EXISTS marquees (
+          id TEXT PRIMARY KEY,
+          label TEXT NOT NULL,
+          image_url TEXT NOT NULL DEFAULT '/assets/logo.png',
+          is_active INTEGER NOT NULL DEFAULT 1,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )`,
+      );
+      await run(
+        "ALTER TABLE marquees ADD COLUMN image_url TEXT NOT NULL DEFAULT '/assets/logo.png'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE marquees ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE marquees ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+
+      await run(
+        `CREATE TABLE IF NOT EXISTS privacy_policy_pages (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          updated_label TEXT NOT NULL,
+          banner_image_url TEXT NOT NULL DEFAULT '/assets/background.jpg',
+          content_html TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )`,
+      );
+      await run(
+        "ALTER TABLE privacy_policy_pages ADD COLUMN banner_image_url TEXT NOT NULL DEFAULT '/assets/background.jpg'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE privacy_policy_pages ADD COLUMN updated_label TEXT NOT NULL DEFAULT 'Terakhir diperbarui: 28 Februari 2026'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE privacy_policy_pages ADD COLUMN content_html TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS order_items (
@@ -315,8 +586,38 @@ export async function ensureDatabase() {
           order_id TEXT NOT NULL,
           product_id TEXT NOT NULL,
           product_name TEXT NOT NULL,
+          product_duration TEXT NOT NULL DEFAULT '',
           quantity INTEGER NOT NULL,
           unit_price INTEGER NOT NULL
+        )`,
+      );
+      await run(
+        "ALTER TABLE order_items ADD COLUMN product_duration TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
+
+      await run(
+        `CREATE TABLE IF NOT EXISTS email_verifications (
+          id TEXT PRIMARY KEY,
+          email TEXT NOT NULL UNIQUE,
+          username TEXT NOT NULL,
+          phone TEXT NOT NULL DEFAULT '',
+          password_hash TEXT NOT NULL,
+          otp_hash TEXT NOT NULL,
+          expires_at INTEGER NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
+        )`,
+      );
+
+      await run(
+        `CREATE TABLE IF NOT EXISTS password_change_otps (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL UNIQUE,
+          email TEXT NOT NULL,
+          otp_hash TEXT NOT NULL,
+          expires_at INTEGER NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
         )`,
       );
 
@@ -335,6 +636,7 @@ export type DbUser = {
   username: string;
   email: string;
   phone: string;
+  avatarUrl: string;
   role: "user" | "admin";
   passwordHash: string | null;
 };
@@ -345,6 +647,7 @@ function mapUser(row: Record<string, unknown>): DbUser {
     username: String(row.username),
     email: String(row.email),
     phone: String(row.phone),
+    avatarUrl: String(row.avatar_url ?? ""),
     role: (String(row.role) as "user" | "admin") ?? "user",
     passwordHash: row.password_hash ? String(row.password_hash) : null,
   };
@@ -380,16 +683,18 @@ export async function createUser(input: {
   username: string;
   email: string;
   phone: string;
+  avatarUrl?: string;
   passwordHash: string | null;
   role?: "user" | "admin";
 }) {
   await ensureDatabase();
   const id = randomId();
   const role = input.role ?? "user";
+  const avatarUrl = (input.avatarUrl ?? "").trim();
   await run(
-    `INSERT INTO users (id, username, email, phone, password_hash, role, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, input.username, input.email, input.phone, input.passwordHash, role, now(), now()],
+    `INSERT INTO users (id, username, email, phone, avatar_url, password_hash, role, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.username, input.email, input.phone, avatarUrl, input.passwordHash, role, now(), now()],
   );
   return findUserById(id);
 }
@@ -400,6 +705,7 @@ export async function updateUserById(
     username: string;
     email: string;
     phone: string;
+    avatarUrl: string;
     passwordHash: string | null;
     role: "user" | "admin";
   }>,
@@ -410,14 +716,18 @@ export async function updateUserById(
     return null;
   }
 
+  const nextAvatarUrl =
+    input.avatarUrl === undefined ? current.avatarUrl : input.avatarUrl.trim();
+
   await run(
     `UPDATE users
-     SET username = ?, email = ?, phone = ?, password_hash = ?, role = ?, updated_at = ?
+     SET username = ?, email = ?, phone = ?, avatar_url = ?, password_hash = ?, role = ?, updated_at = ?
      WHERE id = ?`,
     [
       input.username ?? current.username,
       input.email ?? current.email,
       input.phone ?? current.phone,
+      nextAvatarUrl,
       input.passwordHash ?? current.passwordHash,
       input.role ?? current.role,
       now(),
@@ -463,6 +773,7 @@ export async function createProduct(input: {
   category: string;
   shortDescription: string;
   description: string;
+  duration: string;
   price: number;
   imageUrl: string;
 }) {
@@ -484,11 +795,24 @@ export async function createProduct(input: {
     slug = `${baseSlug}-${counter}`;
   }
 
+  const mediaUrl = resolveMediaUrl(input.imageUrl);
   await run(
     `INSERT INTO products
-      (id, slug, name, category, short_description, description, price, image_url, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-    [id, slug, input.name, input.category, input.shortDescription, input.description, input.price, input.imageUrl, now(), now()],
+      (id, slug, name, category, short_description, description, duration, price, image_url, is_active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    [
+      id,
+      slug,
+      input.name,
+      input.category,
+      input.shortDescription,
+      input.description,
+      input.duration.trim(),
+      input.price,
+      mediaUrl,
+      now(),
+      now(),
+    ],
   );
   return getProductById(id);
 }
@@ -500,6 +824,7 @@ export async function updateProduct(
     category: string;
     shortDescription: string;
     description: string;
+    duration: string;
     price: number;
     imageUrl: string;
     isActive: boolean;
@@ -512,6 +837,8 @@ export async function updateProduct(
   }
 
   const nextName = input.name ?? current.name;
+  const nextMediaUrl =
+    input.imageUrl === undefined ? current.imageUrl : resolveMediaUrl(input.imageUrl);
   const nextSlug =
     nextName !== current.name
       ? `${slugify(nextName)}-${Math.floor(Math.random() * 900 + 100)}`
@@ -519,7 +846,7 @@ export async function updateProduct(
 
   await run(
     `UPDATE products
-     SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, price = ?, image_url = ?, is_active = ?, updated_at = ?
+     SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, is_active = ?, updated_at = ?
      WHERE id = ?`,
     [
       nextSlug,
@@ -527,8 +854,9 @@ export async function updateProduct(
       input.category ?? current.category,
       input.shortDescription ?? current.shortDescription,
       input.description ?? current.description,
+      input.duration?.trim() ?? current.duration,
       input.price ?? current.price,
-      input.imageUrl ?? current.imageUrl,
+      nextMediaUrl,
       input.isActive === undefined ? Number(current.isActive) : Number(input.isActive),
       now(),
       id,
@@ -553,6 +881,13 @@ export async function listInformations() {
   return res.rows.map((row) => mapInfo(row as Record<string, unknown>));
 }
 
+export async function getInformationById(id: string) {
+  await ensureDatabase();
+  const res = await run("SELECT * FROM informations WHERE id = ? LIMIT 1", [id]);
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  return row ? mapInfo(row) : null;
+}
+
 export async function createInformation(input: {
   type: InformationType;
   title: string;
@@ -562,16 +897,27 @@ export async function createInformation(input: {
 }) {
   await ensureDatabase();
   const id = randomId();
+  const mediaUrl = resolveMediaUrl(input.imageUrl);
+  const pollOptions = normalizePollOptions(input.pollOptions);
+  const pollVotes = input.type === "poll" ? normalizePollVotes(pollOptions, {}) : {};
   await run(
     `INSERT INTO informations
-      (id, type, title, body, image_url, poll_options, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, input.type, input.title, input.body, input.imageUrl, JSON.stringify(input.pollOptions), now(), now()],
+      (id, type, title, body, image_url, poll_options, poll_votes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.type,
+      input.title,
+      input.body,
+      mediaUrl,
+      JSON.stringify(pollOptions),
+      JSON.stringify(pollVotes),
+      now(),
+      now(),
+    ],
   );
 
-  const res = await run("SELECT * FROM informations WHERE id = ? LIMIT 1", [id]);
-  const row = res.rows[0] as Record<string, unknown> | undefined;
-  return row ? mapInfo(row) : null;
+  return getInformationById(id);
 }
 
 export async function updateInformation(
@@ -585,30 +931,61 @@ export async function updateInformation(
   }>,
 ) {
   await ensureDatabase();
-  const res = await run("SELECT * FROM informations WHERE id = ? LIMIT 1", [id]);
-  const row = res.rows[0] as Record<string, unknown> | undefined;
-  if (!row) {
+  const current = await getInformationById(id);
+  if (!current) {
     return null;
   }
-  const current = mapInfo(row);
+  const nextMediaUrl =
+    input.imageUrl === undefined ? current.imageUrl : resolveMediaUrl(input.imageUrl);
+  const nextType = input.type ?? current.type;
+  const nextPollOptions = normalizePollOptions(input.pollOptions ?? current.pollOptions);
+  const nextPollVotes =
+    nextType === "poll"
+      ? normalizePollVotes(nextPollOptions, current.pollVotes)
+      : {};
 
   await run(
     `UPDATE informations
-     SET type = ?, title = ?, body = ?, image_url = ?, poll_options = ?, updated_at = ?
+     SET type = ?, title = ?, body = ?, image_url = ?, poll_options = ?, poll_votes = ?, updated_at = ?
      WHERE id = ?`,
     [
-      input.type ?? current.type,
+      nextType,
       input.title ?? current.title,
       input.body ?? current.body,
-      input.imageUrl ?? current.imageUrl,
-      JSON.stringify(input.pollOptions ?? current.pollOptions),
+      nextMediaUrl,
+      JSON.stringify(nextPollOptions),
+      JSON.stringify(nextPollVotes),
       now(),
       id,
     ],
   );
 
-  const updated = await run("SELECT * FROM informations WHERE id = ? LIMIT 1", [id]);
-  return mapInfo(updated.rows[0] as Record<string, unknown>);
+  return getInformationById(id);
+}
+
+export async function voteInformationPoll(id: string, option: string) {
+  await ensureDatabase();
+  const info = await getInformationById(id);
+  if (!info || info.type !== "poll") {
+    return null;
+  }
+
+  const normalizedOption = option.trim();
+  if (!info.pollOptions.includes(normalizedOption)) {
+    return null;
+  }
+
+  const nextPollVotes = normalizePollVotes(info.pollOptions, info.pollVotes);
+  nextPollVotes[normalizedOption] = (nextPollVotes[normalizedOption] ?? 0) + 1;
+
+  await run(
+    `UPDATE informations
+     SET poll_votes = ?, updated_at = ?
+     WHERE id = ?`,
+    [JSON.stringify(nextPollVotes), now(), id],
+  );
+
+  return getInformationById(id);
 }
 
 export async function deleteInformation(id: string) {
@@ -627,21 +1004,25 @@ export async function createTestimonial(input: {
   country: string;
   message: string;
   rating: number;
+  mediaUrl: string;
   audioUrl: string;
 }) {
   await ensureDatabase();
   const id = randomId();
+  const mediaUrl = resolveMediaUrl(input.mediaUrl);
+  const audioUrl = input.audioUrl.trim() || "/assets/notif.mp3";
   await run(
     `INSERT INTO testimonials
-      (id, name, country, message, rating, audio_url, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, name, country, message, rating, media_url, audio_url, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.name,
       input.country,
       input.message,
       Math.max(1, Math.min(5, input.rating)),
-      input.audioUrl,
+      mediaUrl,
+      audioUrl,
       now(),
       now(),
     ],
@@ -659,6 +1040,7 @@ export async function updateTestimonial(
     country: string;
     message: string;
     rating: number;
+    mediaUrl: string;
     audioUrl: string;
   }>,
 ) {
@@ -669,10 +1051,14 @@ export async function updateTestimonial(
     return null;
   }
   const current = mapTestimonial(row);
+  const nextMediaUrl =
+    input.mediaUrl === undefined ? current.mediaUrl : resolveMediaUrl(input.mediaUrl);
+  const nextAudioUrl =
+    input.audioUrl === undefined ? current.audioUrl : input.audioUrl.trim() || "/assets/notif.mp3";
 
   await run(
     `UPDATE testimonials
-     SET name = ?, country = ?, message = ?, rating = ?, audio_url = ?, updated_at = ?
+     SET name = ?, country = ?, message = ?, rating = ?, media_url = ?, audio_url = ?, updated_at = ?
      WHERE id = ?`,
     [
       input.name ?? current.name,
@@ -681,7 +1067,8 @@ export async function updateTestimonial(
       input.rating === undefined
         ? current.rating
         : Math.max(1, Math.min(5, input.rating)),
-      input.audioUrl ?? current.audioUrl,
+      nextMediaUrl,
+      nextAudioUrl,
       now(),
       id,
     ],
@@ -696,6 +1083,137 @@ export async function deleteTestimonial(id: string) {
   await run("DELETE FROM testimonials WHERE id = ?", [id]);
 }
 
+export async function listMarquees() {
+  await ensureDatabase();
+  const res = await run(
+    "SELECT * FROM marquees ORDER BY sort_order ASC, created_at ASC",
+  );
+  return res.rows.map((row) => mapMarquee(row as Record<string, unknown>));
+}
+
+export async function getMarqueeById(id: string) {
+  await ensureDatabase();
+  const res = await run("SELECT * FROM marquees WHERE id = ? LIMIT 1", [id]);
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  return row ? mapMarquee(row) : null;
+}
+
+export async function createMarquee(input: {
+  label: string;
+  imageUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+}) {
+  await ensureDatabase();
+  const id = randomId();
+  const mediaUrl = resolveMediaUrl(input.imageUrl);
+
+  await run(
+    `INSERT INTO marquees
+      (id, label, image_url, is_active, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.label.trim(),
+      mediaUrl,
+      Number(input.isActive),
+      Math.max(0, Math.floor(input.sortOrder)),
+      now(),
+      now(),
+    ],
+  );
+
+  return getMarqueeById(id);
+}
+
+export async function updateMarquee(
+  id: string,
+  input: Partial<{
+    label: string;
+    imageUrl: string;
+    isActive: boolean;
+    sortOrder: number;
+  }>,
+) {
+  await ensureDatabase();
+  const current = await getMarqueeById(id);
+  if (!current) {
+    return null;
+  }
+
+  const nextMediaUrl =
+    input.imageUrl === undefined ? current.imageUrl : resolveMediaUrl(input.imageUrl);
+
+  await run(
+    `UPDATE marquees
+     SET label = ?, image_url = ?, is_active = ?, sort_order = ?, updated_at = ?
+     WHERE id = ?`,
+    [
+      input.label?.trim() ?? current.label,
+      nextMediaUrl,
+      input.isActive === undefined ? Number(current.isActive) : Number(input.isActive),
+      input.sortOrder === undefined
+        ? current.sortOrder
+        : Math.max(0, Math.floor(input.sortOrder)),
+      now(),
+      id,
+    ],
+  );
+
+  return getMarqueeById(id);
+}
+
+export async function deleteMarquee(id: string) {
+  await ensureDatabase();
+  await run("DELETE FROM marquees WHERE id = ?", [id]);
+}
+
+export async function getPrivacyPolicyPage() {
+  await ensureDatabase();
+  const res = await run("SELECT * FROM privacy_policy_pages WHERE id = ? LIMIT 1", [
+    PRIVACY_POLICY_PAGE_ID,
+  ]);
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  return row ? mapPrivacyPolicyPage(row) : getDefaultPrivacyPolicyPage();
+}
+
+export async function upsertPrivacyPolicyPage(input: {
+  title: string;
+  updatedLabel: string;
+  bannerImageUrl: string;
+  contentHtml: string;
+}) {
+  await ensureDatabase();
+  const safeTitle = input.title.trim() || defaultPrivacyPolicyPage.title;
+  const safeUpdatedLabel = input.updatedLabel.trim() || defaultPrivacyPolicyPage.updatedLabel;
+  const safeBanner = resolveMediaUrl(input.bannerImageUrl) || defaultPrivacyPolicyPage.bannerImageUrl;
+  const safeContent = input.contentHtml.trim() || defaultPrivacyPolicyPage.contentHtml;
+  const timestamp = now();
+
+  await run(
+    `INSERT INTO privacy_policy_pages
+      (id, title, updated_label, banner_image_url, content_html, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+      title = excluded.title,
+      updated_label = excluded.updated_label,
+      banner_image_url = excluded.banner_image_url,
+      content_html = excluded.content_html,
+      updated_at = excluded.updated_at`,
+    [
+      PRIVACY_POLICY_PAGE_ID,
+      safeTitle,
+      safeUpdatedLabel,
+      safeBanner,
+      safeContent,
+      timestamp,
+      timestamp,
+    ],
+  );
+
+  return getPrivacyPolicyPage();
+}
+
 export async function createOrder(input: {
   userId: string;
   userName: string;
@@ -704,6 +1222,7 @@ export async function createOrder(input: {
   items: Array<{
     productId: string;
     productName: string;
+    productDuration: string;
     quantity: number;
     unitPrice: number;
   }>;
@@ -722,9 +1241,17 @@ export async function createOrder(input: {
   for (const item of input.items) {
     await run(
       `INSERT INTO order_items
-        (id, order_id, product_id, product_name, quantity, unit_price)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [randomId(), id, item.productId, item.productName, item.quantity, item.unitPrice],
+        (id, order_id, product_id, product_name, product_duration, quantity, unit_price)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        randomId(),
+        id,
+        item.productId,
+        item.productName,
+        item.productDuration,
+        item.quantity,
+        item.unitPrice,
+      ],
     );
   }
 
@@ -747,6 +1274,7 @@ export async function listOrders(limit = 100) {
       id: String(data.id),
       userName: String(data.user_name),
       userEmail: String(data.user_email),
+      userPhone: String(data.user_phone ?? ""),
       total: Number(data.total),
       status: String(data.status),
       createdAt: new Date(Number(data.created_at)).toISOString(),
@@ -767,10 +1295,199 @@ export async function listOrderItemsByOrderId(orderId: string) {
       orderId: String(data.order_id),
       productId: String(data.product_id),
       productName: String(data.product_name),
+      productDuration: String(data.product_duration ?? ""),
       quantity: Number(data.quantity),
       unitPrice: Number(data.unit_price),
-    };
+    } satisfies StoreOrderItem;
   });
+}
+
+export async function getOrderById(id: string) {
+  await ensureDatabase();
+  const res = await run("SELECT * FROM orders WHERE id = ? LIMIT 1", [id]);
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: String(row.id),
+    userName: String(row.user_name),
+    userEmail: String(row.user_email),
+    userPhone: String(row.user_phone ?? ""),
+    total: Number(row.total ?? 0),
+    status: String(row.status ?? "new"),
+    createdAt: new Date(Number(row.created_at)).toISOString(),
+  } satisfies OrderSummary;
+}
+
+export async function listOrdersWithItems(limit = 100) {
+  const orders = await listOrders(limit);
+  const detailed: StoreOrderDetail[] = [];
+
+  for (const order of orders) {
+    const items = await listOrderItemsByOrderId(order.id);
+    detailed.push({
+      ...order,
+      items,
+    });
+  }
+
+  return detailed;
+}
+
+export async function upsertEmailVerification(input: {
+  email: string;
+  username: string;
+  phone: string;
+  passwordHash: string;
+  otpHash: string;
+  expiresAt: number;
+}) {
+  await ensureDatabase();
+  const existing = await run(
+    "SELECT id FROM email_verifications WHERE lower(email) = lower(?) LIMIT 1",
+    [input.email],
+  );
+  if (existing.rows.length > 0) {
+    await run(
+      `UPDATE email_verifications
+       SET username = ?, phone = ?, password_hash = ?, otp_hash = ?, expires_at = ?, attempts = 0, created_at = ?
+       WHERE lower(email) = lower(?)`,
+      [
+        input.username,
+        input.phone,
+        input.passwordHash,
+        input.otpHash,
+        input.expiresAt,
+        now(),
+        input.email,
+      ],
+    );
+    return;
+  }
+
+  await run(
+    `INSERT INTO email_verifications
+      (id, email, username, phone, password_hash, otp_hash, expires_at, attempts, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+    [
+      randomId(),
+      input.email,
+      input.username,
+      input.phone,
+      input.passwordHash,
+      input.otpHash,
+      input.expiresAt,
+      now(),
+    ],
+  );
+}
+
+export async function getEmailVerificationByEmail(email: string) {
+  await ensureDatabase();
+  const res = await run(
+    "SELECT * FROM email_verifications WHERE lower(email) = lower(?) LIMIT 1",
+    [email],
+  );
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: String(row.id),
+    email: String(row.email),
+    username: String(row.username),
+    phone: String(row.phone ?? ""),
+    passwordHash: String(row.password_hash),
+    otpHash: String(row.otp_hash),
+    expiresAt: Number(row.expires_at),
+    attempts: Number(row.attempts ?? 0),
+    createdAt: Number(row.created_at ?? now()),
+  };
+}
+
+export async function incrementEmailVerificationAttempts(email: string) {
+  await ensureDatabase();
+  await run(
+    `UPDATE email_verifications
+     SET attempts = attempts + 1
+     WHERE lower(email) = lower(?)`,
+    [email],
+  );
+}
+
+export async function deleteEmailVerificationByEmail(email: string) {
+  await ensureDatabase();
+  await run("DELETE FROM email_verifications WHERE lower(email) = lower(?)", [email]);
+}
+
+export async function upsertPasswordChangeOtp(input: {
+  userId: string;
+  email: string;
+  otpHash: string;
+  expiresAt: number;
+}) {
+  await ensureDatabase();
+  const existing = await run(
+    "SELECT id FROM password_change_otps WHERE user_id = ? LIMIT 1",
+    [input.userId],
+  );
+
+  if (existing.rows.length > 0) {
+    await run(
+      `UPDATE password_change_otps
+       SET email = ?, otp_hash = ?, expires_at = ?, attempts = 0, created_at = ?
+       WHERE user_id = ?`,
+      [input.email, input.otpHash, input.expiresAt, now(), input.userId],
+    );
+    return;
+  }
+
+  await run(
+    `INSERT INTO password_change_otps
+      (id, user_id, email, otp_hash, expires_at, attempts, created_at)
+     VALUES (?, ?, ?, ?, ?, 0, ?)`,
+    [randomId(), input.userId, input.email, input.otpHash, input.expiresAt, now()],
+  );
+}
+
+export async function getPasswordChangeOtpByUserId(userId: string) {
+  await ensureDatabase();
+  const res = await run(
+    "SELECT * FROM password_change_otps WHERE user_id = ? LIMIT 1",
+    [userId],
+  );
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    email: String(row.email),
+    otpHash: String(row.otp_hash),
+    expiresAt: Number(row.expires_at),
+    attempts: Number(row.attempts ?? 0),
+    createdAt: Number(row.created_at ?? now()),
+  };
+}
+
+export async function incrementPasswordChangeOtpAttempts(userId: string) {
+  await ensureDatabase();
+  await run(
+    `UPDATE password_change_otps
+     SET attempts = attempts + 1
+     WHERE user_id = ?`,
+    [userId],
+  );
+}
+
+export async function deletePasswordChangeOtpByUserId(userId: string) {
+  await ensureDatabase();
+  await run("DELETE FROM password_change_otps WHERE user_id = ?", [userId]);
 }
 
 export async function getOrderStatsLastHours(hours = 12) {

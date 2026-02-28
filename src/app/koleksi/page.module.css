@@ -120,6 +120,7 @@
 
 .productImage {
   object-fit: cover;
+  display: block;
 }
 
 .floatingMeta {

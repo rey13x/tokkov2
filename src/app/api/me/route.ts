@@ -1,8 +1,17 @@
 import { compare, hash } from "bcryptjs";
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerAuthSession } from "@/server/auth";
-import { findUserById, updateUserById } from "@/server/db";
+import {
+  deletePasswordChangeOtpByUserId,
+  findUserById,
+  getPasswordChangeOtpByUserId,
+  incrementPasswordChangeOtpAttempts,
+  updateUserById,
+} from "@/server/db";
+
+const MAX_OTP_ATTEMPTS = 5;
 
 const updateSchema = z.object({
   username: z.string().min(2).max(40),
@@ -10,7 +19,12 @@ const updateSchema = z.object({
   phone: z.string().max(20),
   oldPassword: z.string().optional().default(""),
   newPassword: z.string().optional().default(""),
+  otpCode: z.string().optional().default(""),
 });
+
+function hashOtp(code: string) {
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
 
 export async function GET() {
   const session = await getServerAuthSession();
@@ -28,6 +42,7 @@ export async function GET() {
     username: user.username,
     email: user.email,
     phone: user.phone,
+    avatarUrl: user.avatarUrl,
     role: user.role,
   });
 }
@@ -73,6 +88,47 @@ export async function PATCH(request: Request) {
         );
       }
 
+      const otpCode = payload.otpCode.trim();
+      if (!/^\d{6}$/.test(otpCode)) {
+        return NextResponse.json(
+          { message: "Masukkan OTP 6 digit untuk ganti password." },
+          { status: 400 },
+        );
+      }
+
+      const pendingOtp = await getPasswordChangeOtpByUserId(user.id);
+      if (!pendingOtp) {
+        return NextResponse.json(
+          { message: "OTP belum diminta. Klik kirim OTP dulu." },
+          { status: 400 },
+        );
+      }
+
+      if (Date.now() > pendingOtp.expiresAt) {
+        await deletePasswordChangeOtpByUserId(user.id);
+        return NextResponse.json(
+          { message: "OTP sudah kedaluwarsa. Kirim OTP baru." },
+          { status: 400 },
+        );
+      }
+
+      if (pendingOtp.attempts >= MAX_OTP_ATTEMPTS) {
+        await deletePasswordChangeOtpByUserId(user.id);
+        return NextResponse.json(
+          { message: "Terlalu banyak percobaan OTP. Kirim OTP baru." },
+          { status: 429 },
+        );
+      }
+
+      if (pendingOtp.otpHash !== hashOtp(otpCode)) {
+        await incrementPasswordChangeOtpAttempts(user.id);
+        const remaining = Math.max(0, MAX_OTP_ATTEMPTS - (pendingOtp.attempts + 1));
+        return NextResponse.json(
+          { message: `OTP salah. Sisa percobaan: ${remaining}.` },
+          { status: 400 },
+        );
+      }
+
       passwordHash = await hash(payload.newPassword, 10);
     }
 
@@ -87,6 +143,10 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: "Gagal update profil." }, { status: 500 });
     }
 
+    if (wantsPasswordChange) {
+      await deletePasswordChangeOtpByUserId(user.id);
+    }
+
     return NextResponse.json({
       message: "Profil berhasil diperbarui.",
       user: {
@@ -94,6 +154,7 @@ export async function PATCH(request: Request) {
         username: updated.username,
         email: updated.email,
         phone: updated.phone,
+        avatarUrl: updated.avatarUrl,
       },
     });
   } catch (error) {
@@ -110,4 +171,3 @@ export async function PATCH(request: Request) {
     );
   }
 }
-

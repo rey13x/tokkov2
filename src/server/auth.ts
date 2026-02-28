@@ -42,6 +42,7 @@ const providers: NextAuthOptions["providers"] = [
         id: user.id,
         email: user.email,
         name: user.username,
+        image: user.avatarUrl || null,
         role: user.role,
         phone: user.phone,
       };
@@ -82,10 +83,16 @@ export const authOptions: NextAuthOptions = {
       if (!existing) {
         const displayName =
           (profile?.name?.trim() || email.split("@")[0] || "User Tokko").slice(0, 50);
+        const rawProfile = profile as Record<string, unknown> | null | undefined;
+        const profilePicture =
+          rawProfile && typeof rawProfile.picture === "string"
+            ? rawProfile.picture
+            : "";
         await createUser({
           username: displayName,
           email,
           phone: "",
+          avatarUrl: profilePicture,
           passwordHash: null,
           role: adminEmail && email === adminEmail ? "admin" : "user",
         });
@@ -93,7 +100,7 @@ export const authOptions: NextAuthOptions = {
 
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user?.email) {
         const dbUser = await findUserByEmail(user.email);
         if (dbUser) {
@@ -101,6 +108,7 @@ export const authOptions: NextAuthOptions = {
           token.username = dbUser.username;
           token.role = dbUser.role;
           token.phone = dbUser.phone;
+          token.avatarUrl = dbUser.avatarUrl;
         }
       }
 
@@ -111,6 +119,18 @@ export const authOptions: NextAuthOptions = {
           token.username = dbUser.username;
           token.role = dbUser.role;
           token.phone = dbUser.phone;
+          token.avatarUrl = dbUser.avatarUrl;
+        }
+      }
+
+      if (trigger === "update" && token.email) {
+        const dbUser = await findUserByEmail(token.email);
+        if (dbUser) {
+          token.userId = dbUser.id;
+          token.username = dbUser.username;
+          token.role = dbUser.role;
+          token.phone = dbUser.phone;
+          token.avatarUrl = dbUser.avatarUrl;
         }
       }
 
@@ -125,6 +145,7 @@ export const authOptions: NextAuthOptions = {
       session.user.username = token.username ?? session.user.name ?? "User";
       session.user.role = token.role ?? "user";
       session.user.phone = token.phone ?? "";
+      session.user.image = token.avatarUrl || session.user.image || null;
 
       return session;
     },

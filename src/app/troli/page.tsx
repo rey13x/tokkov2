@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
 import {
   readCart,
@@ -45,6 +45,7 @@ export default function CartPage() {
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [latestOrderId, setLatestOrderId] = useState<string | null>(null);
   const isClient = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -158,7 +159,7 @@ export default function CartPage() {
 
       const result = (await response.json()) as { message?: string; orderId?: string };
       if (!response.ok) {
-        setError(result.message ?? "Checkout gagal.");
+        setError(result.message ?? "Gagal memproses pesanan.");
         return;
       }
 
@@ -167,20 +168,28 @@ export default function CartPage() {
       }
 
       setCartLines((current) => current.filter((item) => !item.selected));
+      setLatestOrderId(result.orderId ?? null);
       setSuccess(
-        `Checkout berhasil. Order ID: ${result.orderId ?? "-"} (notifikasi Telegram dikirim jika env aktif).`,
+        `Pesanan berhasil dibuat. ID Pesanan: ${result.orderId ?? "-"}.`,
       );
     } catch {
-      setError("Checkout gagal. Coba lagi.");
+      setError("Gagal memproses pesanan. Coba lagi.");
     } finally {
       setIsCheckoutLoading(false);
     }
   };
 
+  const onDownloadReceipt = () => {
+    if (!latestOrderId) {
+      return;
+    }
+    window.open(`/api/orders/${latestOrderId}/receipt`, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <h1>SHOPPING CART</h1>
+        <h1>Troli</h1>
         <Link href="/" className={styles.backLink}>
           Kembali belanja
         </Link>
@@ -242,7 +251,7 @@ export default function CartPage() {
                   </div>
 
                   <div className={styles.thumbWrap}>
-                    <Image
+                    <FlexibleMedia
                       src={item.product.imageUrl}
                       alt={item.product.name}
                       fill
@@ -265,7 +274,7 @@ export default function CartPage() {
                       </button>
                     </div>
                     <p className={styles.metaLine}>{item.product.category}</p>
-                    <p className={styles.metaLineMuted}>NON REFUNDABLE</p>
+                    <p className={styles.metaLineMuted}>Tidak dapat refund</p>
                   </div>
 
                   <div className={styles.actionCol}>
@@ -296,13 +305,13 @@ export default function CartPage() {
           </div>
 
           <aside className={styles.summaryPanel}>
-            <h3>ORDER SUMMARY</h3>
+            <h3>Ringkasan Pesanan</h3>
             <div className={styles.summaryRow}>
               <span>Subtotal</span>
               <strong>{formatRupiah(subtotal)}</strong>
             </div>
             <div className={styles.summaryRow}>
-              <span>Tax</span>
+              <span>Pajak</span>
               <strong>{formatRupiah(tax)}</strong>
             </div>
             <hr />
@@ -316,8 +325,17 @@ export default function CartPage() {
               disabled={subtotal <= 0 || isCheckoutLoading}
               onClick={onCheckout}
             >
-              {isCheckoutLoading ? "Processing..." : "Checkout"}
+              {isCheckoutLoading ? "Memproses..." : "Lanjut ke Pembayaran"}
             </button>
+            {latestOrderId ? (
+              <button
+                type="button"
+                className={styles.receiptButton}
+                onClick={onDownloadReceipt}
+              >
+                Download Struk
+              </button>
+            ) : null}
           </aside>
         </section>
       ) : null}

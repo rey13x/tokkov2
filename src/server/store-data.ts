@@ -2,6 +2,10 @@ import type {
   InformationType,
   OrderSummary,
   StoreInformation,
+  StoreMarqueeItem,
+  StoreOrderDetail,
+  StoreOrderItem,
+  StorePrivacyPolicyPage,
   StoreProduct,
   StoreTestimonial,
 } from "@/types/store";
@@ -9,23 +13,36 @@ import {
   createInformation as createInformationDb,
   createOrder as createOrderDb,
   createProduct as createProductDb,
+  createMarquee as createMarqueeDb,
   createTestimonial as createTestimonialDb,
   deleteAllProducts as deleteAllProductsDb,
   deleteInformation as deleteInformationDb,
+  deleteMarquee as deleteMarqueeDb,
   deleteProduct as deleteProductDb,
   deleteTestimonial as deleteTestimonialDb,
+  getInformationById as getInformationByIdDb,
+  getMarqueeById as getMarqueeByIdDb,
   getOrderStatsLastHours as getOrderStatsLastHoursDb,
+  getOrderById as getOrderByIdDb,
+  getPrivacyPolicyPage as getPrivacyPolicyPageDb,
   getProductById as getProductByIdDb,
+  listMarquees as listMarqueesDb,
+  listOrderItemsByOrderId as listOrderItemsByOrderIdDb,
+  listOrdersWithItems as listOrdersWithItemsDb,
   listAllProducts as listAllProductsDb,
   listInformations as listInformationsDb,
   listOrders as listOrdersDb,
   listProducts as listProductsDb,
   listTestimonials as listTestimonialsDb,
   updateInformation as updateInformationDb,
+  updateMarquee as updateMarqueeDb,
   updateProduct as updateProductDb,
   updateTestimonial as updateTestimonialDb,
+  upsertPrivacyPolicyPage as upsertPrivacyPolicyPageDb,
+  voteInformationPoll as voteInformationPollDb,
 } from "@/server/db";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
+import { resolveMediaUrl } from "@/lib/media";
 
 const now = () => Date.now();
 
@@ -47,6 +64,35 @@ function bucketFromTimestamp(ms: number) {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
+function normalizePollOptions(options: string[]) {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const option of options) {
+    const next = option.trim();
+    if (!next) {
+      continue;
+    }
+    const key = next.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    normalized.push(next);
+  }
+  return normalized;
+}
+
+function normalizePollVotes(options: string[], raw: unknown) {
+  const row =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const votes: Record<string, number> = {};
+  for (const option of options) {
+    const value = Number(row[option] ?? 0);
+    votes[option] = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  }
+  return votes;
+}
+
 export function isFirebaseDataEnabled() {
   return Boolean(getFirebaseFirestore());
 }
@@ -62,8 +108,9 @@ function mapProductDoc(
     category: String(data?.category ?? "App Premium"),
     shortDescription: String(data?.shortDescription ?? ""),
     description: String(data?.description ?? ""),
+    duration: String(data?.duration ?? ""),
     price: Number(data?.price ?? 0),
-    imageUrl: String(data?.imageUrl ?? "/assets/background.jpg"),
+    imageUrl: resolveMediaUrl(String(data?.imageUrl ?? "")),
     isActive: Boolean(data?.isActive ?? true),
   };
 }
@@ -72,15 +119,18 @@ function mapInformationDoc(
   id: string,
   data: Record<string, unknown> | undefined,
 ): StoreInformation {
+  const pollOptions = Array.isArray(data?.pollOptions)
+    ? normalizePollOptions(data.pollOptions as string[])
+    : [];
+
   return {
     id,
     type: (String(data?.type ?? "update") as InformationType),
     title: String(data?.title ?? ""),
     body: String(data?.body ?? ""),
-    imageUrl: String(data?.imageUrl ?? ""),
-    pollOptions: Array.isArray(data?.pollOptions)
-      ? (data?.pollOptions as string[])
-      : [],
+    imageUrl: resolveMediaUrl(String(data?.imageUrl ?? "")),
+    pollOptions,
+    pollVotes: normalizePollVotes(pollOptions, data?.pollVotes),
     createdAt: new Date(Number(data?.createdAt ?? now())).toISOString(),
   };
 }
@@ -95,8 +145,63 @@ function mapTestimonialDoc(
     country: String(data?.country ?? "Indonesia"),
     message: String(data?.message ?? ""),
     rating: Number(data?.rating ?? 5),
-    audioUrl: String(data?.audioUrl ?? "/assets/bagas.mp3"),
+    mediaUrl: resolveMediaUrl(String(data?.mediaUrl ?? "")),
+    audioUrl: String(data?.audioUrl ?? "/assets/notif.mp3"),
     createdAt: new Date(Number(data?.createdAt ?? now())).toISOString(),
+  };
+}
+
+function mapMarqueeDoc(
+  id: string,
+  data: Record<string, unknown> | undefined,
+): StoreMarqueeItem {
+  return {
+    id,
+    label: String(data?.label ?? "Logo"),
+    imageUrl: resolveMediaUrl(String(data?.imageUrl ?? "")),
+    isActive: Boolean(data?.isActive ?? true),
+    sortOrder: Number(data?.sortOrder ?? 0),
+    createdAt: new Date(Number(data?.createdAt ?? now())).toISOString(),
+  };
+}
+
+function defaultPrivacyPolicyPage(): StorePrivacyPolicyPage {
+  return {
+    id: "main",
+    title: "Kebijakan Privasi & Sertifikasi Layanan",
+    updatedLabel: "Terakhir diperbarui: 28 Februari 2026",
+    bannerImageUrl: "/assets/background.jpg",
+    contentHtml: `
+<h2>Kebijakan Privasi</h2>
+<p>Tokko berkomitmen menjaga keamanan dan kerahasiaan data pelanggan.</p>
+<ul>
+  <li>Data digunakan untuk proses transaksi, dukungan, dan evaluasi layanan.</li>
+  <li>Data tidak diperjualbelikan kepada pihak ketiga tanpa persetujuan pelanggan.</li>
+  <li>Akses data dibatasi hanya untuk personel yang memiliki kewenangan.</li>
+</ul>
+<h2>Sertifikasi & Standar Layanan</h2>
+<p>Kami menerapkan verifikasi berlapis dan audit kualitas secara berkala.</p>
+<ul>
+  <li>Kepatuhan kebijakan perlindungan data pribadi berbasis regulasi Indonesia (UU PDP).</li>
+  <li>Seleksi mitra panel layanan berdasarkan stabilitas dan rekam jejak kualitas.</li>
+</ul>
+`.trim(),
+    updatedAt: new Date(now()).toISOString(),
+  };
+}
+
+function mapPrivacyPolicyDoc(
+  id: string,
+  data: Record<string, unknown> | undefined,
+): StorePrivacyPolicyPage {
+  const fallback = defaultPrivacyPolicyPage();
+  return {
+    id,
+    title: String(data?.title ?? fallback.title),
+    updatedLabel: String(data?.updatedLabel ?? fallback.updatedLabel),
+    bannerImageUrl: resolveMediaUrl(String(data?.bannerImageUrl ?? fallback.bannerImageUrl)),
+    contentHtml: String(data?.contentHtml ?? fallback.contentHtml),
+    updatedAt: new Date(Number(data?.updatedAt ?? now())).toISOString(),
   };
 }
 
@@ -172,6 +277,7 @@ export async function createProduct(input: {
   category: string;
   shortDescription: string;
   description: string;
+  duration: string;
   price: number;
   imageUrl: string;
 }) {
@@ -183,6 +289,7 @@ export async function createProduct(input: {
   const id = crypto.randomUUID();
   const createdAt = now();
   const slug = await getUniqueSlug(firestore, input.name);
+  const mediaUrl = resolveMediaUrl(input.imageUrl);
 
   await firestore.collection("products").doc(id).set({
     slug,
@@ -191,8 +298,9 @@ export async function createProduct(input: {
     category: input.category,
     shortDescription: input.shortDescription,
     description: input.description,
+    duration: input.duration.trim(),
     price: input.price,
-    imageUrl: input.imageUrl,
+    imageUrl: mediaUrl,
     isActive: true,
     createdAt,
     updatedAt: createdAt,
@@ -208,6 +316,7 @@ export async function updateProduct(
     category: string;
     shortDescription: string;
     description: string;
+    duration: string;
     price: number;
     imageUrl: string;
     isActive: boolean;
@@ -227,6 +336,8 @@ export async function updateProduct(
   const currentData = current.data() as Record<string, unknown>;
   const nextName = input.name ?? String(currentData.name ?? "");
   let nextSlug = String(currentData.slug ?? "");
+  const nextMediaUrl =
+    input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
 
   if (input.name && input.name !== currentData.name) {
     nextSlug = await getUniqueSlug(firestore, nextName);
@@ -239,8 +350,9 @@ export async function updateProduct(
       ? { shortDescription: input.shortDescription }
       : {}),
     ...(input.description !== undefined ? { description: input.description } : {}),
+    ...(input.duration !== undefined ? { duration: input.duration.trim() } : {}),
     ...(input.price !== undefined ? { price: input.price } : {}),
-    ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+    ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
     ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
     slug: nextSlug,
     slugLower: nextSlug.toLowerCase(),
@@ -301,12 +413,16 @@ export async function createInformation(input: {
 
   const id = crypto.randomUUID();
   const createdAt = now();
+  const mediaUrl = resolveMediaUrl(input.imageUrl);
+  const pollOptions = normalizePollOptions(input.pollOptions);
+  const pollVotes = input.type === "poll" ? normalizePollVotes(pollOptions, {}) : {};
   await firestore.collection("informations").doc(id).set({
     type: input.type,
     title: input.title,
     body: input.body,
-    imageUrl: input.imageUrl,
-    pollOptions: input.pollOptions,
+    imageUrl: mediaUrl,
+    pollOptions,
+    pollVotes,
     createdAt,
     updatedAt: createdAt,
   });
@@ -336,17 +452,83 @@ export async function updateInformation(
     return null;
   }
 
+  const currentData = doc.data() as Record<string, unknown>;
+  const currentMapped = mapInformationDoc(doc.id, currentData);
+  const nextType = input.type ?? currentMapped.type;
+  const nextPollOptions = normalizePollOptions(input.pollOptions ?? currentMapped.pollOptions);
+  const nextPollVotes =
+    nextType === "poll"
+      ? normalizePollVotes(nextPollOptions, currentMapped.pollVotes)
+      : {};
+  const nextMediaUrl =
+    input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
   await ref.update({
     ...(input.type !== undefined ? { type: input.type } : {}),
     ...(input.title !== undefined ? { title: input.title } : {}),
     ...(input.body !== undefined ? { body: input.body } : {}),
-    ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
-    ...(input.pollOptions !== undefined ? { pollOptions: input.pollOptions } : {}),
+    ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
+    ...(input.pollOptions !== undefined ? { pollOptions: nextPollOptions } : {}),
+    pollVotes: nextPollVotes,
     updatedAt: now(),
   });
 
   const updated = await ref.get();
   return mapInformationDoc(updated.id, updated.data() as Record<string, unknown>);
+}
+
+export async function getInformationById(id: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return getInformationByIdDb(id);
+  }
+
+  const doc = await firestore.collection("informations").doc(id).get();
+  if (!doc.exists) {
+    return null;
+  }
+
+  return mapInformationDoc(doc.id, doc.data() as Record<string, unknown>);
+}
+
+export async function voteInformationPoll(id: string, option: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return voteInformationPollDb(id, option);
+  }
+
+  const ref = firestore.collection("informations").doc(id);
+  let updated: StoreInformation | null = null;
+
+  await firestore.runTransaction(async (transaction) => {
+    const doc = await transaction.get(ref);
+    if (!doc.exists) {
+      return;
+    }
+
+    const current = mapInformationDoc(doc.id, doc.data() as Record<string, unknown>);
+    if (current.type !== "poll") {
+      return;
+    }
+
+    const selectedOption = option.trim();
+    if (!current.pollOptions.includes(selectedOption)) {
+      return;
+    }
+
+    const nextPollVotes = normalizePollVotes(current.pollOptions, current.pollVotes);
+    nextPollVotes[selectedOption] = (nextPollVotes[selectedOption] ?? 0) + 1;
+    transaction.update(ref, {
+      pollVotes: nextPollVotes,
+      updatedAt: now(),
+    });
+
+    updated = {
+      ...current,
+      pollVotes: nextPollVotes,
+    };
+  });
+
+  return updated;
 }
 
 export async function deleteInformation(id: string) {
@@ -379,6 +561,7 @@ export async function createTestimonial(input: {
   country: string;
   message: string;
   rating: number;
+  mediaUrl: string;
   audioUrl: string;
 }) {
   const firestore = getFirebaseFirestore();
@@ -386,6 +569,8 @@ export async function createTestimonial(input: {
     return createTestimonialDb(input);
   }
 
+  const mediaUrl = resolveMediaUrl(input.mediaUrl);
+  const audioUrl = input.audioUrl.trim() || "/assets/notif.mp3";
   const id = crypto.randomUUID();
   const createdAt = now();
   await firestore.collection("testimonials").doc(id).set({
@@ -393,7 +578,8 @@ export async function createTestimonial(input: {
     country: input.country,
     message: input.message,
     rating: Math.max(1, Math.min(5, input.rating)),
-    audioUrl: input.audioUrl,
+    mediaUrl,
+    audioUrl,
     createdAt,
     updatedAt: createdAt,
   });
@@ -409,6 +595,7 @@ export async function updateTestimonial(
     country: string;
     message: string;
     rating: number;
+    mediaUrl: string;
     audioUrl: string;
   }>,
 ) {
@@ -423,12 +610,17 @@ export async function updateTestimonial(
     return null;
   }
 
+  const nextMediaUrl =
+    input.mediaUrl !== undefined ? resolveMediaUrl(input.mediaUrl) : undefined;
+  const nextAudioUrl =
+    input.audioUrl !== undefined ? input.audioUrl.trim() || "/assets/notif.mp3" : undefined;
   await ref.update({
     ...(input.name !== undefined ? { name: input.name } : {}),
     ...(input.country !== undefined ? { country: input.country } : {}),
     ...(input.message !== undefined ? { message: input.message } : {}),
     ...(input.rating !== undefined ? { rating: Math.max(1, Math.min(5, input.rating)) } : {}),
-    ...(input.audioUrl !== undefined ? { audioUrl: input.audioUrl } : {}),
+    ...(nextMediaUrl !== undefined ? { mediaUrl: nextMediaUrl } : {}),
+    ...(nextAudioUrl !== undefined ? { audioUrl: nextAudioUrl } : {}),
     updatedAt: now(),
   });
 
@@ -445,6 +637,151 @@ export async function deleteTestimonial(id: string) {
   await firestore.collection("testimonials").doc(id).delete();
 }
 
+export async function listMarquees() {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return listMarqueesDb();
+  }
+
+  const snapshot = await firestore
+    .collection("marquees")
+    .orderBy("sortOrder", "asc")
+    .get();
+
+  return snapshot.docs
+    .map((doc) => mapMarqueeDoc(doc.id, doc.data() as Record<string, unknown>))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+}
+
+export async function getMarqueeById(id: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return getMarqueeByIdDb(id);
+  }
+
+  const doc = await firestore.collection("marquees").doc(id).get();
+  if (!doc.exists) {
+    return null;
+  }
+  return mapMarqueeDoc(doc.id, doc.data() as Record<string, unknown>);
+}
+
+export async function createMarquee(input: {
+  label: string;
+  imageUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+}) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return createMarqueeDb(input);
+  }
+
+  const id = crypto.randomUUID();
+  const createdAt = now();
+  const mediaUrl = resolveMediaUrl(input.imageUrl);
+
+  await firestore.collection("marquees").doc(id).set({
+    label: input.label.trim(),
+    imageUrl: mediaUrl,
+    isActive: Boolean(input.isActive),
+    sortOrder: Math.max(0, Math.floor(input.sortOrder)),
+    createdAt,
+    updatedAt: createdAt,
+  });
+
+  return getMarqueeById(id);
+}
+
+export async function updateMarquee(
+  id: string,
+  input: Partial<{
+    label: string;
+    imageUrl: string;
+    isActive: boolean;
+    sortOrder: number;
+  }>,
+) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return updateMarqueeDb(id, input);
+  }
+
+  const ref = firestore.collection("marquees").doc(id);
+  const current = await ref.get();
+  if (!current.exists) {
+    return null;
+  }
+
+  const nextMediaUrl =
+    input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
+
+  await ref.update({
+    ...(input.label !== undefined ? { label: input.label.trim() } : {}),
+    ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
+    ...(input.isActive !== undefined ? { isActive: Boolean(input.isActive) } : {}),
+    ...(input.sortOrder !== undefined
+      ? { sortOrder: Math.max(0, Math.floor(input.sortOrder)) }
+      : {}),
+    updatedAt: now(),
+  });
+
+  return getMarqueeById(id);
+}
+
+export async function deleteMarquee(id: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    await deleteMarqueeDb(id);
+    return;
+  }
+  await firestore.collection("marquees").doc(id).delete();
+}
+
+export async function getPrivacyPolicyPage() {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return getPrivacyPolicyPageDb();
+  }
+
+  const doc = await firestore.collection("privacyPolicyPages").doc("main").get();
+  if (!doc.exists) {
+    return defaultPrivacyPolicyPage();
+  }
+
+  return mapPrivacyPolicyDoc(doc.id, doc.data() as Record<string, unknown>);
+}
+
+export async function upsertPrivacyPolicyPage(input: {
+  title: string;
+  updatedLabel: string;
+  bannerImageUrl: string;
+  contentHtml: string;
+}) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return upsertPrivacyPolicyPageDb(input);
+  }
+
+  const current = await getPrivacyPolicyPage();
+  const next = {
+    title: input.title.trim() || current.title,
+    updatedLabel: input.updatedLabel.trim() || current.updatedLabel,
+    bannerImageUrl: resolveMediaUrl(input.bannerImageUrl) || current.bannerImageUrl,
+    contentHtml: input.contentHtml.trim() || current.contentHtml,
+  };
+
+  await firestore.collection("privacyPolicyPages").doc("main").set(
+    {
+      ...next,
+      updatedAt: now(),
+    },
+    { merge: true },
+  );
+
+  return getPrivacyPolicyPage();
+}
+
 export async function createOrder(input: {
   userId: string;
   userName: string;
@@ -453,6 +790,7 @@ export async function createOrder(input: {
   items: Array<{
     productId: string;
     productName: string;
+    productDuration: string;
     quantity: number;
     unitPrice: number;
   }>;
@@ -498,11 +836,83 @@ export async function listOrders(limit = 100) {
       id: doc.id,
       userName: String(data.userName ?? ""),
       userEmail: String(data.userEmail ?? ""),
+      userPhone: String(data.userPhone ?? ""),
       total: Number(data.total ?? 0),
       status: String(data.status ?? "new"),
       createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
     } satisfies OrderSummary;
   });
+}
+
+export async function listOrderItemsByOrderId(orderId: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return listOrderItemsByOrderIdDb(orderId);
+  }
+
+  const doc = await firestore.collection("orders").doc(orderId).get();
+  if (!doc.exists) {
+    return [] as StoreOrderItem[];
+  }
+
+  const data = doc.data() as Record<string, unknown>;
+  const rawItems = Array.isArray(data.items) ? data.items : [];
+
+  return rawItems.map((item, index) => {
+    const typed = item as Record<string, unknown>;
+    return {
+      id: `${orderId}-${index + 1}`,
+      orderId,
+      productId: String(typed.productId ?? ""),
+      productName: String(typed.productName ?? ""),
+      productDuration: String(typed.productDuration ?? ""),
+      quantity: Number(typed.quantity ?? 1),
+      unitPrice: Number(typed.unitPrice ?? 0),
+    } satisfies StoreOrderItem;
+  });
+}
+
+export async function getOrderById(id: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return getOrderByIdDb(id);
+  }
+
+  const doc = await firestore.collection("orders").doc(id).get();
+  if (!doc.exists) {
+    return null;
+  }
+
+  const data = doc.data() as Record<string, unknown>;
+  return {
+    id: doc.id,
+    userName: String(data.userName ?? ""),
+    userEmail: String(data.userEmail ?? ""),
+    userPhone: String(data.userPhone ?? ""),
+    total: Number(data.total ?? 0),
+    status: String(data.status ?? "new"),
+    createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
+  } satisfies OrderSummary;
+}
+
+export async function listOrdersWithItems(limit = 100) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return listOrdersWithItemsDb(limit);
+  }
+
+  const orders = await listOrders(limit);
+  const rows: StoreOrderDetail[] = [];
+
+  for (const order of orders) {
+    const items = await listOrderItemsByOrderId(order.id);
+    rows.push({
+      ...order,
+      items,
+    });
+  }
+
+  return rows;
 }
 
 export async function getOrderStatsLastHours(hours = 12) {

@@ -38,9 +38,10 @@ export async function POST(request: Request) {
 
     const isImage = file.type.startsWith("image/");
     const isAudio = file.type.startsWith("audio/");
-    if (!isImage && !isAudio) {
+    const isVideo = file.type.startsWith("video/");
+    if (!isImage && !isAudio && !isVideo) {
       return NextResponse.json(
-        { message: "Hanya file image/audio yang diizinkan." },
+        { message: "Hanya file image/video/audio yang diizinkan." },
         { status: 400 },
       );
     }
@@ -62,6 +63,6 @@ export async function POST(request: Request) {
     const publicUrl = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
     return NextResponse.json({ url: publicUrl });
   } catch {
-    return NextResponse.json({ message: "Upload gambar gagal." }, { status: 500 });
+    return NextResponse.json({ message: "Upload media gagal." }, { status: 500 });
   }
 }

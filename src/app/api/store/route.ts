@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
-import { listInformations, listProducts, listTestimonials } from "@/server/store-data";
+import {
+  listInformations,
+  listMarquees,
+  listProducts,
+  listTestimonials,
+} from "@/server/store-data";
 
 export async function GET() {
-  const [products, informations, testimonials] = await Promise.all([
+  const [products, informations, testimonials, marquees] = await Promise.all([
     listProducts(),
     listInformations(),
     listTestimonials(),
+    listMarquees(),
   ]);
 
-  return NextResponse.json({ products, informations, testimonials });
+  return NextResponse.json({ products, informations, testimonials, marquees });
 }

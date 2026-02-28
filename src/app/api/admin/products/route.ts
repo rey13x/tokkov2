@@ -12,8 +12,9 @@ const productSchema = z.object({
   category: z.string().min(2).max(50),
   shortDescription: z.string().min(3).max(140),
   description: z.string().min(6).max(2000),
+  duration: z.string().max(80).default(""),
   price: z.number().int().min(0),
-  imageUrl: z.string().min(1).max(1000),
+  imageUrl: z.string().max(1000).default("/assets/logo.png"),
 });
 
 export async function GET() {

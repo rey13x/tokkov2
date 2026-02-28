@@ -17,6 +17,6 @@ declare module "next-auth/jwt" {
     username?: string;
     role?: "user" | "admin";
     phone?: string;
+    avatarUrl?: string;
   }
 }
-

@@ -8,7 +8,8 @@ const testimonialSchema = z.object({
   country: z.enum(["Indonesia", "Inggris", "Filipina"]),
   message: z.string().min(6).max(4000),
   rating: z.number().int().min(1).max(5),
-  audioUrl: z.string().min(1).max(1000),
+  mediaUrl: z.string().max(1000).default("/assets/logo.png"),
+  audioUrl: z.string().max(1000).default("/assets/notif.mp3"),
 });
 
 export async function GET() {

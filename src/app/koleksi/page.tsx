@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { FiChevronRight } from "react-icons/fi";
+import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreProduct } from "@/types/store";
@@ -41,7 +41,7 @@ export default function KoleksiPage() {
     <main className={styles.page}>
       <section className={styles.stickyTop}>
         <header className={styles.header}>
-          <h1>Our Collections</h1>
+          <h1>Katalog</h1>
           <Link href="/" className={styles.backLink}>
             Kembali
           </Link>
@@ -87,7 +87,7 @@ export default function KoleksiPage() {
             <article key={product.id} className={styles.productShell}>
               <Link href={`/produk/${product.slug}`} className={styles.productCard}>
                 <div className={styles.productImageWrap}>
-                  <Image
+                  <FlexibleMedia
                     src={product.imageUrl}
                     alt={product.name}
                     fill

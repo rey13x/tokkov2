@@ -1,4 +1,9 @@
-import type { StoreInformation, StoreProduct, StoreTestimonial } from "@/types/store";
+import type {
+  StoreInformation,
+  StoreMarqueeItem,
+  StoreProduct,
+  StoreTestimonial,
+} from "@/types/store";
 
 export async function fetchStoreData() {
   const response = await fetch("/api/store", { cache: "no-store" });
@@ -10,6 +15,7 @@ export async function fetchStoreData() {
     products: StoreProduct[];
     informations: StoreInformation[];
     testimonials: StoreTestimonial[];
+    marquees?: StoreMarqueeItem[];
   };
 
   return data;
