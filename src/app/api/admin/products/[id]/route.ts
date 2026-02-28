@@ -41,7 +41,13 @@ export async function PATCH(request: Request, context: { params: Params }) {
       );
     }
 
-    return NextResponse.json({ message: "Gagal update produk." }, { status: 500 });
+    console.error("PATCH /api/admin/products/[id] failed:", error);
+    const detail =
+      error instanceof Error && error.message.trim()
+        ? ` (${error.message.trim()})`
+        : "";
+
+    return NextResponse.json({ message: `Gagal update produk.${detail}` }, { status: 500 });
   }
 }
 

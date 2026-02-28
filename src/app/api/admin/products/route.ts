@@ -46,8 +46,14 @@ export async function POST(request: Request) {
       );
     }
 
+    console.error("POST /api/admin/products failed:", error);
+    const detail =
+      error instanceof Error && error.message.trim()
+        ? ` (${error.message.trim()})`
+        : "";
+
     return NextResponse.json(
-      { message: "Gagal menambah produk." },
+      { message: `Gagal menambah produk.${detail}` },
       { status: 500 },
     );
   }

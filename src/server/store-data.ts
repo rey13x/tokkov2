@@ -232,14 +232,19 @@ export async function listProducts() {
     return listProductsDb();
   }
 
-  const snapshot = await firestore
-    .collection("products")
-    .orderBy("createdAt", "desc")
-    .get();
+  try {
+    const snapshot = await firestore
+      .collection("products")
+      .orderBy("createdAt", "desc")
+      .get();
 
-  return snapshot.docs
-    .map((doc) => mapProductDoc(doc.id, doc.data() as Record<string, unknown>))
-    .filter((product) => product.isActive);
+    return snapshot.docs
+      .map((doc) => mapProductDoc(doc.id, doc.data() as Record<string, unknown>))
+      .filter((product) => product.isActive);
+  } catch (error) {
+    console.error("Failed to read products from Firestore. Falling back to local database.", error);
+    return listProductsDb();
+  }
 }
 
 export async function listAllProducts() {
@@ -248,14 +253,19 @@ export async function listAllProducts() {
     return listAllProductsDb();
   }
 
-  const snapshot = await firestore
-    .collection("products")
-    .orderBy("createdAt", "desc")
-    .get();
+  try {
+    const snapshot = await firestore
+      .collection("products")
+      .orderBy("createdAt", "desc")
+      .get();
 
-  return snapshot.docs.map((doc) =>
-    mapProductDoc(doc.id, doc.data() as Record<string, unknown>),
-  );
+    return snapshot.docs.map((doc) =>
+      mapProductDoc(doc.id, doc.data() as Record<string, unknown>),
+    );
+  } catch (error) {
+    console.error("Failed to read all products from Firestore. Falling back to local database.", error);
+    return listAllProductsDb();
+  }
 }
 
 export async function getProductById(id: string) {
@@ -264,12 +274,17 @@ export async function getProductById(id: string) {
     return getProductByIdDb(id);
   }
 
-  const doc = await firestore.collection("products").doc(id).get();
-  if (!doc.exists) {
-    return null;
-  }
+  try {
+    const doc = await firestore.collection("products").doc(id).get();
+    if (!doc.exists) {
+      return null;
+    }
 
-  return mapProductDoc(doc.id, doc.data() as Record<string, unknown>);
+    return mapProductDoc(doc.id, doc.data() as Record<string, unknown>);
+  } catch (error) {
+    console.error("Failed to read product by id from Firestore. Falling back to local database.", error);
+    return getProductByIdDb(id);
+  }
 }
 
 export async function createProduct(input: {
@@ -286,27 +301,32 @@ export async function createProduct(input: {
     return createProductDb(input);
   }
 
-  const id = crypto.randomUUID();
-  const createdAt = now();
-  const slug = await getUniqueSlug(firestore, input.name);
-  const mediaUrl = resolveMediaUrl(input.imageUrl);
+  try {
+    const id = crypto.randomUUID();
+    const createdAt = now();
+    const slug = await getUniqueSlug(firestore, input.name);
+    const mediaUrl = resolveMediaUrl(input.imageUrl);
 
-  await firestore.collection("products").doc(id).set({
-    slug,
-    slugLower: slug.toLowerCase(),
-    name: input.name,
-    category: input.category,
-    shortDescription: input.shortDescription,
-    description: input.description,
-    duration: input.duration.trim(),
-    price: input.price,
-    imageUrl: mediaUrl,
-    isActive: true,
-    createdAt,
-    updatedAt: createdAt,
-  });
+    await firestore.collection("products").doc(id).set({
+      slug,
+      slugLower: slug.toLowerCase(),
+      name: input.name,
+      category: input.category,
+      shortDescription: input.shortDescription,
+      description: input.description,
+      duration: input.duration.trim(),
+      price: input.price,
+      imageUrl: mediaUrl,
+      isActive: true,
+      createdAt,
+      updatedAt: createdAt,
+    });
 
-  return getProductById(id);
+    return getProductById(id);
+  } catch (error) {
+    console.error("Failed to create product in Firestore. Falling back to local database.", error);
+    return createProductDb(input);
+  }
 }
 
 export async function updateProduct(
@@ -327,39 +347,44 @@ export async function updateProduct(
     return updateProductDb(id, input);
   }
 
-  const ref = firestore.collection("products").doc(id);
-  const current = await ref.get();
-  if (!current.exists) {
-    return null;
+  try {
+    const ref = firestore.collection("products").doc(id);
+    const current = await ref.get();
+    if (!current.exists) {
+      return null;
+    }
+
+    const currentData = current.data() as Record<string, unknown>;
+    const nextName = input.name ?? String(currentData.name ?? "");
+    let nextSlug = String(currentData.slug ?? "");
+    const nextMediaUrl =
+      input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
+
+    if (input.name && input.name !== currentData.name) {
+      nextSlug = await getUniqueSlug(firestore, nextName);
+    }
+
+    await ref.update({
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.category !== undefined ? { category: input.category } : {}),
+      ...(input.shortDescription !== undefined
+        ? { shortDescription: input.shortDescription }
+        : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.duration !== undefined ? { duration: input.duration.trim() } : {}),
+      ...(input.price !== undefined ? { price: input.price } : {}),
+      ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
+      ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+      slug: nextSlug,
+      slugLower: nextSlug.toLowerCase(),
+      updatedAt: now(),
+    });
+
+    return getProductById(id);
+  } catch (error) {
+    console.error("Failed to update product in Firestore. Falling back to local database.", error);
+    return updateProductDb(id, input);
   }
-
-  const currentData = current.data() as Record<string, unknown>;
-  const nextName = input.name ?? String(currentData.name ?? "");
-  let nextSlug = String(currentData.slug ?? "");
-  const nextMediaUrl =
-    input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
-
-  if (input.name && input.name !== currentData.name) {
-    nextSlug = await getUniqueSlug(firestore, nextName);
-  }
-
-  await ref.update({
-    ...(input.name !== undefined ? { name: input.name } : {}),
-    ...(input.category !== undefined ? { category: input.category } : {}),
-    ...(input.shortDescription !== undefined
-      ? { shortDescription: input.shortDescription }
-      : {}),
-    ...(input.description !== undefined ? { description: input.description } : {}),
-    ...(input.duration !== undefined ? { duration: input.duration.trim() } : {}),
-    ...(input.price !== undefined ? { price: input.price } : {}),
-    ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
-    ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
-    slug: nextSlug,
-    slugLower: nextSlug.toLowerCase(),
-    updatedAt: now(),
-  });
-
-  return getProductById(id);
 }
 
 export async function deleteProduct(id: string) {
@@ -368,7 +393,12 @@ export async function deleteProduct(id: string) {
     await deleteProductDb(id);
     return;
   }
-  await firestore.collection("products").doc(id).delete();
+  try {
+    await firestore.collection("products").doc(id).delete();
+  } catch (error) {
+    console.error("Failed to delete product in Firestore. Falling back to local database.", error);
+    await deleteProductDb(id);
+  }
 }
 
 export async function deleteAllProducts() {
@@ -378,10 +408,15 @@ export async function deleteAllProducts() {
     return;
   }
 
-  const snapshot = await firestore.collection("products").get();
-  const batch = firestore.batch();
-  snapshot.docs.forEach((doc) => batch.delete(doc.ref));
-  await batch.commit();
+  try {
+    const snapshot = await firestore.collection("products").get();
+    const batch = firestore.batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+  } catch (error) {
+    console.error("Failed to delete all products in Firestore. Falling back to local database.", error);
+    await deleteAllProductsDb();
+  }
 }
 
 export async function listInformations() {
