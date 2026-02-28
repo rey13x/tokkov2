@@ -14,7 +14,7 @@ const productSchema = z.object({
   description: z.string().min(6).max(2000),
   duration: z.string().max(80).default(""),
   price: z.number().int().min(0),
-  imageUrl: z.string().max(1000).default("/assets/logo.png"),
+  imageUrl: z.string().max(3000000).default("/assets/logo.png"),
 });
 
 export async function GET() {

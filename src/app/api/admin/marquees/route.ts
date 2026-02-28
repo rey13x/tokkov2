@@ -5,7 +5,7 @@ import { createMarquee, listMarquees } from "@/server/store-data";
 
 const marqueeSchema = z.object({
   label: z.string().min(1).max(80),
-  imageUrl: z.string().max(1000).default("/assets/logo.png"),
+  imageUrl: z.string().max(3000000).default("/assets/logo.png"),
   isActive: z.boolean().default(true),
   sortOrder: z.number().int().min(0).default(0),
 });

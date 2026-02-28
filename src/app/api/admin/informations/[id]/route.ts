@@ -7,7 +7,7 @@ const updateSchema = z.object({
   type: z.enum(["message", "poll", "update"]).optional(),
   title: z.string().min(2).max(160).optional(),
   body: z.string().min(4).max(3000).optional(),
-  imageUrl: z.string().max(1000).optional(),
+  imageUrl: z.string().max(3000000).optional(),
   pollOptions: z.array(z.string().min(1).max(80)).optional(),
 });
 

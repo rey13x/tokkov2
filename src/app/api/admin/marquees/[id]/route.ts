@@ -5,7 +5,7 @@ import { deleteMarquee, updateMarquee } from "@/server/store-data";
 
 const updateSchema = z.object({
   label: z.string().min(1).max(80).optional(),
-  imageUrl: z.string().max(1000).optional(),
+  imageUrl: z.string().max(3000000).optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
 });

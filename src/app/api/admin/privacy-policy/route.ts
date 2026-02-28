@@ -6,7 +6,7 @@ import { getPrivacyPolicyPage, upsertPrivacyPolicyPage } from "@/server/store-da
 const privacyPolicySchema = z.object({
   title: z.string().min(3).max(180),
   updatedLabel: z.string().min(4).max(180),
-  bannerImageUrl: z.string().max(1000).default("/assets/background.jpg"),
+  bannerImageUrl: z.string().max(3000000).default("/assets/background.jpg"),
   contentHtml: z.string().min(10).max(80000),
 });
 

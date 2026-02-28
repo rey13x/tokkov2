@@ -8,8 +8,8 @@ const updateSchema = z.object({
   country: z.enum(["Indonesia", "Inggris", "Filipina"]).optional(),
   message: z.string().min(6).max(4000).optional(),
   rating: z.number().int().min(1).max(5).optional(),
-  mediaUrl: z.string().max(1000).optional(),
-  audioUrl: z.string().max(1000).optional(),
+  mediaUrl: z.string().max(3000000).optional(),
+  audioUrl: z.string().max(3000000).optional(),
 });
 
 type Params = Promise<{ id: string }>;

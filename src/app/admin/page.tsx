@@ -111,7 +111,7 @@ function parseRupiahInput(value: string) {
 
 export default function AdminPage() {
   const router = useRouter();
-  const isFileUploadEnabled = process.env.NEXT_PUBLIC_FILE_UPLOAD_ENABLED !== "false";
+  const isFileUploadEnabled = true;
 
   const [authState, setAuthState] = useState<"checking" | "allowed" | "blocked">("checking");
   const [activeSection, setActiveSection] = useState<AdminSection>("overview");
@@ -1030,13 +1030,7 @@ export default function AdminPage() {
               placeholder="Harga (Rp)"
               required
             />
-            <input
-              value={productForm.imageUrl}
-              onChange={(event) =>
-                setProductForm((current) => ({ ...current, imageUrl: event.target.value }))
-              }
-              placeholder="URL media produk (opsional, image/video)"
-            />
+            <input value={productForm.imageUrl} readOnly placeholder="URL media produk otomatis" />
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
                 Upload Media Produk (Foto/Video)
@@ -1146,13 +1140,7 @@ export default function AdminPage() {
               placeholder="Isi informasi"
               required
             />
-            <input
-              value={infoForm.imageUrl}
-              onChange={(event) =>
-                setInfoForm((current) => ({ ...current, imageUrl: event.target.value }))
-              }
-              placeholder="URL media informasi (opsional, image/video)"
-            />
+            <input value={infoForm.imageUrl} readOnly placeholder="URL media informasi otomatis" />
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
                 Upload Media Informasi (Foto/Video)
@@ -1337,16 +1325,7 @@ export default function AdminPage() {
               <option value={2}>Bintang 2</option>
               <option value={1}>Bintang 1</option>
             </select>
-            <input
-              value={testimonialForm.mediaUrl}
-              onChange={(event) =>
-                setTestimonialForm((current) => ({
-                  ...current,
-                  mediaUrl: event.target.value,
-                }))
-              }
-              placeholder="URL media profil testimonial (opsional, image/video)"
-            />
+            <input value={testimonialForm.mediaUrl} readOnly placeholder="URL media testimoni otomatis" />
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
                 Upload Media Testimoni (Foto/Video)
@@ -1370,16 +1349,7 @@ export default function AdminPage() {
                 <span>{testimonialForm.country}</span>
               </div>
             </div>
-            <input
-              value={testimonialForm.audioUrl}
-              onChange={(event) =>
-                setTestimonialForm((current) => ({
-                  ...current,
-                  audioUrl: event.target.value,
-                }))
-              }
-              placeholder="URL voice (opsional)"
-            />
+            <input value={testimonialForm.audioUrl} readOnly placeholder="URL voice otomatis" />
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
                 Upload Voice Testimoni
@@ -1464,16 +1434,7 @@ export default function AdminPage() {
               }
               placeholder="Urutan tampil"
             />
-            <input
-              value={marqueeForm.imageUrl}
-              onChange={(event) =>
-                setMarqueeForm((current) => ({
-                  ...current,
-                  imageUrl: event.target.value,
-                }))
-              }
-              placeholder="URL logo marquee"
-            />
+            <input value={marqueeForm.imageUrl} readOnly placeholder="URL logo marquee otomatis" />
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
                 Upload Logo Marquee
@@ -1581,17 +1542,7 @@ export default function AdminPage() {
               placeholder="Label tanggal update"
               required
             />
-            <input
-              value={privacyPolicyForm.bannerImageUrl}
-              onChange={(event) =>
-                setPrivacyPolicyForm((current) => ({
-                  ...current,
-                  bannerImageUrl: event.target.value,
-                }))
-              }
-              placeholder="URL banner horizontal"
-              required
-            />
+            <input value={privacyPolicyForm.bannerImageUrl} readOnly placeholder="URL banner otomatis" required />
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
                 Upload Banner Kebijakan Privasi
