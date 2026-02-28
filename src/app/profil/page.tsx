@@ -12,6 +12,8 @@ export default function ProfilePage() {
   const router = useRouter();
   const { data: session, status, update } = useSession();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isFileUploadEnabled = process.env.NEXT_PUBLIC_FILE_UPLOAD_ENABLED === "true";
+  const canUseEmailOtp = process.env.NEXT_PUBLIC_EMAIL_OTP_ENABLED === "true";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -118,9 +120,9 @@ export default function ProfilePage() {
           username: name,
           email,
           phone,
-          oldPassword,
-          newPassword,
-          otpCode,
+          oldPassword: canUseEmailOtp ? oldPassword : "",
+          newPassword: canUseEmailOtp ? newPassword : "",
+          otpCode: canUseEmailOtp ? otpCode : "",
         }),
       });
 
@@ -184,18 +186,16 @@ export default function ProfilePage() {
       {status === "authenticated" ? (
         <section className={styles.card}>
           <aside className={styles.avatarPanel}>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif"
-              onChange={onSelectAvatarFile}
-              className={styles.hiddenInput}
-            />
             <button
               type="button"
               className={styles.avatarUploader}
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploadingAvatar}
+              onClick={() => {
+                if (!isFileUploadEnabled) {
+                  return;
+                }
+                fileInputRef.current?.click();
+              }}
+              disabled={isUploadingAvatar || !isFileUploadEnabled}
             >
               <div className={styles.avatarWrap}>
                 {avatarUrl || session?.user?.image ? (
@@ -211,10 +211,27 @@ export default function ProfilePage() {
                 )}
               </div>
               <span className={styles.avatarOverlayText}>
-                {isUploadingAvatar ? "Mengupload..." : "Klik foto untuk ganti"}
+                {!isFileUploadEnabled
+                  ? "Upload avatar nonaktif"
+                  : isUploadingAvatar
+                    ? "Mengupload..."
+                    : "Klik foto untuk ganti"}
               </span>
             </button>
-            <small className={styles.avatarHint}>Support PNG, JPG, GIF (maks 5MB)</small>
+            {isFileUploadEnabled ? (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif"
+                  onChange={onSelectAvatarFile}
+                  className={styles.hiddenInput}
+                />
+                <small className={styles.avatarHint}>Support PNG, JPG, GIF (maks 5MB)</small>
+              </>
+            ) : (
+              <small className={styles.avatarHint}>Mode database-only: upload avatar dimatikan.</small>
+            )}
           </aside>
 
           <form className={styles.form} onSubmit={onSubmit}>
@@ -248,49 +265,55 @@ export default function ProfilePage() {
               />
             </label>
 
-            <label className={styles.field}>
-              Password Lama
-              <input
-                value={oldPassword}
-                onChange={(event) => setOldPassword(event.target.value)}
-                type="password"
-                placeholder="Isi jika ingin ganti password"
-              />
-            </label>
-
-            <label className={styles.field}>
-              Ubah Password Baru
-              <input
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                type="password"
-                placeholder="Minimal 6 karakter"
-              />
-            </label>
-
-            {newPassword.trim().length > 0 ? (
-              <div className={styles.otpCard}>
-                <button
-                  type="button"
-                  className={styles.otpButton}
-                  onClick={onRequestOtp}
-                  disabled={isRequestingOtp}
-                >
-                  {isRequestingOtp ? "Mengirim OTP..." : "Kirim OTP Verifikasi"}
-                </button>
+            {canUseEmailOtp ? (
+              <>
                 <label className={styles.field}>
-                  Kode OTP
+                  Password Lama
                   <input
-                    value={otpCode}
-                    onChange={(event) => setOtpCode(event.target.value)}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    placeholder="Masukkan 6 digit OTP"
+                    value={oldPassword}
+                    onChange={(event) => setOldPassword(event.target.value)}
+                    type="password"
+                    placeholder="Isi jika ingin ganti password"
                   />
                 </label>
-              </div>
-            ) : null}
+
+                <label className={styles.field}>
+                  Ubah Password Baru
+                  <input
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    type="password"
+                    placeholder="Minimal 6 karakter"
+                  />
+                </label>
+
+                {newPassword.trim().length > 0 ? (
+                  <div className={styles.otpCard}>
+                    <button
+                      type="button"
+                      className={styles.otpButton}
+                      onClick={onRequestOtp}
+                      disabled={isRequestingOtp}
+                    >
+                      {isRequestingOtp ? "Mengirim OTP..." : "Kirim OTP Verifikasi"}
+                    </button>
+                    <label className={styles.field}>
+                      Kode OTP
+                      <input
+                        value={otpCode}
+                        onChange={(event) => setOtpCode(event.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="Masukkan 6 digit OTP"
+                      />
+                    </label>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className={styles.disabledInfo}>Fitur ganti password via email OTP dimatikan.</p>
+            )}
 
             {error ? <p className={styles.error}>{error}</p> : null}
             {message ? <p className={styles.success}>{message}</p> : null}

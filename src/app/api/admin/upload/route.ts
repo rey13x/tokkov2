@@ -18,6 +18,13 @@ export async function POST(request: Request) {
     return auth.response;
   }
 
+  if (process.env.FILE_UPLOAD_ENABLED !== "true") {
+    return NextResponse.json(
+      { message: "Upload file dinonaktifkan. Gunakan URL media manual." },
+      { status: 403 },
+    );
+  }
+
   const bucket = getFirebaseStorageBucket();
   if (!bucket) {
     return NextResponse.json(

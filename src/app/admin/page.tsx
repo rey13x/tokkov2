@@ -111,6 +111,7 @@ function parseRupiahInput(value: string) {
 
 export default function AdminPage() {
   const router = useRouter();
+  const isFileUploadEnabled = process.env.NEXT_PUBLIC_FILE_UPLOAD_ENABLED === "true";
 
   const [authState, setAuthState] = useState<"checking" | "allowed" | "blocked">("checking");
   const [activeSection, setActiveSection] = useState<AdminSection>("overview");
@@ -862,6 +863,11 @@ export default function AdminPage() {
 
       {error ? <p className={styles.errorText}>{error}</p> : null}
       {message ? <p className={styles.successText}>{message}</p> : null}
+      {!isFileUploadEnabled ? (
+        <p className={styles.warnText}>
+          Upload file dimatikan. Isi media menggunakan URL manual.
+        </p>
+      ) : null}
 
       <div className={styles.shell}>
         <aside className={styles.sidebar}>
@@ -1031,11 +1037,13 @@ export default function AdminPage() {
               }
               placeholder="URL media produk (opsional, image/video)"
             />
-            <label className={styles.fileField}>
-              Upload Media Produk (Foto/Video)
-              <input type="file" accept="image/*,video/*" onChange={onSelectProductImage} />
-              <small>{isUploadingProductImage ? "Uploading..." : "Pilih file media dari device"}</small>
-            </label>
+            {isFileUploadEnabled ? (
+              <label className={styles.fileField}>
+                Upload Media Produk (Foto/Video)
+                <input type="file" accept="image/*,video/*" onChange={onSelectProductImage} />
+                <small>{isUploadingProductImage ? "Uploading..." : "Pilih file media dari device"}</small>
+              </label>
+            ) : null}
             <div className={styles.previewCard}>
               <FlexibleMedia
                 src={productForm.imageUrl}
@@ -1145,11 +1153,13 @@ export default function AdminPage() {
               }
               placeholder="URL media informasi (opsional, image/video)"
             />
-            <label className={styles.fileField}>
-              Upload Media Informasi (Foto/Video)
-              <input type="file" accept="image/*,video/*" onChange={onSelectInfoImage} />
-              <small>{isUploadingInfoImage ? "Uploading..." : "Pilih file media dari device"}</small>
-            </label>
+            {isFileUploadEnabled ? (
+              <label className={styles.fileField}>
+                Upload Media Informasi (Foto/Video)
+                <input type="file" accept="image/*,video/*" onChange={onSelectInfoImage} />
+                <small>{isUploadingInfoImage ? "Uploading..." : "Pilih file media dari device"}</small>
+              </label>
+            ) : null}
             {infoForm.type === "poll" ? (
               <div className={styles.pollBuilder}>
                 <p>Opsi Polling</p>
@@ -1337,13 +1347,15 @@ export default function AdminPage() {
               }
               placeholder="URL media profil testimonial (opsional, image/video)"
             />
-            <label className={styles.fileField}>
-              Upload Media Testimoni (Foto/Video)
-              <input type="file" accept="image/*,video/*" onChange={onSelectTestimonialMedia} />
-              <small>
-                {isUploadingTestimonialMedia ? "Uploading..." : "Pilih file media dari device"}
-              </small>
-            </label>
+            {isFileUploadEnabled ? (
+              <label className={styles.fileField}>
+                Upload Media Testimoni (Foto/Video)
+                <input type="file" accept="image/*,video/*" onChange={onSelectTestimonialMedia} />
+                <small>
+                  {isUploadingTestimonialMedia ? "Uploading..." : "Pilih file media dari device"}
+                </small>
+              </label>
+            ) : null}
             <div className={styles.previewCard}>
               <FlexibleMedia
                 src={testimonialForm.mediaUrl}
@@ -1368,13 +1380,15 @@ export default function AdminPage() {
               }
               placeholder="URL voice (opsional)"
             />
-            <label className={styles.fileField}>
-              Upload Voice Testimoni
-              <input type="file" accept="audio/*" onChange={onSelectTestimonialAudio} />
-              <small>
-                {isUploadingTestimonialAudio ? "Uploading..." : "Pilih file suara (mp3/wav)"}
-              </small>
-            </label>
+            {isFileUploadEnabled ? (
+              <label className={styles.fileField}>
+                Upload Voice Testimoni
+                <input type="file" accept="audio/*" onChange={onSelectTestimonialAudio} />
+                <small>
+                  {isUploadingTestimonialAudio ? "Uploading..." : "Pilih file suara (mp3/wav)"}
+                </small>
+              </label>
+            ) : null}
             <audio controls src={testimonialForm.audioUrl} className={styles.audioPreview} />
             <div className={styles.formActions}>
               <button type="submit" disabled={isLoading}>
@@ -1460,13 +1474,15 @@ export default function AdminPage() {
               }
               placeholder="URL logo marquee"
             />
-            <label className={styles.fileField}>
-              Upload Logo Marquee
-              <input type="file" accept="image/*,video/*" onChange={onSelectMarqueeImage} />
-              <small>
-                {isUploadingMarqueeImage ? "Uploading..." : "Pilih logo dari device"}
-              </small>
-            </label>
+            {isFileUploadEnabled ? (
+              <label className={styles.fileField}>
+                Upload Logo Marquee
+                <input type="file" accept="image/*,video/*" onChange={onSelectMarqueeImage} />
+                <small>
+                  {isUploadingMarqueeImage ? "Uploading..." : "Pilih logo dari device"}
+                </small>
+              </label>
+            ) : null}
             <label className={styles.checkField}>
               <input
                 type="checkbox"
@@ -1576,13 +1592,15 @@ export default function AdminPage() {
               placeholder="URL banner horizontal"
               required
             />
-            <label className={styles.fileField}>
-              Upload Banner Kebijakan Privasi
-              <input type="file" accept="image/*" onChange={onSelectPrivacyBanner} />
-              <small>
-                {isUploadingPrivacyBanner ? "Uploading..." : "Pilih file banner dari device"}
-              </small>
-            </label>
+            {isFileUploadEnabled ? (
+              <label className={styles.fileField}>
+                Upload Banner Kebijakan Privasi
+                <input type="file" accept="image/*" onChange={onSelectPrivacyBanner} />
+                <small>
+                  {isUploadingPrivacyBanner ? "Uploading..." : "Pilih file banner dari device"}
+                </small>
+              </label>
+            ) : null}
 
             <div className={styles.richToolbar}>
               <button type="button" onClick={() => applyPrivacyEditorCommand("bold")}>

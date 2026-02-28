@@ -10,6 +10,7 @@ import {
   appendOrderToCsv,
   sendTelegramOrderNotification,
 } from "@/server/notifications";
+import { enforceRateLimit } from "@/server/rate-limit";
 import { pushOrderMetric } from "@/server/redis";
 
 const createOrderSchema = z.object({
@@ -43,6 +44,16 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const rateLimited = enforceRateLimit({
+    request,
+    keyPrefix: "create-order",
+    limit: 20,
+    windowMs: 60 * 1000,
+  });
+  if (rateLimited) {
+    return rateLimited;
+  }
+
   const session = await getServerAuthSession();
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

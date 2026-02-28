@@ -8,7 +8,8 @@ import {
   getEmailVerificationByEmail,
   upsertEmailVerification,
 } from "@/server/db";
-import { sendVerificationCodeEmail } from "@/server/email";
+import { isSmtpConfigured, sendVerificationCodeEmail } from "@/server/email";
+import { enforceRateLimit } from "@/server/rate-limit";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -37,6 +38,23 @@ function createOtpCode() {
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const rateLimited = enforceRateLimit({
+    request,
+    keyPrefix: "signup-request-code",
+    limit: 5,
+    windowMs: 60 * 1000,
+  });
+  if (rateLimited) {
+    return rateLimited;
+  }
+
+  if (process.env.EMAIL_OTP_ENABLED !== "true" || !isSmtpConfigured()) {
+    return NextResponse.json(
+      { message: "Pendaftaran via email OTP sedang dinonaktifkan." },
+      { status: 503 },
+    );
+  }
+
   try {
     const body = await request.json();
     const payload = requestCodeSchema.parse(body);

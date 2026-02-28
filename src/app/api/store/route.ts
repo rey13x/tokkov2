@@ -7,12 +7,22 @@ import {
 } from "@/server/store-data";
 
 export async function GET() {
-  const [products, informations, testimonials, marquees] = await Promise.all([
-    listProducts(),
-    listInformations(),
-    listTestimonials(),
-    listMarquees(),
-  ]);
+  try {
+    const [products, informations, testimonials, marquees] = await Promise.all([
+      listProducts(),
+      listInformations(),
+      listTestimonials(),
+      listMarquees(),
+    ]);
 
-  return NextResponse.json({ products, informations, testimonials, marquees });
+    return NextResponse.json({ products, informations, testimonials, marquees });
+  } catch (error) {
+    console.error("Failed to load store data:", error);
+    return NextResponse.json({
+      products: [],
+      informations: [],
+      testimonials: [],
+      marquees: [],
+    });
+  }
 }

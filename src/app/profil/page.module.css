@@ -206,6 +206,11 @@
   font-size: 0.83rem;
 }
 
+.disabledInfo {
+  color: #6d7591;
+  font-size: 0.84rem;
+}
+
 @media (max-width: 920px) {
   .card {
     grid-template-columns: 1fr;

@@ -6,6 +6,13 @@ type SendVerificationCodeEmailInput = {
   code: string;
 };
 
+export function isSmtpConfigured() {
+  const user = process.env.SMTP_USER?.trim() || "";
+  const pass = process.env.SMTP_PASS?.trim() || "";
+  const from = process.env.SMTP_FROM?.trim() || user;
+  return Boolean(user && pass && from);
+}
+
 function getSmtpConfig() {
   const host = process.env.SMTP_HOST?.trim() || "smtp.gmail.com";
   const port = Number(process.env.SMTP_PORT ?? 587);

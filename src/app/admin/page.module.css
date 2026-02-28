@@ -55,6 +55,11 @@
   font-size: 0.88rem;
 }
 
+.warnText {
+  color: #8c5a11;
+  font-size: 0.88rem;
+}
+
 .shell {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);

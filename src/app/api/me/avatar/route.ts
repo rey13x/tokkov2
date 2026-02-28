@@ -22,6 +22,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
+  if (process.env.FILE_UPLOAD_ENABLED !== "true") {
+    return NextResponse.json(
+      { message: "Upload avatar dinonaktifkan." },
+      { status: 403 },
+    );
+  }
+
   const bucket = getFirebaseStorageBucket();
   if (!bucket) {
     return NextResponse.json(

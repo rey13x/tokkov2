@@ -9,6 +9,7 @@ import {
   getEmailVerificationByEmail,
   incrementEmailVerificationAttempts,
 } from "@/server/db";
+import { enforceRateLimit } from "@/server/rate-limit";
 
 const MAX_VERIFY_ATTEMPTS = 5;
 
@@ -24,6 +25,23 @@ function hashOtp(code: string) {
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const rateLimited = enforceRateLimit({
+    request,
+    keyPrefix: "signup-verify-code",
+    limit: 10,
+    windowMs: 60 * 1000,
+  });
+  if (rateLimited) {
+    return rateLimited;
+  }
+
+  if (process.env.EMAIL_OTP_ENABLED !== "true") {
+    return NextResponse.json(
+      { message: "Pendaftaran via email OTP sedang dinonaktifkan." },
+      { status: 503 },
+    );
+  }
+
   try {
     const body = await request.json();
     const payload = verifyCodeSchema.parse(body);

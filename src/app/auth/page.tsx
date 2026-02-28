@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
+import { FcGoogle } from "react-icons/fc";
 import styles from "./page.module.css";
 
 type AuthMode = "signin" | "signup";
@@ -22,6 +23,8 @@ function getSafeRedirect(pathname: string | null) {
 export default function AuthPage() {
   const router = useRouter();
   const { status } = useSession();
+  const canUseGoogleSignIn = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
+  const canUseEmailOtp = process.env.NEXT_PUBLIC_EMAIL_OTP_ENABLED === "true";
 
   const [mode, setMode] = useState<AuthMode>("signin");
   const [identifier, setIdentifier] = useState("");
@@ -39,6 +42,7 @@ export default function AuthPage() {
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRequestingCode, setIsRequestingCode] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [redirectTarget, setRedirectTarget] = useState("/");
 
   useEffect(() => {
@@ -60,6 +64,12 @@ export default function AuthPage() {
     }
     return redirectTarget;
   }, [redirectTarget]);
+
+  useEffect(() => {
+    if (!canUseEmailOtp && mode === "signup") {
+      setMode("signin");
+    }
+  }, [canUseEmailOtp, mode]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -173,6 +183,19 @@ export default function AuthPage() {
     }
   };
 
+  const onSignInWithGoogle = async () => {
+    setError("");
+    setSuccess("");
+    setIsGoogleSubmitting(true);
+
+    try {
+      await signIn("google", { callbackUrl: redirectTarget });
+    } catch {
+      setError("Login Google gagal. Coba lagi.");
+      setIsGoogleSubmitting(false);
+    }
+  };
+
   return (
     <main className={styles.page}>
       <section className={styles.authCard}>
@@ -186,10 +209,14 @@ export default function AuthPage() {
 
         <header className={styles.headerBlock}>
           <h1>Login</h1>
-          <p className={styles.description}>Masuk atau daftar akun untuk lanjut belanja.</p>
+          <p className={styles.description}>
+            {canUseEmailOtp
+              ? "Masuk atau daftar akun untuk lanjut belanja."
+              : "Masuk akun untuk lanjut belanja."}
+          </p>
         </header>
 
-        <div className={styles.modeSwitch}>
+        <div className={`${styles.modeSwitch} ${!canUseEmailOtp ? styles.modeSwitchSingle : ""}`}>
           <button
             type="button"
             onClick={() => {
@@ -201,18 +228,35 @@ export default function AuthPage() {
           >
             Sign In
           </button>
+          {canUseEmailOtp ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signup");
+                setError("");
+                setSuccess("");
+              }}
+              className={mode === "signup" ? styles.modeActive : ""}
+            >
+              Sign Up
+            </button>
+          ) : null}
+        </div>
+        {!canUseEmailOtp ? (
+          <p className={styles.disabledInfo}>Pendaftaran akun via email OTP sedang dimatikan.</p>
+        ) : null}
+
+        {mode === "signin" && canUseGoogleSignIn ? (
           <button
             type="button"
-            onClick={() => {
-              setMode("signup");
-              setError("");
-              setSuccess("");
-            }}
-            className={mode === "signup" ? styles.modeActive : ""}
+            className={styles.googleSignInButton}
+            onClick={onSignInWithGoogle}
+            disabled={isGoogleSubmitting || isSubmitting}
           >
-            Sign Up
+            <FcGoogle className={styles.googleIcon} />
+            <span>{isGoogleSubmitting ? "Memproses..." : "Sign in with Google"}</span>
           </button>
-        </div>
+        ) : null}
 
         {mode === "signin" ? (
           <form className={styles.form} onSubmit={onSignIn}>

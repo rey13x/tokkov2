@@ -64,6 +64,10 @@
   gap: 6px;
 }
 
+.modeSwitchSingle {
+  grid-template-columns: 1fr;
+}
+
 .modeSwitch button {
   border: none;
   height: 42px;
@@ -76,6 +80,35 @@
 .modeActive {
   background: #1b1d44 !important;
   color: #ffffff !important;
+}
+
+.disabledInfo {
+  margin-top: 8px;
+  color: #6a7288;
+  font-size: 0.86rem;
+  text-align: center;
+}
+
+.googleSignInButton {
+  margin-top: 12px;
+  width: 100%;
+  min-height: 72px;
+  border: 3px solid #8f959f;
+  border-radius: 999px;
+  background: #f7f8fa;
+  color: #252830;
+  font-size: clamp(1rem, 1.5vw, 1.55rem);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  cursor: pointer;
+}
+
+.googleIcon {
+  font-size: clamp(1.45rem, 1.9vw, 2rem);
+  flex-shrink: 0;
 }
 
 .form {
