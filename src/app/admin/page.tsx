@@ -111,7 +111,7 @@ function parseRupiahInput(value: string) {
 
 export default function AdminPage() {
   const router = useRouter();
-  const isFileUploadEnabled = process.env.NEXT_PUBLIC_FILE_UPLOAD_ENABLED === "true";
+  const isFileUploadEnabled = process.env.NEXT_PUBLIC_FILE_UPLOAD_ENABLED !== "false";
 
   const [authState, setAuthState] = useState<"checking" | "allowed" | "blocked">("checking");
   const [activeSection, setActiveSection] = useState<AdminSection>("overview");

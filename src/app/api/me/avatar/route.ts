@@ -14,27 +14,16 @@ function sanitizeFileName(name: string) {
     .slice(0, 120);
 }
 
+function toInlineDataUrl(file: File, buffer: Buffer) {
+  return `data:${file.type};base64,${buffer.toString("base64")}`;
+}
+
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const session = await getServerAuthSession();
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
-
-  if (process.env.FILE_UPLOAD_ENABLED !== "true") {
-    return NextResponse.json(
-      { message: "Upload avatar dinonaktifkan." },
-      { status: 403 },
-    );
-  }
-
-  const bucket = getFirebaseStorageBucket();
-  if (!bucket) {
-    return NextResponse.json(
-      { message: "Penyimpanan avatar belum dikonfigurasi." },
-      { status: 500 },
-    );
   }
 
   try {
@@ -61,21 +50,30 @@ export async function POST(request: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const extension = file.type === "image/png" ? "png" : file.type === "image/gif" ? "gif" : "jpg";
-    const fileName = sanitizeFileName(file.name.replace(/\.[^/.]+$/, "") || "avatar");
-    const objectPath = `profiles/${session.user.id}/${Date.now()}-${fileName}.${extension}`;
-    const object = bucket.file(objectPath);
+    const fileUploadEnabled = process.env.FILE_UPLOAD_ENABLED === "true";
+    const bucket = getFirebaseStorageBucket();
 
-    await object.save(buffer, {
-      resumable: false,
-      metadata: {
-        contentType: file.type,
-      },
-    });
-    await object.makePublic();
+    let avatarUrl = "";
+    if (!fileUploadEnabled || !bucket) {
+      avatarUrl = toInlineDataUrl(file, buffer);
+    } else {
+      const fileName = sanitizeFileName(file.name.replace(/\.[^/.]+$/, "") || "avatar");
+      const objectPath = `profiles/${session.user.id}/${Date.now()}-${fileName}.${extension}`;
+      const object = bucket.file(objectPath);
 
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
+      await object.save(buffer, {
+        resumable: false,
+        metadata: {
+          contentType: file.type,
+        },
+      });
+      await object.makePublic();
+
+      avatarUrl = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
+    }
+
     const updated = await updateUserById(session.user.id, {
-      avatarUrl: publicUrl,
+      avatarUrl,
     });
     if (!updated) {
       return NextResponse.json({ message: "Gagal update avatar." }, { status: 500 });
