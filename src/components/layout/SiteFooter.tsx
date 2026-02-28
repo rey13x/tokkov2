@@ -25,14 +25,21 @@ export default function SiteFooter() {
             </h2>
           </div>
         </div>
-        <nav className={styles.links} aria-label="Footer link">
-          <a href="https://wa.me/6281319865384" target="_blank" rel="noreferrer">
-            WhatsApp
-          </a>
-          <a href="https://instagram.com/13bagas.exv" target="_blank" rel="noreferrer">
-            Instagram
-          </a>
-        </nav>
+        <div className={styles.contactWrap}>
+          <nav className={styles.links} aria-label="Footer link">
+            <a href="https://wa.me/6281319865384" target="_blank" rel="noreferrer">
+              WhatsApp
+            </a>
+            <a href="https://instagram.com/13bagas.exv" target="_blank" rel="noreferrer">
+              Instagram
+            </a>
+          </nav>
+          <nav className={styles.policyLinks} aria-label="Kebijakan dan sertifikasi">
+            <Link href="/kebijakan-privasi-sertifikasi">
+              Privacy Policy & Sertifikasi Layanan
+            </Link>
+          </nav>
+        </div>
       </div>
     </footer>
   );

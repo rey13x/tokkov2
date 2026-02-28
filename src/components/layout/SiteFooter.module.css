@@ -48,9 +48,34 @@
   font-size: 0.9rem;
 }
 
+.contactWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 560px;
+}
+
+.policyLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.policyLinks a {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.84rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (max-width: 760px) {
   .inner {
     flex-direction: column;
     gap: 14px;
+  }
+
+  .contactWrap {
+    width: 100%;
   }
 }
