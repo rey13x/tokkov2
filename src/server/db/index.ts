@@ -142,6 +142,7 @@ function mapTestimonial(row: Record<string, unknown>): StoreTestimonial {
     id: String(row.id),
     name: String(row.name),
     country: String(row.country ?? "Indonesia"),
+    roleLabel: String(row.role_label ?? ""),
     message: String(row.message),
     rating: Math.max(1, Math.min(5, Number(row.rating ?? 5))),
     mediaUrl: resolveMediaUrl(String(row.media_url ?? "")),
@@ -481,6 +482,7 @@ export async function ensureDatabase() {
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
           country TEXT NOT NULL DEFAULT 'Indonesia',
+          role_label TEXT NOT NULL DEFAULT '',
           message TEXT NOT NULL,
           rating INTEGER NOT NULL DEFAULT 5,
           media_url TEXT NOT NULL DEFAULT '/assets/logo.png',
@@ -489,6 +491,9 @@ export async function ensureDatabase() {
           updated_at INTEGER NOT NULL
         )`,
       );
+      await run(
+        "ALTER TABLE testimonials ADD COLUMN role_label TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
       await run(
         "ALTER TABLE testimonials ADD COLUMN media_url TEXT NOT NULL DEFAULT '/assets/logo.png'",
       ).catch(() => {});
@@ -1244,6 +1249,7 @@ export async function listTestimonials() {
 export async function createTestimonial(input: {
   name: string;
   country: string;
+  roleLabel: string;
   message: string;
   rating: number;
   mediaUrl: string;
@@ -1255,12 +1261,13 @@ export async function createTestimonial(input: {
   const audioUrl = input.audioUrl.trim() || "/assets/notif.mp3";
   await run(
     `INSERT INTO testimonials
-      (id, name, country, message, rating, media_url, audio_url, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, name, country, role_label, message, rating, media_url, audio_url, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.name,
       input.country,
+      input.roleLabel.trim(),
       input.message,
       Math.max(1, Math.min(5, input.rating)),
       mediaUrl,
@@ -1280,6 +1287,7 @@ export async function updateTestimonial(
   input: Partial<{
     name: string;
     country: string;
+    roleLabel: string;
     message: string;
     rating: number;
     mediaUrl: string;
@@ -1300,11 +1308,12 @@ export async function updateTestimonial(
 
   await run(
     `UPDATE testimonials
-     SET name = ?, country = ?, message = ?, rating = ?, media_url = ?, audio_url = ?, updated_at = ?
+     SET name = ?, country = ?, role_label = ?, message = ?, rating = ?, media_url = ?, audio_url = ?, updated_at = ?
      WHERE id = ?`,
     [
       input.name ?? current.name,
       input.country ?? current.country,
+      input.roleLabel?.trim() ?? current.roleLabel,
       input.message ?? current.message,
       input.rating === undefined
         ? current.rating

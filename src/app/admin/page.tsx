@@ -82,6 +82,7 @@ const defaultInfoForm = {
 const defaultTestimonialForm = {
   name: "",
   country: "Indonesia" as "Indonesia" | "Inggris" | "Filipina",
+  roleLabel: "Founder Tokko",
   message: "",
   rating: 5,
   mediaUrl: "/assets/logo.png",
@@ -933,6 +934,7 @@ export default function AdminPage() {
     setTestimonialForm({
       name: testimonial.name,
       country: (testimonial.country || "Indonesia") as "Indonesia" | "Inggris" | "Filipina",
+      roleLabel: testimonial.roleLabel || "Founder Tokko",
       message: testimonial.message,
       rating: testimonial.rating,
       mediaUrl: testimonial.mediaUrl || "/assets/logo.png",
@@ -1559,6 +1561,16 @@ export default function AdminPage() {
               <option value="Inggris">Inggris</option>
               <option value="Filipina">Filipina</option>
             </select>
+            <input
+              value={testimonialForm.roleLabel}
+              onChange={(event) =>
+                setTestimonialForm((current) => ({
+                  ...current,
+                  roleLabel: event.target.value,
+                }))
+              }
+              placeholder="Label gelembung (contoh: Founder Tokko)"
+            />
             <select
               value={testimonialForm.rating}
               onChange={(event) =>
@@ -1595,7 +1607,7 @@ export default function AdminPage() {
               />
               <div>
                 <p>{testimonialForm.name || "Preview nama testimonial"}</p>
-                <span>{testimonialForm.country}</span>
+                <span>{testimonialForm.roleLabel || testimonialForm.country}</span>
               </div>
             </div>
             <input value={testimonialForm.audioUrl} readOnly placeholder="URL voice otomatis" />
@@ -1630,6 +1642,7 @@ export default function AdminPage() {
                       {"\u2605".repeat(Math.max(1, Math.min(5, testimonial.rating)))} {testimonial.name}
                     </p>
                     <span>{testimonial.country}</span>
+                    <span>{testimonial.roleLabel || "-"}</span>
                     <span>{testimonial.message}</span>
                     <FlexibleMedia
                       src={testimonial.mediaUrl}

@@ -862,7 +862,7 @@ export default function HomeClient() {
                         {"\u2605".repeat(Math.max(1, Math.min(5, item.rating)))}
                       </span>
                       <span className={styles.bagasPill}>
-                        {(item.country || "Indonesia") === "Indonesia" ? "Founder Tokko" : item.country || "Indonesia"}
+                        {item.roleLabel || item.country || "Indonesia"}
                       </span>
                     </div>
                   </div>

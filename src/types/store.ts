@@ -28,6 +28,7 @@ export type StoreTestimonial = {
   id: string;
   name: string;
   country: string;
+  roleLabel: string;
   message: string;
   rating: number;
   mediaUrl: string;

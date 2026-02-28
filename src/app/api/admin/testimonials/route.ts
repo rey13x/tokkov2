@@ -6,6 +6,7 @@ import { createTestimonial, listTestimonials } from "@/server/store-data";
 const testimonialSchema = z.object({
   name: z.string().min(2).max(120),
   country: z.enum(["Indonesia", "Inggris", "Filipina"]),
+  roleLabel: z.string().max(80).default(""),
   message: z.string().min(6).max(4000),
   rating: z.number().int().min(1).max(5),
   mediaUrl: z.string().max(3000000).default("/assets/logo.png"),

@@ -147,6 +147,7 @@ function mapTestimonialDoc(
     id,
     name: String(data?.name ?? ""),
     country: String(data?.country ?? "Indonesia"),
+    roleLabel: String(data?.roleLabel ?? ""),
     message: String(data?.message ?? ""),
     rating: Number(data?.rating ?? 5),
     mediaUrl: resolveMediaUrl(String(data?.mediaUrl ?? "")),
@@ -675,6 +676,7 @@ export async function listTestimonials() {
 export async function createTestimonial(input: {
   name: string;
   country: string;
+  roleLabel: string;
   message: string;
   rating: number;
   mediaUrl: string;
@@ -693,6 +695,7 @@ export async function createTestimonial(input: {
     await firestore.collection("testimonials").doc(id).set({
       name: input.name,
       country: input.country,
+      roleLabel: input.roleLabel.trim(),
       message: input.message,
       rating: Math.max(1, Math.min(5, input.rating)),
       mediaUrl,
@@ -717,6 +720,7 @@ export async function updateTestimonial(
   input: Partial<{
     name: string;
     country: string;
+    roleLabel: string;
     message: string;
     rating: number;
     mediaUrl: string;
@@ -742,6 +746,7 @@ export async function updateTestimonial(
     await ref.update({
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.country !== undefined ? { country: input.country } : {}),
+      ...(input.roleLabel !== undefined ? { roleLabel: input.roleLabel.trim() } : {}),
       ...(input.message !== undefined ? { message: input.message } : {}),
       ...(input.rating !== undefined ? { rating: Math.max(1, Math.min(5, input.rating)) } : {}),
       ...(nextMediaUrl !== undefined ? { mediaUrl: nextMediaUrl } : {}),
