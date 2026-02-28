@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getProviders, signIn, useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { FcGoogle } from "react-icons/fc";
 import styles from "./page.module.css";
 
@@ -59,9 +59,7 @@ export default function AuthPage() {
   const [isRequestingCode, setIsRequestingCode] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [redirectTarget, setRedirectTarget] = useState("/");
-  const [googleProviderEnabled, setGoogleProviderEnabled] = useState(false);
-
-  const canUseGoogleSignIn = googleUiEnabled && googleProviderEnabled;
+  const canUseGoogleSignIn = googleUiEnabled;
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -74,21 +72,6 @@ export default function AuthPage() {
       setError(getAuthErrorMessage(authError));
     }
   }, []);
-
-  useEffect(() => {
-    if (!googleUiEnabled) {
-      setGoogleProviderEnabled(false);
-      return;
-    }
-
-    getProviders()
-      .then((providers) => {
-        setGoogleProviderEnabled(Boolean(providers?.google));
-      })
-      .catch(() => {
-        setGoogleProviderEnabled(false);
-      });
-  }, [googleUiEnabled]);
 
   const resolveRedirectAfterAuth = useCallback(async () => {
     const response = await fetch("/api/me", { cache: "no-store" });

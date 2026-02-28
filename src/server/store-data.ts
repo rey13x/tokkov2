@@ -741,7 +741,12 @@ export async function deleteMarquee(id: string) {
 export async function getPrivacyPolicyPage() {
   const firestore = getFirebaseFirestore();
   if (!firestore) {
-    return getPrivacyPolicyPageDb();
+    try {
+      return await getPrivacyPolicyPageDb();
+    } catch (error) {
+      console.error("Failed to read privacy policy from database.", error);
+      return defaultPrivacyPolicyPage();
+    }
   }
 
   try {

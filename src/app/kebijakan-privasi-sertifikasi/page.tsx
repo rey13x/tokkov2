@@ -43,8 +43,32 @@ function sanitizeBannerSrc(rawUrl: string) {
   return FALLBACK_POLICY.bannerImageUrl;
 }
 
+function toSafeString(value: unknown, fallback: string) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const trimmed = value.trim();
+  return trimmed || fallback;
+}
+
+function normalizePolicy(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return FALLBACK_POLICY;
+  }
+
+  const row = value as Record<string, unknown>;
+  return {
+    title: toSafeString(row.title, FALLBACK_POLICY.title),
+    updatedLabel: toSafeString(row.updatedLabel, FALLBACK_POLICY.updatedLabel),
+    bannerImageUrl: toSafeString(row.bannerImageUrl, FALLBACK_POLICY.bannerImageUrl),
+    contentHtml: toSafeString(row.contentHtml, FALLBACK_POLICY.contentHtml),
+  };
+}
+
 export default async function PrivacyCertificationPage() {
-  const privacyPolicy = await getPrivacyPolicyPage().catch(() => FALLBACK_POLICY);
+  const privacyPolicy = normalizePolicy(
+    await getPrivacyPolicyPage().catch(() => FALLBACK_POLICY),
+  );
   const safeHtml = sanitizeRichHtml(privacyPolicy.contentHtml);
   const safeBannerSrc = sanitizeBannerSrc(privacyPolicy.bannerImageUrl);
 
