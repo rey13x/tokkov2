@@ -1532,6 +1532,18 @@ export async function updateOrderStatus(
   return getOrderById(id);
 }
 
+export async function deleteOrder(id: string) {
+  await ensureDatabase();
+  const existing = await getOrderById(id);
+  if (!existing) {
+    return false;
+  }
+
+  await run("DELETE FROM order_items WHERE order_id = ?", [id]);
+  await run("DELETE FROM orders WHERE id = ?", [id]);
+  return true;
+}
+
 export async function getAppMetaValue(key: string) {
   await ensureDatabase();
   const res = await run("SELECT value FROM app_meta WHERE key = ? LIMIT 1", [key]);

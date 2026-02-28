@@ -252,6 +252,15 @@ export default function CartPage() {
     window.open(`/api/orders/${orderId}/receipt`, "_blank", "noopener,noreferrer");
   };
 
+  const onToggleOrderStatus = () => {
+    if (status !== "authenticated") {
+      router.push("/auth?redirect=/troli");
+      return;
+    }
+    setShowOrderStatus((current) => !current);
+    refreshOrders().catch(() => {});
+  };
+
   const onUpdateLatestOrderStatus = async (nextStatus: "process" | "error") => {
     if (!latestOrderId) {
       return;
@@ -302,6 +311,9 @@ export default function CartPage() {
         <section className={styles.emptyState}>
           <h2>Troli masih kosong</h2>
           <p>Pilih produk dulu dari halaman katalog.</p>
+          <button type="button" className={styles.receiptButton} onClick={onToggleOrderStatus}>
+            Liat Status Pemesanan
+          </button>
           <Link href="/" className={styles.backShop}>
             Ke katalog
           </Link>
@@ -432,7 +444,7 @@ export default function CartPage() {
             <button
               type="button"
               className={styles.receiptButton}
-              onClick={() => setShowOrderStatus((current) => !current)}
+              onClick={onToggleOrderStatus}
             >
               Liat Status Pemesanan
             </button>
@@ -486,7 +498,7 @@ export default function CartPage() {
                       </div>
                       <div className={styles.statusActions}>
                         <button type="button" onClick={() => onDownloadReceipt(order.id)}>
-                          🧾
+                          Struk
                         </button>
                       </div>
                     </article>
@@ -498,6 +510,32 @@ export default function CartPage() {
           </aside>
         </section>
       ) : null}
+
+      {isClient && detailedItems.length === 0 && showOrderStatus && status === "authenticated" ? (
+        <section className={styles.statusStandalone}>
+          <section className={styles.statusPanel}>
+            <h4>Status Pemesanan</h4>
+            <div className={styles.statusList}>
+              {orders.map((order) => (
+                <article key={order.id} className={styles.statusItem}>
+                  <div>
+                    <p>{order.id.slice(0, 8).toUpperCase()}</p>
+                    <span>{new Date(order.createdAt).toLocaleString("id-ID")}</span>
+                    <strong>{statusLabel(order.status)}</strong>
+                  </div>
+                  <div className={styles.statusActions}>
+                    <button type="button" onClick={() => onDownloadReceipt(order.id)}>
+                      Struk
+                    </button>
+                  </div>
+                </article>
+              ))}
+              {orders.length === 0 ? <p>Belum ada pesanan.</p> : null}
+            </div>
+          </section>
+        </section>
+      ) : null}
     </main>
   );
 }
+

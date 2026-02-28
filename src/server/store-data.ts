@@ -19,6 +19,7 @@ import {
   deleteAllProducts as deleteAllProductsDb,
   deleteInformation as deleteInformationDb,
   deleteMarquee as deleteMarqueeDb,
+  deleteOrder as deleteOrderDb,
   deleteProduct as deleteProductDb,
   deleteTestimonial as deleteTestimonialDb,
   getAppMetaValue as getAppMetaValueDb,
@@ -1042,6 +1043,26 @@ export async function updateOrderStatus(
   } catch (error) {
     console.error("Failed to update order status in Firestore. Falling back to local database.", error);
     return updateOrderStatusDb(id, status);
+  }
+}
+
+export async function deleteOrder(id: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return deleteOrderDb(id);
+  }
+
+  try {
+    const ref = firestore.collection("orders").doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return false;
+    }
+    await ref.delete();
+    return true;
+  } catch (error) {
+    console.error("Failed to delete order in Firestore. Falling back to local database.", error);
+    return deleteOrderDb(id);
   }
 }
 

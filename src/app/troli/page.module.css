@@ -384,6 +384,19 @@
   padding-top: 10px;
 }
 
+.statusStandalone {
+  border: 1px solid #d8dce5;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.statusStandalone .statusPanel {
+  margin-top: 0;
+  border-top: none;
+  padding-top: 0;
+}
+
 .statusPanel h4 {
   font-size: 0.95rem;
   margin-bottom: 8px;

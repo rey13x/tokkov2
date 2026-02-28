@@ -802,6 +802,36 @@ export default function AdminPage() {
     }
   };
 
+  const onDeleteOrder = async (orderId: string) => {
+    if (!window.confirm("Yakin hapus order ini?")) {
+      return;
+    }
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "DELETE",
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        setError(result.message ?? "Gagal menghapus order.");
+        return;
+      }
+
+      setOrderStatusDrafts((current) => {
+        const next = { ...current };
+        delete next[orderId];
+        return next;
+      });
+      setMessage("Order berhasil dihapus.");
+      await loadOrders();
+      await loadStats();
+    } catch {
+      setError("Gagal menghapus order.");
+    }
+  };
+
   const onDeleteAllProducts = async () => {
     if (!window.confirm("Yakin hapus semua produk?")) {
       return;
@@ -973,12 +1003,12 @@ export default function AdminPage() {
           <p>Halo Admin, konsisten untuk produknya yaa. Hubungi melalui Whatsapp jika ada trouble</p>
         </div>
         <div className={styles.headerActions}>
-          <a href="/api/admin/orders/export?format=csv" className={styles.actionLink}>
+          <Link href="/api/admin/orders/export?format=csv" className={styles.actionLink}>
             Export CSV
-          </a>
-          <a href="/api/admin/orders/export?format=xlsx" className={styles.actionLink}>
+          </Link>
+          <Link href="/api/admin/orders/export?format=xlsx" className={styles.actionLink}>
             Export XLSX
-          </a>
+          </Link>
           <button type="button" onClick={onLogoutAdmin} className={styles.actionLink}>
             Logout Admin
           </button>
@@ -1136,6 +1166,9 @@ export default function AdminPage() {
                   >
                     Struk
                   </a>
+                  <button type="button" onClick={() => onDeleteOrder(order.id)}>
+                    Hapus
+                  </button>
                 </div>
               </div>
             ))}
