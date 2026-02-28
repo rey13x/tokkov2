@@ -16,6 +16,38 @@ const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
 
+async function safeFindUserByEmail(email: string) {
+  try {
+    return await findUserByEmail(email);
+  } catch (error) {
+    console.error("Failed to query user by email:", error);
+    return null;
+  }
+}
+
+async function safeAttachTokenByEmail(
+  token: Record<string, unknown>,
+  email: string | null | undefined,
+) {
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) {
+    return token;
+  }
+
+  const dbUser = await safeFindUserByEmail(normalized);
+  if (!dbUser) {
+    return token;
+  }
+
+  token.userId = dbUser.id;
+  token.username = dbUser.username;
+  token.role = dbUser.role;
+  token.phone = dbUser.phone;
+  token.avatarUrl = dbUser.avatarUrl;
+
+  return token;
+}
+
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
     name: "Credentials",
@@ -69,6 +101,7 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: "/auth",
+    error: "/auth",
   },
   providers,
   callbacks: {
@@ -92,7 +125,7 @@ export const authOptions: NextAuthOptions = {
         rawProfile && typeof rawProfile.picture === "string" ? rawProfile.picture : "";
 
       try {
-        const existing = await findUserByEmail(email);
+        const existing = await safeFindUserByEmail(email);
         if (existing) {
           if (profilePicture && profilePicture !== existing.avatarUrl) {
             await updateUserById(existing.id, { avatarUrl: profilePicture });
@@ -110,7 +143,7 @@ export const authOptions: NextAuthOptions = {
         });
       } catch (error) {
         console.error("Failed to sync Google user to database:", error);
-        const fallbackUser = await findUserByEmail(email);
+        const fallbackUser = await safeFindUserByEmail(email);
         if (!fallbackUser) {
           return false;
         }
@@ -119,37 +152,12 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user, trigger }) {
-      if (user?.email) {
-        const dbUser = await findUserByEmail(user.email);
-        if (dbUser) {
-          token.userId = dbUser.id;
-          token.username = dbUser.username;
-          token.role = dbUser.role;
-          token.phone = dbUser.phone;
-          token.avatarUrl = dbUser.avatarUrl;
-        }
-      }
-
+      await safeAttachTokenByEmail(token as Record<string, unknown>, user?.email);
       if (!token.userId && token.email) {
-        const dbUser = await findUserByEmail(token.email);
-        if (dbUser) {
-          token.userId = dbUser.id;
-          token.username = dbUser.username;
-          token.role = dbUser.role;
-          token.phone = dbUser.phone;
-          token.avatarUrl = dbUser.avatarUrl;
-        }
+        await safeAttachTokenByEmail(token as Record<string, unknown>, String(token.email));
       }
-
       if (trigger === "update" && token.email) {
-        const dbUser = await findUserByEmail(token.email);
-        if (dbUser) {
-          token.userId = dbUser.id;
-          token.username = dbUser.username;
-          token.role = dbUser.role;
-          token.phone = dbUser.phone;
-          token.avatarUrl = dbUser.avatarUrl;
-        }
+        await safeAttachTokenByEmail(token as Record<string, unknown>, String(token.email));
       }
 
       return token;

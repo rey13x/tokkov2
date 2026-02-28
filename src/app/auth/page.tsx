@@ -227,6 +227,20 @@ export default function AuthPage() {
         setIsGoogleSubmitting(false);
         return;
       }
+
+      const providerCheck = await fetch("/api/auth/providers", { cache: "no-store" });
+      if (!providerCheck.ok) {
+        setError("Provider Google belum aktif di server.");
+        setIsGoogleSubmitting(false);
+        return;
+      }
+      const providerData = (await providerCheck.json()) as Record<string, unknown>;
+      if (!providerData.google) {
+        setError("Provider Google belum aktif di server.");
+        setIsGoogleSubmitting(false);
+        return;
+      }
+
       await signIn("google", { callbackUrl: redirectTarget });
     } catch {
       setError("Login Google gagal. Coba lagi.");
