@@ -159,6 +159,7 @@ export default function AuthPage() {
     setError("");
     setSuccess("");
     setIsSubmitting(true);
+    let registrationCompleted = false;
 
     try {
       if (!canUseEmailOtp) {
@@ -173,44 +174,64 @@ export default function AuthPage() {
             confirmPassword: signupConfirmPassword,
           }),
         });
-        const registerResult = (await registerResponse.json()) as { message?: string };
+        let registerResult: { message?: string } = {};
+        try {
+          registerResult = (await registerResponse.json()) as { message?: string };
+        } catch {}
         if (!registerResponse.ok) {
           setError(registerResult.message ?? "Pendaftaran gagal.");
           return;
         }
+        registrationCompleted = true;
       } else {
-      const verifyResponse = await fetch("/api/auth/signup/verify-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: signupEmail,
-          code: signupCode,
-        }),
-      });
-      const verifyResult = (await verifyResponse.json()) as { message?: string };
-      if (!verifyResponse.ok) {
-        setError(verifyResult.message ?? "Verifikasi kode gagal.");
-        return;
-      }
+        const verifyResponse = await fetch("/api/auth/signup/verify-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: signupEmail,
+            code: signupCode,
+          }),
+        });
+        let verifyResult: { message?: string } = {};
+        try {
+          verifyResult = (await verifyResponse.json()) as { message?: string };
+        } catch {}
+        if (!verifyResponse.ok) {
+          setError(verifyResult.message ?? "Verifikasi kode gagal.");
+          return;
+        }
+        registrationCompleted = true;
       }
 
-      const loginResult = await signIn("credentials", {
-        identifier: signupEmail.trim(),
-        password: signupPassword,
-        redirect: false,
-      });
+      try {
+        const loginResult = await signIn("credentials", {
+          identifier: signupEmail.trim(),
+          password: signupPassword,
+          redirect: false,
+        });
 
-      if (loginResult?.error) {
-        setSuccess("Akun berhasil dibuat. Silakan masuk.");
+        if (loginResult?.error) {
+          setSuccess("Akun berhasil dibuat. Silakan login manual.");
+          setMode("signin");
+          setIdentifier(signupEmail.trim());
+          return;
+        }
+
+        const target = await resolveRedirectAfterAuth();
+        router.replace(target);
+      } catch {
+        setSuccess("Akun berhasil dibuat. Silakan login manual.");
         setMode("signin");
         setIdentifier(signupEmail.trim());
-        return;
       }
-
-      const target = await resolveRedirectAfterAuth();
-      router.replace(target);
     } catch {
-      setError("Gagal menyelesaikan pendaftaran.");
+      if (registrationCompleted) {
+        setSuccess("Akun berhasil dibuat, tapi auto-login gagal. Silakan login manual.");
+        setMode("signin");
+        setIdentifier(signupEmail.trim());
+      } else {
+        setError("Gagal menyelesaikan pendaftaran.");
+      }
     } finally {
       setIsSubmitting(false);
     }
