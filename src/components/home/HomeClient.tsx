@@ -721,7 +721,7 @@ export default function HomeClient() {
         </div>
       </section>
 
-      {!storeDataReady ? <div className={styles.storeLoadingBadge}>Memuat data katalog...</div> : null}
+      {!storeDataReady ? <div className={styles.storeLoadingBadge}>Tunggu sebentar yaa..</div> : null}
 
       {bestSellerProducts.length > 0 ? (
       <section className={styles.section} data-animate="section">

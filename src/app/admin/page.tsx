@@ -115,7 +115,6 @@ export default function AdminPage() {
 
   const [authState, setAuthState] = useState<"checking" | "allowed" | "blocked">("checking");
   const [activeSection, setActiveSection] = useState<AdminSection>("overview");
-  const [adminEmail, setAdminEmail] = useState("");
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [informations, setInformations] = useState<StoreInformation[]>([]);
   const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
@@ -457,7 +456,6 @@ export default function AdminPage() {
           return;
         }
 
-        setAdminEmail(payload.user?.email ?? "");
         setAuthState("allowed");
         await Promise.allSettled([
           loadProducts(),
@@ -840,10 +838,7 @@ export default function AdminPage() {
       <header className={styles.header}>
         <div>
           <h1>Admin Dashboard</h1>
-          <p>
-            Kelola semua konten dengan panel rapi dan preview realtime.
-            {adminEmail ? ` (${adminEmail})` : ""}
-          </p>
+          <p>Halo Admin, konsisten untuk produknya yaa. Hubungi melalui Whatsapp jika ada trouble</p>
         </div>
         <div className={styles.headerActions}>
           <a href="/api/admin/orders/export?format=csv" className={styles.actionLink}>
