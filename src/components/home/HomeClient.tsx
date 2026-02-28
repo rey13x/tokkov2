@@ -29,7 +29,7 @@ import type {
 } from "@/types/store";
 import styles from "./HomeClient.module.css";
 
-type MenuLayer = "closed" | "main" | "products" | "services";
+type MenuLayer = "closed" | "main" | "products";
 
 type HomeProduct = StoreProduct;
 type HomeInformation = StoreInformation;
@@ -53,7 +53,6 @@ export default function HomeClient() {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const mainPanelRef = useRef<HTMLDivElement | null>(null);
   const productsPanelRef = useRef<HTMLDivElement | null>(null);
-  const servicesPanelRef = useRef<HTMLDivElement | null>(null);
   const menuFabRef = useRef<HTMLButtonElement | null>(null);
   const testimonialViewportRef = useRef<HTMLDivElement | null>(null);
   const testimonialDragStartRef = useRef(0);
@@ -85,14 +84,7 @@ export default function HomeClient() {
     return [...set];
   }, [products]);
 
-  const productMenuItems = useMemo(
-    () => categories.filter((category) => !category.toLowerCase().includes("jasa")).slice(0, 6),
-    [categories],
-  );
-  const serviceMenuItems = useMemo(
-    () => categories.filter((category) => category.toLowerCase().includes("jasa")).slice(0, 6),
-    [categories],
-  );
+  const productMenuItems = useMemo(() => categories.slice(0, 10), [categories]);
 
   const bestSellerProducts = products.slice(0, 8);
   const shouldAutoSlideTestimonials = testimonials.length > 1;
@@ -583,7 +575,6 @@ export default function HomeClient() {
     const panelMap: Record<Exclude<MenuLayer, "closed">, HTMLDivElement | null> = {
       main: mainPanelRef.current,
       products: productsPanelRef.current,
-      services: servicesPanelRef.current,
     };
 
     const incomingPanel = panelMap[menuLayer];
@@ -932,32 +923,11 @@ export default function HomeClient() {
               </div>
 
               <nav className={styles.menuNav} aria-label="Menu utama">
-                <button type="button" onClick={() => moveMenu("services", 1)} data-menu-item>
+                <button type="button" onClick={() => moveMenu("products", 1)} data-menu-item>
                   Semua Layanan
                   <span>
                     <FiChevronRight />
                   </span>
-                </button>
-                <button type="button" onClick={() => moveMenu("products", 1)} data-menu-item>
-                  Katalog
-                  <span>
-                    <FiChevronRight />
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeMenu();
-                    window.setTimeout(() => {
-                      document.getElementById("informasi")?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                      });
-                    }, 110);
-                  }}
-                  data-menu-item
-                >
-                  Panduan
                 </button>
                 <button
                   type="button"
@@ -997,7 +967,7 @@ export default function HomeClient() {
                 </Link>
               </div>
               <p className={styles.menuLabel} data-menu-item>
-                Katalog
+                Semua Layanan
               </p>
               <nav className={styles.menuNav} aria-label="Menu produk">
                 {productMenuItems.map((item) => (
@@ -1030,50 +1000,6 @@ export default function HomeClient() {
               </div>
             </section>
 
-            <section
-              className={`${styles.menuPanel} ${styles.menuPanelSub} ${
-                menuLayer === "services" ? styles.menuPanelActive : ""
-              }`}
-              ref={servicesPanelRef}
-            >
-              <div className={styles.menuTop}>
-                <Link href="/" aria-label="Beranda">
-                  <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
-                </Link>
-              </div>
-              <p className={styles.menuLabel} data-menu-item>
-                Semua Layanan
-              </p>
-              <nav className={styles.menuNav} aria-label="Menu layanan">
-                {serviceMenuItems.map((item) => (
-                  <button key={item} type="button" onClick={() => chooseCategory(item)} data-menu-item>
-                    {item}
-                    <span>
-                      <FiChevronRight />
-                    </span>
-                  </button>
-                ))}
-              </nav>
-
-              <div className={styles.menuFooterDouble}>
-                <button
-                  type="button"
-                  className={styles.menuActionButton}
-                  onClick={() => moveMenu("main", -1)}
-                >
-                  <span className={styles.menuActionIcon}>
-                    <FiArrowLeft />
-                  </span>
-                  Kembali
-                </button>
-                <button type="button" className={styles.menuActionButton} onClick={closeMenu}>
-                  <span className={styles.menuActionIcon}>
-                    <FiX />
-                  </span>
-                  Tutup
-                </button>
-              </div>
-            </section>
           </div>
         </aside>
       ) : null}
