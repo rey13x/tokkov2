@@ -18,12 +18,7 @@ import heroImage from "@/app/assets/Background.jpg";
 import bagasPhoto from "@/app/assets/Bagas.jpg";
 import logoImage from "@/app/assets/Logo.png";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
-import {
-  featuredProducts,
-  formatRupiah,
-  informationItems as fallbackInformationItems,
-  products as fallbackProducts,
-} from "@/data/products";
+import { formatRupiah } from "@/data/products";
 import { getCartCount } from "@/lib/cart";
 import { fetchStoreData } from "@/lib/store-client";
 import VoiceWavePlayer from "@/components/media/VoiceWavePlayer";
@@ -44,87 +39,9 @@ type HomeMarquee = StoreMarqueeItem;
 const MARQUEE_LOOP_COUNT = 4;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
-const FALLBACK_CREATED_AT = "2026-01-01T00:00:00.000Z";
-const FALLBACK_MARQUEES: HomeMarquee[] = Array.from({ length: 5 }, (_, index) => ({
-  id: `fallback-marquee-${index + 1}`,
-  label: `Logo ${index + 1}`,
-  imageUrl: "/assets/logo.png",
-  isActive: true,
-  sortOrder: index + 1,
-  createdAt: FALLBACK_CREATED_AT,
-}));
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
   return item.name.trim().toLowerCase() === "founder" ? bagasPhoto.src : item.mediaUrl;
-}
-
-function mapFallbackProducts(): HomeProduct[] {
-  return fallbackProducts
-    .filter((product) => product.category === "App Premium")
-    .map((product) => ({
-      id: String(product.id),
-      slug: product.slug,
-      name: product.name,
-      category: product.category,
-      shortDescription: product.shortDescription,
-      description: product.description,
-      duration: "",
-      price: product.price,
-      imageUrl: product.image.src,
-      isActive: true,
-    }));
-}
-
-function mapFallbackInformations(): HomeInformation[] {
-  return fallbackInformationItems.map((item) => ({
-    id: item.id,
-    type: "update",
-    title: item.title,
-    body: item.description,
-    imageUrl: item.image.src,
-    pollOptions: [],
-    pollVotes: {},
-    createdAt: new Date().toISOString(),
-  }));
-}
-
-function mapFallbackTestimonials(): HomeTestimonial[] {
-  return [
-    {
-      id: "fallback-testi-1",
-      name: "Founder",
-      country: "Indonesia",
-      message: "Hasil lebih Penting dari Janji",
-      rating: 5,
-      mediaUrl: "/assets/logo.png",
-      audioUrl: "/assets/notif.mp3",
-      createdAt: FALLBACK_CREATED_AT,
-    },
-    {
-      id: "fallback-testi-2",
-      name: "Charlotte",
-      country: "Inggris",
-      message: "Layanan website rapi, stabil, dan supportnya responsif dari awal sampai selesai.",
-      rating: 5,
-      mediaUrl: "/assets/logo.png",
-      audioUrl: "/assets/notif.mp3",
-      createdAt: FALLBACK_CREATED_AT,
-    },
-    {
-      id: "fallback-testi-3",
-      name: "Miguel",
-      country: "Filipina",
-      message: "Pengembangan aplikasi jelas progresnya, komunikasi cepat, dan hasil sesuai kebutuhan.",
-      rating: 4,
-      mediaUrl: "/assets/logo.png",
-      audioUrl: "/assets/notif.mp3",
-      createdAt: FALLBACK_CREATED_AT,
-    },
-  ];
-}
-
-function mapFallbackMarquees(): HomeMarquee[] {
-  return FALLBACK_MARQUEES;
 }
 
 export default function HomeClient() {
@@ -148,14 +65,10 @@ export default function HomeClient() {
   const [menuMounted, setMenuMounted] = useState(false);
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
   const [cartCount, setCartCount] = useState(0);
-  const [products, setProducts] = useState<HomeProduct[]>(mapFallbackProducts);
-  const [informations, setInformations] = useState<HomeInformation[]>(
-    mapFallbackInformations,
-  );
-  const [testimonials, setTestimonials] = useState<HomeTestimonial[]>(
-    mapFallbackTestimonials,
-  );
-  const [marquees, setMarquees] = useState<HomeMarquee[]>(mapFallbackMarquees);
+  const [products, setProducts] = useState<HomeProduct[]>([]);
+  const [informations, setInformations] = useState<HomeInformation[]>([]);
+  const [testimonials, setTestimonials] = useState<HomeTestimonial[]>([]);
+  const [marquees, setMarquees] = useState<HomeMarquee[]>([]);
   const [isTestimonialDragging, setIsTestimonialDragging] = useState(false);
   const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
@@ -175,23 +88,12 @@ export default function HomeClient() {
     [categories],
   );
 
-  const bestSellerProducts = (() => {
-    const fallbackBest = featuredProducts.map((product) => product.slug);
-    const dbBest = products.filter((product) => fallbackBest.includes(product.slug));
-
-    if (dbBest.length > 0) {
-      return dbBest.slice(0, 8);
-    }
-
-    return products.slice(0, 8);
-  })();
+  const bestSellerProducts = products.slice(0, 8);
   const shouldAutoSlideTestimonials = testimonials.length > 1;
   const activeMarquees = useMemo(() => {
-    const activeItems = marquees
+    return marquees
       .filter((item) => item.isActive)
       .sort((a, b) => a.sortOrder - b.sortOrder);
-
-    return activeItems.length > 0 ? activeItems : mapFallbackMarquees();
   }, [marquees]);
   const testimonialCarouselItems = useMemo(
     () =>
@@ -332,19 +234,10 @@ export default function HomeClient() {
         if (!mounted) {
           return;
         }
-        if (data.products.length > 0) {
-          setProducts(data.products);
-        }
-        if (data.informations.length > 0) {
-          setInformations(data.informations);
-        }
-        if (data.testimonials?.length > 0) {
-          setTestimonials(data.testimonials);
-        }
-        const storeMarquees = data.marquees ?? [];
-        if (storeMarquees.length > 0) {
-          setMarquees(storeMarquees);
-        }
+        setProducts(data.products ?? []);
+        setInformations(data.informations ?? []);
+        setTestimonials(data.testimonials ?? []);
+        setMarquees(data.marquees ?? []);
       })
       .catch(() => {});
 
@@ -787,6 +680,7 @@ export default function HomeClient() {
         </div>
       </section>
 
+      {bestSellerProducts.length > 0 ? (
       <section className={styles.section} data-animate="section">
         <div className={styles.sectionHead}>
           <h2>Produk Terbaik</h2>
@@ -826,7 +720,9 @@ export default function HomeClient() {
           ))}
         </div>
       </section>
+      ) : null}
 
+      {informations.length > 0 ? (
       <section className={styles.section} data-animate="section" id="informasi">
         <div className={styles.sectionHead}>
           <h2>Informasi</h2>
@@ -888,7 +784,9 @@ export default function HomeClient() {
           ))}
         </div>
       </section>
+      ) : null}
 
+      {testimonials.length > 0 || activeMarquees.length > 0 ? (
       <section className={styles.section} data-animate="section">
         <div className={styles.partnerHeader}>
           <h2>Apa Kata Mereka?</h2>
@@ -933,38 +831,39 @@ export default function HomeClient() {
                 </article>
               ))}
             </div>
-          ) : (
-            <p className={styles.emptyState}>Belum ada testimonial.</p>
-          )}
+          ) : null}
         </div>
 
-        <div className={styles.logoMarquee}>
-          <div
-            className={styles.logoTrack}
-            style={{ ["--logo-count" as const]: activeMarquees.length } as CSSProperties}
-          >
-            {Array.from({ length: MARQUEE_LOOP_COUNT }).map((_, loopIndex) => (
-              <div
-                key={`logo-segment-${loopIndex}`}
-                className={styles.logoSegment}
-                aria-hidden={loopIndex > 0}
-              >
-                {activeMarquees.map((item, logoIndex) => (
-                  <div key={`${item.id}-${loopIndex}-${logoIndex}`} className={styles.logoGlyph}>
-                    <FlexibleMedia
-                      src={item.imageUrl}
-                      alt={item.label}
-                      fill
-                      className={styles.logoImage}
-                      sizes="58px"
-                    />
-                  </div>
-                ))}
-              </div>
-            ))}
+        {activeMarquees.length > 0 ? (
+          <div className={styles.logoMarquee}>
+            <div
+              className={styles.logoTrack}
+              style={{ ["--logo-count" as const]: activeMarquees.length } as CSSProperties}
+            >
+              {Array.from({ length: MARQUEE_LOOP_COUNT }).map((_, loopIndex) => (
+                <div
+                  key={`logo-segment-${loopIndex}`}
+                  className={styles.logoSegment}
+                  aria-hidden={loopIndex > 0}
+                >
+                  {activeMarquees.map((item, logoIndex) => (
+                    <div key={`${item.id}-${loopIndex}-${logoIndex}`} className={styles.logoGlyph}>
+                      <FlexibleMedia
+                        src={item.imageUrl}
+                        alt={item.label}
+                        fill
+                        className={styles.logoImage}
+                        sizes="58px"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
       </section>
+      ) : null}
 
       <button type="button" className={styles.menuFab} onClick={openMenu} ref={menuFabRef}>
         <FiMenu />

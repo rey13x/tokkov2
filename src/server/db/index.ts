@@ -208,79 +208,19 @@ function mapPrivacyPolicyPage(row: Record<string, unknown>): StorePrivacyPolicyP
 
 const defaultProducts: Array<
   Omit<StoreProduct, "id" | "slug" | "isActive"> & { slug?: string }
-> = [
-  {
-    name: "Netflix Private 1 Bulan",
-    category: "App Premium",
-    shortDescription: "Akun private HD + garansi",
-    description: "Akun private siap pakai kualitas HD dengan garansi.",
-    duration: "1 Bulan",
-    price: 59000,
-    imageUrl: "/assets/background.jpg",
-  },
-  {
-    name: "Spotify Premium Family",
-    category: "App Premium",
-    shortDescription: "Anti iklan, mode offline",
-    description: "Upgrade akun Spotify tanpa iklan dan mode offline aktif.",
-    duration: "1 Bulan",
-    price: 25000,
-    imageUrl: "/assets/prime-video.jpg",
-  },
-  {
-    name: "YouTube Premium Share",
-    category: "App Premium",
-    shortDescription: "No ads, aktivasi cepat",
-    description: "Nikmati YouTube tanpa iklan dengan dukungan login aman.",
-    duration: "1 Bulan",
-    price: 28000,
-    imageUrl: "/assets/canva.jpg",
-  },
-];
+> = [];
 
 const defaultInformations: Array<
   Omit<StoreInformation, "id" | "createdAt"> & { createdAt?: string }
-> = [
-  {
-    type: "update",
-    title: "Pesan Promo Mingguan",
-    body: "Admin bisa mengisi pesan campaign terbaru dan instruksi pembelian.",
-    imageUrl: "/assets/background.jpg",
-    pollOptions: [],
-    pollVotes: {},
-  },
-  {
-    type: "poll",
-    title: "Polling Produk Favorit",
-    body: "Pilih kategori yang paling sering kamu beli minggu ini.",
-    imageUrl: "/assets/canva.jpg",
-    pollOptions: ["App Premium"],
-    pollVotes: { "App Premium": 0 },
-  },
-];
+> = [];
 
 const defaultTestimonials: Array<
   Omit<StoreTestimonial, "id" | "createdAt"> & { createdAt?: string }
-> = [
-  {
-    name: "Founder",
-    country: "Indonesia",
-    message: "Hasil lebih Penting dari Janji",
-    rating: 5,
-    mediaUrl: "/assets/logo.png",
-    audioUrl: "/assets/notif.mp3",
-  },
-];
+> = [];
 
 const defaultMarquees: Array<
   Omit<StoreMarqueeItem, "id" | "createdAt"> & { createdAt?: string }
-> = [
-  { label: "Logo 1", imageUrl: "/assets/logo.png", isActive: true, sortOrder: 1 },
-  { label: "Logo 2", imageUrl: "/assets/logo.png", isActive: true, sortOrder: 2 },
-  { label: "Logo 3", imageUrl: "/assets/logo.png", isActive: true, sortOrder: 3 },
-  { label: "Logo 4", imageUrl: "/assets/logo.png", isActive: true, sortOrder: 4 },
-  { label: "Logo 5", imageUrl: "/assets/logo.png", isActive: true, sortOrder: 5 },
-];
+> = [];
 
 async function runOneTimeCatalogCleanup() {
   const markerKey = "catalog-app-premium-only-v1";
@@ -290,6 +230,20 @@ async function runOneTimeCatalogCleanup() {
   }
 
   await run("DELETE FROM products WHERE lower(category) <> lower('App Premium')");
+  await run("INSERT INTO app_meta (key, value) VALUES (?, ?)", [markerKey, String(now())]);
+}
+
+async function runOneTimeInitialContentReset() {
+  const markerKey = "initial-content-reset-v1";
+  const marker = await run("SELECT value FROM app_meta WHERE key = ? LIMIT 1", [markerKey]);
+  if (marker.rows.length > 0) {
+    return;
+  }
+
+  await run("DELETE FROM products");
+  await run("DELETE FROM informations");
+  await run("DELETE FROM testimonials");
+  await run("DELETE FROM marquees");
   await run("INSERT INTO app_meta (key, value) VALUES (?, ?)", [markerKey, String(now())]);
 }
 
@@ -621,6 +575,7 @@ export async function ensureDatabase() {
         )`,
       );
 
+      await runOneTimeInitialContentReset();
       await seedIfEmpty();
       await runOneTimeCatalogCleanup();
       await ensureLocalAdminUser();
