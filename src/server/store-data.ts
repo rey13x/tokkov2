@@ -425,13 +425,21 @@ export async function listInformations() {
     return listInformationsDb();
   }
 
-  const snapshot = await firestore
-    .collection("informations")
-    .orderBy("createdAt", "desc")
-    .get();
-  return snapshot.docs.map((doc) =>
-    mapInformationDoc(doc.id, doc.data() as Record<string, unknown>),
-  );
+  try {
+    const snapshot = await firestore
+      .collection("informations")
+      .orderBy("createdAt", "desc")
+      .get();
+    return snapshot.docs.map((doc) =>
+      mapInformationDoc(doc.id, doc.data() as Record<string, unknown>),
+    );
+  } catch (error) {
+    console.error(
+      "Failed to read informations from Firestore. Falling back to local database.",
+      error,
+    );
+    return listInformationsDb();
+  }
 }
 
 export async function createInformation(input: {
@@ -446,24 +454,32 @@ export async function createInformation(input: {
     return createInformationDb(input);
   }
 
-  const id = crypto.randomUUID();
-  const createdAt = now();
-  const mediaUrl = resolveMediaUrl(input.imageUrl);
-  const pollOptions = normalizePollOptions(input.pollOptions);
-  const pollVotes = input.type === "poll" ? normalizePollVotes(pollOptions, {}) : {};
-  await firestore.collection("informations").doc(id).set({
-    type: input.type,
-    title: input.title,
-    body: input.body,
-    imageUrl: mediaUrl,
-    pollOptions,
-    pollVotes,
-    createdAt,
-    updatedAt: createdAt,
-  });
+  try {
+    const id = crypto.randomUUID();
+    const createdAt = now();
+    const mediaUrl = resolveMediaUrl(input.imageUrl);
+    const pollOptions = normalizePollOptions(input.pollOptions);
+    const pollVotes = input.type === "poll" ? normalizePollVotes(pollOptions, {}) : {};
+    await firestore.collection("informations").doc(id).set({
+      type: input.type,
+      title: input.title,
+      body: input.body,
+      imageUrl: mediaUrl,
+      pollOptions,
+      pollVotes,
+      createdAt,
+      updatedAt: createdAt,
+    });
 
-  const doc = await firestore.collection("informations").doc(id).get();
-  return mapInformationDoc(doc.id, doc.data() as Record<string, unknown>);
+    const doc = await firestore.collection("informations").doc(id).get();
+    return mapInformationDoc(doc.id, doc.data() as Record<string, unknown>);
+  } catch (error) {
+    console.error(
+      "Failed to create information in Firestore. Falling back to local database.",
+      error,
+    );
+    return createInformationDb(input);
+  }
 }
 
 export async function updateInformation(
@@ -481,34 +497,42 @@ export async function updateInformation(
     return updateInformationDb(id, input);
   }
 
-  const ref = firestore.collection("informations").doc(id);
-  const doc = await ref.get();
-  if (!doc.exists) {
-    return null;
+  try {
+    const ref = firestore.collection("informations").doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return null;
+    }
+
+    const currentData = doc.data() as Record<string, unknown>;
+    const currentMapped = mapInformationDoc(doc.id, currentData);
+    const nextType = input.type ?? currentMapped.type;
+    const nextPollOptions = normalizePollOptions(input.pollOptions ?? currentMapped.pollOptions);
+    const nextPollVotes =
+      nextType === "poll"
+        ? normalizePollVotes(nextPollOptions, currentMapped.pollVotes)
+        : {};
+    const nextMediaUrl =
+      input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
+    await ref.update({
+      ...(input.type !== undefined ? { type: input.type } : {}),
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.body !== undefined ? { body: input.body } : {}),
+      ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
+      ...(input.pollOptions !== undefined ? { pollOptions: nextPollOptions } : {}),
+      pollVotes: nextPollVotes,
+      updatedAt: now(),
+    });
+
+    const updated = await ref.get();
+    return mapInformationDoc(updated.id, updated.data() as Record<string, unknown>);
+  } catch (error) {
+    console.error(
+      "Failed to update information in Firestore. Falling back to local database.",
+      error,
+    );
+    return updateInformationDb(id, input);
   }
-
-  const currentData = doc.data() as Record<string, unknown>;
-  const currentMapped = mapInformationDoc(doc.id, currentData);
-  const nextType = input.type ?? currentMapped.type;
-  const nextPollOptions = normalizePollOptions(input.pollOptions ?? currentMapped.pollOptions);
-  const nextPollVotes =
-    nextType === "poll"
-      ? normalizePollVotes(nextPollOptions, currentMapped.pollVotes)
-      : {};
-  const nextMediaUrl =
-    input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
-  await ref.update({
-    ...(input.type !== undefined ? { type: input.type } : {}),
-    ...(input.title !== undefined ? { title: input.title } : {}),
-    ...(input.body !== undefined ? { body: input.body } : {}),
-    ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
-    ...(input.pollOptions !== undefined ? { pollOptions: nextPollOptions } : {}),
-    pollVotes: nextPollVotes,
-    updatedAt: now(),
-  });
-
-  const updated = await ref.get();
-  return mapInformationDoc(updated.id, updated.data() as Record<string, unknown>);
 }
 
 export async function getInformationById(id: string) {
@@ -517,12 +541,20 @@ export async function getInformationById(id: string) {
     return getInformationByIdDb(id);
   }
 
-  const doc = await firestore.collection("informations").doc(id).get();
-  if (!doc.exists) {
-    return null;
-  }
+  try {
+    const doc = await firestore.collection("informations").doc(id).get();
+    if (!doc.exists) {
+      return null;
+    }
 
-  return mapInformationDoc(doc.id, doc.data() as Record<string, unknown>);
+    return mapInformationDoc(doc.id, doc.data() as Record<string, unknown>);
+  } catch (error) {
+    console.error(
+      "Failed to read information by id from Firestore. Falling back to local database.",
+      error,
+    );
+    return getInformationByIdDb(id);
+  }
 }
 
 export async function voteInformationPoll(id: string, option: string) {
@@ -572,7 +604,15 @@ export async function deleteInformation(id: string) {
     await deleteInformationDb(id);
     return;
   }
-  await firestore.collection("informations").doc(id).delete();
+  try {
+    await firestore.collection("informations").doc(id).delete();
+  } catch (error) {
+    console.error(
+      "Failed to delete information in Firestore. Falling back to local database.",
+      error,
+    );
+    await deleteInformationDb(id);
+  }
 }
 
 export async function listTestimonials() {
@@ -581,14 +621,22 @@ export async function listTestimonials() {
     return listTestimonialsDb();
   }
 
-  const snapshot = await firestore
-    .collection("testimonials")
-    .orderBy("createdAt", "desc")
-    .get();
+  try {
+    const snapshot = await firestore
+      .collection("testimonials")
+      .orderBy("createdAt", "desc")
+      .get();
 
-  return snapshot.docs.map((doc) =>
-    mapTestimonialDoc(doc.id, doc.data() as Record<string, unknown>),
-  );
+    return snapshot.docs.map((doc) =>
+      mapTestimonialDoc(doc.id, doc.data() as Record<string, unknown>),
+    );
+  } catch (error) {
+    console.error(
+      "Failed to read testimonials from Firestore. Falling back to local database.",
+      error,
+    );
+    return listTestimonialsDb();
+  }
 }
 
 export async function createTestimonial(input: {
@@ -604,23 +652,31 @@ export async function createTestimonial(input: {
     return createTestimonialDb(input);
   }
 
-  const mediaUrl = resolveMediaUrl(input.mediaUrl);
-  const audioUrl = input.audioUrl.trim() || "/assets/notif.mp3";
-  const id = crypto.randomUUID();
-  const createdAt = now();
-  await firestore.collection("testimonials").doc(id).set({
-    name: input.name,
-    country: input.country,
-    message: input.message,
-    rating: Math.max(1, Math.min(5, input.rating)),
-    mediaUrl,
-    audioUrl,
-    createdAt,
-    updatedAt: createdAt,
-  });
+  try {
+    const mediaUrl = resolveMediaUrl(input.mediaUrl);
+    const audioUrl = input.audioUrl.trim() || "/assets/notif.mp3";
+    const id = crypto.randomUUID();
+    const createdAt = now();
+    await firestore.collection("testimonials").doc(id).set({
+      name: input.name,
+      country: input.country,
+      message: input.message,
+      rating: Math.max(1, Math.min(5, input.rating)),
+      mediaUrl,
+      audioUrl,
+      createdAt,
+      updatedAt: createdAt,
+    });
 
-  const doc = await firestore.collection("testimonials").doc(id).get();
-  return mapTestimonialDoc(doc.id, doc.data() as Record<string, unknown>);
+    const doc = await firestore.collection("testimonials").doc(id).get();
+    return mapTestimonialDoc(doc.id, doc.data() as Record<string, unknown>);
+  } catch (error) {
+    console.error(
+      "Failed to create testimonial in Firestore. Falling back to local database.",
+      error,
+    );
+    return createTestimonialDb(input);
+  }
 }
 
 export async function updateTestimonial(
@@ -639,28 +695,36 @@ export async function updateTestimonial(
     return updateTestimonialDb(id, input);
   }
 
-  const ref = firestore.collection("testimonials").doc(id);
-  const doc = await ref.get();
-  if (!doc.exists) {
-    return null;
+  try {
+    const ref = firestore.collection("testimonials").doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return null;
+    }
+
+    const nextMediaUrl =
+      input.mediaUrl !== undefined ? resolveMediaUrl(input.mediaUrl) : undefined;
+    const nextAudioUrl =
+      input.audioUrl !== undefined ? input.audioUrl.trim() || "/assets/notif.mp3" : undefined;
+    await ref.update({
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.country !== undefined ? { country: input.country } : {}),
+      ...(input.message !== undefined ? { message: input.message } : {}),
+      ...(input.rating !== undefined ? { rating: Math.max(1, Math.min(5, input.rating)) } : {}),
+      ...(nextMediaUrl !== undefined ? { mediaUrl: nextMediaUrl } : {}),
+      ...(nextAudioUrl !== undefined ? { audioUrl: nextAudioUrl } : {}),
+      updatedAt: now(),
+    });
+
+    const updated = await ref.get();
+    return mapTestimonialDoc(updated.id, updated.data() as Record<string, unknown>);
+  } catch (error) {
+    console.error(
+      "Failed to update testimonial in Firestore. Falling back to local database.",
+      error,
+    );
+    return updateTestimonialDb(id, input);
   }
-
-  const nextMediaUrl =
-    input.mediaUrl !== undefined ? resolveMediaUrl(input.mediaUrl) : undefined;
-  const nextAudioUrl =
-    input.audioUrl !== undefined ? input.audioUrl.trim() || "/assets/notif.mp3" : undefined;
-  await ref.update({
-    ...(input.name !== undefined ? { name: input.name } : {}),
-    ...(input.country !== undefined ? { country: input.country } : {}),
-    ...(input.message !== undefined ? { message: input.message } : {}),
-    ...(input.rating !== undefined ? { rating: Math.max(1, Math.min(5, input.rating)) } : {}),
-    ...(nextMediaUrl !== undefined ? { mediaUrl: nextMediaUrl } : {}),
-    ...(nextAudioUrl !== undefined ? { audioUrl: nextAudioUrl } : {}),
-    updatedAt: now(),
-  });
-
-  const updated = await ref.get();
-  return mapTestimonialDoc(updated.id, updated.data() as Record<string, unknown>);
 }
 
 export async function deleteTestimonial(id: string) {
@@ -669,7 +733,15 @@ export async function deleteTestimonial(id: string) {
     await deleteTestimonialDb(id);
     return;
   }
-  await firestore.collection("testimonials").doc(id).delete();
+  try {
+    await firestore.collection("testimonials").doc(id).delete();
+  } catch (error) {
+    console.error(
+      "Failed to delete testimonial in Firestore. Falling back to local database.",
+      error,
+    );
+    await deleteTestimonialDb(id);
+  }
 }
 
 export async function listMarquees() {
@@ -678,14 +750,22 @@ export async function listMarquees() {
     return listMarqueesDb();
   }
 
-  const snapshot = await firestore
-    .collection("marquees")
-    .orderBy("sortOrder", "asc")
-    .get();
+  try {
+    const snapshot = await firestore
+      .collection("marquees")
+      .orderBy("sortOrder", "asc")
+      .get();
 
-  return snapshot.docs
-    .map((doc) => mapMarqueeDoc(doc.id, doc.data() as Record<string, unknown>))
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+    return snapshot.docs
+      .map((doc) => mapMarqueeDoc(doc.id, doc.data() as Record<string, unknown>))
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+  } catch (error) {
+    console.error(
+      "Failed to read marquees from Firestore. Falling back to local database.",
+      error,
+    );
+    return listMarqueesDb();
+  }
 }
 
 export async function getMarqueeById(id: string) {
@@ -694,11 +774,19 @@ export async function getMarqueeById(id: string) {
     return getMarqueeByIdDb(id);
   }
 
-  const doc = await firestore.collection("marquees").doc(id).get();
-  if (!doc.exists) {
-    return null;
+  try {
+    const doc = await firestore.collection("marquees").doc(id).get();
+    if (!doc.exists) {
+      return null;
+    }
+    return mapMarqueeDoc(doc.id, doc.data() as Record<string, unknown>);
+  } catch (error) {
+    console.error(
+      "Failed to read marquee by id from Firestore. Falling back to local database.",
+      error,
+    );
+    return getMarqueeByIdDb(id);
   }
-  return mapMarqueeDoc(doc.id, doc.data() as Record<string, unknown>);
 }
 
 export async function createMarquee(input: {
@@ -712,20 +800,25 @@ export async function createMarquee(input: {
     return createMarqueeDb(input);
   }
 
-  const id = crypto.randomUUID();
-  const createdAt = now();
-  const mediaUrl = resolveMediaUrl(input.imageUrl);
+  try {
+    const id = crypto.randomUUID();
+    const createdAt = now();
+    const mediaUrl = resolveMediaUrl(input.imageUrl);
 
-  await firestore.collection("marquees").doc(id).set({
-    label: input.label.trim(),
-    imageUrl: mediaUrl,
-    isActive: Boolean(input.isActive),
-    sortOrder: Math.max(0, Math.floor(input.sortOrder)),
-    createdAt,
-    updatedAt: createdAt,
-  });
+    await firestore.collection("marquees").doc(id).set({
+      label: input.label.trim(),
+      imageUrl: mediaUrl,
+      isActive: Boolean(input.isActive),
+      sortOrder: Math.max(0, Math.floor(input.sortOrder)),
+      createdAt,
+      updatedAt: createdAt,
+    });
 
-  return getMarqueeById(id);
+    return getMarqueeById(id);
+  } catch (error) {
+    console.error("Failed to create marquee in Firestore. Falling back to local database.", error);
+    return createMarqueeDb(input);
+  }
 }
 
 export async function updateMarquee(
@@ -742,26 +835,31 @@ export async function updateMarquee(
     return updateMarqueeDb(id, input);
   }
 
-  const ref = firestore.collection("marquees").doc(id);
-  const current = await ref.get();
-  if (!current.exists) {
-    return null;
+  try {
+    const ref = firestore.collection("marquees").doc(id);
+    const current = await ref.get();
+    if (!current.exists) {
+      return null;
+    }
+
+    const nextMediaUrl =
+      input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
+
+    await ref.update({
+      ...(input.label !== undefined ? { label: input.label.trim() } : {}),
+      ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
+      ...(input.isActive !== undefined ? { isActive: Boolean(input.isActive) } : {}),
+      ...(input.sortOrder !== undefined
+        ? { sortOrder: Math.max(0, Math.floor(input.sortOrder)) }
+        : {}),
+      updatedAt: now(),
+    });
+
+    return getMarqueeById(id);
+  } catch (error) {
+    console.error("Failed to update marquee in Firestore. Falling back to local database.", error);
+    return updateMarqueeDb(id, input);
   }
-
-  const nextMediaUrl =
-    input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
-
-  await ref.update({
-    ...(input.label !== undefined ? { label: input.label.trim() } : {}),
-    ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
-    ...(input.isActive !== undefined ? { isActive: Boolean(input.isActive) } : {}),
-    ...(input.sortOrder !== undefined
-      ? { sortOrder: Math.max(0, Math.floor(input.sortOrder)) }
-      : {}),
-    updatedAt: now(),
-  });
-
-  return getMarqueeById(id);
 }
 
 export async function deleteMarquee(id: string) {
@@ -770,7 +868,12 @@ export async function deleteMarquee(id: string) {
     await deleteMarqueeDb(id);
     return;
   }
-  await firestore.collection("marquees").doc(id).delete();
+  try {
+    await firestore.collection("marquees").doc(id).delete();
+  } catch (error) {
+    console.error("Failed to delete marquee in Firestore. Falling back to local database.", error);
+    await deleteMarqueeDb(id);
+  }
 }
 
 export async function getPrivacyPolicyPage() {
@@ -854,22 +957,27 @@ export async function createOrder(input: {
     return createOrderDb(input);
   }
 
-  const id = crypto.randomUUID();
-  const createdAt = now();
-  const total = input.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+  try {
+    const id = crypto.randomUUID();
+    const createdAt = now();
+    const total = input.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
 
-  await firestore.collection("orders").doc(id).set({
-    userId: input.userId,
-    userName: input.userName,
-    userEmail: input.userEmail,
-    userPhone: input.userPhone,
-    total,
-    status: "new",
-    createdAt,
-    items: input.items,
-  });
+    await firestore.collection("orders").doc(id).set({
+      userId: input.userId,
+      userName: input.userName,
+      userEmail: input.userEmail,
+      userPhone: input.userPhone,
+      total,
+      status: "new",
+      createdAt,
+      items: input.items,
+    });
 
-  return { id, total };
+    return { id, total };
+  } catch (error) {
+    console.error("Failed to create order in Firestore. Falling back to local database.", error);
+    return createOrderDb(input);
+  }
 }
 
 export async function listOrders(limit = 100) {
@@ -878,13 +986,79 @@ export async function listOrders(limit = 100) {
     return listOrdersDb(limit);
   }
 
-  const snapshot = await firestore
-    .collection("orders")
-    .orderBy("createdAt", "desc")
-    .limit(Math.max(1, limit))
-    .get();
+  try {
+    const snapshot = await firestore
+      .collection("orders")
+      .orderBy("createdAt", "desc")
+      .limit(Math.max(1, limit))
+      .get();
 
-  return snapshot.docs.map((doc) => {
+    return snapshot.docs.map((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      return {
+        id: doc.id,
+        userName: String(data.userName ?? ""),
+        userEmail: String(data.userEmail ?? ""),
+        userPhone: String(data.userPhone ?? ""),
+        total: Number(data.total ?? 0),
+        status: String(data.status ?? "new"),
+        createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
+      } satisfies OrderSummary;
+    });
+  } catch (error) {
+    console.error("Failed to read orders from Firestore. Falling back to local database.", error);
+    return listOrdersDb(limit);
+  }
+}
+
+export async function listOrderItemsByOrderId(orderId: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return listOrderItemsByOrderIdDb(orderId);
+  }
+
+  try {
+    const doc = await firestore.collection("orders").doc(orderId).get();
+    if (!doc.exists) {
+      return [] as StoreOrderItem[];
+    }
+
+    const data = doc.data() as Record<string, unknown>;
+    const rawItems = Array.isArray(data.items) ? data.items : [];
+
+    return rawItems.map((item, index) => {
+      const typed = item as Record<string, unknown>;
+      return {
+        id: `${orderId}-${index + 1}`,
+        orderId,
+        productId: String(typed.productId ?? ""),
+        productName: String(typed.productName ?? ""),
+        productDuration: String(typed.productDuration ?? ""),
+        quantity: Number(typed.quantity ?? 1),
+        unitPrice: Number(typed.unitPrice ?? 0),
+      } satisfies StoreOrderItem;
+    });
+  } catch (error) {
+    console.error(
+      "Failed to read order items from Firestore. Falling back to local database.",
+      error,
+    );
+    return listOrderItemsByOrderIdDb(orderId);
+  }
+}
+
+export async function getOrderById(id: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return getOrderByIdDb(id);
+  }
+
+  try {
+    const doc = await firestore.collection("orders").doc(id).get();
+    if (!doc.exists) {
+      return null;
+    }
+
     const data = doc.data() as Record<string, unknown>;
     return {
       id: doc.id,
@@ -895,58 +1069,10 @@ export async function listOrders(limit = 100) {
       status: String(data.status ?? "new"),
       createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
     } satisfies OrderSummary;
-  });
-}
-
-export async function listOrderItemsByOrderId(orderId: string) {
-  const firestore = getFirebaseFirestore();
-  if (!firestore) {
-    return listOrderItemsByOrderIdDb(orderId);
-  }
-
-  const doc = await firestore.collection("orders").doc(orderId).get();
-  if (!doc.exists) {
-    return [] as StoreOrderItem[];
-  }
-
-  const data = doc.data() as Record<string, unknown>;
-  const rawItems = Array.isArray(data.items) ? data.items : [];
-
-  return rawItems.map((item, index) => {
-    const typed = item as Record<string, unknown>;
-    return {
-      id: `${orderId}-${index + 1}`,
-      orderId,
-      productId: String(typed.productId ?? ""),
-      productName: String(typed.productName ?? ""),
-      productDuration: String(typed.productDuration ?? ""),
-      quantity: Number(typed.quantity ?? 1),
-      unitPrice: Number(typed.unitPrice ?? 0),
-    } satisfies StoreOrderItem;
-  });
-}
-
-export async function getOrderById(id: string) {
-  const firestore = getFirebaseFirestore();
-  if (!firestore) {
+  } catch (error) {
+    console.error("Failed to read order by id from Firestore. Falling back to local database.", error);
     return getOrderByIdDb(id);
   }
-
-  const doc = await firestore.collection("orders").doc(id).get();
-  if (!doc.exists) {
-    return null;
-  }
-
-  const data = doc.data() as Record<string, unknown>;
-  return {
-    id: doc.id,
-    userName: String(data.userName ?? ""),
-    userEmail: String(data.userEmail ?? ""),
-    userPhone: String(data.userPhone ?? ""),
-    total: Number(data.total ?? 0),
-    status: String(data.status ?? "new"),
-    createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
-  } satisfies OrderSummary;
 }
 
 export async function listOrdersWithItems(limit = 100) {
@@ -955,18 +1081,26 @@ export async function listOrdersWithItems(limit = 100) {
     return listOrdersWithItemsDb(limit);
   }
 
-  const orders = await listOrders(limit);
-  const rows: StoreOrderDetail[] = [];
+  try {
+    const orders = await listOrders(limit);
+    const rows: StoreOrderDetail[] = [];
 
-  for (const order of orders) {
-    const items = await listOrderItemsByOrderId(order.id);
-    rows.push({
-      ...order,
-      items,
-    });
+    for (const order of orders) {
+      const items = await listOrderItemsByOrderId(order.id);
+      rows.push({
+        ...order,
+        items,
+      });
+    }
+
+    return rows;
+  } catch (error) {
+    console.error(
+      "Failed to build order detail list from Firestore. Falling back to local database.",
+      error,
+    );
+    return listOrdersWithItemsDb(limit);
   }
-
-  return rows;
 }
 
 export async function getOrderStatsLastHours(hours = 12) {
@@ -975,37 +1109,42 @@ export async function getOrderStatsLastHours(hours = 12) {
     return getOrderStatsLastHoursDb(hours);
   }
 
-  const from = now() - hours * 60 * 60 * 1000;
-  const snapshot = await firestore
-    .collection("orders")
-    .where("createdAt", ">=", from)
-    .orderBy("createdAt", "asc")
-    .get();
+  try {
+    const from = now() - hours * 60 * 60 * 1000;
+    const snapshot = await firestore
+      .collection("orders")
+      .where("createdAt", ">=", from)
+      .orderBy("createdAt", "asc")
+      .get();
 
-  const bucketMap = new Map<
-    string,
-    {
-      bucket: string;
-      totalOrders: number;
-      totalAmount: number;
-    }
-  >();
+    const bucketMap = new Map<
+      string,
+      {
+        bucket: string;
+        totalOrders: number;
+        totalAmount: number;
+      }
+    >();
 
-  snapshot.docs.forEach((doc) => {
-    const data = doc.data() as Record<string, unknown>;
-    const createdAt = Number(data.createdAt ?? now());
-    const bucket = bucketFromTimestamp(createdAt);
-    const total = Number(data.total ?? 0);
+    snapshot.docs.forEach((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      const createdAt = Number(data.createdAt ?? now());
+      const bucket = bucketFromTimestamp(createdAt);
+      const total = Number(data.total ?? 0);
 
-    const current = bucketMap.get(bucket) ?? {
-      bucket,
-      totalOrders: 0,
-      totalAmount: 0,
-    };
-    current.totalOrders += 1;
-    current.totalAmount += total;
-    bucketMap.set(bucket, current);
-  });
+      const current = bucketMap.get(bucket) ?? {
+        bucket,
+        totalOrders: 0,
+        totalAmount: 0,
+      };
+      current.totalOrders += 1;
+      current.totalAmount += total;
+      bucketMap.set(bucket, current);
+    });
 
-  return [...bucketMap.values()];
+    return [...bucketMap.values()];
+  } catch (error) {
+    console.error("Failed to read order stats from Firestore. Falling back to local database.", error);
+    return getOrderStatsLastHoursDb(hours);
+  }
 }

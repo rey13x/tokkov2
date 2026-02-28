@@ -42,8 +42,14 @@ export async function PATCH(request: Request, context: { params: Params }) {
       );
     }
 
+    console.error("PATCH /api/admin/testimonials/[id] failed:", error);
+    const detail =
+      error instanceof Error && error.message.trim()
+        ? ` (${error.message.trim()})`
+        : "";
+
     return NextResponse.json(
-      { message: "Gagal update testimonial." },
+      { message: `Gagal update testimonial.${detail}` },
       { status: 500 },
     );
   }

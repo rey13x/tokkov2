@@ -60,48 +60,56 @@ export async function GET(request: Request) {
     return auth.response;
   }
 
-  const { searchParams } = new URL(request.url);
-  const format = (searchParams.get("format") || "csv").toLowerCase();
+  try {
+    const { searchParams } = new URL(request.url);
+    const format = (searchParams.get("format") || "csv").toLowerCase();
 
-  const orders = await listOrdersWithItems(1000);
-  const rows = toExportRows(orders);
+    const orders = await listOrdersWithItems(1000);
+    const rows = toExportRows(orders);
 
-  if (format === "xlsx") {
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "orders");
-    const file = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+    if (format === "xlsx") {
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "orders");
+      const file = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
 
-    return new NextResponse(file, {
+      return new NextResponse(file, {
+        headers: {
+          "Content-Type":
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": 'attachment; filename="orders-export.xlsx"',
+        },
+      });
+    }
+
+    const headers: Array<keyof ExportRow> = [
+      "nomor",
+      "nama",
+      "gmail",
+      "produk",
+      "dibeli_berapa",
+      "durasi_produk",
+      "tanggal",
+      "bulan",
+      "tahun",
+    ];
+
+    const lines = [
+      headers.join(","),
+      ...rows.map((row) => headers.map((header) => escapeCsv(row[header])).join(",")),
+    ];
+
+    return new NextResponse(`${lines.join("\n")}\n`, {
       headers: {
-        "Content-Type":
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": 'attachment; filename="orders-export.xlsx"',
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="orders-export.csv"',
       },
     });
+  } catch (error) {
+    console.error("GET /api/admin/orders/export failed:", error);
+    return NextResponse.json(
+      { message: "Gagal export data order." },
+      { status: 500 },
+    );
   }
-
-  const headers: Array<keyof ExportRow> = [
-    "nomor",
-    "nama",
-    "gmail",
-    "produk",
-    "dibeli_berapa",
-    "durasi_produk",
-    "tanggal",
-    "bulan",
-    "tahun",
-  ];
-
-  const lines = [
-    headers.join(","),
-    ...rows.map((row) => headers.map((header) => escapeCsv(row[header])).join(",")),
-  ];
-
-  return new NextResponse(`${lines.join("\n")}\n`, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="orders-export.csv"',
-    },
-  });
 }

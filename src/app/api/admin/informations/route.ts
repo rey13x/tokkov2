@@ -40,8 +40,14 @@ export async function POST(request: Request) {
       );
     }
 
+    console.error("POST /api/admin/informations failed:", error);
+    const detail =
+      error instanceof Error && error.message.trim()
+        ? ` (${error.message.trim()})`
+        : "";
+
     return NextResponse.json(
-      { message: "Gagal menambah informasi." },
+      { message: `Gagal menambah informasi.${detail}` },
       { status: 500 },
     );
   }

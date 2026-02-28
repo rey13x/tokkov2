@@ -39,8 +39,13 @@ export async function PATCH(request: Request, context: { params: Params }) {
         { status: 400 },
       );
     }
+    console.error("PATCH /api/admin/marquees/[id] failed:", error);
+    const detail =
+      error instanceof Error && error.message.trim()
+        ? ` (${error.message.trim()})`
+        : "";
     return NextResponse.json(
-      { message: "Gagal update logo marquee." },
+      { message: `Gagal update logo marquee.${detail}` },
       { status: 500 },
     );
   }

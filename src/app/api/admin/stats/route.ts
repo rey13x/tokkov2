@@ -8,13 +8,21 @@ export async function GET() {
     return auth.response;
   }
 
-  const [series, latestOrders] = await Promise.all([
-    getOrderStatsLastHours(24),
-    listOrders(12),
-  ]);
+  try {
+    const [series, latestOrders] = await Promise.all([
+      getOrderStatsLastHours(24),
+      listOrders(12),
+    ]);
 
-  return NextResponse.json({
-    series,
-    latestOrders,
-  });
+    return NextResponse.json({
+      series,
+      latestOrders,
+    });
+  } catch (error) {
+    console.error("GET /api/admin/stats failed:", error);
+    return NextResponse.json(
+      { message: "Gagal memuat statistik admin." },
+      { status: 500 },
+    );
+  }
 }

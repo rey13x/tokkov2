@@ -41,8 +41,14 @@ export async function POST(request: Request) {
       );
     }
 
+    console.error("POST /api/admin/testimonials failed:", error);
+    const detail =
+      error instanceof Error && error.message.trim()
+        ? ` (${error.message.trim()})`
+        : "";
+
     return NextResponse.json(
-      { message: "Gagal menambah testimonial." },
+      { message: `Gagal menambah testimonial.${detail}` },
       { status: 500 },
     );
   }

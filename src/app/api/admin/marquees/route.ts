@@ -38,8 +38,15 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    console.error("POST /api/admin/marquees failed:", error);
+    const detail =
+      error instanceof Error && error.message.trim()
+        ? ` (${error.message.trim()})`
+        : "";
+
     return NextResponse.json(
-      { message: "Gagal menambah logo marquee." },
+      { message: `Gagal menambah logo marquee.${detail}` },
       { status: 500 },
     );
   }

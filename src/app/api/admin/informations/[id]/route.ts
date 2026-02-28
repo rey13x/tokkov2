@@ -41,8 +41,14 @@ export async function PATCH(request: Request, context: { params: Params }) {
       );
     }
 
+    console.error("PATCH /api/admin/informations/[id] failed:", error);
+    const detail =
+      error instanceof Error && error.message.trim()
+        ? ` (${error.message.trim()})`
+        : "";
+
     return NextResponse.json(
-      { message: "Gagal update informasi." },
+      { message: `Gagal update informasi.${detail}` },
       { status: 500 },
     );
   }

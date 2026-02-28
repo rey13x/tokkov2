@@ -19,7 +19,8 @@ export async function GET() {
   try {
     const privacyPolicy = await getPrivacyPolicyPage();
     return NextResponse.json({ privacyPolicy });
-  } catch {
+  } catch (error) {
+    console.error("GET /api/admin/privacy-policy failed:", error);
     return NextResponse.json(
       { message: "Gagal memuat halaman kebijakan privasi." },
       { status: 500 },
@@ -46,8 +47,14 @@ export async function PUT(request: Request) {
       );
     }
 
+    console.error("PUT /api/admin/privacy-policy failed:", error);
+    const detail =
+      error instanceof Error && error.message.trim()
+        ? ` (${error.message.trim()})`
+        : "";
+
     return NextResponse.json(
-      { message: "Gagal memperbarui halaman kebijakan privasi." },
+      { message: `Gagal memperbarui halaman kebijakan privasi.${detail}` },
       { status: 500 },
     );
   }
