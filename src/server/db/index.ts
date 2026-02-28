@@ -855,27 +855,31 @@ export async function createUser(input: {
   const firestore = getFirebaseFirestore();
 
   if (firestore) {
-    const createdAt = now();
-    await firestore.collection("users").doc(id).set({
-      username: input.username.trim(),
-      usernameLower: normalizedUsername,
-      email: normalizedEmail,
-      emailLower: normalizedEmail,
-      phone: input.phone.trim(),
-      avatarUrl,
-      passwordHash: input.passwordHash,
-      role,
-      createdAt,
-      updatedAt: createdAt,
-    });
+    try {
+      const createdAt = now();
+      await firestore.collection("users").doc(id).set({
+        username: input.username.trim(),
+        usernameLower: normalizedUsername,
+        email: normalizedEmail,
+        emailLower: normalizedEmail,
+        phone: input.phone.trim(),
+        avatarUrl,
+        passwordHash: input.passwordHash,
+        role,
+        createdAt,
+        updatedAt: createdAt,
+      });
 
-    const created = await findFirestoreUserById(id);
-    if (!created) {
-      throw new Error("Failed to read created Firestore user.");
+      const created = await findFirestoreUserById(id);
+      if (!created) {
+        throw new Error("Failed to read created Firestore user.");
+      }
+
+      await upsertLocalUserMirror(created).catch(() => {});
+      return created;
+    } catch (error) {
+      console.error("Failed to create user in Firestore. Falling back to local DB:", error);
     }
-
-    await upsertLocalUserMirror(created).catch(() => {});
-    return created;
   }
 
   await ensureDatabase();

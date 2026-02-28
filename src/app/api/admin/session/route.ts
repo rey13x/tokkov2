@@ -11,6 +11,18 @@ import {
 export const runtime = "nodejs";
 
 export async function GET() {
+  const session = await getServerAuthSession();
+  if (session?.user?.id && session.user.role === "admin" && session.user.email) {
+    return NextResponse.json({
+      authenticated: true,
+      provider: "local",
+      user: {
+        uid: session.user.id,
+        email: session.user.email,
+      },
+    });
+  }
+
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
 
@@ -26,18 +38,6 @@ export async function GET() {
         },
       });
     }
-  }
-
-  const session = await getServerAuthSession();
-  if (session?.user?.id && session.user.role === "admin" && session.user.email) {
-    return NextResponse.json({
-      authenticated: true,
-      provider: "local",
-      user: {
-        uid: session.user.id,
-        email: session.user.email,
-      },
-    });
   }
 
   return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

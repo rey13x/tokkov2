@@ -27,7 +27,7 @@ function getAuthErrorMessage(code: string | null) {
     case "OAuthCreateAccount":
       return "Login Google gagal. Cek konfigurasi OAuth di Google Cloud lalu coba lagi.";
     case "AccessDenied":
-      return "Akses login ditolak.";
+      return "Akses login ditolak. Pastikan akun Google kamu sudah diizinkan pada OAuth Consent Screen (mode Testing) atau app sudah Publish.";
     case "Configuration":
       return "Konfigurasi login Google belum lengkap di server.";
     default:
