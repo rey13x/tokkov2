@@ -14,7 +14,6 @@ import {
   FiMenu,
   FiX,
 } from "react-icons/fi";
-import heroImage from "@/app/assets/Background.jpg";
 import bagasPhoto from "@/app/assets/Bagas.jpg";
 import logoImage from "@/app/assets/Logo.png";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
@@ -39,6 +38,7 @@ type HomeMarquee = StoreMarqueeItem;
 const MARQUEE_LOOP_COUNT = 4;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
+const heroImage = "/assets/ramadhan.jpg";
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
   return item.name.trim().toLowerCase() === "founder" ? bagasPhoto.src : item.mediaUrl;
