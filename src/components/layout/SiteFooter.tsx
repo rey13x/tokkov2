@@ -30,7 +30,7 @@ export default function SiteFooter() {
             <a href="https://wa.me/6281319865384" target="_blank" rel="noreferrer">
               WhatsApp
             </a>
-            <a href="https://instagram.com/13bagas.exv" target="_blank" rel="noreferrer">
+            <a href="https://instagram.com/layanan_tokko" target="_blank" rel="noreferrer">
               Instagram
             </a>
           </nav>

@@ -77,5 +77,18 @@
 
   .contactWrap {
     width: 100%;
+    align-items: center;
+  }
+
+  .links {
+    justify-content: center;
+  }
+
+  .policyLinks {
+    justify-content: center;
+  }
+
+  .policyLinks a {
+    text-align: center;
   }
 }
