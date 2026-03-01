@@ -63,8 +63,8 @@ async function buildReceiptPdf(input: {
   doc.fontSize(9).font("Helvetica");
   doc.text(`Order ID: ${input.orderId}`);
   doc.text(`Tanggal: ${formatDateLabel(input.createdAt)}`);
-  doc.text(`Nama: ${input.userName}`);
-  doc.text(`Gmail: ${input.userEmail}`);
+  doc.text(`Akun: ${input.userName}`);
+  doc.text(`Email: ${input.userEmail}`);
   doc.text(`No HP: ${input.userPhone || "-"}`);
   doc.text(`Status: ${input.status}`);
   doc.moveDown(0.4);

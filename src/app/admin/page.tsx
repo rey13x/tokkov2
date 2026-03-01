@@ -105,11 +105,12 @@ const defaultPrivacyPolicyForm = {
 
 const defaultPaymentSettingsForm: Omit<StorePaymentSettings, "id" | "updatedAt"> = {
   title: "Qriss",
-  qrisImageUrl: "/assets/logo.png",
+  qrisImageUrl: "/assets/qriss.jpg",
   instructionText:
     "Scan Qriss diatas ini untuk proses produk kamu. Pastikan benar-benar sudah membayar",
   expiryMinutes: 30,
 };
+const MAX_QRIS_INLINE_LENGTH = 620_000;
 
 function formatRupiahInput(value: string) {
   const digits = value.replace(/[^\d]/g, "");
@@ -756,17 +757,34 @@ export default function AdminPage() {
     setMessage("");
     setIsLoading(true);
 
+    if (
+      paymentSettingsForm.qrisImageUrl.startsWith("data:") &&
+      paymentSettingsForm.qrisImageUrl.length > MAX_QRIS_INLINE_LENGTH
+    ) {
+      setError(
+        "Gambar QRIS terlalu besar untuk mode inline. Upload file <= 450KB atau aktifkan bucket upload.",
+      );
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/admin/payment-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(paymentSettingsForm),
       });
-      const result = (await response.json()) as {
+      const result = (await response
+        .json()
+        .catch(() => ({}))) as {
         message?: string;
         paymentSettings?: StorePaymentSettings;
       };
       if (!response.ok) {
+        if (response.status === 401) {
+          setError("Sesi admin berakhir. Login ulang dulu.");
+          return;
+        }
         setError(result.message ?? "Gagal simpan pengaturan pembayaran.");
         return;
       }
@@ -1211,6 +1229,18 @@ export default function AdminPage() {
               <input type="file" accept="image/*" onChange={onSelectPaymentQris} />
               <small>{isUploadingPaymentQris ? "Uploading..." : "Pilih gambar QRIS dari device"}</small>
             </label>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() =>
+                setPaymentSettingsForm((current) => ({
+                  ...current,
+                  qrisImageUrl: "/assets/qriss.jpg",
+                }))
+              }
+            >
+              Pakai QRIS dari Asset (`/assets/qriss.jpg`)
+            </button>
             <textarea
               value={paymentSettingsForm.instructionText}
               onChange={(event) =>
@@ -1230,7 +1260,7 @@ export default function AdminPage() {
               onChange={(event) =>
                 setPaymentSettingsForm((current) => ({
                   ...current,
-                  expiryMinutes: Number(event.target.value || 30),
+                  expiryMinutes: Math.max(5, Math.min(180, Number(event.target.value || 30))),
                 }))
               }
               placeholder="Durasi batas pembayaran (menit)"

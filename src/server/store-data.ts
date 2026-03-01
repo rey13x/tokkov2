@@ -212,12 +212,13 @@ function mapPrivacyPolicyDoc(
 }
 
 const PAYMENT_SETTINGS_META_KEY = "payment-settings-v1";
+const MAX_QRIS_INLINE_LENGTH = 620_000;
 
 function defaultPaymentSettings(): StorePaymentSettings {
   return {
     id: "main",
     title: "Qriss",
-    qrisImageUrl: "/assets/logo.png",
+    qrisImageUrl: "/assets/qriss.jpg",
     instructionText:
       "Scan Qriss diatas ini untuk proses produk kamu. Pastikan benar-benar sudah membayar",
     expiryMinutes: 30,
@@ -225,10 +226,36 @@ function defaultPaymentSettings(): StorePaymentSettings {
   };
 }
 
+function toIsoFromUnknownTimestamp(value: unknown, fallbackMs: number) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return new Date(value).toISOString();
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return new Date(fallbackMs).toISOString();
+    }
+
+    const asNumber = Number(trimmed);
+    if (Number.isFinite(asNumber)) {
+      return new Date(asNumber).toISOString();
+    }
+
+    const asDate = new Date(trimmed);
+    if (!Number.isNaN(asDate.getTime())) {
+      return asDate.toISOString();
+    }
+  }
+
+  return new Date(fallbackMs).toISOString();
+}
+
 function normalizePaymentSettings(
   raw: Partial<StorePaymentSettings> | null | undefined,
 ): StorePaymentSettings {
   const fallback = defaultPaymentSettings();
+  const fallbackMs = now();
   return {
     id: "main",
     title: String(raw?.title ?? fallback.title).trim() || fallback.title,
@@ -236,7 +263,7 @@ function normalizePaymentSettings(
     instructionText:
       String(raw?.instructionText ?? fallback.instructionText).trim() || fallback.instructionText,
     expiryMinutes: Math.max(5, Math.min(180, Number(raw?.expiryMinutes ?? fallback.expiryMinutes))),
-    updatedAt: new Date(Number(raw?.updatedAt ?? now())).toISOString(),
+    updatedAt: toIsoFromUnknownTimestamp(raw?.updatedAt, fallbackMs),
   };
 }
 
@@ -1283,6 +1310,9 @@ export async function upsertPaymentSettings(input: {
     expiryMinutes: input.expiryMinutes,
     updatedAt: new Date(now()).toISOString(),
   });
+  if (next.qrisImageUrl.startsWith("data:") && next.qrisImageUrl.length > MAX_QRIS_INLINE_LENGTH) {
+    throw new Error("Gambar QRIS inline terlalu besar. Gunakan file lebih kecil atau aktifkan bucket upload.");
+  }
 
   const firestore = getFirebaseFirestore();
   if (!firestore) {
@@ -1301,7 +1331,18 @@ export async function upsertPaymentSettings(input: {
     return getPaymentSettings();
   } catch (error) {
     console.error("Failed to write payment settings to Firestore. Falling back to local database.", error);
-    await upsertAppMetaValueDb(PAYMENT_SETTINGS_META_KEY, JSON.stringify(next));
-    return next;
+    try {
+      await upsertAppMetaValueDb(PAYMENT_SETTINGS_META_KEY, JSON.stringify(next));
+      return next;
+    } catch (fallbackError) {
+      console.error("Failed to persist payment settings to local database fallback.", fallbackError);
+      const primaryMessage =
+        error instanceof Error ? error.message : "Unknown Firestore error";
+      const fallbackMessage =
+        fallbackError instanceof Error ? fallbackError.message : "Unknown database fallback error";
+      throw new Error(
+        `Storage write failed (Firestore: ${primaryMessage}; Local fallback: ${fallbackMessage})`,
+      );
+    }
   }
 }

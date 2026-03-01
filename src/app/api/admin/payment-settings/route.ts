@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
 import { getPaymentSettings, upsertPaymentSettings } from "@/server/store-data";
 
-const MAX_QRIS_DATA_URL_LENGTH = 900_000;
+const MAX_QRIS_DATA_URL_LENGTH = 620_000;
 
 const paymentSettingsSchema = z.object({
   title: z.string().min(2).max(80),
@@ -17,8 +17,8 @@ const paymentSettingsSchema = z.object({
           "Gambar QRIS terlalu besar untuk mode inline. Kompres gambar atau aktifkan bucket upload.",
       },
     ),
-  instructionText: z.string().min(10).max(400),
-  expiryMinutes: z.number().int().min(5).max(180),
+  instructionText: z.string().min(5).max(400),
+  expiryMinutes: z.coerce.number().int().min(5).max(180),
 });
 
 export async function GET() {
@@ -59,8 +59,9 @@ export async function PUT(request: Request) {
     }
 
     console.error("PUT /api/admin/payment-settings failed:", error);
+    const detail = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { message: "Gagal menyimpan pengaturan pembayaran." },
+      { message: `Gagal menyimpan pengaturan pembayaran. ${detail}` },
       { status: 500 },
     );
   }

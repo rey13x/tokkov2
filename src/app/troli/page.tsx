@@ -1,18 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
-import {
-  readCart,
-  removeFromCart,
-  updateCartQuantity,
-} from "@/lib/cart";
+import { readCart, removeFromCart, updateCartQuantity } from "@/lib/cart";
 import { fetchStoreData } from "@/lib/store-client";
-import type { OrderSummary, StorePaymentSettings, StoreProduct } from "@/types/store";
+import type { StorePaymentSettings, StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
 
 type CartLine = {
@@ -26,7 +22,7 @@ const TAX_RATE = 0.11;
 const defaultPaymentSettings: StorePaymentSettings = {
   id: "main",
   title: "Qriss",
-  qrisImageUrl: "/assets/logo.png",
+  qrisImageUrl: "/assets/qriss.jpg",
   instructionText:
     "Scan Qriss diatas ini untuk proses produk kamu. Pastikan benar-benar sudah membayar",
   expiryMinutes: 30,
@@ -45,16 +41,6 @@ function getInitialCartLines(): CartLine[] {
   }));
 }
 
-function statusLabel(status: string) {
-  if (status === "done") {
-    return "Habis";
-  }
-  if (status === "error") {
-    return "Error";
-  }
-  return "Proses";
-}
-
 export default function CartPage() {
   const router = useRouter();
   const { status } = useSession();
@@ -65,30 +51,17 @@ export default function CartPage() {
   const [query, setQuery] = useState("");
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [isStatusSubmitting, setIsStatusSubmitting] = useState(false);
+  const [hasScannedQris, setHasScannedQris] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [latestOrderId, setLatestOrderId] = useState<string | null>(null);
   const [latestOrderCreatedAt, setLatestOrderCreatedAt] = useState<string | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
-  const [showOrderStatus, setShowOrderStatus] = useState(false);
-  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const isClient = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
-
-  const refreshOrders = useCallback(async () => {
-    if (status !== "authenticated") {
-      return;
-    }
-    const response = await fetch("/api/orders", { cache: "no-store" });
-    if (!response.ok) {
-      return;
-    }
-    const data = (await response.json()) as { orders?: OrderSummary[] };
-    setOrders(data.orders ?? []);
-  }, [status]);
 
   useEffect(() => {
     let mounted = true;
@@ -108,10 +81,6 @@ export default function CartPage() {
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    refreshOrders().catch(() => {});
-  }, [refreshOrders]);
 
   useEffect(() => {
     if (!latestOrderCreatedAt) {
@@ -191,6 +160,15 @@ export default function CartPage() {
     );
   };
 
+  const onOpenStatusPage = () => {
+    if (status !== "authenticated") {
+      router.push("/auth?redirect=/status-pemesanan");
+      return;
+    }
+
+    router.push("/status-pemesanan");
+  };
+
   const onCheckout = async () => {
     setError("");
     setSuccess("");
@@ -238,9 +216,8 @@ export default function CartPage() {
       setCartLines((current) => current.filter((item) => !item.selected));
       setLatestOrderId(result.orderId ?? null);
       setLatestOrderCreatedAt(result.createdAt ?? new Date().toISOString());
-      setSuccess("Pesanan berhasil dibuat. Lanjutkan pembayaran QRIS di bawah ini.");
-      setShowOrderStatus(true);
-      await refreshOrders();
+      setHasScannedQris(false);
+      setSuccess("Pesanan berhasil dibuat. Scan QRIS lalu konfirmasi pembayaran.");
     } catch {
       setError("Gagal memproses pesanan. Coba lagi.");
     } finally {
@@ -248,45 +225,63 @@ export default function CartPage() {
     }
   };
 
-  const onDownloadReceipt = (orderId: string) => {
-    window.open(`/api/orders/${orderId}/receipt`, "_blank", "noopener,noreferrer");
-  };
-
-  const onToggleOrderStatus = () => {
-    if (status !== "authenticated") {
-      router.push("/auth?redirect=/troli");
-      return;
-    }
-    setShowOrderStatus((current) => !current);
-    refreshOrders().catch(() => {});
-  };
-
-  const onUpdateLatestOrderStatus = async (nextStatus: "process" | "error") => {
+  const patchOrderStatus = async (nextStatus: "process" | "error") => {
     if (!latestOrderId) {
-      return;
+      return false;
     }
+
+    const response = await fetch(`/api/orders/${latestOrderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: nextStatus }),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { message?: string };
+      throw new Error(payload.message ?? "Gagal mengubah status transaksi.");
+    }
+
+    return true;
+  };
+
+  const onCancelPayment = async () => {
     setError("");
     setSuccess("");
     setIsStatusSubmitting(true);
+
     try {
-      const response = await fetch(`/api/orders/${latestOrderId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      const result = (await response.json()) as { message?: string };
-      if (!response.ok) {
-        setError(result.message ?? "Gagal mengubah status transaksi.");
-        return;
-      }
-      setSuccess(
-        nextStatus === "error"
-          ? "Transaksi dibatalkan."
-          : "Konfirmasi pembayaran dikirim. Status: Proses.",
-      );
-      await refreshOrders();
-    } catch {
-      setError("Gagal mengubah status transaksi.");
+      await patchOrderStatus("error");
+      setHasScannedQris(false);
+      setSuccess("Transaksi dibatalkan.");
+    } catch (statusError) {
+      setError(statusError instanceof Error ? statusError.message : "Gagal mengubah status transaksi.");
+    } finally {
+      setIsStatusSubmitting(false);
+    }
+  };
+
+  const onConfirmPayment = async () => {
+    setError("");
+    setSuccess("");
+
+    if (!latestOrderId) {
+      setError("Order belum tersedia.");
+      return;
+    }
+
+    if (!hasScannedQris) {
+      setError("Centang dulu bahwa kamu sudah scan dan membayar QRIS.");
+      return;
+    }
+
+    setIsStatusSubmitting(true);
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 1400));
+      await patchOrderStatus("process");
+      setSuccess("Konfirmasi pembayaran dikirim. Cek status pemesanan di halaman status.");
+      router.push(`/status-pemesanan?highlight=${latestOrderId}`);
+    } catch (statusError) {
+      setError(statusError instanceof Error ? statusError.message : "Gagal mengonfirmasi pembayaran.");
     } finally {
       setIsStatusSubmitting(false);
     }
@@ -311,8 +306,8 @@ export default function CartPage() {
         <section className={styles.emptyState}>
           <h2>Troli masih kosong</h2>
           <p>Pilih produk dulu dari halaman katalog.</p>
-          <button type="button" className={styles.receiptButton} onClick={onToggleOrderStatus}>
-            Liat Status Pemesanan
+          <button type="button" className={`${styles.actionButton} ${styles.actionSecondary}`} onClick={onOpenStatusPage}>
+            Lihat Status Pemesanan
           </button>
           <Link href="/" className={styles.backShop}>
             Ke katalog
@@ -434,7 +429,7 @@ export default function CartPage() {
             </div>
             <button
               type="button"
-              className={styles.checkoutButton}
+              className={`${styles.actionButton} ${styles.actionPrimary}`}
               disabled={subtotal <= 0 || isCheckoutLoading}
               onClick={onCheckout}
             >
@@ -443,10 +438,10 @@ export default function CartPage() {
 
             <button
               type="button"
-              className={styles.receiptButton}
-              onClick={onToggleOrderStatus}
+              className={`${styles.actionButton} ${styles.actionSecondary}`}
+              onClick={onOpenStatusPage}
             >
-              Liat Status Pemesanan
+              Lihat Status Pemesanan
             </button>
 
             {latestOrderId ? (
@@ -464,78 +459,38 @@ export default function CartPage() {
                 </div>
                 <span className={styles.timerLabel}>Batas waktu: {countdownLabel}</span>
                 <p className={styles.paymentHint}>{paymentSettings.instructionText}</p>
+                <label className={styles.scanCheck}>
+                  <input
+                    type="checkbox"
+                    checked={hasScannedQris}
+                    onChange={(event) => setHasScannedQris(event.target.checked)}
+                    disabled={isStatusSubmitting}
+                  />
+                  Saya sudah scan QRIS dan melakukan pembayaran.
+                </label>
                 <div className={styles.paymentButtons}>
                   <button
                     type="button"
-                    className={styles.cancelButton}
+                    className={`${styles.actionButton} ${styles.actionDanger}`}
                     disabled={isStatusSubmitting}
-                    onClick={() => onUpdateLatestOrderStatus("error")}
+                    onClick={onCancelPayment}
                   >
-                    Batalkan Transaksi
+                    {isStatusSubmitting ? "Memproses..." : "Batalkan Transaksi"}
                   </button>
                   <button
                     type="button"
-                    className={styles.confirmButton}
-                    disabled={isStatusSubmitting}
-                    onClick={() => onUpdateLatestOrderStatus("process")}
+                    className={`${styles.actionButton} ${styles.actionPrimary}`}
+                    disabled={isStatusSubmitting || !hasScannedQris}
+                    onClick={onConfirmPayment}
                   >
-                    Konfirmasi Pembayaran
+                    {isStatusSubmitting ? "Mengonfirmasi..." : "Konfirmasi Pembayaran"}
                   </button>
-                </div>
-              </section>
-            ) : null}
-
-            {showOrderStatus ? (
-              <section className={styles.statusPanel}>
-                <h4>Status Pemesanan</h4>
-                <div className={styles.statusList}>
-                  {orders.map((order) => (
-                    <article key={order.id} className={styles.statusItem}>
-                      <div>
-                        <p>{order.id.slice(0, 8).toUpperCase()}</p>
-                        <span>{new Date(order.createdAt).toLocaleString("id-ID")}</span>
-                        <strong>{statusLabel(order.status)}</strong>
-                      </div>
-                      <div className={styles.statusActions}>
-                        <button type="button" onClick={() => onDownloadReceipt(order.id)}>
-                          Struk
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                  {orders.length === 0 ? <p>Belum ada pesanan.</p> : null}
                 </div>
               </section>
             ) : null}
           </aside>
         </section>
       ) : null}
-
-      {isClient && detailedItems.length === 0 && showOrderStatus && status === "authenticated" ? (
-        <section className={styles.statusStandalone}>
-          <section className={styles.statusPanel}>
-            <h4>Status Pemesanan</h4>
-            <div className={styles.statusList}>
-              {orders.map((order) => (
-                <article key={order.id} className={styles.statusItem}>
-                  <div>
-                    <p>{order.id.slice(0, 8).toUpperCase()}</p>
-                    <span>{new Date(order.createdAt).toLocaleString("id-ID")}</span>
-                    <strong>{statusLabel(order.status)}</strong>
-                  </div>
-                  <div className={styles.statusActions}>
-                    <button type="button" onClick={() => onDownloadReceipt(order.id)}>
-                      Struk
-                    </button>
-                  </div>
-                </article>
-              ))}
-              {orders.length === 0 ? <p>Belum ada pesanan.</p> : null}
-            </div>
-          </section>
-        </section>
-      ) : null}
     </main>
   );
 }
-

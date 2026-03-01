@@ -1,0 +1,203 @@
+.page {
+  min-height: 100vh;
+  padding: 18px clamp(14px, 2.3vw, 30px) 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brandWrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  border-radius: 10px;
+}
+
+.brandWrap h1 {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  letter-spacing: -0.02em;
+}
+
+.brandWrap p {
+  color: #5f6780;
+  font-size: 0.84rem;
+}
+
+.backLink {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #10131a;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.summaryCard {
+  border: 1px solid #d8dce5;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summaryCard span {
+  display: block;
+  color: #69728d;
+  font-size: 0.76rem;
+}
+
+.summaryCard strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 1.06rem;
+}
+
+.loading {
+  color: #5f6780;
+  font-size: 0.88rem;
+}
+
+.errorText {
+  color: #b3223b;
+  font-size: 0.88rem;
+}
+
+.listWrap {
+  display: grid;
+  gap: 10px;
+}
+
+.orderCard {
+  border: 1px solid #d8dce5;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.orderCardHighlighted {
+  border-color: #1f4cb9;
+  box-shadow: 0 0 0 2px rgba(31, 76, 185, 0.12);
+}
+
+.orderMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.orderId {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #121828;
+  word-break: break-all;
+}
+
+.orderDate {
+  color: #69728d;
+  font-size: 0.74rem;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  min-height: 24px;
+  padding: 0 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.statusProcess {
+  background: #edf2ff;
+  color: #1c4dc7;
+}
+
+.statusDone {
+  background: #edf9f0;
+  color: #1f7a36;
+}
+
+.statusError {
+  background: #ffeff2;
+  color: #b3223b;
+}
+
+.orderMeta {
+  grid-column: 1 / 2;
+  display: grid;
+  gap: 2px;
+}
+
+.orderMeta span {
+  color: #495268;
+  font-size: 0.76rem;
+}
+
+.orderMeta strong {
+  margin-top: 3px;
+  font-size: 0.88rem;
+}
+
+.receiptIconButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid #121828;
+  background: #ffffff;
+  color: #121828;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.receiptIconButton svg {
+  width: 20px;
+  height: 20px;
+}
+
+.emptyText {
+  color: #5f6780;
+  font-size: 0.9rem;
+  border: 1px dashed #d8dce5;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .summaryCard {
+    grid-template-columns: 1fr;
+  }
+
+  .orderCard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .receiptIconButton {
+    justify-self: flex-start;
+  }
+}

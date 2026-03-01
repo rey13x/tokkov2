@@ -4,8 +4,8 @@ import { getFirebaseStorageBucket } from "@/server/firebase-admin";
 
 export const runtime = "nodejs";
 const MAX_UPLOAD_SIZE_BYTES = 8 * 1024 * 1024;
-// Firestore document has ~1 MiB limit; keep inline media safely below that.
-const MAX_INLINE_FILE_SIZE_BYTES = 650 * 1024;
+// Firestore document has ~1 MiB limit; keep inline media far below that.
+const MAX_INLINE_FILE_SIZE_BYTES = 450 * 1024;
 
 function sanitizeFileName(name: string) {
   return name
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             message:
-              "Ukuran file terlalu besar untuk mode inline. Maksimal 650KB atau aktifkan upload bucket.",
+              "Ukuran file terlalu besar untuk mode inline. Maksimal 450KB atau aktifkan upload bucket.",
           },
           { status: 400 },
         );

@@ -943,6 +943,19 @@ export default function HomeClient() {
                 <button type="button" onClick={() => router.push("/troli")} data-menu-item>
                   Troli ({cartCount})
                 </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      sessionStatus === "authenticated"
+                        ? "/status-pemesanan"
+                        : "/auth?redirect=/status-pemesanan",
+                    )
+                  }
+                  data-menu-item
+                >
+                  Status Pemesanan
+                </button>
               </nav>
 
               <div className={styles.menuFooterMain}>
