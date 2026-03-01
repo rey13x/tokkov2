@@ -16,7 +16,7 @@ import {
   ONBOARDING_TUTORIAL_QUERY_KEY,
   advanceOnboarding,
   getOnboardingState,
-  isOnboardingStageActive,
+  type OnboardingStage,
 } from "@/lib/onboarding";
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreProduct } from "@/types/store";
@@ -54,6 +54,7 @@ export default function CartPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isCartTutorialRunning, setIsCartTutorialRunning] = useState(false);
+  const [cartTutorialStage, setCartTutorialStage] = useState<OnboardingStage | null>(null);
   const isClient = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -99,17 +100,35 @@ export default function CartPage() {
   }, [cartLines, products]);
 
   useEffect(() => {
-    const shouldRun =
-      !isStoreLoading &&
-      detailedItems.length > 0 &&
-      isOnboardingStageActive(ONBOARDING_STAGE.CART_CHECKOUT);
-    setIsCartTutorialRunning(shouldRun);
-    if (!shouldRun) {
+    const currentState = getOnboardingState();
+    const supportedStages: OnboardingStage[] = [
+      ONBOARDING_STAGE.CART_CHECKOUT,
+      ONBOARDING_STAGE.CART_RETURN_STATUS,
+    ];
+    if (!currentState.active || !supportedStages.includes(currentState.stage)) {
+      setCartTutorialStage(null);
+      setIsCartTutorialRunning(false);
       return;
     }
 
+    if (
+      currentState.stage === ONBOARDING_STAGE.CART_CHECKOUT &&
+      (isStoreLoading || detailedItems.length === 0)
+    ) {
+      setCartTutorialStage(currentState.stage);
+      setIsCartTutorialRunning(false);
+      return;
+    }
+
+    setCartTutorialStage(currentState.stage);
+    setIsCartTutorialRunning(true);
+
     const timer = window.setTimeout(() => {
-      const target = document.querySelector<HTMLElement>("[data-onboarding='cart-checkout']");
+      const targetSelector =
+        currentState.stage === ONBOARDING_STAGE.CART_RETURN_STATUS
+          ? "[data-onboarding='cart-open-status']"
+          : "[data-onboarding='cart-checkout']";
+      const target = document.querySelector<HTMLElement>(targetSelector);
       if (!target) {
         return;
       }
@@ -168,6 +187,21 @@ export default function CartPage() {
       return;
     }
 
+    const onboardingState = getOnboardingState();
+    if (
+      onboardingState.active &&
+      onboardingState.stage === ONBOARDING_STAGE.CART_RETURN_STATUS
+    ) {
+      advanceOnboarding(ONBOARDING_STAGE.STATUS_CANCEL_REASON);
+      setIsCartTutorialRunning(false);
+      router.push(
+        `/status-pemesanan?highlight=${encodeURIComponent(
+          ONBOARDING_TUTORIAL_ORDER_ID,
+        )}&${ONBOARDING_TUTORIAL_QUERY_KEY}=1`,
+      );
+      return;
+    }
+
     router.push("/status-pemesanan");
   };
 
@@ -189,7 +223,7 @@ export default function CartPage() {
     const onboardingState = getOnboardingState();
     if (onboardingState.active) {
       if (onboardingState.stage === ONBOARDING_STAGE.CART_CHECKOUT) {
-        advanceOnboarding(ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT);
+        advanceOnboarding(ONBOARDING_STAGE.STATUS_OPEN_PAYMENT);
         setIsCartTutorialRunning(false);
       }
       setSuccess("Mode tutorial aktif. Simulasi berjalan, data pesanan tidak masuk database.");
@@ -247,13 +281,25 @@ export default function CartPage() {
   };
 
   const cartTutorialSteps: Step[] = [
-    {
-      target: "[data-onboarding='cart-checkout']",
-      content: "Klik Lanjut ke Pembayaran untuk membuat pesanan.",
-      placement: "left",
-      disableBeacon: true,
-      hideFooter: true,
-    },
+    ...(cartTutorialStage === ONBOARDING_STAGE.CART_RETURN_STATUS
+      ? [
+          {
+            target: "[data-onboarding='cart-open-status']",
+            content: "Sekarang kembali ke status pemesanan lewat tombol ini.",
+            placement: "top" as const,
+            disableBeacon: true,
+            hideFooter: true,
+          },
+        ]
+      : [
+          {
+            target: "[data-onboarding='cart-checkout']",
+            content: "Klik Lanjut ke Pembayaran untuk membuat pesanan.",
+            placement: "left" as const,
+            disableBeacon: true,
+            hideFooter: true,
+          },
+        ]),
   ];
 
   const onCartTutorialCallback = (payload: CallBackProps) => {
@@ -282,7 +328,12 @@ export default function CartPage() {
         <section className={styles.emptyState}>
           <h2>Troli masih kosong</h2>
           <p>Pilih produk dulu dari halaman katalog.</p>
-          <button type="button" className={`${styles.actionButton} ${styles.actionSecondary}`} onClick={onOpenStatusPage}>
+          <button
+            type="button"
+            className={`${styles.actionButton} ${styles.actionSecondary}`}
+            onClick={onOpenStatusPage}
+            data-onboarding="cart-open-status"
+          >
             Lihat Status Pemesanan
           </button>
           <Link href="/" className={styles.backShop}>
@@ -417,6 +468,7 @@ export default function CartPage() {
               type="button"
               className={`${styles.actionButton} ${styles.actionSecondary}`}
               onClick={onOpenStatusPage}
+              data-onboarding="cart-open-status"
             >
               Lihat Status Pemesanan
             </button>

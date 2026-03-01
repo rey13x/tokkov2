@@ -67,8 +67,14 @@ function PaymentIcon() {
 const ADMIN_WHATSAPP_URL = "https://wa.me/6281319865384";
 const STATUS_ONBOARDING_STAGES: OnboardingStage[] = [
   ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT,
+  ONBOARDING_STAGE.STATUS_OPEN_PAYMENT,
+  ONBOARDING_STAGE.STATUS_CLOSE_PAYMENT,
+  ONBOARDING_STAGE.STATUS_OPEN_RECEIPT,
+  ONBOARDING_STAGE.STATUS_RECEIPT_BACK_TO_CART,
   ONBOARDING_STAGE.STATUS_CANCEL_REASON,
   ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT,
+  ONBOARDING_STAGE.STATUS_SUCCESS,
+  ONBOARDING_STAGE.STATUS_FINISH,
 ];
 
 function formatStatusDate(value: string | null | undefined) {
@@ -76,6 +82,14 @@ function formatStatusDate(value: string | null | undefined) {
     return "-";
   }
   return new Date(value).toLocaleString("id-ID");
+}
+
+function countWords(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return 0;
+  }
+  return trimmed.split(/\s+/).filter(Boolean).length;
 }
 
 export default function StatusPemesananPage() {
@@ -88,6 +102,7 @@ export default function StatusPemesananPage() {
   const [highlightedOrderId, setHighlightedOrderId] = useState("");
   const [isTutorialMode, setIsTutorialMode] = useState(false);
   const [activePaymentOrderId, setActivePaymentOrderId] = useState<string | null>(null);
+  const [showTutorialReceiptModal, setShowTutorialReceiptModal] = useState(false);
   const [cancelReasonDrafts, setCancelReasonDrafts] = useState<Record<string, string>>({});
   const [isCancelSubmittingOrderId, setIsCancelSubmittingOrderId] = useState<string | null>(null);
   const [statusTutorialStage, setStatusTutorialStage] = useState<OnboardingStage | null>(null);
@@ -122,7 +137,7 @@ export default function StatusPemesananPage() {
     if (
       (params.get("pay") === "1" || params.get("pay") === "true") &&
       highlight &&
-      !isOnboardingStageActive(ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT)
+      !getOnboardingState().active
     ) {
       setActivePaymentOrderId(highlight);
     }
@@ -135,6 +150,11 @@ export default function StatusPemesananPage() {
       return;
     }
 
+    if (currentState.stage === ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT) {
+      setStatusTutorialStage(ONBOARDING_STAGE.STATUS_OPEN_PAYMENT);
+      return;
+    }
+
     setStatusTutorialStage(currentState.stage);
   }, [orders.length, highlightedOrderId, cancelReasonDrafts]);
 
@@ -142,11 +162,29 @@ export default function StatusPemesananPage() {
     if (
       activePaymentOrderId &&
       (statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_REASON ||
-        statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT)
+        statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT ||
+        statusTutorialStage === ONBOARDING_STAGE.STATUS_SUCCESS ||
+        statusTutorialStage === ONBOARDING_STAGE.STATUS_FINISH)
     ) {
       setActivePaymentOrderId(null);
     }
   }, [activePaymentOrderId, statusTutorialStage]);
+
+  useEffect(() => {
+    if (statusTutorialStage !== ONBOARDING_STAGE.STATUS_FINISH) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      completeOnboarding();
+      setStatusTutorialStage(null);
+      setIsTutorialMode(false);
+      setShowTutorialReceiptModal(false);
+      window.location.assign("/");
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [statusTutorialStage]);
 
   useEffect(() => {
     if (status === "loading") {
@@ -223,9 +261,17 @@ export default function StatusPemesananPage() {
   );
 
   const onDownloadReceipt = (orderId: string) => {
-    if (isOnboardingStageActive(ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT)) {
-      advanceOnboarding(ONBOARDING_STAGE.STATUS_CANCEL_REASON);
-      setStatusTutorialStage(ONBOARDING_STAGE.STATUS_CANCEL_REASON);
+    const onboardingState = getOnboardingState();
+    if (
+      onboardingState.active &&
+      (onboardingState.stage === ONBOARDING_STAGE.STATUS_OPEN_RECEIPT ||
+        onboardingState.stage === ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT)
+    ) {
+      setShowTutorialReceiptModal(true);
+      advanceOnboarding(ONBOARDING_STAGE.STATUS_RECEIPT_BACK_TO_CART);
+      setStatusTutorialStage(ONBOARDING_STAGE.STATUS_RECEIPT_BACK_TO_CART);
+      setSuccess("Struk tutorial tampil. Lanjutkan sesuai arahan onboarding.");
+      return;
     }
     if (orderId === ONBOARDING_TUTORIAL_ORDER_ID) {
       setSuccess("Mode tutorial: ini simulasi struk, tidak ada data yang disimpan.");
@@ -235,15 +281,37 @@ export default function StatusPemesananPage() {
   };
 
   const onOpenPayment = (orderId: string) => {
-    if (isOnboardingStageActive(ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT)) {
-      advanceOnboarding(ONBOARDING_STAGE.STATUS_CANCEL_REASON);
-      setStatusTutorialStage(ONBOARDING_STAGE.STATUS_CANCEL_REASON);
+    const onboardingState = getOnboardingState();
+    if (
+      onboardingState.active &&
+      (onboardingState.stage === ONBOARDING_STAGE.STATUS_OPEN_PAYMENT ||
+        onboardingState.stage === ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT)
+    ) {
+      advanceOnboarding(ONBOARDING_STAGE.STATUS_CLOSE_PAYMENT);
+      setStatusTutorialStage(ONBOARDING_STAGE.STATUS_CLOSE_PAYMENT);
     }
     setActivePaymentOrderId(orderId);
   };
 
   const closePaymentPopup = () => {
     setActivePaymentOrderId(null);
+    const onboardingState = getOnboardingState();
+    if (onboardingState.active && onboardingState.stage === ONBOARDING_STAGE.STATUS_CLOSE_PAYMENT) {
+      advanceOnboarding(ONBOARDING_STAGE.STATUS_OPEN_RECEIPT);
+      setStatusTutorialStage(ONBOARDING_STAGE.STATUS_OPEN_RECEIPT);
+    }
+  };
+
+  const onTutorialReceiptBackToCart = () => {
+    setShowTutorialReceiptModal(false);
+    const onboardingState = getOnboardingState();
+    if (onboardingState.active && onboardingState.stage === ONBOARDING_STAGE.STATUS_RECEIPT_BACK_TO_CART) {
+      advanceOnboarding(ONBOARDING_STAGE.CART_RETURN_STATUS);
+      setStatusTutorialStage(null);
+      router.push(`/troli?${ONBOARDING_TUTORIAL_QUERY_KEY}=1`);
+      return;
+    }
+    router.push("/troli");
   };
 
   const onChangeCancelReason = (orderId: string, value: string) => {
@@ -253,7 +321,7 @@ export default function StatusPemesananPage() {
     }));
 
     if (
-      value.trim().length >= 5 &&
+      countWords(value) >= 5 &&
       isOnboardingStageActive(ONBOARDING_STAGE.STATUS_CANCEL_REASON)
     ) {
       advanceOnboarding(ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT);
@@ -263,7 +331,12 @@ export default function StatusPemesananPage() {
 
   const onRequestCancelViaWhatsapp = async (order: OrderSummary) => {
     const reason = (cancelReasonDrafts[order.id] ?? "").trim();
-    if (reason.length < 5) {
+    const onboardingActive = getOnboardingState().active;
+    if (onboardingActive && countWords(reason) < 5) {
+      setError("Untuk tutorial, isi minimal 5 kata pada alasan pembatalan.");
+      return;
+    }
+    if (!onboardingActive && reason.length < 5) {
       setError("Alasan pembatalan minimal 5 karakter.");
       return;
     }
@@ -271,16 +344,12 @@ export default function StatusPemesananPage() {
     setError("");
     setSuccess("");
 
-    if (getOnboardingState().active) {
+    if (onboardingActive) {
       if (isOnboardingStageActive(ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT)) {
-        completeOnboarding();
-        setStatusTutorialStage(null);
+        advanceOnboarding(ONBOARDING_STAGE.STATUS_SUCCESS);
+        setStatusTutorialStage(ONBOARDING_STAGE.STATUS_SUCCESS);
       }
-      setIsTutorialMode(false);
-      setHighlightedOrderId("");
-      setActivePaymentOrderId(null);
-      setSuccess("Tutorial selesai. Mode normal aktif kembali, transaksi berikutnya masuk database.");
-      router.replace("/status-pemesanan");
+      setSuccess("Sukses! Simulasi pengajuan pembatalan berhasil diproses.");
       return;
     }
 
@@ -355,15 +424,25 @@ export default function StatusPemesananPage() {
     if (!onboardingTargetOrderId) {
       return {
         actionIcons: "[data-onboarding='status-action-icons']",
+        payIcon: "[data-onboarding='status-pay-icon']",
+        receiptIcon: "[data-onboarding='status-receipt-icon']",
+        paymentClose: "#status-payment-close-button",
+        receiptBackToCart: "#tutorial-receipt-back-to-cart",
         cancelReason: "[data-onboarding='status-cancel-reason']",
         cancelSubmit: "[data-onboarding='status-cancel-submit']",
+        pageTitle: "[data-onboarding='status-page-title']",
       };
     }
 
     return {
       actionIcons: `#status-action-icons-${onboardingTargetOrderId}`,
+      payIcon: `#status-pay-icon-${onboardingTargetOrderId}`,
+      receiptIcon: `#status-receipt-icon-${onboardingTargetOrderId}`,
+      paymentClose: "#status-payment-close-button",
+      receiptBackToCart: "#tutorial-receipt-back-to-cart",
       cancelReason: `#status-cancel-reason-${onboardingTargetOrderId}`,
       cancelSubmit: `#status-cancel-submit-${onboardingTargetOrderId}`,
+      pageTitle: "[data-onboarding='status-page-title']",
     };
   }, [onboardingTargetOrderId]);
 
@@ -374,8 +453,14 @@ export default function StatusPemesananPage() {
 
     const selectorByStage: Partial<Record<OnboardingStage, string>> = {
       [ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT]: onboardingTargetSelectors.actionIcons,
+      [ONBOARDING_STAGE.STATUS_OPEN_PAYMENT]: onboardingTargetSelectors.payIcon,
+      [ONBOARDING_STAGE.STATUS_CLOSE_PAYMENT]: onboardingTargetSelectors.paymentClose,
+      [ONBOARDING_STAGE.STATUS_OPEN_RECEIPT]: onboardingTargetSelectors.receiptIcon,
+      [ONBOARDING_STAGE.STATUS_RECEIPT_BACK_TO_CART]: onboardingTargetSelectors.receiptBackToCart,
       [ONBOARDING_STAGE.STATUS_CANCEL_REASON]: onboardingTargetSelectors.cancelReason,
       [ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT]: onboardingTargetSelectors.cancelSubmit,
+      [ONBOARDING_STAGE.STATUS_SUCCESS]: onboardingTargetSelectors.cancelSubmit,
+      [ONBOARDING_STAGE.STATUS_FINISH]: onboardingTargetSelectors.pageTitle,
     };
     const targetSelector = selectorByStage[statusTutorialStage];
     if (!targetSelector) {
@@ -390,7 +475,7 @@ export default function StatusPemesananPage() {
       target.scrollIntoView({
         behavior: "smooth",
         block:
-          statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_REASON ? "start" : "center",
+          statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_REASON ? "end" : "center",
       });
     }, 120);
 
@@ -398,6 +483,54 @@ export default function StatusPemesananPage() {
   }, [statusTutorialStage, onboardingTargetOrderId, displayOrders.length, onboardingTargetSelectors]);
 
   const statusTutorialSteps: Step[] = useMemo(() => {
+    if (statusTutorialStage === ONBOARDING_STAGE.STATUS_OPEN_PAYMENT) {
+      return [
+        {
+          target: onboardingTargetSelectors.payIcon,
+          content: "Jika yakin ingin beli produk ini, buka QRIS lalu bayar sesuai harga produk.",
+          placement: "left",
+          disableBeacon: true,
+          hideFooter: true,
+        },
+      ];
+    }
+
+    if (statusTutorialStage === ONBOARDING_STAGE.STATUS_CLOSE_PAYMENT) {
+      return [
+        {
+          target: onboardingTargetSelectors.paymentClose,
+          content: "Setelah lihat QRIS, klik Tutup untuk lanjut ke langkah struk.",
+          placement: "top",
+          disableBeacon: true,
+          hideFooter: true,
+        },
+      ];
+    }
+
+    if (statusTutorialStage === ONBOARDING_STAGE.STATUS_OPEN_RECEIPT) {
+      return [
+        {
+          target: onboardingTargetSelectors.receiptIcon,
+          content: "Sekarang buka struk dan tunggu sampai struk tutorial muncul.",
+          placement: "left",
+          disableBeacon: true,
+          hideFooter: true,
+        },
+      ];
+    }
+
+    if (statusTutorialStage === ONBOARDING_STAGE.STATUS_RECEIPT_BACK_TO_CART) {
+      return [
+        {
+          target: onboardingTargetSelectors.receiptBackToCart,
+          content: "Di halaman struk, klik tombol Kembali ke Troli.",
+          placement: "top",
+          disableBeacon: true,
+          hideFooter: true,
+        },
+      ];
+    }
+
     if (statusTutorialStage === ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT) {
       return [
         {
@@ -414,8 +547,9 @@ export default function StatusPemesananPage() {
       return [
         {
           target: onboardingTargetSelectors.cancelReason,
-          content: "Isi alasan pembatalan dulu (minimal 5 karakter) untuk lanjut.",
-          placement: "bottom",
+          content:
+            "Jika ingin membatalkan pemesanan, isi alasan minimal 5 kata di kolom ini.",
+          placement: "top",
           offset: 14,
           floaterProps: {
             options: {
@@ -434,8 +568,34 @@ export default function StatusPemesananPage() {
       return [
         {
           target: onboardingTargetSelectors.cancelSubmit,
-          content: "Klik Ajukan Batal & Kirim WhatsApp untuk menyelesaikan tutorial.",
+          content:
+            "Jika sudah oke, klik Ajukan Batal & Kirim WhatsApp untuk simulasi pembatalan.",
           placement: "top",
+          disableBeacon: true,
+          hideFooter: true,
+        },
+      ];
+    }
+
+    if (statusTutorialStage === ONBOARDING_STAGE.STATUS_SUCCESS) {
+      return [
+        {
+          target: onboardingTargetSelectors.cancelSubmit,
+          content: "Sukses! Pengajuan pembatalan tutorial berhasil. Klik Oke untuk lanjut.",
+          placement: "top",
+          disableBeacon: true,
+          hideFooter: false,
+        },
+      ];
+    }
+
+    if (statusTutorialStage === ONBOARDING_STAGE.STATUS_FINISH) {
+      return [
+        {
+          target: onboardingTargetSelectors.pageTitle,
+          content:
+            "Tutorial cara order selesai! Selamat berbelanja kembali. Dalam 5 detik kamu akan kembali ke halaman utama.",
+          placement: "bottom",
           disableBeacon: true,
           hideFooter: true,
         },
@@ -446,6 +606,15 @@ export default function StatusPemesananPage() {
   }, [statusTutorialStage, onboardingTargetSelectors]);
 
   const onStatusTutorialCallback = (payload: CallBackProps) => {
+    if (
+      statusTutorialStage === ONBOARDING_STAGE.STATUS_SUCCESS &&
+      payload.status === "finished"
+    ) {
+      advanceOnboarding(ONBOARDING_STAGE.STATUS_FINISH);
+      setStatusTutorialStage(ONBOARDING_STAGE.STATUS_FINISH);
+      return;
+    }
+
     if (payload.type === "error:target_not_found") {
       setStatusTutorialStage(null);
     }
@@ -462,7 +631,7 @@ export default function StatusPemesananPage() {
         <div className={styles.brandWrap}>
           <Image src="/assets/logo.png" alt="Tokko" width={42} height={42} className={styles.logo} priority />
           <div>
-            <h1>Status Pemesanan</h1>
+            <h1 data-onboarding="status-page-title">Status Pemesanan</h1>
             <p>Riwayat transaksi akun kamu</p>
           </div>
         </div>
@@ -560,6 +729,8 @@ export default function StatusPemesananPage() {
                   onClick={() => onOpenPayment(order.id)}
                   title="Lihat QRIS pembayaran"
                   aria-label={`Lihat QRIS pembayaran order ${order.id}`}
+                  data-onboarding={isOnboardingTargetOrder ? "status-pay-icon" : undefined}
+                  id={isOnboardingTargetOrder ? `status-pay-icon-${order.id}` : undefined}
                 >
                   <PaymentIcon />
                 </button>
@@ -569,6 +740,8 @@ export default function StatusPemesananPage() {
                   onClick={() => onDownloadReceipt(order.id)}
                   title="Download struk"
                   aria-label={`Download struk order ${order.id}`}
+                  data-onboarding={isOnboardingTargetOrder ? "status-receipt-icon" : undefined}
+                  id={isOnboardingTargetOrder ? `status-receipt-icon-${order.id}` : undefined}
                 >
                   <ReceiptIcon />
                 </button>
@@ -597,8 +770,34 @@ export default function StatusPemesananPage() {
             <p className={styles.popupHelp}>
               Scan QRIS lalu simpan bukti transfer. Status order kamu akan tetap dipantau admin.
             </p>
-            <button type="button" className={styles.popupCloseButton} onClick={closePaymentPopup}>
+            <button
+              type="button"
+              className={styles.popupCloseButton}
+              onClick={closePaymentPopup}
+              id="status-payment-close-button"
+            >
               Tutup
+            </button>
+          </section>
+        </div>
+      ) : null}
+
+      {showTutorialReceiptModal ? (
+        <div className={styles.popupOverlay}>
+          <section className={styles.popupCard}>
+            <h2>Struk Pembayaran (Tutorial)</h2>
+            <p className={styles.popupMeta}>Order: {ONBOARDING_TUTORIAL_ORDER_ID}</p>
+            <p className={styles.popupHelp}>
+              Struk tutorial sudah muncul. Setelah ini kembali ke troli untuk lanjut langkah
+              berikutnya.
+            </p>
+            <button
+              type="button"
+              className={styles.popupCloseButton}
+              id="tutorial-receipt-back-to-cart"
+              onClick={onTutorialReceiptBackToCart}
+            >
+              Kembali ke Troli
             </button>
           </section>
         </div>

@@ -79,7 +79,7 @@ export default function AppOnboardingJoyride({
         back: "Kembali",
         close: "Tutup",
         last: "Selesai",
-        next: "Lanjut",
+        next: "Oke",
         nextLabelWithProgress: "Lanjut ({step}/{steps})",
         skip: "Lewati",
       }}

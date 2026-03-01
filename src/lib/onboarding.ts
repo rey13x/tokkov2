@@ -10,9 +10,16 @@ export const ONBOARDING_STAGE = {
   HOME_PRODUCT: "home_product",
   PRODUCT_ADD_TO_CART: "product_add_to_cart",
   CART_CHECKOUT: "cart_checkout",
+  CART_RETURN_STATUS: "cart_return_status",
   STATUS_PAYMENT_OR_RECEIPT: "status_payment_or_receipt",
+  STATUS_OPEN_PAYMENT: "status_open_payment",
+  STATUS_CLOSE_PAYMENT: "status_close_payment",
+  STATUS_OPEN_RECEIPT: "status_open_receipt",
+  STATUS_RECEIPT_BACK_TO_CART: "status_receipt_back_to_cart",
   STATUS_CANCEL_REASON: "status_cancel_reason",
   STATUS_CANCEL_SUBMIT: "status_cancel_submit",
+  STATUS_SUCCESS: "status_success",
+  STATUS_FINISH: "status_finish",
   COMPLETED: "completed",
 } as const;
 
