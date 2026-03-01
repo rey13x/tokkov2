@@ -6,26 +6,27 @@
 
 .pill {
   width: fit-content;
-  min-height: 32px;
+  min-height: 0;
   border-radius: 999px;
-  background: #272d3b;
+  background: rgba(10, 14, 23, 0.85);
   color: #ffffff;
-  padding: 0 10px;
+  padding: 8px 14px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.76rem;
+  gap: 8px;
+  font-size: 0.84rem;
   font-weight: 500;
-  box-shadow: 0 14px 22px rgba(11, 15, 26, 0.24);
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 20px rgba(8, 12, 22, 0.22);
 }
 
 .spinner {
   width: 12px;
   height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.28);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #ffffff;
   border-radius: 50%;
-  animation: waitSpin 0.8s linear infinite;
+  animation: waitSpin 0.9s linear infinite;
 }
 
 @keyframes waitSpin {
@@ -40,8 +41,7 @@
 
 @media (max-width: 820px) and (orientation: portrait) {
   .pill {
-    min-height: 30px;
-    font-size: 0.72rem;
-    padding-inline: 9px;
+    padding: 7px 12px;
+    font-size: 0.8rem;
   }
 }

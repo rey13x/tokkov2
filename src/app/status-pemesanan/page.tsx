@@ -12,12 +12,12 @@ import styles from "./page.module.css";
 
 function statusLabel(status: string) {
   if (status === "done") {
-    return "Selesai";
+    return "Habis";
   }
   if (status === "error") {
-    return "Dibatalkan";
+    return "Dikirim";
   }
-  return "Diproses";
+  return "Proses";
 }
 
 function statusClass(status: string) {

@@ -125,6 +125,16 @@ function parseRupiahInput(value: string) {
   return Number(digits || 0);
 }
 
+function statusOrderLabel(status: string) {
+  if (status === "done") {
+    return "Habis";
+  }
+  if (status === "error") {
+    return "Dikirim";
+  }
+  return "Proses";
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const isFileUploadEnabled = true;
@@ -1167,7 +1177,7 @@ export default function AdminPage() {
                     <span>
                       {formatRupiah(order.total)} - {new Date(order.createdAt).toLocaleString("id-ID")}
                     </span>
-                    <span>Status: {order.status}</span>
+                    <span>Status: {statusOrderLabel(order.status)}</span>
                   </div>
                 </div>
                 <div className={styles.rowActions}>
@@ -1182,7 +1192,7 @@ export default function AdminPage() {
                   >
                     <option value="process">Proses</option>
                     <option value="done">Habis</option>
-                    <option value="error">Error</option>
+                    <option value="error">Dikirim</option>
                   </select>
                   <button type="button" onClick={() => onSaveOrderStatus(order.id)}>
                     Simpan
