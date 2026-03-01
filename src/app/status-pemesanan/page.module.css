@@ -91,10 +91,9 @@
   border-radius: 12px;
   background: #ffffff;
   padding: 12px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 12px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .orderCardHighlighted {
@@ -103,8 +102,6 @@
 }
 
 .orderMain {
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -149,8 +146,6 @@
 }
 
 .orderMeta {
-  grid-column: 1 / 2;
-  grid-row: 2 / 3;
   display: grid;
   gap: 2px;
 }
@@ -166,12 +161,8 @@
 }
 
 .cancelRequestBox {
-  grid-column: 1 / -1;
-  grid-row: 3 / 4;
   display: grid;
   gap: 8px;
-  position: relative;
-  z-index: 1;
 }
 
 .cancelRequestBox textarea {
@@ -183,8 +174,10 @@
   resize: vertical;
   font-size: 0.78rem;
   outline: none;
-  position: relative;
-  z-index: 2;
+  color: #121828;
+  background: #ffffff;
+  caret-color: #121828;
+  -webkit-text-fill-color: #121828;
   pointer-events: auto;
 }
 
@@ -240,11 +233,10 @@
 }
 
 .actionIcons {
-  grid-column: 2 / 3;
-  grid-row: 1 / 3;
-  align-self: start;
   display: inline-flex;
   align-items: center;
+  align-self: flex-end;
+  justify-content: flex-end;
   gap: 8px;
 }
 
@@ -325,23 +317,12 @@
     grid-template-columns: 1fr;
   }
 
-  .orderCard {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .orderMain,
-  .orderMeta,
-  .cancelRequestBox,
-  .actionIcons {
-    grid-column: 1 / -1;
-    grid-row: auto;
-  }
-
   .receiptIconButton {
     justify-self: flex-start;
   }
 
   .actionIcons {
-    justify-self: flex-start;
+    align-self: flex-start;
+    justify-content: flex-start;
   }
 }

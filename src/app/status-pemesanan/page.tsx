@@ -285,7 +285,11 @@ export default function StatusPemesananPage() {
                   <textarea
                     value={cancelReasonDrafts[order.id] ?? ""}
                     onChange={(event) => onChangeCancelReason(order.id, event.target.value)}
+                    onInput={(event) =>
+                      onChangeCancelReason(order.id, (event.target as HTMLTextAreaElement).value)
+                    }
                     placeholder="Tulis alasan pembatalan (wajib)"
+                    spellCheck={false}
                   />
                   <button
                     type="button"
