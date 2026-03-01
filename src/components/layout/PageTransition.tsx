@@ -49,7 +49,7 @@ export default function PageTransition({
 
   return (
     <div ref={wrapRef} className="route-transition-shell">
-      {isRouteLoading ? (
+      {isRouteLoading && pathname !== "/" ? (
         <div
           style={{
             position: "fixed",
