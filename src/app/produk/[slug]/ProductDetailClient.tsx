@@ -14,6 +14,7 @@ import { addToCart } from "@/lib/cart";
 import {
   ONBOARDING_STAGE,
   advanceOnboarding,
+  getOnboardingState,
   isOnboardingStageActive,
 } from "@/lib/onboarding";
 import type { StoreProduct } from "@/types/store";
@@ -119,12 +120,30 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   }, [status, product.slug, router]);
 
   const onAddToCart = () => {
-    if (isOnboardingStageActive(ONBOARDING_STAGE.PRODUCT_ADD_TO_CART)) {
+    const onboardingActive = getOnboardingState().active;
+    const isProductTutorialStep = isOnboardingStageActive(ONBOARDING_STAGE.PRODUCT_ADD_TO_CART);
+
+    if (isProductTutorialStep) {
       advanceOnboarding(ONBOARDING_STAGE.CART_CHECKOUT);
       setIsProductTutorialRunning(false);
     }
 
-    if (status === "loading") {
+    if (status === "loading" && !onboardingActive) {
+      return;
+    }
+
+    if (onboardingActive && status !== "authenticated") {
+      if (typeof window !== "undefined") {
+        window.alert(
+          "Di luar tutorial kamu akan dialihkan ke login/daftar. Karena ini tutorial, langkah login kita skip.",
+        );
+      }
+      addToCart(product.slug, quantity);
+      setAdded(true);
+      setIsRedirectingToCart(true);
+      window.setTimeout(() => {
+        router.push("/troli?tutorial=1");
+      }, 420);
       return;
     }
 

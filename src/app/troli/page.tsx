@@ -182,11 +182,6 @@ export default function CartPage() {
   };
 
   const onOpenStatusPage = () => {
-    if (status !== "authenticated") {
-      router.push("/auth?redirect=/status-pemesanan");
-      return;
-    }
-
     const onboardingState = getOnboardingState();
     if (
       onboardingState.active &&
@@ -202,17 +197,26 @@ export default function CartPage() {
       return;
     }
 
+    if (onboardingState.active) {
+      router.push(
+        `/status-pemesanan?highlight=${encodeURIComponent(
+          ONBOARDING_TUTORIAL_ORDER_ID,
+        )}&${ONBOARDING_TUTORIAL_QUERY_KEY}=1`,
+      );
+      return;
+    }
+
+    if (status !== "authenticated") {
+      router.push("/auth?redirect=/status-pemesanan");
+      return;
+    }
+
     router.push("/status-pemesanan");
   };
 
   const onCheckout = async () => {
     setError("");
     setSuccess("");
-
-    if (status !== "authenticated") {
-      router.push("/auth?redirect=/troli");
-      return;
-    }
 
     const selected = detailedItems.filter((item) => item.selected);
     if (selected.length === 0) {
@@ -234,6 +238,11 @@ export default function CartPage() {
           )}&pay=1&${ONBOARDING_TUTORIAL_QUERY_KEY}=1`,
         );
       }, 450);
+      return;
+    }
+
+    if (status !== "authenticated") {
+      router.push("/auth?redirect=/troli");
       return;
     }
 

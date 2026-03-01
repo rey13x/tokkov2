@@ -192,6 +192,15 @@ export default function StatusPemesananPage() {
     }
 
     if (status !== "authenticated") {
+      const onboardingActive = getOnboardingState().active;
+      const tutorialFromQuery =
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get(ONBOARDING_TUTORIAL_QUERY_KEY) === "1";
+      if (onboardingActive || tutorialFromQuery) {
+        setIsLoading(false);
+        setError("");
+        return;
+      }
       router.push("/auth?redirect=/status-pemesanan");
       return;
     }
