@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { formatRupiah } from "@/data/products";
 import type { OrderSummary } from "@/types/store";
@@ -42,13 +42,11 @@ function ReceiptIcon() {
 
 export default function StatusPemesananPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { status } = useSession();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-
-  const highlightedOrderId = searchParams.get("highlight") ?? "";
+  const [highlightedOrderId, setHighlightedOrderId] = useState("");
 
   const loadOrders = useCallback(async () => {
     if (status !== "authenticated") {
@@ -63,6 +61,15 @@ export default function StatusPemesananPage() {
     const data = (await response.json()) as { orders?: OrderSummary[] };
     setOrders(data.orders ?? []);
   }, [status]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    setHighlightedOrderId(params.get("highlight") ?? "");
+  }, []);
 
   useEffect(() => {
     if (status === "loading") {
