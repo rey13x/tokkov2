@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerAuthSession } from "@/server/auth";
-import { getOrderById, updateOrderStatus } from "@/server/store-data";
+import {
+  getOrderById,
+  requestOrderCancellation,
+} from "@/server/store-data";
+import { sendTelegramActivityNotification } from "@/server/notifications";
 
-const statusSchema = z.object({
-  status: z.enum(["process", "error"]),
+const cancelRequestSchema = z.object({
+  reason: z.string().min(5).max(600),
 });
 
 type Params = Promise<{ id: string }>;
@@ -17,7 +21,7 @@ export async function PATCH(request: Request, context: { params: Params }) {
 
   try {
     const body = await request.json();
-    const payload = statusSchema.parse(body);
+    const payload = cancelRequestSchema.parse(body);
     const { id } = await context.params;
     const order = await getOrderById(id);
     if (!order) {
@@ -30,17 +34,29 @@ export async function PATCH(request: Request, context: { params: Params }) {
       return NextResponse.json({ message: "Akses ditolak." }, { status: 403 });
     }
 
-    if (!isAdmin && payload.status === "error") {
+    if (order.cancelRequestStatus === "confirmed") {
       return NextResponse.json(
-        { message: "Status batal hanya bisa dikonfirmasi admin." },
-        { status: 403 },
+        { message: "Order ini sudah dibatalkan setelah konfirmasi admin." },
+        { status: 400 },
       );
     }
 
-    const updated = await updateOrderStatus(id, payload.status);
+    const updated = await requestOrderCancellation(id, payload.reason);
     if (!updated) {
       return NextResponse.json({ message: "Order tidak ditemukan." }, { status: 404 });
     }
+
+    await sendTelegramActivityNotification({
+      event: "cancel_request_created",
+      actorName: session.user.username || session.user.name || order.userName || "User",
+      actorEmail: session.user.email ?? order.userEmail,
+      actorPhone: session.user.phone ?? order.userPhone,
+      description: `User mengajukan pembatalan order ${id}.`,
+      metadata: [
+        `Order ID: ${id}`,
+        `Alasan: ${payload.reason.trim()}`,
+      ],
+    });
 
     return NextResponse.json({ order: updated });
   } catch (error) {
@@ -51,10 +67,11 @@ export async function PATCH(request: Request, context: { params: Params }) {
       );
     }
 
-    console.error("PATCH /api/orders/[id]/status failed:", error);
+    console.error("PATCH /api/orders/[id]/cancel-request failed:", error);
     return NextResponse.json(
-      { message: "Gagal mengubah status order." },
+      { message: "Gagal mengajukan pembatalan pesanan." },
       { status: 500 },
     );
   }
 }
+

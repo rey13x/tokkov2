@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
 import { updateOrderStatus } from "@/server/store-data";
+import { sendTelegramActivityNotification } from "@/server/notifications";
 
 const statusSchema = z.object({
   status: z.enum(["process", "done", "error"]),
@@ -25,6 +26,18 @@ export async function PATCH(request: Request, context: { params: Params }) {
       return NextResponse.json({ message: "Order tidak ditemukan." }, { status: 404 });
     }
 
+    await sendTelegramActivityNotification({
+      event: "admin_order_status_update",
+      actorName: auth.admin.email ?? "Admin",
+      actorEmail: auth.admin.email ?? "-",
+      description: `Admin mengubah status order ${id} menjadi ${payload.status}.`,
+      metadata: [
+        `Order ID: ${id}`,
+        `Status Baru: ${payload.status}`,
+        `Pemesan: ${order.userName} (${order.userEmail})`,
+      ],
+    });
+
     return NextResponse.json({ order });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -41,4 +54,3 @@ export async function PATCH(request: Request, context: { params: Params }) {
     );
   }
 }
-

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
 import { deleteProduct, updateProduct } from "@/server/store-data";
+import { sendTelegramActivityNotification } from "@/server/notifications";
 
 const updateSchema = z.object({
   name: z.string().min(2).max(120).optional(),
@@ -32,6 +33,18 @@ export async function PATCH(request: Request, context: { params: Params }) {
       return NextResponse.json({ message: "Produk tidak ditemukan." }, { status: 404 });
     }
 
+    await sendTelegramActivityNotification({
+      event: "admin_product_update",
+      actorName: auth.admin.email ?? "Admin",
+      actorEmail: auth.admin.email ?? "-",
+      description: `Admin update produk ${product.name}.`,
+      metadata: [
+        `Produk ID: ${product.id}`,
+        `Produk: ${product.name}`,
+        `Harga: Rp ${product.price.toLocaleString("id-ID")}`,
+      ],
+    });
+
     return NextResponse.json({ product });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -59,5 +72,12 @@ export async function DELETE(_request: Request, context: { params: Params }) {
 
   const { id } = await context.params;
   await deleteProduct(id);
+  await sendTelegramActivityNotification({
+    event: "admin_product_delete",
+    actorName: auth.admin.email ?? "Admin",
+    actorEmail: auth.admin.email ?? "-",
+    description: `Admin menghapus produk ${id}.`,
+    metadata: [`Produk ID: ${id}`],
+  });
   return NextResponse.json({ message: "Produk berhasil dihapus." });
 }

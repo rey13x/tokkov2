@@ -52,14 +52,26 @@ function PaymentIcon() {
   );
 }
 
+const ADMIN_WHATSAPP_URL = "https://wa.me/6281319865384";
+
+function formatStatusDate(value: string | null | undefined) {
+  if (!value) {
+    return "-";
+  }
+  return new Date(value).toLocaleString("id-ID");
+}
+
 export default function StatusPemesananPage() {
   const router = useRouter();
   const { status } = useSession();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [highlightedOrderId, setHighlightedOrderId] = useState("");
   const [activePaymentOrderId, setActivePaymentOrderId] = useState<string | null>(null);
+  const [cancelReasonDrafts, setCancelReasonDrafts] = useState<Record<string, string>>({});
+  const [isCancelSubmittingOrderId, setIsCancelSubmittingOrderId] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
     if (status !== "authenticated") {
@@ -82,7 +94,6 @@ export default function StatusPemesananPage() {
 
     const params = new URLSearchParams(window.location.search);
     const highlight = params.get("highlight") ?? "";
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHighlightedOrderId(highlight);
     if ((params.get("pay") === "1" || params.get("pay") === "true") && highlight) {
       setActivePaymentOrderId(highlight);
@@ -99,7 +110,6 @@ export default function StatusPemesananPage() {
       return;
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrders()
       .then(() => setError(""))
       .catch((loadError) => {
@@ -133,6 +143,76 @@ export default function StatusPemesananPage() {
     setActivePaymentOrderId(null);
   };
 
+  const onChangeCancelReason = (orderId: string, value: string) => {
+    setCancelReasonDrafts((current) => ({
+      ...current,
+      [orderId]: value,
+    }));
+  };
+
+  const onRequestCancelViaWhatsapp = async (order: OrderSummary) => {
+    const reason = (cancelReasonDrafts[order.id] ?? "").trim();
+    if (reason.length < 5) {
+      setError("Alasan pembatalan minimal 5 karakter.");
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setIsCancelSubmittingOrderId(order.id);
+    try {
+      const response = await fetch(`/api/orders/${order.id}/cancel-request`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      const payload = (await response.json()) as { message?: string; order?: OrderSummary };
+      if (!response.ok) {
+        setError(payload.message ?? "Gagal mengajukan pembatalan pesanan.");
+        return;
+      }
+
+      const updatedOrder = payload.order ?? order;
+      const itemLines =
+        updatedOrder.items && updatedOrder.items.length > 0
+          ? updatedOrder.items
+              .map(
+                (item, index) =>
+                  `${index + 1}. ${item.productName} x${item.quantity} - ${formatRupiah(
+                    item.unitPrice * item.quantity,
+                  )}`,
+              )
+              .join("\n")
+          : "-";
+      const message = [
+        "*PERMINTAAN KONFIRMASI PEMBATALAN PEMESANAN*",
+        "",
+        `Waktu Request: ${new Date().toLocaleString("id-ID")}`,
+        `Order ID: ${updatedOrder.id}`,
+        `Akun: ${updatedOrder.userName}`,
+        `Gmail: ${updatedOrder.userEmail}`,
+        `Nomor HP: ${updatedOrder.userPhone || "-"}`,
+        `Status Order Saat Ini: ${statusLabel(updatedOrder.status)}`,
+        "",
+        "*Produk yang Dibeli:*",
+        itemLines,
+        "",
+        "*Alasan Pembatalan:*",
+        reason,
+        "",
+        "Mohon konfirmasi admin. Order dibatalkan setelah admin menyetujui request ini.",
+      ].join("\n");
+      const waUrl = `${ADMIN_WHATSAPP_URL}?text=${encodeURIComponent(message)}`;
+      window.open(waUrl, "_blank", "noopener,noreferrer");
+      setSuccess("Request pembatalan tersimpan. Lanjutkan konfirmasi via WhatsApp.");
+      await loadOrders();
+    } catch {
+      setError("Gagal mengajukan pembatalan pesanan.");
+    } finally {
+      setIsCancelSubmittingOrderId(null);
+    }
+  };
+
   const activePaymentOrder = orders.find((order) => order.id === activePaymentOrderId) ?? null;
 
   return (
@@ -163,6 +243,7 @@ export default function StatusPemesananPage() {
 
       {isLoading ? <WaitLoading centered /> : null}
       {error ? <p className={styles.errorText}>{error}</p> : null}
+      {success ? <p className={styles.successText}>{success}</p> : null}
 
       <section className={styles.listWrap}>
         {orders.map((order) => {
@@ -184,7 +265,40 @@ export default function StatusPemesananPage() {
                 <span>Email: {order.userEmail}</span>
                 <span>HP: {order.userPhone || "-"}</span>
                 <strong>Total: {formatRupiah(order.total)}</strong>
+                <span>
+                  Pembatalan:{" "}
+                  {order.cancelRequestStatus === "confirmed"
+                    ? "Disetujui admin"
+                    : order.cancelRequestStatus === "requested"
+                      ? "Menunggu konfirmasi admin"
+                      : "Belum diajukan"}
+                </span>
+                {order.cancelRequestStatus === "requested" ? (
+                  <span>Waktu request: {formatStatusDate(order.cancelRequestedAt)}</span>
+                ) : null}
+                {order.cancelRequestStatus === "confirmed" ? (
+                  <span>Waktu konfirmasi: {formatStatusDate(order.cancelConfirmedAt)}</span>
+                ) : null}
               </div>
+              {order.cancelRequestStatus !== "confirmed" ? (
+                <div className={styles.cancelRequestBox}>
+                  <textarea
+                    value={cancelReasonDrafts[order.id] ?? ""}
+                    onChange={(event) => onChangeCancelReason(order.id, event.target.value)}
+                    placeholder="Tulis alasan pembatalan (wajib)"
+                  />
+                  <button
+                    type="button"
+                    className={styles.cancelRequestButton}
+                    disabled={isCancelSubmittingOrderId === order.id}
+                    onClick={() => onRequestCancelViaWhatsapp(order)}
+                  >
+                    {isCancelSubmittingOrderId === order.id
+                      ? "Mengirim..."
+                      : "Ajukan Batal & Kirim WhatsApp"}
+                  </button>
+                </div>
+              ) : null}
               <div className={styles.actionIcons}>
                 <button
                   type="button"

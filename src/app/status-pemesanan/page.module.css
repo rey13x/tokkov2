@@ -76,6 +76,11 @@
   font-size: 0.88rem;
 }
 
+.successText {
+  color: #1f7a36;
+  font-size: 0.88rem;
+}
+
 .listWrap {
   display: grid;
   gap: 10px;
@@ -155,6 +160,38 @@
 .orderMeta strong {
   margin-top: 3px;
   font-size: 0.88rem;
+}
+
+.cancelRequestBox {
+  grid-column: 1 / 2;
+  display: grid;
+  gap: 8px;
+}
+
+.cancelRequestBox textarea {
+  width: 100%;
+  min-height: 72px;
+  border: 1px solid #d7deeb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  resize: vertical;
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.cancelRequestButton {
+  border: 1px solid #1451c8;
+  border-radius: 10px;
+  min-height: 38px;
+  background: #ecf2ff;
+  color: #1f4cb9;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.cancelRequestButton:disabled {
+  opacity: 0.65;
+  cursor: default;
 }
 
 .receiptIconButton {

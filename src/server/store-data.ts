@@ -11,6 +11,7 @@ import type {
   StoreTestimonial,
 } from "@/types/store";
 import {
+  confirmOrderCancellation as confirmOrderCancellationDb,
   createInformation as createInformationDb,
   createOrder as createOrderDb,
   createProduct as createProductDb,
@@ -37,6 +38,7 @@ import {
   listOrders as listOrdersDb,
   listProducts as listProductsDb,
   listTestimonials as listTestimonialsDb,
+  requestOrderCancellation as requestOrderCancellationDb,
   upsertAppMetaValue as upsertAppMetaValueDb,
   updateInformation as updateInformationDb,
   updateMarquee as updateMarqueeDb,
@@ -96,6 +98,34 @@ function normalizePollVotes(options: string[], raw: unknown) {
     votes[option] = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
   }
   return votes;
+}
+
+function toOptionalIso(value: unknown) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const asNumber = Number(value);
+  if (Number.isFinite(asNumber)) {
+    return new Date(asNumber).toISOString();
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const asDate = new Date(value.trim());
+    if (!Number.isNaN(asDate.getTime())) {
+      return asDate.toISOString();
+    }
+  }
+
+  return null;
+}
+
+function mapCancelRequestStatus(value: unknown) {
+  const raw = String(value ?? "none");
+  if (raw === "requested" || raw === "confirmed") {
+    return raw;
+  }
+  return "none";
 }
 
 export function isFirebaseDataEnabled() {
@@ -1035,6 +1065,10 @@ export async function createOrder(input: {
       userPhone: input.userPhone,
       total,
       status: "process",
+      cancelRequestStatus: "none",
+      cancelRequestReason: "",
+      cancelRequestedAt: null,
+      cancelConfirmedAt: null,
       createdAt,
       items: input.items,
     });
@@ -1064,6 +1098,12 @@ export async function updateOrderStatus(
 
     await ref.update({
       status,
+      ...(status === "process" || status === "done"
+        ? {
+            cancelRequestStatus: "none",
+            cancelConfirmedAt: null,
+          }
+        : {}),
       updatedAt: now(),
     });
     return getOrderById(id);
@@ -1115,6 +1155,10 @@ export async function listOrders(limit = 100) {
         userPhone: String(data.userPhone ?? ""),
         total: Number(data.total ?? 0),
         status: String(data.status ?? "new"),
+        cancelRequestStatus: mapCancelRequestStatus(data.cancelRequestStatus),
+        cancelRequestReason: String(data.cancelRequestReason ?? ""),
+        cancelRequestedAt: toOptionalIso(data.cancelRequestedAt),
+        cancelConfirmedAt: toOptionalIso(data.cancelConfirmedAt),
         createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
       } satisfies OrderSummary;
     });
@@ -1180,11 +1224,75 @@ export async function getOrderById(id: string) {
       userPhone: String(data.userPhone ?? ""),
       total: Number(data.total ?? 0),
       status: String(data.status ?? "new"),
+      cancelRequestStatus: mapCancelRequestStatus(data.cancelRequestStatus),
+      cancelRequestReason: String(data.cancelRequestReason ?? ""),
+      cancelRequestedAt: toOptionalIso(data.cancelRequestedAt),
+      cancelConfirmedAt: toOptionalIso(data.cancelConfirmedAt),
       createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
     } satisfies OrderSummary;
   } catch (error) {
     console.error("Failed to read order by id from Firestore. Falling back to local database.", error);
     return getOrderByIdDb(id);
+  }
+}
+
+export async function requestOrderCancellation(id: string, reason: string) {
+  const safeReason = reason.trim();
+  if (safeReason.length < 5) {
+    throw new Error("Alasan pembatalan minimal 5 karakter.");
+  }
+
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return requestOrderCancellationDb(id, safeReason);
+  }
+
+  try {
+    const ref = firestore.collection("orders").doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return null;
+    }
+
+    await ref.update({
+      cancelRequestStatus: "requested",
+      cancelRequestReason: safeReason,
+      cancelRequestedAt: now(),
+      cancelConfirmedAt: null,
+      updatedAt: now(),
+    });
+
+    return getOrderById(id);
+  } catch (error) {
+    console.error("Failed to request order cancellation in Firestore. Falling back to local database.", error);
+    return requestOrderCancellationDb(id, safeReason);
+  }
+}
+
+export async function confirmOrderCancellation(id: string) {
+  const firestore = getFirebaseFirestore();
+  if (!firestore) {
+    return confirmOrderCancellationDb(id);
+  }
+
+  try {
+    const ref = firestore.collection("orders").doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return null;
+    }
+
+    await ref.update({
+      status: "error",
+      cancelRequestStatus: "confirmed",
+      cancelConfirmedAt: now(),
+      updatedAt: now(),
+    });
+
+    return getOrderById(id);
+  } catch (error) {
+    console.error("Failed to confirm order cancellation in Firestore. Falling back to local database.", error);
+    return confirmOrderCancellationDb(id);
   }
 }
 

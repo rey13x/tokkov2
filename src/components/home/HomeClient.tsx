@@ -38,6 +38,7 @@ type HomeMarquee = StoreMarqueeItem;
 const MARQUEE_LOOP_COUNT = 4;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
+const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
 const INTRO_MIN_DURATION_MS = 3000;
 const INTRO_MAX_WAIT_MS = 12000;
 const heroImage = "/assets/ramadhan.jpg";
@@ -222,6 +223,27 @@ export default function HomeClient() {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("storage", onStorage);
     };
+  }, [sessionStatus]);
+
+  useEffect(() => {
+    if (sessionStatus !== "authenticated" || typeof window === "undefined") {
+      return;
+    }
+
+    const nowMs = Date.now();
+    const throttleMs = 5 * 60 * 1000;
+    const lastLoggedRaw = window.localStorage.getItem(ACCESS_LOG_THROTTLE_KEY) ?? "";
+    const lastLogged = Number(lastLoggedRaw || 0);
+    if (Number.isFinite(lastLogged) && nowMs - lastLogged < throttleMs) {
+      return;
+    }
+
+    window.localStorage.setItem(ACCESS_LOG_THROTTLE_KEY, String(nowMs));
+    fetch("/api/activity/access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: window.location.pathname }),
+    }).catch(() => {});
   }, [sessionStatus]);
 
   useEffect(() => {

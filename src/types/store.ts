@@ -75,6 +75,11 @@ export type OrderSummary = {
   userPhone: string;
   total: number;
   status: string;
+  items?: StoreOrderItem[];
+  cancelRequestStatus?: "none" | "requested" | "confirmed";
+  cancelRequestReason?: string;
+  cancelRequestedAt?: string | null;
+  cancelConfirmedAt?: string | null;
   createdAt: string;
 };
 

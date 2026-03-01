@@ -473,9 +473,25 @@ export async function ensureDatabase() {
           user_phone TEXT NOT NULL,
           total INTEGER NOT NULL,
           status TEXT NOT NULL DEFAULT 'new',
+          cancel_request_status TEXT NOT NULL DEFAULT 'none',
+          cancel_request_reason TEXT NOT NULL DEFAULT '',
+          cancel_requested_at INTEGER,
+          cancel_confirmed_at INTEGER,
           created_at INTEGER NOT NULL
         )`,
       );
+      await run(
+        "ALTER TABLE orders ADD COLUMN cancel_request_status TEXT NOT NULL DEFAULT 'none'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN cancel_request_reason TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN cancel_requested_at INTEGER",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN cancel_confirmed_at INTEGER",
+      ).catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS testimonials (
@@ -919,42 +935,46 @@ export async function updateUserById(
 ) {
   const firestore = getFirebaseFirestore();
   if (firestore) {
-    const current = (await findFirestoreUserById(id)) ?? (await findLocalUserById(id));
-    if (!current) {
-      return null;
+    try {
+      const current = (await findFirestoreUserById(id)) ?? (await findLocalUserById(id));
+      if (!current) {
+        return null;
+      }
+
+      const nextUsername = (input.username ?? current.username).trim();
+      const nextEmail = normalizeEmail(input.email ?? current.email);
+      const nextPhone = (input.phone ?? current.phone).trim();
+      const nextAvatarUrl =
+        input.avatarUrl === undefined ? current.avatarUrl : input.avatarUrl.trim();
+      const nextPasswordHash =
+        input.passwordHash === undefined ? current.passwordHash : input.passwordHash;
+      const nextRole = input.role ?? current.role;
+
+      await firestore.collection("users").doc(id).set(
+        {
+          username: nextUsername,
+          usernameLower: normalizeUsername(nextUsername),
+          email: nextEmail,
+          emailLower: nextEmail,
+          phone: nextPhone,
+          avatarUrl: nextAvatarUrl,
+          passwordHash: nextPasswordHash,
+          role: nextRole,
+          updatedAt: now(),
+        },
+        { merge: true },
+      );
+
+      const updated = await findFirestoreUserById(id);
+      if (!updated) {
+        return null;
+      }
+
+      await upsertLocalUserMirror(updated).catch(() => {});
+      return updated;
+    } catch (error) {
+      console.error("Failed to update user in Firestore. Falling back to local database.", error);
     }
-
-    const nextUsername = (input.username ?? current.username).trim();
-    const nextEmail = normalizeEmail(input.email ?? current.email);
-    const nextPhone = (input.phone ?? current.phone).trim();
-    const nextAvatarUrl =
-      input.avatarUrl === undefined ? current.avatarUrl : input.avatarUrl.trim();
-    const nextPasswordHash =
-      input.passwordHash === undefined ? current.passwordHash : input.passwordHash;
-    const nextRole = input.role ?? current.role;
-
-    await firestore.collection("users").doc(id).set(
-      {
-        username: nextUsername,
-        usernameLower: normalizeUsername(nextUsername),
-        email: nextEmail,
-        emailLower: nextEmail,
-        phone: nextPhone,
-        avatarUrl: nextAvatarUrl,
-        passwordHash: nextPasswordHash,
-        role: nextRole,
-        updatedAt: now(),
-      },
-      { merge: true },
-    );
-
-    const updated = await findFirestoreUserById(id);
-    if (!updated) {
-      return null;
-    }
-
-    await upsertLocalUserMirror(updated).catch(() => {});
-    return updated;
   }
 
   await ensureDatabase();
@@ -1484,8 +1504,8 @@ export async function createOrder(input: {
 
   await run(
     `INSERT INTO orders
-      (id, user_id, user_name, user_email, user_phone, total, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'process', ?)`,
+      (id, user_id, user_name, user_email, user_phone, total, status, cancel_request_status, cancel_request_reason, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'process', 'none', '', ?)`,
     [id, input.userId, input.userName, input.userEmail, input.userPhone, total, now()],
   );
 
@@ -1524,9 +1544,56 @@ export async function updateOrderStatus(
 
   await run(
     `UPDATE orders
-     SET status = ?
+     SET status = ?,
+         cancel_request_status = CASE
+           WHEN ? IN ('process', 'done') THEN 'none'
+           ELSE cancel_request_status
+         END,
+         cancel_confirmed_at = CASE
+           WHEN ? IN ('process', 'done') THEN NULL
+           ELSE cancel_confirmed_at
+         END
      WHERE id = ?`,
-    [status, id],
+    [status, status, status, id],
+  );
+
+  return getOrderById(id);
+}
+
+export async function requestOrderCancellation(id: string, reason: string) {
+  await ensureDatabase();
+  const existing = await getOrderById(id);
+  if (!existing) {
+    return null;
+  }
+
+  await run(
+    `UPDATE orders
+     SET cancel_request_status = 'requested',
+         cancel_request_reason = ?,
+         cancel_requested_at = ?,
+         cancel_confirmed_at = NULL
+     WHERE id = ?`,
+    [reason.trim(), now(), id],
+  );
+
+  return getOrderById(id);
+}
+
+export async function confirmOrderCancellation(id: string) {
+  await ensureDatabase();
+  const existing = await getOrderById(id);
+  if (!existing) {
+    return null;
+  }
+
+  await run(
+    `UPDATE orders
+     SET status = 'error',
+         cancel_request_status = 'confirmed',
+         cancel_confirmed_at = ?
+     WHERE id = ?`,
+    [now(), id],
   );
 
   return getOrderById(id);
@@ -1577,6 +1644,17 @@ export async function listOrders(limit = 100) {
       userPhone: String(data.user_phone ?? ""),
       total: Number(data.total),
       status: String(data.status),
+      cancelRequestStatus:
+        String(data.cancel_request_status ?? "none") as "none" | "requested" | "confirmed",
+      cancelRequestReason: String(data.cancel_request_reason ?? ""),
+      cancelRequestedAt:
+        data.cancel_requested_at === null || data.cancel_requested_at === undefined
+          ? null
+          : new Date(Number(data.cancel_requested_at)).toISOString(),
+      cancelConfirmedAt:
+        data.cancel_confirmed_at === null || data.cancel_confirmed_at === undefined
+          ? null
+          : new Date(Number(data.cancel_confirmed_at)).toISOString(),
       createdAt: new Date(Number(data.created_at)).toISOString(),
     } satisfies OrderSummary;
   });
@@ -1617,6 +1695,17 @@ export async function getOrderById(id: string) {
     userPhone: String(row.user_phone ?? ""),
     total: Number(row.total ?? 0),
     status: String(row.status ?? "new"),
+    cancelRequestStatus:
+      String(row.cancel_request_status ?? "none") as "none" | "requested" | "confirmed",
+    cancelRequestReason: String(row.cancel_request_reason ?? ""),
+    cancelRequestedAt:
+      row.cancel_requested_at === null || row.cancel_requested_at === undefined
+        ? null
+        : new Date(Number(row.cancel_requested_at)).toISOString(),
+    cancelConfirmedAt:
+      row.cancel_confirmed_at === null || row.cancel_confirmed_at === undefined
+        ? null
+        : new Date(Number(row.cancel_confirmed_at)).toISOString(),
     createdAt: new Date(Number(row.created_at)).toISOString(),
   } satisfies OrderSummary;
 }

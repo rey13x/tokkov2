@@ -3,6 +3,7 @@ import path from "path";
 
 const exportDir = path.join(process.cwd(), "storage", "exports");
 const csvFile = path.join(exportDir, "orders.csv");
+const JAKARTA_TIMEZONE = "Asia/Jakarta";
 
 function escapeCsv(value: string | number) {
   const text = String(value);
@@ -10,6 +11,39 @@ function escapeCsv(value: string | number) {
     return `"${text.replaceAll('"', '""')}"`;
   }
   return text;
+}
+
+function formatAuditDate(dateInput?: string | number | Date) {
+  const date = dateInput ? new Date(dateInput) : new Date();
+  return new Intl.DateTimeFormat("id-ID", {
+    timeZone: JAKARTA_TIMEZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+
+async function sendTelegramMessage(text: string) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+
+  if (!botToken || !chatId) {
+    return;
+  }
+
+  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      disable_web_page_preview: true,
+    }),
+    cache: "no-store",
+  }).catch(() => {});
 }
 
 export async function appendOrderToCsv(payload: {
@@ -67,13 +101,6 @@ export async function sendTelegramOrderNotification(payload: {
   total: number;
   items: Array<{ productName: string; quantity: number; unitPrice: number }>;
 }) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-
-  if (!botToken || !chatId) {
-    return;
-  }
-
   const lines = payload.items
     .map(
       (item, index) =>
@@ -87,6 +114,7 @@ export async function sendTelegramOrderNotification(payload: {
     `Nama: ${payload.userName}`,
     `Email: ${payload.userEmail}`,
     `No HP: ${payload.userPhone || "-"}`,
+    `Waktu: ${formatAuditDate()}`,
     "",
     "Detail Produk:",
     lines,
@@ -94,14 +122,29 @@ export async function sendTelegramOrderNotification(payload: {
     `Total: Rp ${payload.total.toLocaleString("id-ID")}`,
   ].join("\n");
 
-  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-    }),
-    cache: "no-store",
-  });
+  await sendTelegramMessage(text);
 }
 
+export async function sendTelegramActivityNotification(payload: {
+  event: string;
+  actorName: string;
+  actorEmail: string;
+  actorPhone?: string;
+  description: string;
+  metadata?: string[];
+  occurredAt?: string | number | Date;
+}) {
+  const details = payload.metadata?.filter(Boolean) ?? [];
+  const lines = [
+    "Info Aktivitas",
+    `Event: ${payload.event}`,
+    `Waktu: ${formatAuditDate(payload.occurredAt)}`,
+    `Akun: ${payload.actorName || "-"}`,
+    `Email: ${payload.actorEmail || "-"}`,
+    `No HP: ${payload.actorPhone || "-"}`,
+    `Detail: ${payload.description}`,
+    ...(details.length > 0 ? ["", ...details] : []),
+  ];
+
+  await sendTelegramMessage(lines.join("\n"));
+}

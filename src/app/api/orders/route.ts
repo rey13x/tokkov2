@@ -4,10 +4,11 @@ import { getServerAuthSession } from "@/server/auth";
 import {
   createOrder,
   getProductById,
-  listOrders,
+  listOrdersWithItems,
 } from "@/server/store-data";
 import {
   appendOrderToCsv,
+  sendTelegramActivityNotification,
   sendTelegramOrderNotification,
 } from "@/server/notifications";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -32,7 +33,7 @@ export async function GET() {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const orders = await listOrders(50);
+  const orders = await listOrdersWithItems(50);
   if (session.user.role === "admin") {
     return NextResponse.json({ orders });
   }
@@ -120,6 +121,22 @@ export async function POST(request: Request) {
         userPhone: session.user.phone ?? "",
         total: created.total,
         items: enrichedItems,
+      }),
+      sendTelegramActivityNotification({
+        event: "order_created",
+        actorName: session.user.username || session.user.name || "User",
+        actorEmail: session.user.email ?? "-",
+        actorPhone: session.user.phone ?? "",
+        description: `Order ${created.id} dibuat (${enrichedItems.length} item).`,
+        metadata: [
+          `Order ID: ${created.id}`,
+          `Total: Rp ${created.total.toLocaleString("id-ID")}`,
+          "Produk:",
+          ...enrichedItems.map(
+            (item, index) =>
+              `${index + 1}. ${item.productName} x${item.quantity} @ Rp ${item.unitPrice.toLocaleString("id-ID")}`,
+          ),
+        ],
       }),
       pushOrderMetric({
         orderId: created.id,

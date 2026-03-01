@@ -7,6 +7,7 @@ import {
   createAdminSessionFromIdToken,
   verifyAdminSessionCookie,
 } from "@/server/firebase-admin";
+import { sendTelegramActivityNotification } from "@/server/notifications";
 
 export const runtime = "nodejs";
 
@@ -76,6 +77,14 @@ export async function POST(request: Request) {
       path: "/",
     });
 
+    await sendTelegramActivityNotification({
+      event: "admin_login",
+      actorName: session.decodedToken.email ?? "Admin",
+      actorEmail: session.decodedToken.email ?? "-",
+      description: "Admin login menggunakan sesi Firebase.",
+      metadata: [`UID: ${session.decodedToken.uid}`],
+    });
+
     return NextResponse.json({
       message: "Admin login berhasil.",
       user: {
@@ -89,6 +98,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE() {
+  const admin = await getServerAuthSession();
   const cookieStore = await cookies();
   cookieStore.set(ADMIN_SESSION_COOKIE, "", {
     httpOnly: true,
@@ -96,6 +106,13 @@ export async function DELETE() {
     sameSite: "lax",
     maxAge: 0,
     path: "/",
+  });
+
+  await sendTelegramActivityNotification({
+    event: "admin_logout",
+    actorName: admin?.user?.email ?? "Admin",
+    actorEmail: admin?.user?.email ?? "-",
+    description: "Admin logout dari panel admin.",
   });
 
   return NextResponse.json({ message: "Admin logout berhasil." });

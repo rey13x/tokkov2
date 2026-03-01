@@ -6,6 +6,7 @@ import {
   deleteAllProducts,
   listAllProducts,
 } from "@/server/store-data";
+import { sendTelegramActivityNotification } from "@/server/notifications";
 
 const productSchema = z.object({
   name: z.string().min(2).max(120),
@@ -37,6 +38,18 @@ export async function POST(request: Request) {
     const body = await request.json();
     const payload = productSchema.parse(body);
     const product = await createProduct(payload);
+    await sendTelegramActivityNotification({
+      event: "admin_product_create",
+      actorName: auth.admin.email ?? "Admin",
+      actorEmail: auth.admin.email ?? "-",
+      description: `Admin menambah produk ${payload.name}.`,
+      metadata: [
+        `Produk: ${payload.name}`,
+        `Kategori: ${payload.category}`,
+        `Harga: Rp ${payload.price.toLocaleString("id-ID")}`,
+        `ID Produk: ${product?.id ?? "-"}`,
+      ],
+    });
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -66,5 +79,11 @@ export async function DELETE() {
   }
 
   await deleteAllProducts();
+  await sendTelegramActivityNotification({
+    event: "admin_product_delete_all",
+    actorName: auth.admin.email ?? "Admin",
+    actorEmail: auth.admin.email ?? "-",
+    description: "Admin menghapus semua produk.",
+  });
   return NextResponse.json({ message: "Semua produk berhasil dihapus." });
 }

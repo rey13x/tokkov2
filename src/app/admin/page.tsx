@@ -135,6 +135,16 @@ function statusOrderLabel(status: string) {
   return "Proses";
 }
 
+function cancelRequestStatusLabel(status: string | undefined) {
+  if (status === "confirmed") {
+    return "Disetujui";
+  }
+  if (status === "requested") {
+    return "Menunggu Konfirmasi";
+  }
+  return "Tidak ada";
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const isFileUploadEnabled = true;
@@ -871,6 +881,30 @@ export default function AdminPage() {
     }
   };
 
+  const onConfirmCancelOrder = async (orderId: string) => {
+    if (!window.confirm("Konfirmasi pembatalan order ini?")) {
+      return;
+    }
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/admin/orders/${orderId}/cancel-request`, {
+        method: "PATCH",
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        setError(result.message ?? "Gagal konfirmasi pembatalan order.");
+        return;
+      }
+      setMessage("Pembatalan order berhasil dikonfirmasi.");
+      await loadOrders();
+      await loadStats();
+    } catch {
+      setError("Gagal konfirmasi pembatalan order.");
+    }
+  };
+
   const onDeleteAllProducts = async () => {
     if (!window.confirm("Yakin hapus semua produk?")) {
       return;
@@ -1178,6 +1212,28 @@ export default function AdminPage() {
                       {formatRupiah(order.total)} - {new Date(order.createdAt).toLocaleString("id-ID")}
                     </span>
                     <span>Status: {statusOrderLabel(order.status)}</span>
+                    <span>Request Batal: {cancelRequestStatusLabel(order.cancelRequestStatus)}</span>
+                    {order.cancelRequestReason ? (
+                      <span>Alasan: {order.cancelRequestReason}</span>
+                    ) : null}
+                    {order.cancelRequestedAt ? (
+                      <span>
+                        Waktu Request: {new Date(order.cancelRequestedAt).toLocaleString("id-ID")}
+                      </span>
+                    ) : null}
+                    {order.cancelConfirmedAt ? (
+                      <span>
+                        Waktu Konfirmasi: {new Date(order.cancelConfirmedAt).toLocaleString("id-ID")}
+                      </span>
+                    ) : null}
+                    {order.items && order.items.length > 0 ? (
+                      <span>
+                        Produk:{" "}
+                        {order.items
+                          .map((item) => `${item.productName} x${item.quantity}`)
+                          .join(", ")}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <div className={styles.rowActions}>
@@ -1197,6 +1253,11 @@ export default function AdminPage() {
                   <button type="button" onClick={() => onSaveOrderStatus(order.id)}>
                     Simpan
                   </button>
+                  {order.cancelRequestStatus === "requested" ? (
+                    <button type="button" onClick={() => onConfirmCancelOrder(order.id)}>
+                      Konfirmasi Batal
+                    </button>
+                  ) : null}
                   <a
                     href={`/api/orders/${order.id}/receipt`}
                     target="_blank"

@@ -16,7 +16,7 @@ const MAX_OTP_ATTEMPTS = 5;
 const updateSchema = z.object({
   username: z.string().min(2).max(40),
   email: z.string().email(),
-  phone: z.string().max(20),
+  phone: z.string().min(8).max(20),
   oldPassword: z.string().optional().default(""),
   newPassword: z.string().optional().default(""),
   otpCode: z.string().optional().default(""),
@@ -163,6 +163,16 @@ export async function PATCH(request: Request) {
         { message: error.issues[0]?.message ?? "Input tidak valid." },
         { status: 400 },
       );
+    }
+
+    if (error instanceof Error) {
+      const detail = error.message.toLowerCase();
+      if (detail.includes("unique") || detail.includes("duplicate")) {
+        return NextResponse.json(
+          { message: "Email sudah dipakai akun lain." },
+          { status: 400 },
+        );
+      }
     }
 
     return NextResponse.json(

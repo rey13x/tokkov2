@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/server/admin";
-import { listOrders } from "@/server/store-data";
+import { listOrdersWithItems } from "@/server/store-data";
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -9,7 +9,7 @@ export async function GET() {
   }
 
   try {
-    const orders = await listOrders(100);
+    const orders = await listOrdersWithItems(100);
     return NextResponse.json({ orders });
   } catch (error) {
     console.error("GET /api/admin/orders failed:", error);
@@ -19,4 +19,3 @@ export async function GET() {
     );
   }
 }
-

@@ -11,6 +11,7 @@ import {
   findUserByIdentifier,
   updateUserById,
 } from "@/server/db";
+import { sendTelegramActivityNotification } from "@/server/notifications";
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
@@ -104,6 +105,34 @@ export const authOptions: NextAuthOptions = {
     error: "/auth",
   },
   providers,
+  events: {
+    async signIn({ user }) {
+      await sendTelegramActivityNotification({
+        event: "user_login",
+        actorName: user.name ?? "User",
+        actorEmail: user.email ?? "-",
+        actorPhone: "",
+        description: "User berhasil login.",
+      });
+    },
+    async signOut({ token, session }) {
+      const actorName =
+        (session?.user?.name as string | undefined) ??
+        (token?.name as string | undefined) ??
+        "User";
+      const actorEmail =
+        (session?.user?.email as string | undefined) ??
+        (token?.email as string | undefined) ??
+        "-";
+      await sendTelegramActivityNotification({
+        event: "user_logout",
+        actorName,
+        actorEmail,
+        actorPhone: "",
+        description: "User logout dari aplikasi.",
+      });
+    },
+  },
   callbacks: {
     async signIn({ account, profile, user }) {
       if (account?.provider !== "google") {
