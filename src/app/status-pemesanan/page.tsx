@@ -390,7 +390,7 @@ export default function StatusPemesananPage() {
       target.scrollIntoView({
         behavior: "smooth",
         block:
-          statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_REASON ? "end" : "center",
+          statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_REASON ? "start" : "center",
       });
     }, 120);
 
@@ -415,8 +415,8 @@ export default function StatusPemesananPage() {
         {
           target: onboardingTargetSelectors.cancelReason,
           content: "Isi alasan pembatalan dulu (minimal 5 karakter) untuk lanjut.",
-          placement: "top",
-          offset: 18,
+          placement: "bottom",
+          offset: 14,
           floaterProps: {
             options: {
               flip: {
