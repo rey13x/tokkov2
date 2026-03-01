@@ -12,7 +12,10 @@ import { formatRupiah } from "@/data/products";
 import { readCart, removeFromCart, updateCartQuantity } from "@/lib/cart";
 import {
   ONBOARDING_STAGE,
+  ONBOARDING_TUTORIAL_ORDER_ID,
+  ONBOARDING_TUTORIAL_QUERY_KEY,
   advanceOnboarding,
+  getOnboardingState,
   isOnboardingStageActive,
 } from "@/lib/onboarding";
 import { fetchStoreData } from "@/lib/store-client";
@@ -183,9 +186,21 @@ export default function CartPage() {
       return;
     }
 
-    if (isOnboardingStageActive(ONBOARDING_STAGE.CART_CHECKOUT)) {
-      advanceOnboarding(ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT);
-      setIsCartTutorialRunning(false);
+    const onboardingState = getOnboardingState();
+    if (onboardingState.active) {
+      if (onboardingState.stage === ONBOARDING_STAGE.CART_CHECKOUT) {
+        advanceOnboarding(ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT);
+        setIsCartTutorialRunning(false);
+      }
+      setSuccess("Mode tutorial aktif. Simulasi berjalan, data pesanan tidak masuk database.");
+      window.setTimeout(() => {
+        router.push(
+          `/status-pemesanan?highlight=${encodeURIComponent(
+            ONBOARDING_TUTORIAL_ORDER_ID,
+          )}&pay=1&${ONBOARDING_TUTORIAL_QUERY_KEY}=1`,
+        );
+      }, 450);
+      return;
     }
 
     setIsCheckoutLoading(true);

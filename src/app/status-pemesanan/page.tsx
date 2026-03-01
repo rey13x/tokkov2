@@ -11,6 +11,8 @@ import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import {
   ONBOARDING_STAGE,
+  ONBOARDING_TUTORIAL_ORDER_ID,
+  ONBOARDING_TUTORIAL_QUERY_KEY,
   advanceOnboarding,
   completeOnboarding,
   getOnboardingState,
@@ -78,12 +80,13 @@ function formatStatusDate(value: string | null | undefined) {
 
 export default function StatusPemesananPage() {
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [highlightedOrderId, setHighlightedOrderId] = useState("");
+  const [isTutorialMode, setIsTutorialMode] = useState(false);
   const [activePaymentOrderId, setActivePaymentOrderId] = useState<string | null>(null);
   const [cancelReasonDrafts, setCancelReasonDrafts] = useState<Record<string, string>>({});
   const [isCancelSubmittingOrderId, setIsCancelSubmittingOrderId] = useState<string | null>(null);
@@ -110,7 +113,12 @@ export default function StatusPemesananPage() {
 
     const params = new URLSearchParams(window.location.search);
     const highlight = params.get("highlight") ?? "";
+    const tutorialEnabled = params.get(ONBOARDING_TUTORIAL_QUERY_KEY) === "1";
+    setIsTutorialMode(tutorialEnabled);
     setHighlightedOrderId(highlight);
+    if (tutorialEnabled && !highlight) {
+      setHighlightedOrderId(ONBOARDING_TUTORIAL_ORDER_ID);
+    }
     if (
       (params.get("pay") === "1" || params.get("pay") === "true") &&
       highlight &&
@@ -170,15 +178,58 @@ export default function StatusPemesananPage() {
     return () => window.clearInterval(timer);
   }, [loadOrders, status]);
 
-  const totalBelanja = useMemo(
-    () => orders.reduce((sum, order) => sum + Number(order.total || 0), 0),
-    [orders],
+  const tutorialOrder = useMemo<OrderSummary>(
+    () => ({
+      id: ONBOARDING_TUTORIAL_ORDER_ID,
+      userName:
+        session?.user?.username?.trim() ||
+        session?.user?.name?.trim() ||
+        "Pengguna Tutorial",
+      userEmail: session?.user?.email?.trim() || "tutorial@tokko.local",
+      userPhone: "-",
+      total: 5000,
+      status: "process",
+      cancelRequestStatus: "none",
+      cancelRequestReason: "",
+      cancelRequestedAt: null,
+      cancelConfirmedAt: null,
+      createdAt: "2026-03-01T12:00:00.000Z",
+      items: [
+        {
+          id: "tutorial-item-1",
+          orderId: ONBOARDING_TUTORIAL_ORDER_ID,
+          productId: "tutorial-product",
+          productName: "Paket Tutorial",
+          productDuration: "-",
+          quantity: 1,
+          unitPrice: 5000,
+        },
+      ],
+    }),
+    [session?.user?.email, session?.user?.name, session?.user?.username],
+  );
+
+  const displayOrders = useMemo(() => {
+    const withoutTutorial = orders.filter((order) => order.id !== ONBOARDING_TUTORIAL_ORDER_ID);
+    if (!isTutorialMode) {
+      return withoutTutorial;
+    }
+    return [tutorialOrder, ...withoutTutorial];
+  }, [orders, isTutorialMode, tutorialOrder]);
+
+  const displayTotalBelanja = useMemo(
+    () => displayOrders.reduce((sum, order) => sum + Number(order.total || 0), 0),
+    [displayOrders],
   );
 
   const onDownloadReceipt = (orderId: string) => {
     if (isOnboardingStageActive(ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT)) {
       advanceOnboarding(ONBOARDING_STAGE.STATUS_CANCEL_REASON);
       setStatusTutorialStage(ONBOARDING_STAGE.STATUS_CANCEL_REASON);
+    }
+    if (orderId === ONBOARDING_TUTORIAL_ORDER_ID) {
+      setSuccess("Mode tutorial: ini simulasi struk, tidak ada data yang disimpan.");
+      return;
     }
     window.open(`/api/orders/${orderId}/receipt`, "_blank", "noopener,noreferrer");
   };
@@ -219,6 +270,20 @@ export default function StatusPemesananPage() {
 
     setError("");
     setSuccess("");
+
+    if (getOnboardingState().active) {
+      if (isOnboardingStageActive(ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT)) {
+        completeOnboarding();
+        setStatusTutorialStage(null);
+      }
+      setIsTutorialMode(false);
+      setHighlightedOrderId("");
+      setActivePaymentOrderId(null);
+      setSuccess("Tutorial selesai. Mode normal aktif kembali, transaksi berikutnya masuk database.");
+      router.replace("/status-pemesanan");
+      return;
+    }
+
     setIsCancelSubmittingOrderId(order.id);
     try {
       const response = await fetch(`/api/orders/${order.id}/cancel-request`, {
@@ -279,13 +344,13 @@ export default function StatusPemesananPage() {
     }
   };
 
-  const activePaymentOrder = orders.find((order) => order.id === activePaymentOrderId) ?? null;
+  const activePaymentOrder = displayOrders.find((order) => order.id === activePaymentOrderId) ?? null;
   const onboardingTargetOrderId = useMemo(() => {
-    if (highlightedOrderId && orders.some((order) => order.id === highlightedOrderId)) {
+    if (highlightedOrderId && displayOrders.some((order) => order.id === highlightedOrderId)) {
       return highlightedOrderId;
     }
-    return orders[0]?.id || "";
-  }, [highlightedOrderId, orders]);
+    return displayOrders[0]?.id || "";
+  }, [highlightedOrderId, displayOrders]);
 
   useEffect(() => {
     if (!statusTutorialStage) {
@@ -307,11 +372,15 @@ export default function StatusPemesananPage() {
       if (!target) {
         return;
       }
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.scrollIntoView({
+        behavior: "smooth",
+        block:
+          statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_REASON ? "end" : "center",
+      });
     }, 120);
 
     return () => window.clearTimeout(timer);
-  }, [statusTutorialStage, onboardingTargetOrderId, orders.length]);
+  }, [statusTutorialStage, onboardingTargetOrderId, displayOrders.length]);
 
   const statusTutorialSteps: Step[] = useMemo(() => {
     if (statusTutorialStage === ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT) {
@@ -331,8 +400,8 @@ export default function StatusPemesananPage() {
         {
           target: "[data-onboarding='status-cancel-reason']",
           content: "Isi alasan pembatalan dulu (minimal 5 karakter) untuk lanjut.",
-          placement: "bottom",
-          offset: 16,
+          placement: "top",
+          offset: 28,
           disableBeacon: true,
           hideFooter: true,
         },
@@ -383,11 +452,11 @@ export default function StatusPemesananPage() {
       <section className={styles.summaryCard}>
         <div>
           <span>Total pesanan</span>
-          <strong>{orders.length}</strong>
+          <strong>{displayOrders.length}</strong>
         </div>
         <div>
           <span>Total belanja</span>
-          <strong>{formatRupiah(totalBelanja)}</strong>
+          <strong>{formatRupiah(displayTotalBelanja)}</strong>
         </div>
       </section>
 
@@ -396,7 +465,7 @@ export default function StatusPemesananPage() {
       {success ? <p className={styles.successText}>{success}</p> : null}
 
       <section className={styles.listWrap}>
-        {orders.map((order) => {
+        {displayOrders.map((order) => {
           const isHighlighted = highlightedOrderId === order.id;
           const isOnboardingTargetOrder = onboardingTargetOrderId === order.id;
           return (
@@ -482,7 +551,7 @@ export default function StatusPemesananPage() {
             </article>
           );
         })}
-        {!isLoading && orders.length === 0 ? <p className={styles.emptyText}>Belum ada pesanan.</p> : null}
+        {!isLoading && displayOrders.length === 0 ? <p className={styles.emptyText}>Belum ada pesanan.</p> : null}
       </section>
 
       {activePaymentOrder ? (

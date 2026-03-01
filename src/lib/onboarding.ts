@@ -1,6 +1,8 @@
 "use client";
 
 export const ONBOARDING_BOOT_QUERY_KEY = "onboard";
+export const ONBOARDING_TUTORIAL_QUERY_KEY = "tutorial";
+export const ONBOARDING_TUTORIAL_ORDER_ID = "tutorial-order-demo";
 const ONBOARDING_BOOT_REQUEST_KEY = "tokko_onboarding_boot_request";
 const ONBOARDING_STATE_KEY = "tokko_onboarding_state";
 
@@ -66,6 +68,10 @@ function writeStateToStorage(nextState: OnboardingState) {
 
 export function getOnboardingState() {
   return readStateFromStorage();
+}
+
+export function isOnboardingActive() {
+  return readStateFromStorage().active;
 }
 
 export function startOnboarding() {
