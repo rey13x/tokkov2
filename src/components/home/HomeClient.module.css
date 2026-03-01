@@ -301,6 +301,30 @@
   gap: 14px;
 }
 
+.infoCarousel {
+  margin-top: 2px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  user-select: none;
+  touch-action: pan-y;
+  scrollbar-width: none;
+}
+
+.infoCarousel::-webkit-scrollbar {
+  display: none;
+}
+
+.infoTrack {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  width: max-content;
+}
+
+.infoCarousel .infoCard {
+  flex: 0 0 clamp(320px, 78vw, 760px);
+}
+
 .infoCard {
   display: grid;
   grid-template-columns: 112px 1fr;
@@ -982,6 +1006,10 @@
 
   .infoList {
     grid-template-columns: 1fr;
+  }
+
+  .infoCarousel .infoCard {
+    flex-basis: 88vw;
   }
 
   .partnerFilterChip {

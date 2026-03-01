@@ -67,6 +67,7 @@ export default function HomeClient() {
   const mainPanelRef = useRef<HTMLDivElement | null>(null);
   const productsPanelRef = useRef<HTMLDivElement | null>(null);
   const menuFabRef = useRef<HTMLButtonElement | null>(null);
+  const informationViewportRef = useRef<HTMLDivElement | null>(null);
   const testimonialViewportRef = useRef<HTMLDivElement | null>(null);
   const testimonialDragStartRef = useRef(0);
   const testimonialStartScrollRef = useRef(0);
@@ -101,6 +102,14 @@ export default function HomeClient() {
   const productMenuItems = useMemo(() => categories.slice(0, 10), [categories]);
 
   const bestSellerProducts = products.slice(0, 8);
+  const shouldAutoSlideInformations = informations.length > 1;
+  const informationCarouselItems = useMemo(
+    () =>
+      shouldAutoSlideInformations
+        ? [...informations, ...informations, ...informations]
+        : informations,
+    [informations, shouldAutoSlideInformations],
+  );
   const homeTutorialSteps = useMemo<Step[]>(
     () => [
       {
@@ -397,6 +406,42 @@ export default function HomeClient() {
   };
 
   useEffect(() => {
+    const viewport = informationViewportRef.current;
+    if (!viewport) {
+      return;
+    }
+
+    if (shouldAutoSlideInformations) {
+      viewport.scrollLeft = viewport.scrollWidth / 3;
+      return;
+    }
+
+    viewport.scrollLeft = 0;
+  }, [informationCarouselItems.length, shouldAutoSlideInformations]);
+
+  useEffect(() => {
+    if (!shouldAutoSlideInformations) {
+      return;
+    }
+
+    let frameId = 0;
+    const tick = () => {
+      const viewport = informationViewportRef.current;
+      if (viewport) {
+        viewport.scrollLeft += 0.24;
+        const segment = viewport.scrollWidth / 3;
+        if (viewport.scrollLeft >= segment * 2) {
+          viewport.scrollLeft = segment + (viewport.scrollLeft - segment * 2);
+        }
+      }
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [shouldAutoSlideInformations, informationCarouselItems.length]);
+
+  useEffect(() => {
     const viewport = testimonialViewportRef.current;
     if (!viewport) {
       return;
@@ -602,6 +647,61 @@ export default function HomeClient() {
 
     return () => window.clearTimeout(timer);
   }, [showIntro, storeDataReady, menuMounted, bestSellerProducts.length]);
+
+  const renderInformationCard = (item: HomeInformation, key: string) => (
+    <article key={key} className={styles.infoCard}>
+      <div className={styles.infoImageWrap}>
+        <FlexibleMedia
+          src={item.imageUrl}
+          alt={item.title}
+          fill
+          className={styles.infoImage}
+          sizes="(max-width: 900px) 34vw, 180px"
+          unoptimized
+        />
+      </div>
+      <div className={styles.infoBody}>
+        <h3>{item.title}</h3>
+        <p>{item.body}</p>
+        {item.type === "poll" && item.pollOptions.length > 0 ? (
+          <div className={styles.pollCard}>
+            {item.pollOptions.map((option) => {
+              const totalVotes = item.pollOptions.reduce(
+                (total, currentOption) => total + (item.pollVotes[currentOption] ?? 0),
+                0,
+              );
+              const votes = item.pollVotes[option] ?? 0;
+              const percent = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+              const isSelected = pollSelections[item.id] === option;
+              const hasVoted = Boolean(pollSelections[item.id]);
+              return (
+                <button
+                  key={`${item.id}-${option}`}
+                  type="button"
+                  className={`${styles.pollOptionButton} ${isSelected ? styles.pollOptionButtonActive : ""}`}
+                  onClick={() => onVotePoll(item.id, option)}
+                  disabled={hasVoted || activePollVoteId === item.id}
+                >
+                  <span>{option}</span>
+                  <strong>{votes} suara</strong>
+                  <i style={{ width: `${percent}%` }} />
+                </button>
+              );
+            })}
+            <p className={styles.pollMeta}>
+              Total suara:{" "}
+              {item.pollOptions.reduce(
+                (total, option) => total + (item.pollVotes[option] ?? 0),
+                0,
+              )}
+              {pollSelections[item.id] ? " - Vote kamu sudah tersimpan" : ""}
+            </p>
+          </div>
+        ) : null}
+        <time>{new Date(item.createdAt).toLocaleDateString("id-ID")}</time>
+      </div>
+    </article>
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -883,62 +983,19 @@ export default function HomeClient() {
         <div className={styles.sectionHead}>
           <h2>Informasi</h2>
         </div>
-        <div className={styles.infoList}>
-          {informations.map((item) => (
-            <article key={item.id} className={styles.infoCard}>
-              <div className={styles.infoImageWrap}>
-                <FlexibleMedia
-                  src={item.imageUrl}
-                  alt={item.title}
-                  fill
-                  className={styles.infoImage}
-                  sizes="(max-width: 900px) 34vw, 180px"
-                  unoptimized
-                />
-              </div>
-              <div className={styles.infoBody}>
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
-                {item.type === "poll" && item.pollOptions.length > 0 ? (
-                  <div className={styles.pollCard}>
-                    {item.pollOptions.map((option) => {
-                      const totalVotes = item.pollOptions.reduce(
-                        (total, currentOption) => total + (item.pollVotes[currentOption] ?? 0),
-                        0,
-                      );
-                      const votes = item.pollVotes[option] ?? 0;
-                      const percent = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
-                      const isSelected = pollSelections[item.id] === option;
-                      const hasVoted = Boolean(pollSelections[item.id]);
-                      return (
-                        <button
-                          key={`${item.id}-${option}`}
-                          type="button"
-                          className={`${styles.pollOptionButton} ${isSelected ? styles.pollOptionButtonActive : ""}`}
-                          onClick={() => onVotePoll(item.id, option)}
-                          disabled={hasVoted || activePollVoteId === item.id}
-                        >
-                          <span>{option}</span>
-                          <strong>{votes} suara</strong>
-                          <i style={{ width: `${percent}%` }} />
-                        </button>
-                      );
-                    })}
-                    <p className={styles.pollMeta}>
-                      Total suara:{" "}
-                      {item.pollOptions.reduce(
-                        (total, option) => total + (item.pollVotes[option] ?? 0),
-                        0,
-                      )}
-                      {pollSelections[item.id] ? " - Vote kamu sudah tersimpan" : ""}
-                    </p>
-                  </div>
-                ) : null}
-                <time>{new Date(item.createdAt).toLocaleDateString("id-ID")}</time>
-              </div>
-            </article>
-          ))}
-        </div>
+        {shouldAutoSlideInformations ? (
+          <div className={styles.infoCarousel} ref={informationViewportRef}>
+            <div className={styles.infoTrack}>
+              {informationCarouselItems.map((item, index) =>
+                renderInformationCard(item, `${item.id}-${index}`),
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className={styles.infoList}>
+            {informations.map((item) => renderInformationCard(item, item.id))}
+          </div>
+        )}
         <article className={styles.orderGuideBox}>
           <div>
             <h3>Cara Order</h3>
