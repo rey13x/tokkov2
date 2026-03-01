@@ -739,7 +739,7 @@ export default function HomeClient() {
       {bestSellerProducts.length > 0 ? (
       <section className={styles.section} data-animate="section">
         <div className={styles.sectionHead}>
-          <h2>Produk Terbaik</h2>
+          <h2>Produk Baru</h2>
           <button
             type="button"
             className={styles.inlineAction}
