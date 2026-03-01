@@ -180,6 +180,15 @@
   font-size: 0.83rem;
 }
 
+.warningText {
+  color: #9a4400;
+  background: #fff4e8;
+  border: 1px solid #ffd9b8;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+}
+
 .submitButton {
   margin-top: 2px;
   border: none;

@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import { readCart, removeFromCart, updateCartQuantity } from "@/lib/cart";
 import { fetchStoreData } from "@/lib/store-client";
-import type { StorePaymentSettings, StoreProduct } from "@/types/store";
+import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
 
 type CartLine = {
@@ -18,16 +19,6 @@ type CartLine = {
 };
 
 const TAX_RATE = 0.11;
-
-const defaultPaymentSettings: StorePaymentSettings = {
-  id: "main",
-  title: "Qriss",
-  qrisImageUrl: "/assets/qriss.jpg",
-  instructionText:
-    "Scan Qriss diatas ini untuk proses produk kamu. Pastikan benar-benar sudah membayar",
-  expiryMinutes: 30,
-  updatedAt: new Date().toISOString(),
-};
 
 function getInitialCartLines(): CartLine[] {
   if (typeof window === "undefined") {
@@ -46,17 +37,12 @@ export default function CartPage() {
   const { status } = useSession();
   const [cartLines, setCartLines] = useState<CartLine[]>(getInitialCartLines);
   const [products, setProducts] = useState<StoreProduct[]>([]);
-  const [paymentSettings, setPaymentSettings] = useState<StorePaymentSettings>(defaultPaymentSettings);
+  const [isStoreLoading, setIsStoreLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("Semua");
   const [query, setQuery] = useState("");
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
-  const [isStatusSubmitting, setIsStatusSubmitting] = useState(false);
-  const [hasScannedQris, setHasScannedQris] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [latestOrderId, setLatestOrderId] = useState<string | null>(null);
-  const [latestOrderCreatedAt, setLatestOrderCreatedAt] = useState<string | null>(null);
-  const [remainingSeconds, setRemainingSeconds] = useState(0);
   const isClient = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -71,34 +57,18 @@ export default function CartPage() {
           return;
         }
         setProducts(data.products ?? []);
-        if (data.paymentSettings) {
-          setPaymentSettings(data.paymentSettings);
-        }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) {
+          setIsStoreLoading(false);
+        }
+      });
 
     return () => {
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!latestOrderCreatedAt) {
-      setRemainingSeconds(0);
-      return;
-    }
-
-    const deadline =
-      new Date(latestOrderCreatedAt).getTime() + paymentSettings.expiryMinutes * 60 * 1000;
-    const updateTimer = () => {
-      const remain = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
-      setRemainingSeconds(remain);
-    };
-
-    updateTimer();
-    const timer = window.setInterval(updateTimer, 1000);
-    return () => window.clearInterval(timer);
-  }, [latestOrderCreatedAt, paymentSettings.expiryMinutes]);
 
   const detailedItems = useMemo(() => {
     return cartLines
@@ -214,82 +184,18 @@ export default function CartPage() {
       }
 
       setCartLines((current) => current.filter((item) => !item.selected));
-      setLatestOrderId(result.orderId ?? null);
-      setLatestOrderCreatedAt(result.createdAt ?? new Date().toISOString());
-      setHasScannedQris(false);
-      setSuccess("Pesanan berhasil dibuat. Scan QRIS lalu konfirmasi pembayaran.");
+      const orderId = result.orderId ?? "";
+      setSuccess("Pesanan berhasil dibuat. Mengarahkan ke status pemesanan...");
+      const highlightQuery = orderId ? `?highlight=${orderId}&pay=1` : "";
+      window.setTimeout(() => {
+        router.push(`/status-pemesanan${highlightQuery}`);
+      }, 450);
     } catch {
       setError("Gagal memproses pesanan. Coba lagi.");
     } finally {
       setIsCheckoutLoading(false);
     }
   };
-
-  const patchOrderStatus = async (nextStatus: "process" | "error") => {
-    if (!latestOrderId) {
-      return false;
-    }
-
-    const response = await fetch(`/api/orders/${latestOrderId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: nextStatus }),
-    });
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => ({}))) as { message?: string };
-      throw new Error(payload.message ?? "Gagal mengubah status transaksi.");
-    }
-
-    return true;
-  };
-
-  const onCancelPayment = async () => {
-    setError("");
-    setSuccess("");
-    setIsStatusSubmitting(true);
-
-    try {
-      await patchOrderStatus("error");
-      setHasScannedQris(false);
-      setSuccess("Transaksi dibatalkan.");
-    } catch (statusError) {
-      setError(statusError instanceof Error ? statusError.message : "Gagal mengubah status transaksi.");
-    } finally {
-      setIsStatusSubmitting(false);
-    }
-  };
-
-  const onConfirmPayment = async () => {
-    setError("");
-    setSuccess("");
-
-    if (!latestOrderId) {
-      setError("Order belum tersedia.");
-      return;
-    }
-
-    if (!hasScannedQris) {
-      setError("Centang dulu bahwa kamu sudah scan dan membayar QRIS.");
-      return;
-    }
-
-    setIsStatusSubmitting(true);
-    try {
-      await new Promise((resolve) => window.setTimeout(resolve, 1400));
-      await patchOrderStatus("process");
-      setSuccess("Konfirmasi pembayaran dikirim. Cek status pemesanan di halaman status.");
-      router.push(`/status-pemesanan?highlight=${latestOrderId}`);
-    } catch (statusError) {
-      setError(statusError instanceof Error ? statusError.message : "Gagal mengonfirmasi pembayaran.");
-    } finally {
-      setIsStatusSubmitting(false);
-    }
-  };
-
-  const countdownLabel = `${String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:${String(
-    remainingSeconds % 60,
-  ).padStart(2, "0")}`;
 
   return (
     <main className={styles.page}>
@@ -300,9 +206,9 @@ export default function CartPage() {
         </Link>
       </header>
 
-      {!isClient ? <p className={styles.loading}>Memuat troli...</p> : null}
+      {!isClient || isStoreLoading ? <WaitLoading centered /> : null}
 
-      {isClient && detailedItems.length === 0 ? (
+      {isClient && !isStoreLoading && detailedItems.length === 0 ? (
         <section className={styles.emptyState}>
           <h2>Troli masih kosong</h2>
           <p>Pilih produk dulu dari halaman katalog.</p>
@@ -318,7 +224,7 @@ export default function CartPage() {
       {error ? <p className={styles.errorText}>{error}</p> : null}
       {success ? <p className={styles.successText}>{success}</p> : null}
 
-      {isClient && detailedItems.length > 0 ? (
+      {isClient && !isStoreLoading && detailedItems.length > 0 ? (
         <section className={styles.cartLayout}>
           <div className={styles.itemsPanel}>
             <div className={styles.filterWrap}>
@@ -443,51 +349,6 @@ export default function CartPage() {
             >
               Lihat Status Pemesanan
             </button>
-
-            {latestOrderId ? (
-              <section className={styles.paymentPanel}>
-                <h4>{paymentSettings.title}</h4>
-                <div className={styles.qrisImageWrap}>
-                  <FlexibleMedia
-                    src={paymentSettings.qrisImageUrl}
-                    alt={paymentSettings.title}
-                    fill
-                    className={styles.qrisImage}
-                    sizes="220px"
-                    unoptimized
-                  />
-                </div>
-                <span className={styles.timerLabel}>Batas waktu: {countdownLabel}</span>
-                <p className={styles.paymentHint}>{paymentSettings.instructionText}</p>
-                <label className={styles.scanCheck}>
-                  <input
-                    type="checkbox"
-                    checked={hasScannedQris}
-                    onChange={(event) => setHasScannedQris(event.target.checked)}
-                    disabled={isStatusSubmitting}
-                  />
-                  Saya sudah scan QRIS dan melakukan pembayaran.
-                </label>
-                <div className={styles.paymentButtons}>
-                  <button
-                    type="button"
-                    className={`${styles.actionButton} ${styles.actionDanger}`}
-                    disabled={isStatusSubmitting}
-                    onClick={onCancelPayment}
-                  >
-                    {isStatusSubmitting ? "Memproses..." : "Batalkan Transaksi"}
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.actionButton} ${styles.actionPrimary}`}
-                    disabled={isStatusSubmitting || !hasScannedQris}
-                    onClick={onConfirmPayment}
-                  >
-                    {isStatusSubmitting ? "Mengonfirmasi..." : "Konfirmasi Pembayaran"}
-                  </button>
-                </div>
-              </section>
-            ) : null}
           </aside>
         </section>
       ) : null}

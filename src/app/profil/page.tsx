@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import WaitLoading from "@/components/ui/WaitLoading";
 import styles from "./page.module.css";
 
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
@@ -27,6 +28,8 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isRequestingOtp, setIsRequestingOtp] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [mustFillPhone, setMustFillPhone] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -56,6 +59,7 @@ export default function ProfilePage() {
       setEmail(result.email);
       setPhone(result.phone);
       setAvatarUrl(result.avatarUrl ?? "");
+      setMustFillPhone(result.phone.trim().length === 0);
 
       try {
         if (result.avatarUrl) {
@@ -66,8 +70,35 @@ export default function ProfilePage() {
       } catch {}
     };
 
-    load().catch(() => {});
+    load()
+      .catch(() => {})
+      .finally(() => setIsProfileLoading(false));
   }, [status]);
+
+  useEffect(() => {
+    if (!mustFillPhone || typeof window === "undefined") {
+      return;
+    }
+
+    const warningMessage = "Nomor telepon wajib diisi dulu sebelum kembali.";
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = warningMessage;
+      return warningMessage;
+    };
+    const onPopState = () => {
+      window.history.pushState(null, "", window.location.href);
+      window.alert(warningMessage);
+    };
+
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [mustFillPhone]);
 
   const onSelectAvatarFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -111,8 +142,14 @@ export default function ProfilePage() {
     setError("");
     setMessage("");
     setIsSaving(true);
+    const shouldAutoReturn = mustFillPhone;
 
     try {
+      if (phone.trim().length === 0) {
+        setError("Nomor telepon wajib diisi sebelum simpan.");
+        return;
+      }
+
       const response = await fetch("/api/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -136,7 +173,18 @@ export default function ProfilePage() {
       setOldPassword("");
       setNewPassword("");
       setOtpCode("");
+      setMustFillPhone(false);
       await update();
+
+      if (shouldAutoReturn && typeof window !== "undefined") {
+        window.setTimeout(() => {
+          if (window.history.length > 1) {
+            router.back();
+            return;
+          }
+          router.replace("/");
+        }, 550);
+      }
     } catch {
       setError("Gagal update profil.");
     } finally {
@@ -176,14 +224,25 @@ export default function ProfilePage() {
     <main className={styles.page}>
       <header className={styles.header}>
         <h1>Profil</h1>
-        <Link href="/" className={styles.backLink}>
+        <Link
+          href="/"
+          className={styles.backLink}
+          onClick={(event) => {
+            if (!mustFillPhone) {
+              return;
+            }
+            event.preventDefault();
+            setError("Nomor telepon wajib diisi dulu sebelum kembali.");
+            window.alert("Nomor telepon wajib diisi dulu sebelum kembali.");
+          }}
+        >
           Kembali
         </Link>
       </header>
 
-      {status === "loading" ? <p className={styles.loading}>Memuat data profil...</p> : null}
+      {status === "loading" || isProfileLoading ? <WaitLoading centered /> : null}
 
-      {status === "authenticated" ? (
+      {status === "authenticated" && !isProfileLoading ? (
         <section className={styles.card}>
           <aside className={styles.avatarPanel}>
             <button
@@ -262,8 +321,15 @@ export default function ProfilePage() {
                 onChange={(event) => setPhone(event.target.value)}
                 type="tel"
                 placeholder="08xxxxxxxxxx"
+                required
               />
             </label>
+
+            {mustFillPhone ? (
+              <p className={styles.warningText}>
+                Nomor telepon wajib diisi. Kamu tidak bisa kembali sebelum update profil.
+              </p>
+            ) : null}
 
             {canUseEmailOtp ? (
               <>

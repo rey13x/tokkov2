@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { gsap } from "gsap";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import { addToCart } from "@/lib/cart";
 import type { StoreProduct } from "@/types/store";
@@ -26,6 +27,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [isRedirectingToCart, setIsRedirectingToCart] = useState(false);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -79,6 +81,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       const timer = window.setTimeout(() => {
         addToCart(product.slug, safeQty);
         setAdded(true);
+        setIsRedirectingToCart(true);
         router.replace("/troli");
       }, 550);
 
@@ -109,6 +112,10 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
     addToCart(product.slug, quantity);
     setAdded(true);
+    setIsRedirectingToCart(true);
+    window.setTimeout(() => {
+      router.push("/troli");
+    }, 420);
   };
 
   const decreaseQty = () => {
@@ -131,6 +138,20 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
   return (
     <main className={styles.page} ref={rootRef}>
+      {isRedirectingToCart ? (
+        <div
+          style={{
+            position: "fixed",
+            top: "10px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1100,
+            pointerEvents: "none",
+          }}
+        >
+          <WaitLoading />
+        </div>
+      ) : null}
       <div className={styles.backRow} data-detail="intro">
         <Link href="/" className={styles.backLink}>
           Kembali ke katalog

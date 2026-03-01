@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import type { OrderSummary } from "@/types/store";
 import styles from "./page.module.css";
@@ -40,6 +41,17 @@ function ReceiptIcon() {
   );
 }
 
+function PaymentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2H3V7Zm0 4h18v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6Zm3.2 3.2v1.6h4.4v-1.6H6.2Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 export default function StatusPemesananPage() {
   const router = useRouter();
   const { status } = useSession();
@@ -47,6 +59,7 @@ export default function StatusPemesananPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [highlightedOrderId, setHighlightedOrderId] = useState("");
+  const [activePaymentOrderId, setActivePaymentOrderId] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
     if (status !== "authenticated") {
@@ -68,7 +81,12 @@ export default function StatusPemesananPage() {
     }
 
     const params = new URLSearchParams(window.location.search);
-    setHighlightedOrderId(params.get("highlight") ?? "");
+    const highlight = params.get("highlight") ?? "";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHighlightedOrderId(highlight);
+    if ((params.get("pay") === "1" || params.get("pay") === "true") && highlight) {
+      setActivePaymentOrderId(highlight);
+    }
   }, []);
 
   useEffect(() => {
@@ -111,6 +129,12 @@ export default function StatusPemesananPage() {
     window.open(`/api/orders/${orderId}/receipt`, "_blank", "noopener,noreferrer");
   };
 
+  const closePaymentPopup = () => {
+    setActivePaymentOrderId(null);
+  };
+
+  const activePaymentOrder = orders.find((order) => order.id === activePaymentOrderId) ?? null;
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
@@ -137,7 +161,7 @@ export default function StatusPemesananPage() {
         </div>
       </section>
 
-      {isLoading ? <p className={styles.loading}>Memuat status pemesanan...</p> : null}
+      {isLoading ? <WaitLoading centered /> : null}
       {error ? <p className={styles.errorText}>{error}</p> : null}
 
       <section className={styles.listWrap}>
@@ -161,20 +185,56 @@ export default function StatusPemesananPage() {
                 <span>HP: {order.userPhone || "-"}</span>
                 <strong>Total: {formatRupiah(order.total)}</strong>
               </div>
-              <button
-                type="button"
-                className={styles.receiptIconButton}
-                onClick={() => onDownloadReceipt(order.id)}
-                title="Download struk"
-                aria-label={`Download struk order ${order.id}`}
-              >
-                <ReceiptIcon />
-              </button>
+              <div className={styles.actionIcons}>
+                <button
+                  type="button"
+                  className={styles.payIconButton}
+                  onClick={() => setActivePaymentOrderId(order.id)}
+                  title="Lihat QRIS pembayaran"
+                  aria-label={`Lihat QRIS pembayaran order ${order.id}`}
+                >
+                  <PaymentIcon />
+                </button>
+                <button
+                  type="button"
+                  className={styles.receiptIconButton}
+                  onClick={() => onDownloadReceipt(order.id)}
+                  title="Download struk"
+                  aria-label={`Download struk order ${order.id}`}
+                >
+                  <ReceiptIcon />
+                </button>
+              </div>
             </article>
           );
         })}
         {!isLoading && orders.length === 0 ? <p className={styles.emptyText}>Belum ada pesanan.</p> : null}
       </section>
+
+      {activePaymentOrder ? (
+        <div className={styles.popupOverlay} onClick={closePaymentPopup}>
+          <section className={styles.popupCard} onClick={(event) => event.stopPropagation()}>
+            <h2>QRIS Pembayaran</h2>
+            <p className={styles.popupMeta}>Order: {activePaymentOrder.id}</p>
+            <div className={styles.popupQrWrap}>
+              <Image
+                src="/assets/qris.jpg"
+                alt="QRIS Pembayaran"
+                fill
+                className={styles.popupQrImage}
+                sizes="260px"
+                priority
+              />
+            </div>
+            <p className={styles.popupHelp}>
+              Scan QRIS lalu simpan bukti transfer. Status order kamu akan tetap dipantau admin.
+            </p>
+            <button type="button" className={styles.popupCloseButton} onClick={closePaymentPopup}>
+              Tutup
+            </button>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

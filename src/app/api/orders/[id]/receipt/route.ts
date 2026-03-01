@@ -26,6 +26,15 @@ function formatDateLabel(iso: string) {
   });
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 async function buildReceiptPdf(input: {
   orderId: string;
   userName: string;
@@ -99,49 +108,135 @@ async function buildReceiptPdf(input: {
   });
 }
 
+function buildReceiptHtml(input: {
+  orderId: string;
+  userName: string;
+  userEmail: string;
+  userPhone: string;
+  status: string;
+  createdAt: string;
+  items: Array<{
+    productName: string;
+    productDuration: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
+  total: number;
+}) {
+  const itemsHtml = input.items
+    .map((item, index) => {
+      const lineTotal = item.quantity * item.unitPrice;
+      return `
+        <li>
+          <strong>${index + 1}. ${escapeHtml(item.productName)}</strong><br/>
+          Qty ${item.quantity} x ${formatRupiah(item.unitPrice)} = ${formatRupiah(lineTotal)}
+          ${item.productDuration ? `<br/>Durasi: ${escapeHtml(item.productDuration)}` : ""}
+        </li>
+      `;
+    })
+    .join("");
+
+  return `
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Struk ${escapeHtml(input.orderId)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f7fb; color: #1a2333; margin: 0; padding: 16px; }
+    .card { max-width: 520px; margin: 0 auto; background: #fff; border-radius: 14px; padding: 16px; border: 1px solid #dde3ef; }
+    .top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .top img { width: 46px; height: 46px; border-radius: 10px; }
+    h1 { margin: 0; font-size: 1.1rem; }
+    p { margin: 2px 0; font-size: 0.86rem; }
+    ul { padding-left: 18px; margin: 10px 0; }
+    li { margin-bottom: 8px; font-size: 0.84rem; line-height: 1.45; }
+    .total { margin-top: 10px; font-size: 1rem; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <article class="card">
+    <div class="top">
+      <img src="/assets/logo.png" alt="Tokko" />
+      <div>
+        <h1>TOKKO RAMADHAN</h1>
+        <p>Struk pemesanan</p>
+      </div>
+    </div>
+    <p>Order ID: ${escapeHtml(input.orderId)}</p>
+    <p>Tanggal: ${escapeHtml(formatDateLabel(input.createdAt))}</p>
+    <p>Akun: ${escapeHtml(input.userName)}</p>
+    <p>Email: ${escapeHtml(input.userEmail)}</p>
+    <p>No HP: ${escapeHtml(input.userPhone || "-")}</p>
+    <p>Status: ${escapeHtml(input.status)}</p>
+    <ul>${itemsHtml}</ul>
+    <p class="total">Total: ${formatRupiah(input.total)}</p>
+  </article>
+</body>
+</html>`;
+}
+
 export const runtime = "nodejs";
 
 export async function GET(_request: Request, context: { params: Params }) {
-  const session = await getServerAuthSession();
-  const adminIdentity = await getAdminIdentity();
-  if (!session?.user?.id && !adminIdentity) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await getServerAuthSession();
+    const adminIdentity = await getAdminIdentity();
+    if (!session?.user?.id && !adminIdentity) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await context.params;
+    const [order, items] = await Promise.all([getOrderById(id), listOrderItemsByOrderId(id)]);
+    if (!order) {
+      return NextResponse.json({ message: "Order tidak ditemukan." }, { status: 404 });
+    }
+
+    const isAdmin = Boolean(adminIdentity) || session?.user?.role === "admin";
+    const ownEmail = (session?.user?.email ?? "").toLowerCase();
+    if (!isAdmin && ownEmail !== order.userEmail.toLowerCase()) {
+      return NextResponse.json({ message: "Akses struk ditolak." }, { status: 403 });
+    }
+
+    const total = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    const receiptPayload = {
+      orderId: order.id,
+      userName: order.userName,
+      userEmail: order.userEmail,
+      userPhone: order.userPhone,
+      status: order.status,
+      createdAt: order.createdAt,
+      items: items.map((item) => ({
+        productName: item.productName,
+        productDuration: item.productDuration,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })),
+      total,
+    };
+
+    try {
+      const file = await buildReceiptPdf(receiptPayload);
+      return new NextResponse(new Uint8Array(file), {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="struk-${order.id}.pdf"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    } catch (pdfError) {
+      console.error("PDF generation failed. Falling back to HTML receipt.", pdfError);
+      const html = buildReceiptHtml(receiptPayload);
+      return new NextResponse(html, {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+  } catch (error) {
+    console.error("GET /api/orders/[id]/receipt failed:", error);
+    return NextResponse.json({ message: "Gagal membuat struk." }, { status: 500 });
   }
-
-  const { id } = await context.params;
-  const [order, items] = await Promise.all([getOrderById(id), listOrderItemsByOrderId(id)]);
-  if (!order) {
-    return NextResponse.json({ message: "Order tidak ditemukan." }, { status: 404 });
-  }
-
-  const isAdmin = Boolean(adminIdentity) || session?.user?.role === "admin";
-  const ownEmail = (session?.user?.email ?? "").toLowerCase();
-  if (!isAdmin && ownEmail !== order.userEmail.toLowerCase()) {
-    return NextResponse.json({ message: "Akses struk ditolak." }, { status: 403 });
-  }
-
-  const total = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-  const file = await buildReceiptPdf({
-    orderId: order.id,
-    userName: order.userName,
-    userEmail: order.userEmail,
-    userPhone: order.userPhone,
-    status: order.status,
-    createdAt: order.createdAt,
-    items: items.map((item) => ({
-      productName: item.productName,
-      productDuration: item.productDuration,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-    })),
-    total,
-  });
-
-  return new NextResponse(new Uint8Array(file), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="struk-${order.id}.pdf"`,
-      "Cache-Control": "no-store",
-    },
-  });
 }
