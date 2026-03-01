@@ -351,6 +351,21 @@ export default function StatusPemesananPage() {
     }
     return displayOrders[0]?.id || "";
   }, [highlightedOrderId, displayOrders]);
+  const onboardingTargetSelectors = useMemo(() => {
+    if (!onboardingTargetOrderId) {
+      return {
+        actionIcons: "[data-onboarding='status-action-icons']",
+        cancelReason: "[data-onboarding='status-cancel-reason']",
+        cancelSubmit: "[data-onboarding='status-cancel-submit']",
+      };
+    }
+
+    return {
+      actionIcons: `#status-action-icons-${onboardingTargetOrderId}`,
+      cancelReason: `#status-cancel-reason-${onboardingTargetOrderId}`,
+      cancelSubmit: `#status-cancel-submit-${onboardingTargetOrderId}`,
+    };
+  }, [onboardingTargetOrderId]);
 
   useEffect(() => {
     if (!statusTutorialStage) {
@@ -358,9 +373,9 @@ export default function StatusPemesananPage() {
     }
 
     const selectorByStage: Partial<Record<OnboardingStage, string>> = {
-      [ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT]: "[data-onboarding='status-action-icons']",
-      [ONBOARDING_STAGE.STATUS_CANCEL_REASON]: "[data-onboarding='status-cancel-reason']",
-      [ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT]: "[data-onboarding='status-cancel-submit']",
+      [ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT]: onboardingTargetSelectors.actionIcons,
+      [ONBOARDING_STAGE.STATUS_CANCEL_REASON]: onboardingTargetSelectors.cancelReason,
+      [ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT]: onboardingTargetSelectors.cancelSubmit,
     };
     const targetSelector = selectorByStage[statusTutorialStage];
     if (!targetSelector) {
@@ -380,13 +395,13 @@ export default function StatusPemesananPage() {
     }, 120);
 
     return () => window.clearTimeout(timer);
-  }, [statusTutorialStage, onboardingTargetOrderId, displayOrders.length]);
+  }, [statusTutorialStage, onboardingTargetOrderId, displayOrders.length, onboardingTargetSelectors]);
 
   const statusTutorialSteps: Step[] = useMemo(() => {
     if (statusTutorialStage === ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT) {
       return [
         {
-          target: "[data-onboarding='status-action-icons']",
+          target: onboardingTargetSelectors.actionIcons,
           content: "Pilih salah satu: ikon pembayaran atau ikon struk.",
           placement: "left",
           disableBeacon: true,
@@ -398,10 +413,17 @@ export default function StatusPemesananPage() {
     if (statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_REASON) {
       return [
         {
-          target: "[data-onboarding='status-cancel-reason']",
+          target: onboardingTargetSelectors.cancelReason,
           content: "Isi alasan pembatalan dulu (minimal 5 karakter) untuk lanjut.",
           placement: "top",
-          offset: 28,
+          offset: 18,
+          floaterProps: {
+            options: {
+              flip: {
+                enabled: false,
+              },
+            },
+          },
           disableBeacon: true,
           hideFooter: true,
         },
@@ -411,7 +433,7 @@ export default function StatusPemesananPage() {
     if (statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT) {
       return [
         {
-          target: "[data-onboarding='status-cancel-submit']",
+          target: onboardingTargetSelectors.cancelSubmit,
           content: "Klik Ajukan Batal & Kirim WhatsApp untuk menyelesaikan tutorial.",
           placement: "top",
           disableBeacon: true,
@@ -421,7 +443,7 @@ export default function StatusPemesananPage() {
     }
 
     return [];
-  }, [statusTutorialStage]);
+  }, [statusTutorialStage, onboardingTargetSelectors]);
 
   const onStatusTutorialCallback = (payload: CallBackProps) => {
     if (payload.type === "error:target_not_found") {
@@ -511,6 +533,7 @@ export default function StatusPemesananPage() {
                     placeholder="Tulis alasan pembatalan (wajib)"
                     spellCheck={false}
                     data-onboarding={isOnboardingTargetOrder ? "status-cancel-reason" : undefined}
+                    id={isOnboardingTargetOrder ? `status-cancel-reason-${order.id}` : undefined}
                   />
                   <button
                     type="button"
@@ -518,6 +541,7 @@ export default function StatusPemesananPage() {
                     disabled={isCancelSubmittingOrderId === order.id}
                     onClick={() => onRequestCancelViaWhatsapp(order)}
                     data-onboarding={isOnboardingTargetOrder ? "status-cancel-submit" : undefined}
+                    id={isOnboardingTargetOrder ? `status-cancel-submit-${order.id}` : undefined}
                   >
                     {isCancelSubmittingOrderId === order.id
                       ? "Mengirim..."
@@ -528,6 +552,7 @@ export default function StatusPemesananPage() {
               <div
                 className={styles.actionIcons}
                 data-onboarding={isOnboardingTargetOrder ? "status-action-icons" : undefined}
+                id={isOnboardingTargetOrder ? `status-action-icons-${order.id}` : undefined}
               >
                 <button
                   type="button"
