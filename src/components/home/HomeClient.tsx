@@ -942,10 +942,7 @@ export default function HomeClient() {
         <article className={styles.orderGuideBox}>
           <div>
             <h3>Cara Order</h3>
-            <p>
-              Pilih produk, tambah ke troli, lanjut pembayaran, lalu cek status pemesanan sampai
-              selesai.
-            </p>
+            <p>Bingung cara order? yuk aku siap bantu kamu - founder</p>
           </div>
           <button type="button" className={styles.orderGuideButton} onClick={onStartOrderGuide}>
             Mulai Tutorial

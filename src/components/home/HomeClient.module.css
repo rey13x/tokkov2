@@ -424,13 +424,14 @@
 }
 
 .orderGuideButton {
-  border: 1px solid #1f4cb9;
+  width: 100%;
+  border: none;
   border-radius: 999px;
-  min-height: 40px;
-  background: #edf3ff;
-  color: #1f4cb9;
+  min-height: 52px;
+  background: #11151f;
+  color: #ffffff;
   font-weight: 700;
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   cursor: pointer;
 }
 

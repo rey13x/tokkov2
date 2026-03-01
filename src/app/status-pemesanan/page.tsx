@@ -286,6 +286,33 @@ export default function StatusPemesananPage() {
     }
     return orders[0]?.id || "";
   }, [highlightedOrderId, orders]);
+
+  useEffect(() => {
+    if (!statusTutorialStage) {
+      return;
+    }
+
+    const selectorByStage: Partial<Record<OnboardingStage, string>> = {
+      [ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT]: "[data-onboarding='status-action-icons']",
+      [ONBOARDING_STAGE.STATUS_CANCEL_REASON]: "[data-onboarding='status-cancel-reason']",
+      [ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT]: "[data-onboarding='status-cancel-submit']",
+    };
+    const targetSelector = selectorByStage[statusTutorialStage];
+    if (!targetSelector) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>(targetSelector);
+      if (!target) {
+        return;
+      }
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [statusTutorialStage, onboardingTargetOrderId, orders.length]);
+
   const statusTutorialSteps: Step[] = useMemo(() => {
     if (statusTutorialStage === ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT) {
       return [
@@ -304,7 +331,8 @@ export default function StatusPemesananPage() {
         {
           target: "[data-onboarding='status-cancel-reason']",
           content: "Isi alasan pembatalan dulu (minimal 5 karakter) untuk lanjut.",
-          placement: "top",
+          placement: "bottom",
+          offset: 16,
           disableBeacon: true,
           hideFooter: true,
         },
