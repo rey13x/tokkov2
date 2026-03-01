@@ -47,12 +47,9 @@ type HomeProduct = StoreProduct;
 type HomeInformation = StoreInformation;
 type HomeTestimonial = StoreTestimonial;
 type HomeMarquee = StoreMarqueeItem;
-const MARQUEE_LOOP_COUNT = 4;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
-const INTRO_MIN_DURATION_MS = 3000;
-const INTRO_MAX_WAIT_MS = 12000;
 const heroImage = "/assets/ramadhan.jpg";
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
@@ -61,25 +58,20 @@ function getTestimonialMediaSrc(item: HomeTestimonial) {
 
 export default function HomeClient() {
   const rootRef = useRef<HTMLElement | null>(null);
-  const introOverlayRef = useRef<HTMLDivElement | null>(null);
-  const introSpinnerRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const mainPanelRef = useRef<HTMLDivElement | null>(null);
   const productsPanelRef = useRef<HTMLDivElement | null>(null);
   const menuFabRef = useRef<HTMLButtonElement | null>(null);
   const informationViewportRef = useRef<HTMLDivElement | null>(null);
+  const logoViewportRef = useRef<HTMLDivElement | null>(null);
   const testimonialViewportRef = useRef<HTMLDivElement | null>(null);
   const testimonialDragStartRef = useRef(0);
   const testimonialStartScrollRef = useRef(0);
   const previousLayerRef = useRef<MenuLayer>("closed");
-  const introClosingRef = useRef(false);
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
 
-  const [showIntro, setShowIntro] = useState(true);
   const [storeDataReady, setStoreDataReady] = useState(false);
-  const [introMinimumElapsed, setIntroMinimumElapsed] = useState(false);
-  const [introForceClose, setIntroForceClose] = useState(false);
   const [menuLayer, setMenuLayer] = useState<MenuLayer>("closed");
   const [menuMounted, setMenuMounted] = useState(false);
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
@@ -128,6 +120,14 @@ export default function HomeClient() {
       .filter((item) => item.isActive)
       .sort((a, b) => a.sortOrder - b.sortOrder);
   }, [marquees]);
+  const shouldAutoSlideMarquees = activeMarquees.length > 1;
+  const marqueeCarouselItems = useMemo(
+    () =>
+      shouldAutoSlideMarquees
+        ? [...activeMarquees, ...activeMarquees, ...activeMarquees]
+        : activeMarquees,
+    [activeMarquees, shouldAutoSlideMarquees],
+  );
   const testimonialCarouselItems = useMemo(
     () =>
       shouldAutoSlideTestimonials
@@ -135,7 +135,7 @@ export default function HomeClient() {
         : testimonials,
     [testimonials, shouldAutoSlideTestimonials],
   );
-  const isViewportLocked = showIntro || menuMounted;
+  const isViewportLocked = menuMounted;
   const profileImageSource =
     sessionStatus === "authenticated"
       ? profileAvatarPreview || session?.user?.image || ""
@@ -317,12 +317,6 @@ export default function HomeClient() {
 
   useEffect(() => {
     let mounted = true;
-    const forceCloseTimer = window.setTimeout(() => {
-      if (!mounted) {
-        return;
-      }
-      setIntroForceClose(true);
-    }, INTRO_MAX_WAIT_MS);
 
     fetchStoreData()
       .then((data) => {
@@ -344,7 +338,6 @@ export default function HomeClient() {
 
     return () => {
       mounted = false;
-      window.clearTimeout(forceCloseTimer);
     };
   }, []);
 
@@ -442,6 +435,40 @@ export default function HomeClient() {
   }, [shouldAutoSlideInformations, informationCarouselItems.length]);
 
   useEffect(() => {
+    const viewport = logoViewportRef.current;
+    if (!viewport) {
+      return;
+    }
+    if (shouldAutoSlideMarquees) {
+      viewport.scrollLeft = viewport.scrollWidth / 3;
+      return;
+    }
+    viewport.scrollLeft = 0;
+  }, [marqueeCarouselItems.length, shouldAutoSlideMarquees]);
+
+  useEffect(() => {
+    if (!shouldAutoSlideMarquees) {
+      return;
+    }
+
+    let frameId = 0;
+    const tick = () => {
+      const viewport = logoViewportRef.current;
+      if (viewport) {
+        viewport.scrollLeft += 0.28;
+        const segment = viewport.scrollWidth / 3;
+        if (viewport.scrollLeft >= segment * 2) {
+          viewport.scrollLeft = segment + (viewport.scrollLeft - segment * 2);
+        }
+      }
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [shouldAutoSlideMarquees, marqueeCarouselItems.length]);
+
+  useEffect(() => {
     const viewport = testimonialViewportRef.current;
     if (!viewport) {
       return;
@@ -476,81 +503,6 @@ export default function HomeClient() {
   }, [shouldAutoSlideTestimonials, isTestimonialDragging, testimonialCarouselItems.length]);
 
   useEffect(() => {
-    if (!showIntro) {
-      return;
-    }
-
-    const spinner = introSpinnerRef.current;
-    const intro = introOverlayRef.current;
-
-    const spinnerTween = spinner
-      ? gsap.to(spinner, {
-          rotation: 360,
-          duration: 1.35,
-          repeat: -1,
-          ease: "none",
-        })
-      : null;
-
-    if (intro) {
-      gsap.set(intro, { opacity: 1 });
-    }
-
-    return () => {
-      spinnerTween?.kill();
-    };
-  }, [showIntro]);
-
-  useEffect(() => {
-    if (!showIntro) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setIntroMinimumElapsed(true);
-    }, INTRO_MIN_DURATION_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [showIntro]);
-
-  useEffect(() => {
-    if (!showIntro || introClosingRef.current) {
-      return;
-    }
-
-    if (!introForceClose && !introMinimumElapsed) {
-      return;
-    }
-
-    introClosingRef.current = true;
-    const intro = introOverlayRef.current;
-    const closeIntro = () => {
-      const audio = new Audio("/assets/buy.mp3");
-      audio.volume = 0.82;
-      audio.play().catch(() => {});
-      setShowIntro(false);
-    };
-
-    if (!intro) {
-      closeIntro();
-      return;
-    }
-
-    gsap.to(intro, {
-      opacity: 0,
-      duration: 0.78,
-      ease: "power3.inOut",
-      onComplete: closeIntro,
-    });
-  }, [showIntro, introForceClose, introMinimumElapsed, storeDataReady]);
-
-  useEffect(() => {
-    if (showIntro) {
-      return;
-    }
-
     gsap.registerPlugin(ScrollTrigger);
 
     const ctx = gsap.context(() => {
@@ -621,11 +573,10 @@ export default function HomeClient() {
       ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
       ctx.revert();
     };
-  }, [showIntro, bestSellerProducts.length]);
+  }, [bestSellerProducts.length]);
 
   useEffect(() => {
     const shouldRun =
-      !showIntro &&
       storeDataReady &&
       !menuMounted &&
       bestSellerProducts.length > 0 &&
@@ -646,7 +597,7 @@ export default function HomeClient() {
     }, 160);
 
     return () => window.clearTimeout(timer);
-  }, [showIntro, storeDataReady, menuMounted, bestSellerProducts.length]);
+  }, [storeDataReady, menuMounted, bestSellerProducts.length]);
 
   const renderInformationCard = (item: HomeInformation, key: string) => (
     <article key={key} className={styles.infoCard}>
@@ -846,31 +797,6 @@ export default function HomeClient() {
 
   return (
     <main className={`${styles.page} ${isViewportLocked ? styles.pageLocked : ""}`} ref={rootRef}>
-      {showIntro ? (
-        <div className={styles.introOverlay} ref={introOverlayRef}>
-          <Image src={heroImage} alt="" fill className={styles.introBackdrop} sizes="100vw" priority />
-          <div className={styles.introShade} />
-          <div
-            className={styles.introCenter}
-            style={{
-              position: "fixed",
-              left: "50%",
-              top: "50%",
-              transform: "translate(-50%, -50%)",
-            }}
-          >
-            <div className={styles.introRing}>
-              <div className={styles.introSpinner} ref={introSpinnerRef} />
-              <div className={styles.introLogoWrap}>
-                <Link href="/" aria-label="Beranda">
-                  <Image src={logoImage} alt="Tokko" className={styles.introLogo} priority />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       <section className={styles.hero} style={heroVars} data-animate="hero">
         <Image
           src={heroImage}
@@ -1057,28 +983,17 @@ export default function HomeClient() {
         </div>
 
         {activeMarquees.length > 0 ? (
-          <div className={styles.logoMarquee}>
-            <div
-              className={styles.logoTrack}
-              style={{ ["--logo-count" as const]: activeMarquees.length } as CSSProperties}
-            >
-              {Array.from({ length: MARQUEE_LOOP_COUNT }).map((_, loopIndex) => (
-                <div
-                  key={`logo-segment-${loopIndex}`}
-                  className={styles.logoSegment}
-                  aria-hidden={loopIndex > 0}
-                >
-                  {activeMarquees.map((item, logoIndex) => (
-                    <div key={`${item.id}-${loopIndex}-${logoIndex}`} className={styles.logoGlyph}>
-                      <FlexibleMedia
-                        src={item.imageUrl}
-                        alt={item.label}
-                        fill
-                        className={styles.logoImage}
-                        sizes="58px"
-                      />
-                    </div>
-                  ))}
+          <div className={styles.logoMarquee} ref={logoViewportRef}>
+            <div className={styles.logoTrack}>
+              {marqueeCarouselItems.map((item, index) => (
+                <div key={`${item.id}-${index}`} className={styles.logoGlyph}>
+                  <FlexibleMedia
+                    src={item.imageUrl}
+                    alt={item.label}
+                    fill
+                    className={styles.logoImage}
+                    sizes="58px"
+                  />
                 </div>
               ))}
             </div>
