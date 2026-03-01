@@ -401,6 +401,39 @@
   font-size: 0.73rem;
 }
 
+.orderGuideBox {
+  margin-top: 16px;
+  border: 1px solid #d7dce8;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.orderGuideBox h3 {
+  font-size: 1.08rem;
+  color: #131926;
+}
+
+.orderGuideBox p {
+  margin-top: 4px;
+  color: #525d78;
+  font-size: 0.82rem;
+  line-height: 1.42;
+}
+
+.orderGuideButton {
+  border: 1px solid #1f4cb9;
+  border-radius: 999px;
+  min-height: 40px;
+  background: #edf3ff;
+  color: #1f4cb9;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
 .partnerHeader {
   display: grid;
   gap: 4px;

@@ -4,11 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import type { CallBackProps, Step } from "react-joyride";
 import { gsap } from "gsap";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import { addToCart } from "@/lib/cart";
+import {
+  ONBOARDING_STAGE,
+  advanceOnboarding,
+  isOnboardingStageActive,
+} from "@/lib/onboarding";
 import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
 
@@ -28,6 +35,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [isRedirectingToCart, setIsRedirectingToCart] = useState(false);
+  const [isProductTutorialRunning, setIsProductTutorialRunning] = useState(false);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -58,6 +66,25 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" },
     );
   }, [added]);
+
+  useEffect(() => {
+    const shouldRun = isOnboardingStageActive(ONBOARDING_STAGE.PRODUCT_ADD_TO_CART);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsProductTutorialRunning(shouldRun);
+    if (!shouldRun) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>("[data-onboarding='product-add-to-cart']");
+      if (!target) {
+        return;
+      }
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (status !== "authenticated" || hasHandledPendingRef.current || typeof window === "undefined") {
@@ -92,6 +119,11 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   }, [status, product.slug, router]);
 
   const onAddToCart = () => {
+    if (isOnboardingStageActive(ONBOARDING_STAGE.PRODUCT_ADD_TO_CART)) {
+      advanceOnboarding(ONBOARDING_STAGE.CART_CHECKOUT);
+      setIsProductTutorialRunning(false);
+    }
+
     if (status === "loading") {
       return;
     }
@@ -136,8 +168,29 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     setQuantity(Math.min(99, Math.max(1, nextNumber)));
   };
 
+  const productTutorialSteps: Step[] = [
+    {
+      target: "[data-onboarding='product-add-to-cart']",
+      content: "Klik tombol Tambah ke Troli untuk melanjutkan.",
+      placement: "top",
+      disableBeacon: true,
+      hideFooter: true,
+    },
+  ];
+
+  const onProductTutorialCallback = (payload: CallBackProps) => {
+    if (payload.type === "error:target_not_found") {
+      setIsProductTutorialRunning(false);
+    }
+  };
+
   return (
     <main className={styles.page} ref={rootRef}>
+      <AppOnboardingJoyride
+        run={isProductTutorialRunning}
+        steps={productTutorialSteps}
+        onCallback={onProductTutorialCallback}
+      />
       {isRedirectingToCart ? (
         <div
           style={{
@@ -206,6 +259,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             className={styles.orderButton}
             onClick={onAddToCart}
             disabled={status === "loading"}
+            data-onboarding="product-add-to-cart"
           >
             {status === "loading" ? "Memuat..." : "Tambah ke Troli"}
           </button>

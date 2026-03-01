@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import type { CallBackProps, Step } from "react-joyride";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
@@ -19,6 +20,17 @@ import logoImage from "@/app/assets/Logo.png";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
 import { getCartCount } from "@/lib/cart";
+import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
+import {
+  ONBOARDING_BOOT_QUERY_KEY,
+  ONBOARDING_STAGE,
+  advanceOnboarding,
+  clearOnboardingBootQuery,
+  consumeOnboardingBootRequest,
+  isOnboardingStageActive,
+  requestOnboardingBoot,
+  startOnboarding,
+} from "@/lib/onboarding";
 import { fetchStoreData } from "@/lib/store-client";
 import VoiceWavePlayer from "@/components/media/VoiceWavePlayer";
 import type {
@@ -79,6 +91,7 @@ export default function HomeClient() {
   const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
   const [profileAvatarPreview, setProfileAvatarPreview] = useState("");
+  const [isHomeTutorialRunning, setIsHomeTutorialRunning] = useState(false);
 
   const categories = useMemo(() => {
     const set = new Set(products.map((product) => product.category));
@@ -88,6 +101,18 @@ export default function HomeClient() {
   const productMenuItems = useMemo(() => categories.slice(0, 10), [categories]);
 
   const bestSellerProducts = products.slice(0, 8);
+  const homeTutorialSteps = useMemo<Step[]>(
+    () => [
+      {
+        target: "[data-onboarding='home-product-card']",
+        content: "Pilih produk yang ingin kamu beli.",
+        placement: "bottom",
+        disableBeacon: true,
+        hideFooter: true,
+      },
+    ],
+    [],
+  );
   const shouldAutoSlideTestimonials = testimonials.length > 1;
   const activeMarquees = useMemo(() => {
     return marquees
@@ -158,6 +183,25 @@ export default function HomeClient() {
   const chooseCategory = (category: string) => {
     closeMenu();
     router.push(`/koleksi?category=${encodeURIComponent(category)}`);
+  };
+
+  const onStartOrderGuide = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    requestOnboardingBoot();
+    startOnboarding();
+
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set(ONBOARDING_BOOT_QUERY_KEY, "1");
+    window.location.assign(`${currentUrl.pathname}?${currentUrl.searchParams.toString()}`);
+  };
+
+  const onHomeTutorialCallback = (payload: CallBackProps) => {
+    if (payload.type === "error:target_not_found") {
+      setIsHomeTutorialRunning(false);
+    }
   };
 
   const onTestimonialPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -245,6 +289,22 @@ export default function HomeClient() {
       body: JSON.stringify({ path: window.location.pathname }),
     }).catch(() => {});
   }, [sessionStatus]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = params.get(ONBOARDING_BOOT_QUERY_KEY) === "1";
+    const fromStorage = consumeOnboardingBootRequest();
+    if (!fromQuery && !fromStorage) {
+      return;
+    }
+
+    startOnboarding();
+    clearOnboardingBootQuery();
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -519,6 +579,31 @@ export default function HomeClient() {
   }, [showIntro, bestSellerProducts.length]);
 
   useEffect(() => {
+    const shouldRun =
+      !showIntro &&
+      storeDataReady &&
+      !menuMounted &&
+      bestSellerProducts.length > 0 &&
+      isOnboardingStageActive(ONBOARDING_STAGE.HOME_PRODUCT);
+
+    setIsHomeTutorialRunning(shouldRun);
+
+    if (!shouldRun) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>("[data-onboarding='home-product-card']");
+      if (!target) {
+        return;
+      }
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 160);
+
+    return () => window.clearTimeout(timer);
+  }, [showIntro, storeDataReady, menuMounted, bestSellerProducts.length]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -736,6 +821,12 @@ export default function HomeClient() {
 
       {!storeDataReady ? <div className={styles.storeLoadingBadge}>Tunggu sebentar yaa..</div> : null}
 
+      <AppOnboardingJoyride
+        run={isHomeTutorialRunning}
+        steps={homeTutorialSteps}
+        onCallback={onHomeTutorialCallback}
+      />
+
       {bestSellerProducts.length > 0 ? (
       <section className={styles.section} data-animate="section">
         <div className={styles.sectionHead}>
@@ -749,9 +840,18 @@ export default function HomeClient() {
           </button>
         </div>
         <div className={styles.productGrid}>
-          {bestSellerProducts.map((product) => (
+          {bestSellerProducts.map((product, index) => (
             <article key={product.id} className={styles.productShell} data-card="product">
-              <Link href={`/produk/${product.slug}`} className={styles.productCard}>
+              <Link
+                href={`/produk/${product.slug}`}
+                className={styles.productCard}
+                data-onboarding={index === 0 ? "home-product-card" : undefined}
+                onClick={() => {
+                  if (isOnboardingStageActive(ONBOARDING_STAGE.HOME_PRODUCT)) {
+                    advanceOnboarding(ONBOARDING_STAGE.PRODUCT_ADD_TO_CART);
+                  }
+                }}
+              >
                 <div className={styles.productImageWrap}>
                   <FlexibleMedia
                     src={product.imageUrl}
@@ -839,6 +939,18 @@ export default function HomeClient() {
             </article>
           ))}
         </div>
+        <article className={styles.orderGuideBox}>
+          <div>
+            <h3>Cara Order</h3>
+            <p>
+              Pilih produk, tambah ke troli, lanjut pembayaran, lalu cek status pemesanan sampai
+              selesai.
+            </p>
+          </div>
+          <button type="button" className={styles.orderGuideButton} onClick={onStartOrderGuide}>
+            Mulai Tutorial
+          </button>
+        </article>
       </section>
       ) : null}
 

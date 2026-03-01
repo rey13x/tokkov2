@@ -22,6 +22,10 @@ body {
   overflow-x: clip;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   min-height: 100vh;
   color: var(--ink);
@@ -46,4 +50,16 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+@keyframes onboardingZoom {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

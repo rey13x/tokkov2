@@ -4,10 +4,17 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import type { CallBackProps, Step } from "react-joyride";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import { readCart, removeFromCart, updateCartQuantity } from "@/lib/cart";
+import {
+  ONBOARDING_STAGE,
+  advanceOnboarding,
+  isOnboardingStageActive,
+} from "@/lib/onboarding";
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
@@ -43,6 +50,7 @@ export default function CartPage() {
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isCartTutorialRunning, setIsCartTutorialRunning] = useState(false);
   const isClient = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -86,6 +94,27 @@ export default function CartPage() {
       })
       .filter((line): line is NonNullable<typeof line> => Boolean(line));
   }, [cartLines, products]);
+
+  useEffect(() => {
+    const shouldRun =
+      !isStoreLoading &&
+      detailedItems.length > 0 &&
+      isOnboardingStageActive(ONBOARDING_STAGE.CART_CHECKOUT);
+    setIsCartTutorialRunning(shouldRun);
+    if (!shouldRun) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>("[data-onboarding='cart-checkout']");
+      if (!target) {
+        return;
+      }
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [isStoreLoading, detailedItems.length]);
 
   const categories = useMemo(() => {
     const set = new Set(detailedItems.map((item) => item.product.category));
@@ -154,6 +183,11 @@ export default function CartPage() {
       return;
     }
 
+    if (isOnboardingStageActive(ONBOARDING_STAGE.CART_CHECKOUT)) {
+      advanceOnboarding(ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT);
+      setIsCartTutorialRunning(false);
+    }
+
     setIsCheckoutLoading(true);
     try {
       const response = await fetch("/api/orders", {
@@ -197,8 +231,29 @@ export default function CartPage() {
     }
   };
 
+  const cartTutorialSteps: Step[] = [
+    {
+      target: "[data-onboarding='cart-checkout']",
+      content: "Klik Lanjut ke Pembayaran untuk membuat pesanan.",
+      placement: "left",
+      disableBeacon: true,
+      hideFooter: true,
+    },
+  ];
+
+  const onCartTutorialCallback = (payload: CallBackProps) => {
+    if (payload.type === "error:target_not_found") {
+      setIsCartTutorialRunning(false);
+    }
+  };
+
   return (
     <main className={styles.page}>
+      <AppOnboardingJoyride
+        run={isCartTutorialRunning}
+        steps={cartTutorialSteps}
+        onCallback={onCartTutorialCallback}
+      />
       <header className={styles.header}>
         <h1>Troli</h1>
         <Link href="/" className={styles.backLink}>
@@ -338,6 +393,7 @@ export default function CartPage() {
               className={`${styles.actionButton} ${styles.actionPrimary}`}
               disabled={subtotal <= 0 || isCheckoutLoading}
               onClick={onCheckout}
+              data-onboarding="cart-checkout"
             >
               {isCheckoutLoading ? "Memproses..." : "Lanjut ke Pembayaran"}
             </button>

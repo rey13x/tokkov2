@@ -5,8 +5,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import type { CallBackProps, Step } from "react-joyride";
+import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
+import {
+  ONBOARDING_STAGE,
+  advanceOnboarding,
+  completeOnboarding,
+  getOnboardingState,
+  isOnboardingStageActive,
+  type OnboardingStage,
+} from "@/lib/onboarding";
 import type { OrderSummary } from "@/types/store";
 import styles from "./page.module.css";
 
@@ -53,6 +63,11 @@ function PaymentIcon() {
 }
 
 const ADMIN_WHATSAPP_URL = "https://wa.me/6281319865384";
+const STATUS_ONBOARDING_STAGES: OnboardingStage[] = [
+  ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT,
+  ONBOARDING_STAGE.STATUS_CANCEL_REASON,
+  ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT,
+];
 
 function formatStatusDate(value: string | null | undefined) {
   if (!value) {
@@ -72,6 +87,7 @@ export default function StatusPemesananPage() {
   const [activePaymentOrderId, setActivePaymentOrderId] = useState<string | null>(null);
   const [cancelReasonDrafts, setCancelReasonDrafts] = useState<Record<string, string>>({});
   const [isCancelSubmittingOrderId, setIsCancelSubmittingOrderId] = useState<string | null>(null);
+  const [statusTutorialStage, setStatusTutorialStage] = useState<OnboardingStage | null>(null);
 
   const loadOrders = useCallback(async () => {
     if (status !== "authenticated") {
@@ -95,10 +111,34 @@ export default function StatusPemesananPage() {
     const params = new URLSearchParams(window.location.search);
     const highlight = params.get("highlight") ?? "";
     setHighlightedOrderId(highlight);
-    if ((params.get("pay") === "1" || params.get("pay") === "true") && highlight) {
+    if (
+      (params.get("pay") === "1" || params.get("pay") === "true") &&
+      highlight &&
+      !isOnboardingStageActive(ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT)
+    ) {
       setActivePaymentOrderId(highlight);
     }
   }, []);
+
+  useEffect(() => {
+    const currentState = getOnboardingState();
+    if (!currentState.active || !STATUS_ONBOARDING_STAGES.includes(currentState.stage)) {
+      setStatusTutorialStage(null);
+      return;
+    }
+
+    setStatusTutorialStage(currentState.stage);
+  }, [orders.length, highlightedOrderId, cancelReasonDrafts]);
+
+  useEffect(() => {
+    if (
+      activePaymentOrderId &&
+      (statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_REASON ||
+        statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT)
+    ) {
+      setActivePaymentOrderId(null);
+    }
+  }, [activePaymentOrderId, statusTutorialStage]);
 
   useEffect(() => {
     if (status === "loading") {
@@ -136,7 +176,19 @@ export default function StatusPemesananPage() {
   );
 
   const onDownloadReceipt = (orderId: string) => {
+    if (isOnboardingStageActive(ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT)) {
+      advanceOnboarding(ONBOARDING_STAGE.STATUS_CANCEL_REASON);
+      setStatusTutorialStage(ONBOARDING_STAGE.STATUS_CANCEL_REASON);
+    }
     window.open(`/api/orders/${orderId}/receipt`, "_blank", "noopener,noreferrer");
+  };
+
+  const onOpenPayment = (orderId: string) => {
+    if (isOnboardingStageActive(ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT)) {
+      advanceOnboarding(ONBOARDING_STAGE.STATUS_CANCEL_REASON);
+      setStatusTutorialStage(ONBOARDING_STAGE.STATUS_CANCEL_REASON);
+    }
+    setActivePaymentOrderId(orderId);
   };
 
   const closePaymentPopup = () => {
@@ -148,6 +200,14 @@ export default function StatusPemesananPage() {
       ...current,
       [orderId]: value,
     }));
+
+    if (
+      value.trim().length >= 5 &&
+      isOnboardingStageActive(ONBOARDING_STAGE.STATUS_CANCEL_REASON)
+    ) {
+      advanceOnboarding(ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT);
+      setStatusTutorialStage(ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT);
+    }
   };
 
   const onRequestCancelViaWhatsapp = async (order: OrderSummary) => {
@@ -204,6 +264,12 @@ export default function StatusPemesananPage() {
       ].join("\n");
       const waUrl = `${ADMIN_WHATSAPP_URL}?text=${encodeURIComponent(message)}`;
       window.open(waUrl, "_blank", "noopener,noreferrer");
+
+      if (isOnboardingStageActive(ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT)) {
+        completeOnboarding();
+        setStatusTutorialStage(null);
+      }
+
       setSuccess("Request pembatalan tersimpan. Lanjutkan konfirmasi via WhatsApp.");
       await loadOrders();
     } catch {
@@ -214,9 +280,65 @@ export default function StatusPemesananPage() {
   };
 
   const activePaymentOrder = orders.find((order) => order.id === activePaymentOrderId) ?? null;
+  const onboardingTargetOrderId = useMemo(() => {
+    if (highlightedOrderId && orders.some((order) => order.id === highlightedOrderId)) {
+      return highlightedOrderId;
+    }
+    return orders[0]?.id || "";
+  }, [highlightedOrderId, orders]);
+  const statusTutorialSteps: Step[] = useMemo(() => {
+    if (statusTutorialStage === ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT) {
+      return [
+        {
+          target: "[data-onboarding='status-action-icons']",
+          content: "Pilih salah satu: ikon pembayaran atau ikon struk.",
+          placement: "left",
+          disableBeacon: true,
+          hideFooter: true,
+        },
+      ];
+    }
+
+    if (statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_REASON) {
+      return [
+        {
+          target: "[data-onboarding='status-cancel-reason']",
+          content: "Isi alasan pembatalan dulu (minimal 5 karakter) untuk lanjut.",
+          placement: "top",
+          disableBeacon: true,
+          hideFooter: true,
+        },
+      ];
+    }
+
+    if (statusTutorialStage === ONBOARDING_STAGE.STATUS_CANCEL_SUBMIT) {
+      return [
+        {
+          target: "[data-onboarding='status-cancel-submit']",
+          content: "Klik Ajukan Batal & Kirim WhatsApp untuk menyelesaikan tutorial.",
+          placement: "top",
+          disableBeacon: true,
+          hideFooter: true,
+        },
+      ];
+    }
+
+    return [];
+  }, [statusTutorialStage]);
+
+  const onStatusTutorialCallback = (payload: CallBackProps) => {
+    if (payload.type === "error:target_not_found") {
+      setStatusTutorialStage(null);
+    }
+  };
 
   return (
     <main className={styles.page}>
+      <AppOnboardingJoyride
+        run={Boolean(statusTutorialStage && onboardingTargetOrderId)}
+        steps={statusTutorialSteps}
+        onCallback={onStatusTutorialCallback}
+      />
       <header className={styles.header}>
         <div className={styles.brandWrap}>
           <Image src="/assets/logo.png" alt="Tokko" width={42} height={42} className={styles.logo} priority />
@@ -248,6 +370,7 @@ export default function StatusPemesananPage() {
       <section className={styles.listWrap}>
         {orders.map((order) => {
           const isHighlighted = highlightedOrderId === order.id;
+          const isOnboardingTargetOrder = onboardingTargetOrderId === order.id;
           return (
             <article
               key={order.id}
@@ -290,12 +413,14 @@ export default function StatusPemesananPage() {
                     }
                     placeholder="Tulis alasan pembatalan (wajib)"
                     spellCheck={false}
+                    data-onboarding={isOnboardingTargetOrder ? "status-cancel-reason" : undefined}
                   />
                   <button
                     type="button"
                     className={styles.cancelRequestButton}
                     disabled={isCancelSubmittingOrderId === order.id}
                     onClick={() => onRequestCancelViaWhatsapp(order)}
+                    data-onboarding={isOnboardingTargetOrder ? "status-cancel-submit" : undefined}
                   >
                     {isCancelSubmittingOrderId === order.id
                       ? "Mengirim..."
@@ -303,11 +428,14 @@ export default function StatusPemesananPage() {
                   </button>
                 </div>
               ) : null}
-              <div className={styles.actionIcons}>
+              <div
+                className={styles.actionIcons}
+                data-onboarding={isOnboardingTargetOrder ? "status-action-icons" : undefined}
+              >
                 <button
                   type="button"
                   className={styles.payIconButton}
-                  onClick={() => setActivePaymentOrderId(order.id)}
+                  onClick={() => onOpenPayment(order.id)}
                   title="Lihat QRIS pembayaran"
                   aria-label={`Lihat QRIS pembayaran order ${order.id}`}
                 >
