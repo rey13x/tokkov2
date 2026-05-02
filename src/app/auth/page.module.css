@@ -60,7 +60,7 @@
   padding: 4px;
   background: #eceef3;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -125,6 +125,38 @@
   font-size: 0.92rem;
   color: #1d2538;
   font-weight: 600;
+}
+
+.passwordField {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.passwordField input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5562cc;
+  padding: 4px;
+}
+
+.passwordToggle:hover {
+  color: #3d4ab8;
+}
+
+.eyeIcon {
+  font-size: 1.2rem;
 }
 
 .field input {
@@ -218,6 +250,14 @@
   color: #ffffff;
   font-size: 0.92rem;
   cursor: pointer;
+}
+
+.helperText {
+  margin-top: 8px;
+  color: #6a7288;
+  font-size: 0.84rem;
+  text-align: center;
+  line-height: 1.4;
 }
 
 @media (max-width: 560px) {

@@ -270,7 +270,12 @@ async function ensureAdminEmailIfNotExists() {
   }
 }
 
-async function run(sql: string, args?: InArgs) {
+export async function ensureAdminEmailExists() {
+  await ensureDatabase();
+  await ensureAdminEmailIfNotExists();
+}
+
+export async function run(sql: string, args?: InArgs) {
   return db.execute({ sql, args });
 }
 
@@ -621,6 +626,80 @@ export async function ensureDatabase() {
           created_at INTEGER NOT NULL
         )`,
       );
+
+      await run(
+        `CREATE TABLE IF NOT EXISTS book_stories (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          user_name TEXT NOT NULL,
+          user_email TEXT NOT NULL,
+          user_avatar_url TEXT NOT NULL DEFAULT '',
+          story TEXT NOT NULL,
+          photos TEXT NOT NULL DEFAULT '[]',
+          likes INTEGER NOT NULL DEFAULT 0,
+          liked_by TEXT NOT NULL DEFAULT '[]',
+          comments TEXT NOT NULL DEFAULT '[]',
+          report_count INTEGER NOT NULL DEFAULT 0,
+          status TEXT NOT NULL DEFAULT 'approved',
+          created_at INTEGER NOT NULL,
+          approved_at INTEGER,
+          approved_by TEXT
+        )`,
+      );
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN photos TEXT NOT NULL DEFAULT '[]'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN likes INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN liked_by TEXT NOT NULL DEFAULT '[]'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN comments TEXT NOT NULL DEFAULT '[]'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN user_avatar_url TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN report_count INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+
+      await run(
+        `CREATE TABLE IF NOT EXISTS story_reports (
+          id TEXT PRIMARY KEY,
+          story_id TEXT NOT NULL,
+          reporter_user_id TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          resolved INTEGER NOT NULL DEFAULT 0,
+          resolved_at INTEGER,
+          resolved_by TEXT,
+          created_at INTEGER NOT NULL,
+          UNIQUE(story_id, reporter_user_id)
+        )`,
+      );
+      await run(
+        "CREATE INDEX IF NOT EXISTS idx_story_reports_story_id ON story_reports(story_id)",
+      ).catch(() => {});
+      await run(
+        "CREATE INDEX IF NOT EXISTS idx_story_reports_resolved ON story_reports(resolved)",
+      ).catch(() => {});
+
+      await run(
+        `CREATE TABLE IF NOT EXISTS device_account_creations (
+          id TEXT PRIMARY KEY,
+          device_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          UNIQUE(device_id, user_id)
+        )`,
+      );
+      await run(
+        "CREATE INDEX IF NOT EXISTS idx_device_account_creations_device_id ON device_account_creations(device_id)",
+      ).catch(() => {});
+      await run(
+        "CREATE INDEX IF NOT EXISTS idx_device_account_creations_created_at ON device_account_creations(created_at)",
+      ).catch(() => {});
 
       await runOneTimeInitialContentReset();
       await seedIfEmpty();
@@ -2044,6 +2123,56 @@ export async function recordJobApplication(userId: string, productId: string, pr
   ).catch(() => {
     // Ignore duplicate errors
   });
+
+  // Update applicant count in Firestore
+  try {
+    const firestore = getFirebaseFirestore() as any;
+    if (firestore) {
+      const productRef = firestore.collection("products").doc(productId);
+      await firestore.runTransaction(async (transaction: any) => {
+        const productDoc = await transaction.get(productRef);
+        if (productDoc.exists) {
+          const currentCount = Number(productDoc.data()?.applicantCount ?? 0);
+          transaction.update(productRef, { applicantCount: currentCount + 1 });
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Failed to update applicant count in Firestore:", error);
+  }
+}
+
+export async function deleteJobApplication(applicationId: string, userId: string) {
+  await ensureDatabase();
+  // Verify ownership before deleting
+  const res = await run("SELECT product_id FROM job_applications WHERE id = ? AND user_id = ?", [applicationId, userId]);
+  if (!res.rows[0]) {
+    throw new Error("Lamaran tidak ditemukan atau Anda tidak berhak menghapusnya.");
+  }
+
+  const productId = String(res.rows[0].product_id);
+
+  await run(
+    "DELETE FROM job_applications WHERE id = ? AND user_id = ?",
+    [applicationId, userId],
+  );
+
+  // Update applicant count in Firestore
+  try {
+    const firestore = getFirebaseFirestore() as any;
+    if (firestore) {
+      const productRef = firestore.collection("products").doc(productId);
+      await firestore.runTransaction(async (transaction: any) => {
+        const productDoc = await transaction.get(productRef);
+        if (productDoc.exists) {
+          const currentCount = Number(productDoc.data()?.applicantCount ?? 0);
+          transaction.update(productRef, { applicantCount: Math.max(0, currentCount - 1) });
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Failed to update applicant count in Firestore:", error);
+  }
 }
 
 export async function updateUserLastActive(userId: string) {
@@ -2057,4 +2186,67 @@ export async function deleteUser(userId: string) {
   await run("DELETE FROM users WHERE id = ?", [userId]).catch(() => {});
   await run("DELETE FROM orders WHERE user_id = ?", [userId]).catch(() => {});
   await run("DELETE FROM job_applications WHERE user_id = ?", [userId]).catch(() => {});
+}
+
+// Device account creation tracking (max 2 accounts per device per 10 days)
+const DEVICE_ACCOUNT_LIMIT = 2;
+const DEVICE_ACCOUNT_LOCK_DAYS = 10;
+const DEVICE_ACCOUNT_LOCK_MS = DEVICE_ACCOUNT_LOCK_DAYS * 24 * 60 * 60 * 1000;
+
+export async function checkDeviceAccountLimit(deviceId: string): Promise<{
+  allowed: boolean;
+  accountsCreated: number;
+  message?: string;
+  nextAllowedTime?: Date;
+}> {
+  await ensureDatabase();
+  
+  // Get accounts created in the last 10 days from this device
+  const tenDaysAgo = now() - DEVICE_ACCOUNT_LOCK_MS;
+  const res = await run(
+    `SELECT COUNT(*) as count FROM device_account_creations 
+     WHERE device_id = ? AND created_at > ?`,
+    [deviceId, tenDaysAgo],
+  );
+  
+  const accountsCreated = Number((res.rows[0] as any)?.count ?? 0);
+  
+  if (accountsCreated >= DEVICE_ACCOUNT_LIMIT) {
+    // Get the oldest account creation time
+    const oldestRes = await run(
+      `SELECT created_at FROM device_account_creations 
+       WHERE device_id = ? ORDER BY created_at ASC LIMIT 1`,
+      [deviceId],
+    );
+    
+    const oldestTime = Number((oldestRes.rows[0] as any)?.created_at ?? now());
+    const nextAllowedTime = new Date(oldestTime + DEVICE_ACCOUNT_LOCK_MS);
+    
+    return {
+      allowed: false,
+      accountsCreated,
+      message: `Satu perangkat hanya bisa membuat ${DEVICE_ACCOUNT_LIMIT} akun. Coba lagi pada ${nextAllowedTime.toLocaleDateString('id-ID')}.`,
+      nextAllowedTime,
+    };
+  }
+  
+  return {
+    allowed: true,
+    accountsCreated,
+  };
+}
+
+export async function recordDeviceAccountCreation(deviceId: string, userId: string): Promise<void> {
+  await ensureDatabase();
+  const id = randomId();
+  
+  await run(
+    `INSERT INTO device_account_creations (id, device_id, user_id, created_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(device_id, user_id) DO UPDATE SET created_at = excluded.created_at`,
+    [id, deviceId, userId, now()],
+  ).catch((error) => {
+    // Log but don't fail if tracking fails
+    console.error("Failed to record device account creation:", error);
+  });
 }

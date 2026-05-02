@@ -12,6 +12,7 @@ import {
   updateUserById,
   isAdminEmail,
   updateUserLastActive,
+  ensureAdminEmailExists,
 } from "@/server/db";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
@@ -33,6 +34,9 @@ const providers: NextAuthOptions["providers"] = [
       if (!identifier || !password) {
         return null;
       }
+
+      // Ensure admin email is in admin_emails table
+      await ensureAdminEmailExists().catch(() => {});
 
       const user = await findUserByIdentifier(identifier);
       if (!user || !user.passwordHash) {
@@ -89,6 +93,9 @@ export const authOptions: NextAuthOptions = {
   events: {},
   callbacks: {
     async signIn({ account, profile, user }) {
+      // Ensure admin email is in admin_emails table
+      await ensureAdminEmailExists().catch(() => {});
+
       // Allow credentials provider without database check
       if (account?.provider !== "google") {
         return true;

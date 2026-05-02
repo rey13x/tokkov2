@@ -96,6 +96,7 @@ export default function StatusPemesananPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [jobApplications, setJobApplications] = useState<Array<{ id: string; product_name: string; created_at: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -119,6 +120,22 @@ export default function StatusPemesananPage() {
 
     const data = (await response.json()) as { orders?: OrderSummary[] };
     setOrders(data.orders ?? []);
+  }, [status]);
+
+  const loadJobApplications = useCallback(async () => {
+    if (status !== "authenticated") {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/job-applications", { cache: "no-store" });
+      if (response.ok) {
+        const data = (await response.json()) as { applications?: Array<{ id: string; product_name: string; created_at: string }> };
+        setJobApplications(data.applications ?? []);
+      }
+    } catch (err) {
+      console.error("Failed to load job applications:", err);
+    }
   }, [status]);
 
   useEffect(() => {
@@ -211,7 +228,9 @@ export default function StatusPemesananPage() {
         setError(loadError instanceof Error ? loadError.message : "Gagal memuat status pemesanan.");
       })
       .finally(() => setIsLoading(false));
-  }, [loadOrders, router, status]);
+
+    loadJobApplications();
+  }, [loadOrders, loadJobApplications, router, status]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -220,10 +239,11 @@ export default function StatusPemesananPage() {
 
     const timer = window.setInterval(() => {
       loadOrders().catch(() => {});
+      loadJobApplications();
     }, 8000);
 
     return () => window.clearInterval(timer);
-  }, [loadOrders, status]);
+  }, [loadOrders, loadJobApplications, status]);
 
   const tutorialOrder = useMemo<OrderSummary>(
     () => ({
@@ -287,6 +307,32 @@ export default function StatusPemesananPage() {
       return;
     }
     window.open(`/api/orders/${orderId}/receipt`, "_blank", "noopener,noreferrer");
+  };
+
+  const onCancelJobApplication = async (applicationId: string) => {
+    if (!window.confirm("Yakin ingin membatalkan lamaran pekerjaan ini?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/job-applications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        setError(error.message ?? "Gagal membatalkan lamaran.");
+        return;
+      }
+
+      setSuccess("Lamaran berhasil dibatalkan.");
+      await loadJobApplications();
+    } catch (err) {
+      setError("Gagal membatalkan lamaran.");
+      console.error("Failed to cancel job application:", err);
+    }
   };
 
   const onOpenPayment = (orderId: string) => {
@@ -759,6 +805,35 @@ export default function StatusPemesananPage() {
           );
         })}
         {!isLoading && displayOrders.length === 0 ? <p className={styles.emptyText}>Belum ada pesanan.</p> : null}
+      </section>
+
+      <section className={styles.listWrap}>
+        <h2 className={styles.sectionTitle}>Lamaran Pekerjaan</h2>
+        {jobApplications.map((application) => (
+          <article key={application.id} className={styles.orderCard}>
+            <div className={styles.orderMain}>
+              <p className={styles.orderId}>{application.product_name}</p>
+              <span className={styles.orderDate}>{new Date(application.created_at).toLocaleString("id-ID")}</span>
+              <span className={`${styles.statusBadge} ${styles.statusProcess}`}>Aktif</span>
+            </div>
+            <div className={styles.orderMeta}>
+              <span>ID Lamaran: {application.id}</span>
+              <span>Dilamar pada: {new Date(application.created_at).toLocaleString("id-ID")}</span>
+            </div>
+            <div className={styles.actionIcons}>
+              <button
+                type="button"
+                className={styles.cancelRequestButton}
+                onClick={() => onCancelJobApplication(application.id)}
+                title="Batalkan lamaran"
+                aria-label={`Batalkan lamaran untuk ${application.product_name}`}
+              >
+                Batalkan Lamaran
+              </button>
+            </div>
+          </article>
+        ))}
+        {!isLoading && jobApplications.length === 0 ? <p className={styles.emptyText}>Belum ada lamaran pekerjaan.</p> : null}
       </section>
 
       {activePaymentOrder ? (

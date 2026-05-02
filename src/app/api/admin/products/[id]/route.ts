@@ -13,6 +13,9 @@ const updateSchema = z.object({
   price: z.number().int().min(0).optional(),
   imageUrl: z.string().max(3000000).optional(),
   isActive: z.boolean().optional(),
+  productType: z.enum(["jual_beli", "pekerjaan"]).optional(),
+  jobApplicationLink: z.string().url().optional().or(z.literal("")),
+  maxApplicants: z.number().int().min(1).optional(),
 });
 
 type Params = Promise<{ id: string }>;

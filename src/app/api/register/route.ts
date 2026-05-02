@@ -1,7 +1,7 @@
 import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createUser, findUserByEmail, findUserByIdentifier, isAdminEmail } from "@/server/db";
+import { createUser, findUserByEmail, findUserByIdentifier, isAdminEmail, checkDeviceAccountLimit, recordDeviceAccountCreation } from "@/server/db";
 
 const registerSchema = z
   .object({
@@ -10,6 +10,7 @@ const registerSchema = z
     phone: z.string().min(8).max(20),
     password: z.string().min(6).max(120),
     confirmPassword: z.string().min(6).max(120),
+    deviceId: z.string().optional(),
   })
   .refine((payload) => payload.password === payload.confirmPassword, {
     message: "Konfirmasi password tidak sama.",
@@ -20,6 +21,17 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const payload = registerSchema.parse(body);
+
+    // Check device account limit if deviceId is provided
+    if (payload.deviceId) {
+      const deviceLimitCheck = await checkDeviceAccountLimit(payload.deviceId);
+      if (!deviceLimitCheck.allowed) {
+        return NextResponse.json(
+          { message: deviceLimitCheck.message ?? "Sudah mencapai batas pembuatan akun dari perangkat ini." },
+          { status: 429 },
+        );
+      }
+    }
 
     const existingEmail = await findUserByEmail(payload.email);
     if (existingEmail) {
@@ -40,13 +52,18 @@ export async function POST(request: Request) {
     const passwordHash = await hash(payload.password, 10);
     const adminRole = await isAdminEmail(payload.email);
 
-    await createUser({
+    const newUser = await createUser({
       username: payload.username.trim(),
       email: payload.email.trim().toLowerCase(),
       phone: payload.phone.trim(),
       passwordHash,
       role: adminRole ? "admin" : "user",
     });
+
+    // Record device account creation for tracking
+    if (payload.deviceId && newUser?.id) {
+      await recordDeviceAccountCreation(payload.deviceId, newUser.id);
+    }
 
     return NextResponse.json({ message: "Registrasi berhasil." });
   } catch (error) {

@@ -13,6 +13,20 @@ export type StoreProduct = {
   isActive: boolean;
   productType: ProductType;
   jobApplicationLink?: string;
+  maxApplicants?: number;
+  applicantCount?: number;
+};
+
+export type MaintenanceSettings = {
+  id: "main";
+  isEnabled: boolean;
+  message: string;
+  accessKey: string;
+  openDate?: string;
+  openTime?: string;
+  closeDate?: string;
+  closeTime?: string;
+  updatedAt: string;
 };
 
 export type InformationType = "message" | "poll" | "update";
@@ -67,6 +81,29 @@ export type StorePaymentSettings = {
   updatedAt: string;
 };
 
+export type BookStory = {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userAvatarUrl?: string;
+  story: string;
+  photos: string[];
+  likes: number;
+  likedBy: string[];
+  comments: Array<{
+    id: string;
+    userId: string;
+    userName: string;
+    text: string;
+    createdAt: string;
+  }>;
+  reportCount?: number;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  approvedAt?: string;
+};
+
 export type OrderItemInput = {
   productId: string;
   quantity: number;
@@ -99,4 +136,43 @@ export type StoreOrderItem = {
 
 export type StoreOrderDetail = OrderSummary & {
   items: StoreOrderItem[];
+};
+
+export type PortfolioItem = {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  category: string;
+  link?: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type ServiceConfig = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  icon?: string;
+  isActive: boolean;
+  sortOrder: number;
+  parentId?: string; // For nested menu
+  children?: ServiceConfig[];
+  createdAt: string;
+};
+
+export type HomepageConfig = {
+  id: string;
+  portfolioEnabled: boolean;
+  servicesEnabled: boolean;
+  testimonialEnabled: boolean;
+  productsEnabled: boolean;
+  informationEnabled: boolean;
+  marqueeEnabled: boolean;
+  heroTitle: string;
+  heroSubtitle: string;
+  portfolioSectionTitle: string;
+  updatedAt: string;
 };

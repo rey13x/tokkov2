@@ -1,6 +1,11 @@
 import type {
+  BookStory,
   InformationType,
+  MaintenanceSettings,
   OrderSummary,
+  PortfolioItem,
+  ServiceConfig,
+  HomepageConfig,
   StoreInformation,
   StoreMarqueeItem,
   StoreOrderDetail,
@@ -47,11 +52,46 @@ import {
   updateTestimonial as updateTestimonialDb,
   upsertPrivacyPolicyPage as upsertPrivacyPolicyPageDb,
   voteInformationPoll as voteInformationPollDb,
+  ensureDatabase,
+  run,
 } from "@/server/db";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
 import { resolveMediaUrl } from "@/lib/media";
 
 const now = () => Date.now();
+
+const PORTFOLIO_ITEMS_META_KEY = "portfolioItems";
+const HOMEPAGE_CONFIG_META_KEY = "homepageConfig";
+
+let firestoreUnavailable = false;
+
+function getFirestoreOrNull() {
+  if (firestoreUnavailable) {
+    return null;
+  }
+
+  return getFirebaseFirestore() as any;
+}
+
+function markFirestoreUnavailable(error: unknown) {
+  if (firestoreUnavailable) {
+    return;
+  }
+
+  const message = String(error || "");
+  if (
+    message.includes("PERMISSION_DENIED") ||
+    message.includes("permission_denied") ||
+    message.includes("permission denied") ||
+    message.includes("PERMISSION_DENIED:") ||
+    message.includes("app/permission-denied")
+  ) {
+    firestoreUnavailable = true;
+    console.warn(
+      "Firestore access disabled due to permission denied. Falling back to local database for the remainder of this process.",
+    );
+  }
+}
 
 function slugify(value: string) {
   return value
@@ -149,6 +189,8 @@ function mapProductDoc(
     isActive: Boolean(data?.isActive ?? true),
     productType: (String(data?.productType ?? "jual_beli") as "jual_beli" | "pekerjaan"),
     jobApplicationLink: String(data?.jobApplicationLink ?? ""),
+    maxApplicants: Number(data?.maxApplicants ?? 0) || undefined,
+    applicantCount: Number(data?.applicantCount ?? 0) || undefined,
   };
 }
 
@@ -244,6 +286,7 @@ function mapPrivacyPolicyDoc(
 }
 
 const PAYMENT_SETTINGS_META_KEY = "payment-settings-v1";
+const MAINTENANCE_SETTINGS_META_KEY = "maintenance-settings-v1";
 const MAX_QRIS_INLINE_LENGTH = 620_000;
 
 function defaultPaymentSettings(): StorePaymentSettings {
@@ -321,7 +364,7 @@ async function getUniqueSlug(firestore: any, baseName: string) {
 }
 
 export async function listProducts() {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return listProductsDb();
   }
@@ -336,13 +379,14 @@ export async function listProducts() {
       .map((doc: any) => mapProductDoc(doc.id, doc.data() as Record<string, unknown>))
       .filter((product: any) => product.isActive);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to read products from Firestore. Falling back to local database.", error);
     return listProductsDb();
   }
 }
 
 export async function listAllProducts() {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return listAllProductsDb();
   }
@@ -357,13 +401,14 @@ export async function listAllProducts() {
       mapProductDoc(doc.id, doc.data() as Record<string, unknown>),
     );
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to read all products from Firestore. Falling back to local database.", error);
     return listAllProductsDb();
   }
 }
 
 export async function getProductById(id: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return getProductByIdDb(id);
   }
@@ -376,6 +421,7 @@ export async function getProductById(id: string) {
 
     return mapProductDoc(doc.id, doc.data() as Record<string, unknown>);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to read product by id from Firestore. Falling back to local database.", error);
     return getProductByIdDb(id);
   }
@@ -391,8 +437,9 @@ export async function createProduct(input: {
   imageUrl: string;
   productType?: string;
   jobApplicationLink?: string;
+  maxApplicants?: number;
 }) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return createProductDb(input);
   }
@@ -404,6 +451,7 @@ export async function createProduct(input: {
     const mediaUrl = resolveMediaUrl(input.imageUrl);
     const productType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
     const jobLink = productType === "pekerjaan" ? (input.jobApplicationLink?.trim() ?? "") : "";
+    const maxApplicants = productType === "pekerjaan" ? (input.maxApplicants ?? 0) : 0;
 
     await firestore.collection("products").doc(id).set({
       slug,
@@ -418,12 +466,15 @@ export async function createProduct(input: {
       isActive: true,
       productType,
       jobApplicationLink: jobLink,
+      maxApplicants,
+      applicantCount: 0,
       createdAt,
       updatedAt: createdAt,
     });
 
     return getProductById(id);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to create product in Firestore. Falling back to local database.", error);
     return createProductDb(input);
   }
@@ -442,9 +493,10 @@ export async function updateProduct(
     isActive: boolean;
     productType: string;
     jobApplicationLink: string;
+    maxApplicants: number;
   }>,
 ) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return updateProductDb(id, input);
   }
@@ -461,11 +513,34 @@ export async function updateProduct(
     let nextSlug = String(currentData.slug ?? "");
     const nextMediaUrl =
       input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
-    const nextProductType = input.productType === "pekerjaan" ? "pekerjaan" : undefined;
-    const nextJobLink =
-      nextProductType === "pekerjaan"
-        ? (input.jobApplicationLink ?? String(currentData.jobApplicationLink ?? "")).trim()
+    const nextProductType =
+      input.productType === "pekerjaan"
+        ? "pekerjaan"
+        : input.productType === "jual_beli"
+        ? "jual_beli"
         : undefined;
+
+    let nextJobLink: string | undefined;
+    let nextMaxApplicants: number | undefined;
+
+    if (nextProductType === "pekerjaan") {
+      nextJobLink = (input.jobApplicationLink ?? String(currentData.jobApplicationLink ?? "")).trim();
+      nextMaxApplicants =
+        input.maxApplicants !== undefined
+          ? input.maxApplicants
+          : typeof currentData.maxApplicants === "number"
+          ? currentData.maxApplicants
+          : undefined;
+    } else if (nextProductType === "jual_beli") {
+      nextJobLink = "";
+      nextMaxApplicants = 0;
+    } else {
+      nextJobLink =
+        input.jobApplicationLink !== undefined
+          ? input.jobApplicationLink.trim()
+          : undefined;
+      nextMaxApplicants = input.maxApplicants;
+    }
 
     if (input.name && input.name !== currentData.name) {
       nextSlug = await getUniqueSlug(firestore, nextName);
@@ -483,7 +558,9 @@ export async function updateProduct(
       ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
       ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
       ...(nextProductType !== undefined ? { productType: nextProductType } : {}),
+      ...(nextProductType === "jual_beli" ? { jobApplicationLink: "", maxApplicants: 0 } : {}),
       ...(nextJobLink !== undefined ? { jobApplicationLink: nextJobLink } : {}),
+      ...(nextMaxApplicants !== undefined ? { maxApplicants: nextMaxApplicants } : {}),
       slug: nextSlug,
       slugLower: nextSlug.toLowerCase(),
       updatedAt: now(),
@@ -491,13 +568,14 @@ export async function updateProduct(
 
     return getProductById(id);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to update product in Firestore. Falling back to local database.", error);
     return updateProductDb(id, input);
   }
 }
 
 export async function deleteProduct(id: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     await deleteProductDb(id);
     return;
@@ -505,13 +583,14 @@ export async function deleteProduct(id: string) {
   try {
     await firestore.collection("products").doc(id).delete();
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to delete product in Firestore. Falling back to local database.", error);
     await deleteProductDb(id);
   }
 }
 
 export async function deleteAllProducts() {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     await deleteAllProductsDb();
     return;
@@ -523,13 +602,14 @@ export async function deleteAllProducts() {
     snapshot.docs.forEach((doc: any) => batch.delete(doc.ref));
     await batch.commit();
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to delete all products in Firestore. Falling back to local database.", error);
     await deleteAllProductsDb();
   }
 }
 
 export async function listInformations() {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return listInformationsDb();
   }
@@ -558,7 +638,7 @@ export async function createInformation(input: {
   imageUrl: string;
   pollOptions: string[];
 }) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return createInformationDb(input);
   }
@@ -601,7 +681,7 @@ export async function updateInformation(
     pollOptions: string[];
   }>,
 ) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return updateInformationDb(id, input);
   }
@@ -645,7 +725,7 @@ export async function updateInformation(
 }
 
 export async function getInformationById(id: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return getInformationByIdDb(id);
   }
@@ -667,7 +747,7 @@ export async function getInformationById(id: string) {
 }
 
 export async function voteInformationPoll(id: string, option: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return voteInformationPollDb(id, option);
   }
@@ -708,7 +788,7 @@ export async function voteInformationPoll(id: string, option: string) {
 }
 
 export async function deleteInformation(id: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     await deleteInformationDb(id);
     return;
@@ -725,7 +805,7 @@ export async function deleteInformation(id: string) {
 }
 
 export async function listTestimonials() {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return listTestimonialsDb();
   }
@@ -757,7 +837,7 @@ export async function createTestimonial(input: {
   mediaUrl: string;
   audioUrl: string;
 }) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return createTestimonialDb(input);
   }
@@ -802,7 +882,7 @@ export async function updateTestimonial(
     audioUrl: string;
   }>,
 ) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return updateTestimonialDb(id, input);
   }
@@ -841,7 +921,7 @@ export async function updateTestimonial(
 }
 
 export async function deleteTestimonial(id: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     await deleteTestimonialDb(id);
     return;
@@ -858,7 +938,7 @@ export async function deleteTestimonial(id: string) {
 }
 
 export async function listMarquees() {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return listMarqueesDb();
   }
@@ -882,7 +962,7 @@ export async function listMarquees() {
 }
 
 export async function getMarqueeById(id: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return getMarqueeByIdDb(id);
   }
@@ -908,7 +988,7 @@ export async function createMarquee(input: {
   isActive: boolean;
   sortOrder: number;
 }) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return createMarqueeDb(input);
   }
@@ -929,6 +1009,7 @@ export async function createMarquee(input: {
 
     return getMarqueeById(id);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to create marquee in Firestore. Falling back to local database.", error);
     return createMarqueeDb(input);
   }
@@ -943,7 +1024,7 @@ export async function updateMarquee(
     sortOrder: number;
   }>,
 ) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return updateMarqueeDb(id, input);
   }
@@ -970,13 +1051,14 @@ export async function updateMarquee(
 
     return getMarqueeById(id);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to update marquee in Firestore. Falling back to local database.", error);
     return updateMarqueeDb(id, input);
   }
 }
 
 export async function deleteMarquee(id: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     await deleteMarqueeDb(id);
     return;
@@ -984,13 +1066,14 @@ export async function deleteMarquee(id: string) {
   try {
     await firestore.collection("marquees").doc(id).delete();
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to delete marquee in Firestore. Falling back to local database.", error);
     await deleteMarqueeDb(id);
   }
 }
 
 export async function getPrivacyPolicyPage() {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     try {
       return await getPrivacyPolicyPageDb();
@@ -1008,6 +1091,7 @@ export async function getPrivacyPolicyPage() {
 
     return mapPrivacyPolicyDoc(doc.id, doc.data() as Record<string, unknown>);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to read privacy policy from Firestore. Falling back to database.", error);
     try {
       return await getPrivacyPolicyPageDb();
@@ -1023,7 +1107,7 @@ export async function upsertPrivacyPolicyPage(input: {
   bannerImageUrl: string;
   contentHtml: string;
 }) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return upsertPrivacyPolicyPageDb(input);
   }
@@ -1047,6 +1131,7 @@ export async function upsertPrivacyPolicyPage(input: {
 
     return getPrivacyPolicyPage();
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to write privacy policy to Firestore. Falling back to database.", error);
     return upsertPrivacyPolicyPageDb(input);
   }
@@ -1065,7 +1150,7 @@ export async function createOrder(input: {
     unitPrice: number;
   }>;
 }) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return createOrderDb(input);
   }
@@ -1092,6 +1177,7 @@ export async function createOrder(input: {
 
     return { id, total };
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to create order in Firestore. Falling back to local database.", error);
     return createOrderDb(input);
   }
@@ -1101,7 +1187,7 @@ export async function updateOrderStatus(
   id: string,
   status: "process" | "done" | "error",
 ) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return updateOrderStatusDb(id, status);
   }
@@ -1125,13 +1211,14 @@ export async function updateOrderStatus(
     });
     return getOrderById(id);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to update order status in Firestore. Falling back to local database.", error);
     return updateOrderStatusDb(id, status);
   }
 }
 
 export async function deleteOrder(id: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return deleteOrderDb(id);
   }
@@ -1145,13 +1232,14 @@ export async function deleteOrder(id: string) {
     await ref.delete();
     return true;
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to delete order in Firestore. Falling back to local database.", error);
     return deleteOrderDb(id);
   }
 }
 
 export async function listOrders(limit = 100) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return listOrdersDb(limit);
   }
@@ -1180,13 +1268,14 @@ export async function listOrders(limit = 100) {
       } satisfies OrderSummary;
     });
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to read orders from Firestore. Falling back to local database.", error);
     return listOrdersDb(limit);
   }
 }
 
 export async function listOrderItemsByOrderId(orderId: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return listOrderItemsByOrderIdDb(orderId);
   }
@@ -1222,7 +1311,7 @@ export async function listOrderItemsByOrderId(orderId: string) {
 }
 
 export async function getOrderById(id: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return getOrderByIdDb(id);
   }
@@ -1248,6 +1337,7 @@ export async function getOrderById(id: string) {
       createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
     } satisfies OrderSummary;
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to read order by id from Firestore. Falling back to local database.", error);
     return getOrderByIdDb(id);
   }
@@ -1259,7 +1349,7 @@ export async function requestOrderCancellation(id: string, reason: string) {
     throw new Error("Alasan pembatalan minimal 5 karakter.");
   }
 
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return requestOrderCancellationDb(id, safeReason);
   }
@@ -1281,13 +1371,14 @@ export async function requestOrderCancellation(id: string, reason: string) {
 
     return getOrderById(id);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to request order cancellation in Firestore. Falling back to local database.", error);
     return requestOrderCancellationDb(id, safeReason);
   }
 }
 
 export async function confirmOrderCancellation(id: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return confirmOrderCancellationDb(id);
   }
@@ -1308,13 +1399,14 @@ export async function confirmOrderCancellation(id: string) {
 
     return getOrderById(id);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to confirm order cancellation in Firestore. Falling back to local database.", error);
     return confirmOrderCancellationDb(id);
   }
 }
 
 export async function listOrdersWithItems(limit = 100) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return listOrdersWithItemsDb(limit);
   }
@@ -1342,7 +1434,7 @@ export async function listOrdersWithItems(limit = 100) {
 }
 
 export async function getOrderStatsLastHours(hours = 12) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     return getOrderStatsLastHoursDb(hours);
   }
@@ -1382,13 +1474,14 @@ export async function getOrderStatsLastHours(hours = 12) {
 
     return [...bucketMap.values()];
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to read order stats from Firestore. Falling back to local database.", error);
     return getOrderStatsLastHoursDb(hours);
   }
 }
 
 export async function getPaymentSettings() {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     try {
       const raw = await getAppMetaValueDb(PAYMENT_SETTINGS_META_KEY);
@@ -1408,6 +1501,7 @@ export async function getPaymentSettings() {
     }
     return normalizePaymentSettings(doc.data() as Partial<StorePaymentSettings>);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to read payment settings from Firestore. Falling back to local database.", error);
     try {
       const raw = await getAppMetaValueDb(PAYMENT_SETTINGS_META_KEY);
@@ -1439,7 +1533,7 @@ export async function upsertPaymentSettings(input: {
     throw new Error("Gambar QRIS inline terlalu besar. Gunakan file lebih kecil atau aktifkan bucket upload.");
   }
 
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull();
   if (!firestore) {
     await upsertAppMetaValueDb(PAYMENT_SETTINGS_META_KEY, JSON.stringify(next));
     return next;
@@ -1455,6 +1549,7 @@ export async function upsertPaymentSettings(input: {
     );
     return getPaymentSettings();
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to write payment settings to Firestore. Falling back to local database.", error);
     try {
       await upsertAppMetaValueDb(PAYMENT_SETTINGS_META_KEY, JSON.stringify(next));
@@ -1469,5 +1564,1037 @@ export async function upsertPaymentSettings(input: {
         `Storage write failed (Firestore: ${primaryMessage}; Local fallback: ${fallbackMessage})`,
       );
     }
+  }
+}
+
+function defaultMaintenanceSettings(): MaintenanceSettings {
+  return {
+    id: "main",
+    isEnabled: false,
+    message: "Website sedang dalam pemeliharaan. Mohon coba lagi nanti.",
+    accessKey: "",
+    openDate: "",
+    openTime: "",
+    closeDate: "",
+    closeTime: "",
+    updatedAt: new Date(now()).toISOString(),
+  };
+}
+
+export async function getMaintenanceSettings() {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    try {
+      const raw = await getAppMetaValueDb(MAINTENANCE_SETTINGS_META_KEY);
+      if (!raw) {
+        return defaultMaintenanceSettings();
+      }
+      return JSON.parse(raw) as MaintenanceSettings;
+    } catch {
+      return defaultMaintenanceSettings();
+    }
+  }
+
+  try {
+    const doc = await firestore.collection("maintenanceSettings").doc("main").get();
+    if (!doc.exists) {
+      return defaultMaintenanceSettings();
+    }
+    return doc.data() as MaintenanceSettings;
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to read maintenance settings from Firestore. Falling back to local database.", error);
+    try {
+      const raw = await getAppMetaValueDb(MAINTENANCE_SETTINGS_META_KEY);
+      if (!raw) {
+        return defaultMaintenanceSettings();
+      }
+      return JSON.parse(raw) as MaintenanceSettings;
+    } catch {
+      return defaultMaintenanceSettings();
+    }
+  }
+}
+
+export async function upsertMaintenanceSettings(input: {
+  isEnabled: boolean;
+  message: string;
+  accessKey: string;
+  openDate?: string;
+  openTime?: string;
+  closeDate?: string;
+  closeTime?: string;
+}) {
+  const next: MaintenanceSettings = {
+    id: "main",
+    isEnabled: input.isEnabled,
+    message: input.message.trim() || "Website sedang dalam pemeliharaan. Mohon coba lagi nanti.",
+    accessKey: input.accessKey.trim() || "",
+    openDate: input.openDate?.trim() || "",
+    openTime: input.openTime?.trim() || "",
+    closeDate: input.closeDate?.trim() || "",
+    closeTime: input.closeTime?.trim() || "",
+    updatedAt: new Date(now()).toISOString(),
+  };
+
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    await upsertAppMetaValueDb(MAINTENANCE_SETTINGS_META_KEY, JSON.stringify(next));
+    return next;
+  }
+
+  try {
+    await firestore.collection("maintenanceSettings").doc("main").set(next, { merge: true });
+    return getMaintenanceSettings();
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to write maintenance settings to Firestore. Falling back to local database.", error);
+    try {
+      await upsertAppMetaValueDb(MAINTENANCE_SETTINGS_META_KEY, JSON.stringify(next));
+      return next;
+    } catch (fallbackError) {
+      console.error("Failed to persist maintenance settings to local database fallback.", fallbackError);
+      throw new Error("Failed to update maintenance settings");
+    }
+  }
+}
+
+function mapBookStoryDoc(
+  id: string,
+  data: Record<string, unknown> | undefined,
+): BookStory {
+  const photos = (() => {
+    try {
+      const val = data?.photos;
+      if (typeof val === "string") return JSON.parse(val);
+      if (Array.isArray(val)) return val;
+      return [];
+    } catch {
+      return [];
+    }
+  })();
+
+  const likedBy = (() => {
+    try {
+      const val = data?.likedBy || data?.liked_by;
+      if (typeof val === "string") return JSON.parse(val);
+      if (Array.isArray(val)) return val;
+      return [];
+    } catch {
+      return [];
+    }
+  })();
+
+  const comments = (() => {
+    try {
+      const val = data?.comments;
+      if (typeof val === "string") return JSON.parse(val);
+      if (Array.isArray(val)) return val;
+      return [];
+    } catch {
+      return [];
+    }
+  })();
+
+  return {
+    id,
+    userId: String(data?.userId ?? data?.user_id ?? ""),
+    userName: String(data?.userName ?? data?.user_name ?? ""),
+    userEmail: String(data?.userEmail ?? data?.user_email ?? ""),
+    userAvatarUrl: String(data?.userAvatarUrl ?? data?.user_avatar_url ?? ""),
+    story: String(data?.story ?? ""),
+    photos,
+    likes: likedBy.length,
+    likedBy,
+    comments,
+    reportCount: Number(data?.reportCount ?? data?.report_count ?? 0),
+    status: (data?.status as "pending" | "approved" | "rejected") ?? "pending",
+    createdAt: new Date(Number(data?.createdAt ?? data?.created_at ?? now())).toISOString(),
+    approvedAt: data?.approvedAt || data?.approved_at ? new Date(Number(data.approvedAt || data.approved_at)).toISOString() : undefined,
+  };
+}
+
+export async function createBookStory(input: {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userAvatarUrl?: string;
+  story: string;
+  photos?: string[];
+}) {
+  try {
+    // Use local database for book stories
+    await ensureDatabase();
+    const id = crypto.randomUUID();
+    const createdAt = now();
+
+    const storyData = {
+      id,
+      userId: input.userId || "",
+      userName: input.userName || "Anonymous",
+      userEmail: input.userEmail || "",
+      userAvatarUrl: input.userAvatarUrl || "",
+      story: input.story.trim(),
+      photos: JSON.stringify(input.photos || []),
+      likedBy: JSON.stringify([]),
+      status: "approved",
+      createdAt,
+      approvedAt: createdAt,
+    };
+
+    console.log("Creating book story with data:", {
+      id,
+      userId: storyData.userId,
+      userEmail: storyData.userEmail,
+      storyLength: storyData.story.length,
+    });
+
+    await run(
+      `INSERT INTO book_stories (id, user_id, user_name, user_email, user_avatar_url, story, photos, liked_by, status, created_at, approved_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        storyData.id,
+        storyData.userId,
+        storyData.userName,
+        storyData.userEmail,
+        storyData.userAvatarUrl,
+        storyData.story,
+        storyData.photos,
+        storyData.likedBy,
+        storyData.status,
+        storyData.createdAt,
+        storyData.approvedAt,
+      ],
+    );
+
+    console.log("Book story created successfully:", id);
+    return mapBookStoryDoc(id, {
+      userId: storyData.userId,
+      userName: storyData.userName,
+      userEmail: storyData.userEmail,
+      userAvatarUrl: storyData.userAvatarUrl,
+      story: storyData.story,
+      photos: input.photos || [],
+      likedBy: [],
+      comments: [],
+      status: storyData.status,
+      createdAt: storyData.createdAt,
+      approvedAt: storyData.approvedAt,
+    });
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to create book story:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    throw new Error("Gagal menyimpan cerita. Coba lagi nanti.");
+  }
+}
+
+export async function listPendingBookStories() {
+  try {
+    await ensureDatabase();
+    const res = await run(
+      "SELECT * FROM book_stories WHERE status = 'pending' ORDER BY created_at DESC",
+    );
+
+    return ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) =>
+      mapBookStoryDoc(String(row.id), {
+        userId: row.user_id,
+        userName: row.user_name,
+        userEmail: row.user_email,
+        story: row.story,
+        photos: row.photos,
+        likedBy: row.liked_by,
+        comments: row.comments,
+        status: row.status,
+        createdAt: row.created_at,
+        approvedAt: row.approved_at,
+      }),
+    );
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to read pending book stories from database:", error);
+    return [];
+  }
+}
+
+export async function listApprovedBookStories() {
+  try {
+    await ensureDatabase();
+    const res = await run(
+      "SELECT * FROM book_stories WHERE status = 'approved' ORDER BY approved_at DESC",
+    );
+
+    return ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) =>
+      mapBookStoryDoc(String(row.id), {
+        userId: row.user_id,
+        userName: row.user_name,
+        userEmail: row.user_email,
+        story: row.story,
+        photos: row.photos,
+        likedBy: row.liked_by,
+        comments: row.comments,
+        status: row.status,
+        createdAt: row.created_at,
+        approvedAt: row.approved_at,
+      }),
+    );
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to read approved book stories from database:", error);
+    return [];
+  }
+}
+
+export async function approveBookStory(storyId: string) {
+  try {
+    await ensureDatabase();
+    const approvedAt = now();
+    await run(
+      "UPDATE book_stories SET status = ?, approved_at = ? WHERE id = ?",
+      ["approved", approvedAt, storyId]
+    );
+
+    const result = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId]
+    );
+    
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Story not found");
+    }
+
+    return mapBookStoryDoc(storyId, {
+      userId: row.user_id,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      story: row.story,
+      photos: row.photos,
+      likedBy: row.liked_by,
+      comments: row.comments,
+      status: row.status,
+      createdAt: row.created_at,
+      approvedAt: row.approved_at,
+    });
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to approve book story in database.", error);
+    throw new Error("Gagal menyetujui cerita");
+  }
+}
+
+export async function rejectBookStory(storyId: string) {
+  try {
+    await ensureDatabase();
+    await run(
+      "UPDATE book_stories SET status = ? WHERE id = ?",
+      ["rejected", storyId]
+    );
+
+    const result = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId]
+    );
+    
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Story not found");
+    }
+
+    return mapBookStoryDoc(storyId, {
+      userId: row.user_id,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      story: row.story,
+      photos: row.photos,
+      likedBy: row.liked_by,
+      comments: row.comments,
+      status: row.status,
+      createdAt: row.created_at,
+      approvedAt: row.approved_at,
+    });
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to reject book story in database.", error);
+    throw new Error("Gagal menolak cerita");
+  }
+}
+
+export async function incrementBookStoryLikes(storyId: string, userId: string) {
+  try {
+    await ensureDatabase();
+    
+    const result = await run(
+      "SELECT liked_by FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId]
+    );
+    
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Story not found");
+    }
+
+    let likedBy: string[] = [];
+    try {
+      const val = row.liked_by;
+      if (typeof val === "string") likedBy = JSON.parse(val);
+      else if (Array.isArray(val)) likedBy = val;
+    } catch {
+      likedBy = [];
+    }
+
+    // Check if user already liked
+    if (likedBy.includes(userId)) {
+      // Remove like
+      likedBy = likedBy.filter(id => id !== userId);
+    } else {
+      // Add like
+      likedBy.push(userId);
+    }
+
+    await run(
+      "UPDATE book_stories SET liked_by = ? WHERE id = ?",
+      [JSON.stringify(likedBy), storyId]
+    );
+
+    const updatedResult = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId]
+    );
+    
+    const updatedRow = updatedResult.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Story not found");
+    }
+
+    return mapBookStoryDoc(storyId, {
+      userId: updatedRow.user_id,
+      userName: updatedRow.user_name,
+      userEmail: updatedRow.user_email,
+      story: updatedRow.story,
+      photos: updatedRow.photos,
+      likedBy: updatedRow.liked_by,
+      comments: updatedRow.comments,
+      status: updatedRow.status,
+      createdAt: updatedRow.created_at,
+      approvedAt: updatedRow.approved_at,
+    });
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to increment book story likes.", error);
+    throw new Error("Gagal memberikan like");
+  }
+}
+
+export async function addBookStoryComment(storyId: string, comment: { id: string; userId: string; userName: string; text: string; createdAt: string }) {
+  try {
+    await ensureDatabase();
+    
+    const result = await run(
+      "SELECT comments FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId]
+    );
+    
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Story not found");
+    }
+
+    let comments: Array<{ id: string; userId: string; userName: string; text: string; createdAt: string }> = [];
+    try {
+      const val = row.comments;
+      if (typeof val === "string") comments = JSON.parse(val);
+      else if (Array.isArray(val)) comments = val;
+    } catch {
+      comments = [];
+    }
+
+    comments.push(comment);
+
+    await run(
+      "UPDATE book_stories SET comments = ? WHERE id = ?",
+      [JSON.stringify(comments), storyId]
+    );
+
+    const updatedResult = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId]
+    );
+    
+    const updatedRow = updatedResult.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Story not found");
+    }
+
+    return mapBookStoryDoc(storyId, {
+      userId: updatedRow.user_id,
+      userName: updatedRow.user_name,
+      userEmail: updatedRow.user_email,
+      userAvatarUrl: updatedRow.user_avatar_url,
+      story: updatedRow.story,
+      photos: updatedRow.photos,
+      likes: updatedRow.likes,
+      likedBy: updatedRow.liked_by,
+      comments: updatedRow.comments,
+      status: updatedRow.status,
+      createdAt: updatedRow.created_at,
+      approvedAt: updatedRow.approved_at,
+    });
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to add book story comment.", error);
+    throw new Error("Gagal menambah komentar");
+  }
+}
+
+// Story report functions
+export async function reportStory(storyId: string, reporterUserId: string, reason: string) {
+  try {
+    await ensureDatabase();
+    const id = crypto.randomUUID();
+    const createdAt = now();
+
+    await run(
+      `INSERT INTO story_reports (id, story_id, reporter_user_id, reason, created_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(story_id, reporter_user_id) DO UPDATE SET
+        id = excluded.id,
+        reason = excluded.reason,
+        created_at = excluded.created_at`,
+      [id, storyId, reporterUserId, reason, createdAt],
+    );
+
+    // Update report count in story
+    const countRes = await run(
+      "SELECT COUNT(*) as count FROM story_reports WHERE story_id = ? AND resolved = 0",
+      [storyId],
+    );
+    const reportCount = Number((countRes.rows?.[0] as any)?.count ?? 0);
+
+    await run(
+      "UPDATE book_stories SET report_count = ? WHERE id = ?",
+      [reportCount, storyId],
+    ).catch(() => {});
+
+    return { success: true, reportId: id };
+  } catch (error) {
+    console.error("Failed to report story:", error);
+    throw new Error("Gagal melaporkan cerita");
+  }
+}
+
+export async function getStoryReports(storyId?: string) {
+  try {
+    await ensureDatabase();
+    
+    let query = `
+      SELECT 
+        sr.id,
+        sr.story_id,
+        sr.reporter_user_id,
+        sr.reason,
+        sr.created_at,
+        bs.id as story_user_id,
+        bs.user_id,
+        bs.user_name,
+        bs.user_email,
+        bs.user_avatar_url,
+        bs.story,
+        bs.photos,
+        bs.liked_by,
+        bs.comments,
+        bs.status,
+        bs.created_at as story_created_at,
+        bs.approved_at
+      FROM story_reports sr
+      LEFT JOIN book_stories bs ON sr.story_id = bs.id
+      WHERE sr.resolved = 0
+    `;
+    const params: any[] = [];
+    
+    if (storyId) {
+      query += " AND sr.story_id = ?";
+      params.push(storyId);
+    }
+    
+    query += " ORDER BY sr.created_at DESC";
+    
+    const res = await run(query, params);
+    
+    return ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) => {
+      const report: any = {
+        id: String(row.id),
+        storyId: String(row.story_id),
+        userId: String(row.reporter_user_id),
+        reason: String(row.reason),
+        createdAt: new Date(Number(row.created_at)).toISOString(),
+      };
+
+      // Include story data if it exists
+      if (row.story_user_id) {
+        report.story = mapBookStoryDoc(String(row.story_user_id), {
+          userId: row.user_id,
+          userName: row.user_name,
+          userEmail: row.user_email,
+          userAvatarUrl: row.user_avatar_url,
+          story: row.story,
+          photos: row.photos,
+          likedBy: row.liked_by,
+          comments: row.comments,
+          status: row.status,
+          createdAt: row.story_created_at,
+          approvedAt: row.approved_at,
+        });
+      }
+
+      return report;
+    });
+  } catch (error) {
+    console.error("Failed to get story reports:", error);
+    return [];
+  }
+}
+
+export async function resolveStoryReport(reportId: string, resolvedBy: string, deleteStory: boolean = false) {
+  try {
+    await ensureDatabase();
+    const resolvedAt = now();
+
+    // Get report details
+    const reportRes = await run(
+      "SELECT story_id FROM story_reports WHERE id = ? LIMIT 1",
+      [reportId],
+    );
+    
+    const report = reportRes.rows?.[0] as Record<string, unknown> | undefined;
+    if (!report) {
+      throw new Error("Report not found");
+    }
+
+    const storyId = String(report.story_id);
+
+    // Mark report as resolved
+    await run(
+      "UPDATE story_reports SET resolved = 1, resolved_at = ?, resolved_by = ? WHERE id = ?",
+      [resolvedAt, resolvedBy, reportId],
+    );
+
+    // If delete story flag is set, delete the story
+    if (deleteStory) {
+      await run("DELETE FROM book_stories WHERE id = ?", [storyId]);
+    }
+
+    // Update report count
+    const countRes = await run(
+      "SELECT COUNT(*) as count FROM story_reports WHERE story_id = ? AND resolved = 0",
+      [storyId],
+    );
+    const reportCount = Number((countRes.rows?.[0] as any)?.count ?? 0);
+
+    if (!deleteStory) {
+      await run(
+        "UPDATE book_stories SET report_count = ? WHERE id = ?",
+        [reportCount, storyId],
+      ).catch(() => {});
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to resolve report:", error);
+    throw new Error("Gagal menyelesaikan laporan");
+  }
+}
+
+export async function deleteBookStory(storyId: string) {
+  try {
+    await ensureDatabase();
+    await run("DELETE FROM book_stories WHERE id = ?", [storyId]);
+    await run("DELETE FROM story_reports WHERE story_id = ?", [storyId]).catch(() => {});
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete story:", error);
+    throw new Error("Gagal menghapus cerita");
+  }
+}
+
+export async function updateBookStoryLikes(storyId: string, likeCount: number) {
+  try {
+    await ensureDatabase();
+    
+    // Create liked_by array with dummy IDs for the like count
+    const likedBy = Array.from({ length: Math.max(0, likeCount) }, (_, i) => `system_like_${i}`);
+    
+    await run(
+      "UPDATE book_stories SET liked_by = ?, likes = ? WHERE id = ?",
+      [JSON.stringify(likedBy), likeCount, storyId],
+    );
+
+    const result = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+    
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Story not found");
+    }
+
+    return mapBookStoryDoc(storyId, {
+      userId: row.user_id,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      userAvatarUrl: row.user_avatar_url,
+      story: row.story,
+      photos: row.photos,
+      likedBy: row.liked_by,
+      comments: row.comments,
+      status: row.status,
+      createdAt: row.created_at,
+      approvedAt: row.approved_at,
+    });
+  } catch (error) {
+    console.error("Failed to update likes:", error);
+    throw new Error("Gagal mengupdate like");
+  }
+}
+
+export async function addCustomBookStoryComments(storyId: string, comments: Array<{ userName: string; text: string }>) {
+  try {
+    await ensureDatabase();
+
+    const result = await run(
+      "SELECT comments FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Story not found");
+    }
+
+    let existingComments: any[] = [];
+    try {
+      const val = row.comments;
+      if (typeof val === "string") {
+        existingComments = JSON.parse(val);
+      }
+    } catch {}
+
+    // Add new comments
+    const newComments = comments.map((c) => ({
+      id: `comment_${Date.now()}_${Math.random()}`,
+      userId: "admin",
+      userName: c.userName || "Admin",
+      text: c.text,
+      createdAt: new Date().toISOString(),
+    }));
+
+    const allComments = [...existingComments, ...newComments];
+
+    await run(
+      "UPDATE book_stories SET comments = ? WHERE id = ?",
+      [JSON.stringify(allComments), storyId],
+    );
+
+    const updatedResult = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+
+    const updatedRow = updatedResult.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Story not found");
+    }
+
+    return mapBookStoryDoc(storyId, {
+      userId: updatedRow.user_id,
+      userName: updatedRow.user_name,
+      userEmail: updatedRow.user_email,
+      userAvatarUrl: updatedRow.user_avatar_url,
+      story: updatedRow.story,
+      photos: updatedRow.photos,
+      likedBy: updatedRow.liked_by,
+      comments: updatedRow.comments,
+      status: updatedRow.status,
+      createdAt: updatedRow.created_at,
+      approvedAt: updatedRow.approved_at,
+    });
+  } catch (error) {
+    console.error("Failed to add comments:", error);
+    throw new Error("Gagal menambah komentar");
+  }
+}
+
+// ============================================================================
+// PORTFOLIO ITEMS FUNCTIONS
+// ============================================================================
+
+function mapPortfolioItemDoc(
+  id: string,
+  data: Record<string, unknown> | undefined,
+): PortfolioItem {
+  return {
+    id,
+    title: String(data?.title ?? ""),
+    description: String(data?.description ?? ""),
+    imageUrl: resolveMediaUrl(String(data?.imageUrl ?? "")),
+    category: String(data?.category ?? ""),
+    link: String(data?.link ?? ""),
+    sortOrder: Number(data?.sortOrder ?? 0),
+    isActive: Boolean(data?.isActive ?? true),
+    createdAt: new Date(Number(data?.createdAt ?? now())).toISOString(),
+  };
+}
+
+export async function listPortfolioItems() {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return [];
+  }
+
+  try {
+    const snapshot = await firestore
+      .collection("portfolioItems")
+      .where("isActive", "==", true)
+      .orderBy("sortOrder", "asc")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    return snapshot.docs
+      .map((doc: any) => mapPortfolioItemDoc(doc.id, doc.data() as Record<string, unknown>))
+      .sort((a: PortfolioItem, b: PortfolioItem) =>
+        a.sortOrder - b.sortOrder || b.createdAt.localeCompare(a.createdAt),
+      );
+  } catch (error) {
+    console.error("Failed to read portfolio items from Firestore.", error);
+    return [];
+  }
+}
+
+export async function listAllPortfolioItems() {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return [];
+  }
+
+  try {
+    const snapshot = await firestore
+      .collection("portfolioItems")
+      .orderBy("sortOrder", "asc")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    return snapshot.docs
+      .map((doc: any) => mapPortfolioItemDoc(doc.id, doc.data() as Record<string, unknown>))
+      .sort((a: PortfolioItem, b: PortfolioItem) =>
+        a.sortOrder - b.sortOrder || b.createdAt.localeCompare(a.createdAt),
+      );
+  } catch (error) {
+    console.error("Failed to read all portfolio items from Firestore.", error);
+    return [];
+  }
+}
+
+export async function createPortfolioItem(input: {
+  title: string;
+  description: string;
+  imageUrl: string;
+  category: string;
+  link?: string;
+  sortOrder?: number;
+}) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    throw new Error("Firestore tidak tersedia");
+  }
+
+  try {
+    const id = crypto.randomUUID();
+    const createdAt = now();
+    const mediaUrl = resolveMediaUrl(input.imageUrl);
+
+    await firestore.collection("portfolioItems").doc(id).set({
+      title: input.title.trim(),
+      description: input.description.trim(),
+      imageUrl: mediaUrl,
+      category: input.category.trim(),
+      link: (input.link ?? "").trim(),
+      sortOrder: Math.max(0, Math.floor(input.sortOrder ?? 0)),
+      isActive: true,
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    const doc = await firestore.collection("portfolioItems").doc(id).get();
+    return mapPortfolioItemDoc(doc.id, doc.data() as Record<string, unknown>);
+  } catch (error) {
+    console.error("Failed to create portfolio item in Firestore.", error);
+    throw new Error("Gagal membuat portfolio item");
+  }
+}
+
+export async function updatePortfolioItem(
+  id: string,
+  input: Partial<{
+    title: string;
+    description: string;
+    imageUrl: string;
+    category: string;
+    link: string;
+    sortOrder: number;
+    isActive: boolean;
+  }>,
+) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    throw new Error("Firestore tidak tersedia");
+  }
+
+  try {
+    const ref = firestore.collection("portfolioItems").doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return null;
+    }
+
+    const nextMediaUrl =
+      input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
+
+    await ref.update({
+      ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+      ...(input.description !== undefined ? { description: input.description.trim() } : {}),
+      ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
+      ...(input.category !== undefined ? { category: input.category.trim() } : {}),
+      ...(input.link !== undefined ? { link: input.link.trim() } : {}),
+      ...(input.sortOrder !== undefined
+        ? { sortOrder: Math.max(0, Math.floor(input.sortOrder)) }
+        : {}),
+      ...(input.isActive !== undefined ? { isActive: Boolean(input.isActive) } : {}),
+      updatedAt: now(),
+    });
+
+    const updated = await ref.get();
+    return mapPortfolioItemDoc(updated.id, updated.data() as Record<string, unknown>);
+  } catch (error) {
+    console.error("Failed to update portfolio item in Firestore.", error);
+    throw new Error("Gagal memperbarui portfolio item");
+  }
+}
+
+export async function deletePortfolioItem(id: string) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    throw new Error("Firestore tidak tersedia");
+  }
+
+  try {
+    await firestore.collection("portfolioItems").doc(id).delete();
+  } catch (error) {
+    console.error("Failed to delete portfolio item in Firestore.", error);
+    throw new Error("Gagal menghapus portfolio item");
+  }
+}
+
+// ============================================================================
+// HOMEPAGE CONFIG FUNCTIONS
+// ============================================================================
+
+function defaultHomepageConfig(): HomepageConfig {
+  return {
+    id: "main",
+    portfolioEnabled: true,
+    servicesEnabled: true,
+    testimonialEnabled: true,
+    productsEnabled: true,
+    informationEnabled: true,
+    marqueeEnabled: true,
+    heroTitle: "Tokko",
+    heroSubtitle: "Your Digital Vision, Perfectly Realized.",
+    portfolioSectionTitle: "Portfolio",
+    updatedAt: new Date(now()).toISOString(),
+  };
+}
+
+function mapHomepageConfigDoc(
+  id: string,
+  data: Record<string, unknown> | undefined,
+): HomepageConfig {
+  const fallback = defaultHomepageConfig();
+  return {
+    id,
+    portfolioEnabled: Boolean(data?.portfolioEnabled ?? fallback.portfolioEnabled),
+    servicesEnabled: Boolean(data?.servicesEnabled ?? fallback.servicesEnabled),
+    testimonialEnabled: Boolean(data?.testimonialEnabled ?? fallback.testimonialEnabled),
+    productsEnabled: Boolean(data?.productsEnabled ?? fallback.productsEnabled),
+    informationEnabled: Boolean(data?.informationEnabled ?? fallback.informationEnabled),
+    marqueeEnabled: Boolean(data?.marqueeEnabled ?? fallback.marqueeEnabled),
+    heroTitle: String(data?.heroTitle ?? fallback.heroTitle),
+    heroSubtitle: String(data?.heroSubtitle ?? fallback.heroSubtitle),
+    portfolioSectionTitle: String(data?.portfolioSectionTitle ?? fallback.portfolioSectionTitle),
+    updatedAt: new Date(Number(data?.updatedAt ?? now())).toISOString(),
+  };
+}
+
+export async function getHomepageConfig() {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return defaultHomepageConfig();
+  }
+
+  try {
+    const doc = await firestore.collection("homepageConfig").doc("main").get();
+    if (!doc.exists) {
+      return defaultHomepageConfig();
+    }
+
+    return mapHomepageConfigDoc(doc.id, doc.data() as Record<string, unknown>);
+  } catch (error) {
+    console.error("Failed to read homepage config from Firestore.", error);
+    return defaultHomepageConfig();
+  }
+}
+
+export async function updateHomepageConfig(
+  input: Partial<{
+    portfolioEnabled: boolean;
+    servicesEnabled: boolean;
+    testimonialEnabled: boolean;
+    productsEnabled: boolean;
+    informationEnabled: boolean;
+    marqueeEnabled: boolean;
+    heroTitle: string;
+    heroSubtitle: string;
+    portfolioSectionTitle: string;
+  }>,
+) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    throw new Error("Firestore tidak tersedia");
+  }
+
+  try {
+    const ref = firestore.collection("homepageConfig").doc("main");
+    await ref.set(
+      {
+        ...(input.portfolioEnabled !== undefined ? { portfolioEnabled: input.portfolioEnabled } : {}),
+        ...(input.servicesEnabled !== undefined ? { servicesEnabled: input.servicesEnabled } : {}),
+        ...(input.testimonialEnabled !== undefined ? { testimonialEnabled: input.testimonialEnabled } : {}),
+        ...(input.productsEnabled !== undefined ? { productsEnabled: input.productsEnabled } : {}),
+        ...(input.informationEnabled !== undefined ? { informationEnabled: input.informationEnabled } : {}),
+        ...(input.marqueeEnabled !== undefined ? { marqueeEnabled: input.marqueeEnabled } : {}),
+        ...(input.heroTitle !== undefined ? { heroTitle: input.heroTitle.trim() } : {}),
+        ...(input.heroSubtitle !== undefined ? { heroSubtitle: input.heroSubtitle.trim() } : {}),
+        ...(input.portfolioSectionTitle !== undefined
+          ? { portfolioSectionTitle: input.portfolioSectionTitle.trim() }
+          : {}),
+        updatedAt: now(),
+      },
+      { merge: true },
+    );
+
+    return getHomepageConfig();
+  } catch (error) {
+    console.error("Failed to update homepage config in Firestore.", error);
+    throw new Error("Gagal memperbarui homepage config");
   }
 }

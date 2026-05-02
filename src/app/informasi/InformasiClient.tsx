@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiArrowRight, FiArrowLeft } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreInformation } from "@/types/store";
 import styles from "./InformasiClient.module.css";
@@ -90,6 +91,7 @@ export default function InformasiClient() {
           ))
         )}
       </section>
+      <MaintenanceModal />
     </main>
   );
 }

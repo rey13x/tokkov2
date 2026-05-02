@@ -1,6 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // --- HELPER FUNCTIONS ---
+    
     function signedIn() {
       return request.auth != null;
     }
@@ -10,42 +13,199 @@ service cloud.firestore {
         (request.auth.token.admin == true || request.auth.token.role == "admin");
     }
 
+    function isValidEmail(email) {
+      return email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function isValidPassword(password) {
+      return password.size() >= 8;
+    }
+
+    // --- COLLECTION RULES ---
+
     // Public storefront content
     match /products/{productId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin() && 
+        request.resource.data.keys().hasAll(['name', 'price']) &&
+        request.resource.data.price >= 0;
+      allow delete: if isAdmin();
+
+      match /ratings/{ratingId} {
+        allow read: if true;
+        allow create: if signedIn() && 
+          request.auth.uid == request.resource.data.userId &&
+          request.resource.data.rating >= 1 && 
+          request.resource.data.rating <= 5;
+      }
     }
 
     match /informations/{informationId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin() && 
+        request.resource.data.keys().hasAll(['title', 'content']);
+      allow delete: if isAdmin();
     }
 
     match /testimonials/{testimonialId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin() && 
+        request.resource.data.keys().hasAll(['name', 'text']);
+      allow delete: if isAdmin();
     }
 
     match /marquees/{marqueeId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin() && 
+        request.resource.data.keys().hasAll(['title', 'content']);
+      allow delete: if isAdmin();
     }
 
     match /privacyPolicyPages/{pageId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin() && 
+        request.resource.data.keys().hasAll(['title', 'content']);
+      allow delete: if isAdmin();
     }
 
-    // Admin only access
+    // User management and profiles
     match /users/{userId} {
       allow read, write: if isAdmin();
+      
+      match /profile/{document=**} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow write: if isAdmin();
+      }
+
+      match /preferences/{document=**} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /activityLog/{logId} {
+        allow read: if isAdmin();
+        allow create: if signedIn() && request.auth.uid == userId;
+      }
     }
 
     match /orders/{orderId} {
       allow read, write: if isAdmin();
+      
+      match /items/{itemId} {
+        allow read: if signedIn();
+        allow write: if isAdmin();
+      }
+
+      match /timeline/{timelineId} {
+        allow read: if signedIn();
+        allow create, update: if isAdmin();
+      }
+
+      match /payments/{paymentId} {
+        allow read: if signedIn();
+        allow write: if isAdmin();
+      }
     }
 
-    // Deny everything else
+    // Password reset tokens
+    match /passwordResetTokens/{tokenId} {
+      allow create: if true && 
+        request.resource.data.keys().hasAll(['token', 'email', 'expiresAt']);
+      allow read: if signedIn() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow update: if signedIn() && (request.auth.uid == resource.data.userId || isAdmin()) && 
+        !('token' in request.resource.data.diff(resource.data).changedKeys());
+      allow delete: if isAdmin();
+    }
+
+    // Job applications
+    match /jobApplications/{applicationId} {
+      allow create: if true && 
+        request.resource.data.keys().hasAll(['name', 'email', 'position', 'createdAt']);
+      allow read: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      match /status/{statusId} {
+        allow read: if isAdmin();
+        allow write: if isAdmin();
+      }
+
+      match /interviews/{interviewId} {
+        allow read: if isAdmin();
+        allow write: if isAdmin();
+      }
+    }
+
+    // Admin and System Logging
+    match /adminAuditLog/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && 
+        request.resource.data.keys().hasAll(['action', 'timestamp', 'adminId']);
+      allow write: if isAdmin();
+    }
+
+    match /adminSessions/{sessionId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /activityLogs/{logId} {
+      allow read, write: if isAdmin();
+      allow create: if signedIn();
+    }
+
+    match /systemSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /emailLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if true;
+      allow write: if isAdmin();
+    }
+
+    // Book Stories (for Book Spirit feature)
+    match /bookStories/{storyId} {
+      // Allow client-side creation if signed in
+      allow create: if signedIn() && 
+        request.resource.data.keys().hasAll(['userId', 'userName', 'userEmail', 'story', 'status', 'createdAt']);
+      // Allow server-side creation (Admin SDK with no auth context)
+      allow create: if request.auth == null;
+      allow read: if isAdmin();
+      allow update: if isAdmin() && 
+        request.resource.data.keys().hasAll(['userId', 'userName', 'userEmail', 'story', 'status', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // Portfolio items for portfolio view
+    match /portfolioItems/{itemId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && 
+        request.resource.data.keys().hasAll(['title', 'sortOrder']);
+      allow delete: if isAdmin();
+    }
+
+    // Homepage and Portfolio configuration
+    match /homepageConfig/{configId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Services configuration (for nested menu structure)
+    match /servicesConfig/{serviceId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+
+      match /children/{childId} {
+        allow read: if true;
+        allow create, update: if isAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // --- GLOBAL DENY ---
+    // Catch-all: Deny any access to documents not explicitly allowed above
     match /{document=**} {
       allow read, write: if false;
     }

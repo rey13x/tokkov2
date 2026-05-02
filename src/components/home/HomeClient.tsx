@@ -33,7 +33,6 @@ import {
   startOnboarding,
 } from "@/lib/onboarding";
 import { fetchStoreData } from "@/lib/store-client";
-import VoiceWavePlayer from "@/components/media/VoiceWavePlayer";
 import type {
   StoreInformation,
   StoreMarqueeItem,
@@ -896,7 +895,7 @@ export default function HomeClient() {
       ) : null}
 
       {informations.length > 0 ? (
-      <section className={styles.section} data-animate="section" id="informasi">
+      <section className={styles.section} data-animate="section" id="book-spirit">
         <div className={styles.sectionHead}>
           <h2>Informasi</h2>
         </div>
@@ -913,22 +912,13 @@ export default function HomeClient() {
             {informations.map((item) => renderInformationCard(item, item.id))}
           </div>
         )}
-        <article className={styles.orderGuideBox}>
-          <div>
-            <h3>Cara Order</h3>
-            <p>Bingung cara order? yuk aku siap bantu kamu - founder</p>
-          </div>
-          <button type="button" className={styles.orderGuideButton} onClick={onStartOrderGuide}>
-            Mulai Tutorial
-          </button>
-        </article>
       </section>
       ) : null}
 
       {testimonials.length > 0 || activeMarquees.length > 0 ? (
       <section className={styles.section} data-animate="section">
         <div className={styles.partnerHeader}>
-          <h2>Apa Kata Mereka?</h2>
+          <h2>Bekerja sama dengan</h2>
         </div>
         <div
           className={styles.partnerCarousel}
@@ -964,9 +954,6 @@ export default function HomeClient() {
                   </div>
                   <h3 className={styles.bagasName}>{item.name}</h3>
                   <p className={styles.testimonialText}>{item.message}</p>
-                  <VoiceWavePlayer
-                    srcCandidates={[item.audioUrl, "/assets/notif.mp3", "/assets/Notif.mp3", "/assets/buy.mp3"]}
-                  />
                 </article>
               ))}
             </div>
@@ -1023,8 +1010,8 @@ export default function HomeClient() {
                     <FiChevronRight />
                   </span>
                 </button>
-                <button type="button" onClick={() => router.push("/informasi")} data-menu-item>
-                  Informasi
+                <button type="button" onClick={() => router.push("/book-spirit")} data-menu-item>
+                  Book Spirit
                   <span>
                     <FiChevronRight />
                   </span>

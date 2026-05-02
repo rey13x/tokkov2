@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FiChevronRight } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { formatRupiah } from "@/data/products";
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreProduct } from "@/types/store";
@@ -69,7 +70,7 @@ export default function KoleksiPage() {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={session.user.image || "/assets/logov2.png"}
+                  src={session.user.image || "/assets/logo.png"}
                   alt="Profil"
                   style={{
                     borderRadius: "50%",
@@ -136,6 +137,7 @@ export default function KoleksiPage() {
       ) : (
         <p className={styles.emptyState}>Produk tidak ditemukan untuk filter ini.</p>
       )}
+      <MaintenanceModal />
     </main>
   );
 }

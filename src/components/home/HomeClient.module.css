@@ -50,7 +50,6 @@
 .logo {
   width: 86px;
   height: auto;
-  filter: brightness(0) invert(1);
 }
 
 .profileShortcut {
@@ -754,7 +753,6 @@
 .menuLogo {
   width: 86px;
   height: auto;
-  filter: brightness(0) invert(1);
 }
 
 .menuSearchButton {

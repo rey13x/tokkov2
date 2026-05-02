@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
 import { getAdminEmails, addAdminEmail, removeAdminEmail } from "@/server/db";
 
-const MAIN_ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase() ?? "digitalawanku2@gmail.com";
+const MAIN_ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase() ?? "digitalawanku@gmail.com";
 
 export async function GET() {
   try {

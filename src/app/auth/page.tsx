@@ -6,9 +6,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { FcGoogle } from "react-icons/fc";
+import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
+import { getDeviceId } from "@/lib/device-fingerprint";
 import styles from "./page.module.css";
 
-type AuthMode = "signin" | "signup";
+type AuthMode = "signin" | "signup" | "forgotPassword";
+
+function getTempPasswordResetMessage(message: string) {
+  if (message.includes("sudah dikirim")) {
+    return "Link reset password sudah dikirim. Cek email kamu!";
+  }
+  return message;
+}
 
 function getSafeRedirect(pathname: string | null) {
   if (!pathname || !pathname.startsWith("/") || pathname.startsWith("//")) {
@@ -40,10 +49,12 @@ export default function AuthPage() {
   const { status } = useSession();
   const googleUiEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "false";
   const canUseEmailOtp = process.env.NEXT_PUBLIC_EMAIL_OTP_ENABLED === "true";
+  const forgotPasswordEnabled = process.env.NEXT_PUBLIC_FORGOT_PASSWORD_ENABLED === "true";
 
   const [mode, setMode] = useState<AuthMode>("signin");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [signupUsername, setSignupUsername] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
@@ -52,6 +63,13 @@ export default function AuthPage() {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [signupCode, setSignupCode] = useState("");
   const [isCodeSent, setIsCodeSent] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [isForgotPasswordSubmitting, setIsForgotPasswordSubmitting] = useState(false);
+  const [forgotPasswordError, setForgotPasswordError] = useState("");
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState("");
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -59,6 +77,7 @@ export default function AuthPage() {
   const [isRequestingCode, setIsRequestingCode] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [redirectTarget, setRedirectTarget] = useState("/");
+  const [deviceId, setDeviceId] = useState("");
   const canUseGoogleSignIn = googleUiEnabled;
 
   useEffect(() => {
@@ -70,6 +89,13 @@ export default function AuthPage() {
     const authError = params.get("error");
     if (authError) {
       setError(getAuthErrorMessage(authError));
+    }
+
+    // Initialize device ID for account creation tracking
+    try {
+      setDeviceId(getDeviceId());
+    } catch (error) {
+      console.error("Failed to get device ID:", error);
     }
   }, []);
 
@@ -172,6 +198,7 @@ export default function AuthPage() {
             phone: signupPhone,
             password: signupPassword,
             confirmPassword: signupConfirmPassword,
+            deviceId,
           }),
         });
         let registerResult: { message?: string } = {};
@@ -269,6 +296,53 @@ export default function AuthPage() {
     }
   };
 
+  const onForgotPassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setForgotPasswordError("");
+    setForgotPasswordSuccess("");
+    setIsForgotPasswordSubmitting(true);
+
+    try {
+      const trimmedEmail = forgotPasswordEmail.trim();
+      
+      if (!trimmedEmail) {
+        setForgotPasswordError("Email wajib diisi");
+        return;
+      }
+
+      if (!trimmedEmail.includes("@")) {
+        setForgotPasswordError("Email tidak valid");
+        return;
+      }
+
+      const response = await fetch("/api/auth/reset-password/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail }),
+      });
+
+      const result = (await response.json()) as { message?: string };
+
+      if (!response.ok) {
+        setForgotPasswordError(result.message ?? "Gagal mengirim link reset password.");
+        return;
+      }
+
+      setForgotPasswordSuccess(getTempPasswordResetMessage(result.message ?? "Link reset password sudah dikirim."));
+      setForgotPasswordEmail("");
+      
+      // Reset form after 3 seconds
+      setTimeout(() => {
+        setForgotPasswordSuccess("");
+        setMode("signin");
+      }, 3000);
+    } catch {
+      setForgotPasswordError("Gagal mengirim link reset password.");
+    } finally {
+      setIsForgotPasswordSubmitting(false);
+    }
+  };
+
   return (
     <main className={styles.page}>
       <section className={styles.authCard}>
@@ -292,6 +366,8 @@ export default function AuthPage() {
               setMode("signin");
               setError("");
               setSuccess("");
+              setForgotPasswordError("");
+              setForgotPasswordSuccess("");
             }}
             className={mode === "signin" ? styles.modeActive : ""}
           >
@@ -303,11 +379,28 @@ export default function AuthPage() {
               setMode("signup");
               setError("");
               setSuccess("");
+              setForgotPasswordError("");
+              setForgotPasswordSuccess("");
             }}
             className={mode === "signup" ? styles.modeActive : ""}
           >
             Sign Up
           </button>
+          {forgotPasswordEnabled && (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("forgotPassword");
+                setError("");
+                setSuccess("");
+                setForgotPasswordError("");
+                setForgotPasswordSuccess("");
+              }}
+              className={mode === "forgotPassword" ? styles.modeActive : ""}
+            >
+              Lupa Password
+            </button>
+          )}
         </div>
 
         {mode === "signin" && canUseGoogleSignIn ? (
@@ -336,13 +429,27 @@ export default function AuthPage() {
             </label>
             <label className={styles.field}>
               Password
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Password kamu"
-                required
-              />
+              <div className={styles.passwordField}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Password kamu"
+                  required
+                />
+                <button
+                  type="button"
+                  className={styles.passwordToggle}
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <AiOutlineEyeInvisible className={styles.eyeIcon} />
+                  ) : (
+                    <AiOutlineEye className={styles.eyeIcon} />
+                  )}
+                </button>
+              </div>
             </label>
             {error ? <p className={styles.errorText}>{error}</p> : null}
             {success ? <p className={styles.successText}>{success}</p> : null}
@@ -384,23 +491,51 @@ export default function AuthPage() {
             </label>
             <label className={styles.field}>
               Password
-              <input
-                type="password"
-                value={signupPassword}
-                onChange={(event) => setSignupPassword(event.target.value)}
-                placeholder="Password kamu"
-                required
-              />
+              <div className={styles.passwordField}>
+                <input
+                  type={showSignupPassword ? "text" : "password"}
+                  value={signupPassword}
+                  onChange={(event) => setSignupPassword(event.target.value)}
+                  placeholder="Password kamu"
+                  required
+                />
+                <button
+                  type="button"
+                  className={styles.passwordToggle}
+                  onClick={() => setShowSignupPassword(!showSignupPassword)}
+                  aria-label={showSignupPassword ? "Hide password" : "Show password"}
+                >
+                  {showSignupPassword ? (
+                    <AiOutlineEyeInvisible className={styles.eyeIcon} />
+                  ) : (
+                    <AiOutlineEye className={styles.eyeIcon} />
+                  )}
+                </button>
+              </div>
             </label>
             <label className={styles.field}>
               Konfirmasi Password
-              <input
-                type="password"
-                value={signupConfirmPassword}
-                onChange={(event) => setSignupConfirmPassword(event.target.value)}
-                placeholder="Ulangi password kamu"
-                required
-              />
+              <div className={styles.passwordField}>
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={signupConfirmPassword}
+                  onChange={(event) => setSignupConfirmPassword(event.target.value)}
+                  placeholder="Ulangi password kamu"
+                  required
+                />
+                <button
+                  type="button"
+                  className={styles.passwordToggle}
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? (
+                    <AiOutlineEyeInvisible className={styles.eyeIcon} />
+                  ) : (
+                    <AiOutlineEye className={styles.eyeIcon} />
+                  )}
+                </button>
+              </div>
             </label>
             {canUseEmailOtp ? (
               <>
@@ -443,6 +578,33 @@ export default function AuthPage() {
             </button>
           </form>
         )}
+
+        {mode === "forgotPassword" && forgotPasswordEnabled ? (
+          <form className={styles.form} onSubmit={onForgotPassword}>
+            <label className={styles.field}>
+              Email / Gmail
+              <input
+                type="email"
+                value={forgotPasswordEmail}
+                onChange={(event) => setForgotPasswordEmail(event.target.value)}
+                placeholder="Masukkan email kamu"
+                required
+              />
+            </label>
+            {forgotPasswordError ? <p className={styles.errorText}>{forgotPasswordError}</p> : null}
+            {forgotPasswordSuccess ? <p className={styles.successText}>{forgotPasswordSuccess}</p> : null}
+            <button 
+              type="submit" 
+              className={styles.submitButton} 
+              disabled={isForgotPasswordSubmitting}
+            >
+              {isForgotPasswordSubmitting ? "Mengirim..." : "Kirim Link Reset Password"}
+            </button>
+            <p className={styles.helperText}>
+              Kami akan mengirim link reset password ke email kamu. Link berlaku selama 1 jam.
+            </p>
+          </form>
+        ) : null}
 
         <div className={styles.extraAction}>
           <Link href="/" className={styles.backLink}>

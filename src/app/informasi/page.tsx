@@ -1,5 +1,15 @@
-import InformasiClient from "./InformasiClient";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function InformasiPage() {
-  return <InformasiClient />;
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/book-spirit");
+  }, [router]);
+
+  return null;
 }
+

@@ -74,6 +74,8 @@
   color: #4d5670;
   line-height: 1.64;
   max-width: 720px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 .price {

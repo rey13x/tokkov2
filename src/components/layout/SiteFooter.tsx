@@ -21,7 +21,7 @@ export default function SiteFooter() {
             <h2>
               Tokko
               <br />
-
+              X Book Spirit
             </h2>
           </div>
         </div>

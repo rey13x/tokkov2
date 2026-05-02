@@ -308,6 +308,13 @@
   text-align: center;
 }
 
+.sectionTitle {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #121828;
+  margin: 20px 0 10px 0;
+}
+
 @media (max-width: 720px) {
   .header {
     flex-direction: column;

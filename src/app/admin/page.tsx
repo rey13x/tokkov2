@@ -2,10 +2,12 @@
 
 import { type ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { signOut as nextAuthSignOut } from "next-auth/react";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
+import { AdminPortfolioSection } from "@/app/admin/AdminPortfolioSection";
 import type {
   OrderSummary,
   StoreInformation,
@@ -14,6 +16,7 @@ import type {
   StorePrivacyPolicyPage,
   StoreProduct,
   StoreTestimonial,
+  BookStory,
 } from "@/types/store";
 import styles from "./page.module.css";
 
@@ -39,10 +42,14 @@ type AdminSection =
   | "informations"
   | "testimonials"
   | "marquees"
+  | "portfolio"
+  | "homepageSettings"
   | "paymentSettings"
   | "privacyPolicy"
+  | "maintenanceSettings"
   | "admins"
   | "users"
+  | "bookStories"
   | "preview";
 
 const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
@@ -52,12 +59,16 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
+  { id: "portfolio", label: "Portfolio", desc: "Atur portfolio items" },
+  { id: "homepageSettings", label: "Homepage Config", desc: "Atur tampilan homepage" },
+  { id: "bookStories", label: "Book Spirit", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
     id: "privacyPolicy",
     label: "Kebijakan Privasi",
     desc: "Atur konten halaman privasi",
   },
+  { id: "maintenanceSettings", label: "Pemeliharaan", desc: "Buka/tutup website" },
   { id: "admins", label: "Admin", desc: "Kelola admin" },
   { id: "users", label: "User", desc: "Lihat data user & aktivitas" },
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
@@ -73,6 +84,7 @@ const defaultProductForm = {
   imageUrl: "/assets/logo.png",
   productType: "jual_beli" as "jual_beli" | "pekerjaan",
   jobApplicationLink: "",
+  maxApplicants: 0,
 };
 
 const defaultInfoForm = {
@@ -115,6 +127,16 @@ const defaultPaymentSettingsForm: Omit<StorePaymentSettings, "id" | "updatedAt">
   expiryMinutes: 30,
 };
 const MAX_QRIS_INLINE_LENGTH = 620_000;
+
+const defaultMaintenanceSettingsForm = {
+  isEnabled: false,
+  message: "Website sedang dalam pemeliharaan. Mohon coba lagi nanti.",
+  accessKey: "",
+  openDate: "",
+  openTime: "",
+  closeDate: "",
+  closeTime: "",
+};
 
 function formatRupiahInput(value: string) {
   const digits = value.replace(/[^\d]/g, "");
@@ -354,11 +376,11 @@ export default function AdminPage() {
   const [marqueeEditId, setMarqueeEditId] = useState<string | null>(null);
   const [privacyPolicyForm, setPrivacyPolicyForm] = useState(defaultPrivacyPolicyForm);
   const [paymentSettingsForm, setPaymentSettingsForm] = useState(defaultPaymentSettingsForm);
+  const [maintenanceSettingsForm, setMaintenanceSettingsForm] = useState(defaultMaintenanceSettingsForm);
   const [previewVersion, setPreviewVersion] = useState(0);
   const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
   const [isUploadingInfoImage, setIsUploadingInfoImage] = useState(false);
   const [isUploadingTestimonialMedia, setIsUploadingTestimonialMedia] = useState(false);
-  const [isUploadingTestimonialAudio, setIsUploadingTestimonialAudio] = useState(false);
   const [isUploadingMarqueeImage, setIsUploadingMarqueeImage] = useState(false);
   const [isUploadingPrivacyBanner, setIsUploadingPrivacyBanner] = useState(false);
   const [isUploadingPaymentQris, setIsUploadingPaymentQris] = useState(false);
@@ -367,6 +389,12 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [session, setSession] = useState<{ user?: { email?: string; uid?: string } } | null>(null);
+  const [bookStories, setBookStories] = useState<BookStory[]>([]);
+  const [approvedBookStories, setApprovedBookStories] = useState<BookStory[]>([]);
+  const [storyReports, setStoryReports] = useState<Array<{ id: string; storyId: string; userId: string; reason: string; createdAt: string; story?: BookStory }>>([]);
+  const [expandedStoryId, setExpandedStoryId] = useState<string | null>(null);
+  const [storyLikesForm, setStoryLikesForm] = useState<Record<string, number>>({});
+  const [storyCommentsForm, setStoryCommentsForm] = useState<Record<string, Array<{ userName: string; text: string }>>>({});
   const privacyEditorRef = useRef<HTMLDivElement | null>(null);
 
   const maxOrderCount = useMemo(
@@ -526,29 +554,7 @@ export default function AdminPage() {
     }
   };
 
-  const onSelectTestimonialAudio = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
 
-    setError("");
-    setMessage("");
-    setIsUploadingTestimonialAudio(true);
-    try {
-      const uploaded = await uploadMedia(file, "testimonials-audio");
-      setTestimonialForm((current) => ({
-        ...current,
-        audioUrl: uploaded,
-      }));
-      setMessage("Voice testimonial berhasil diupload.");
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload voice gagal.");
-    } finally {
-      setIsUploadingTestimonialAudio(false);
-      event.target.value = "";
-    }
-  };
 
   const onSelectMarqueeImage = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -658,6 +664,33 @@ export default function AdminPage() {
     setMarquees(result.marquees);
   };
 
+  const loadBookStories = async () => {
+    const response = await fetch("/api/admin/book-stories", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil cerita yang menunggu persetujuan");
+    }
+    const result = (await response.json()) as { stories: BookStory[] };
+    setBookStories(result.stories);
+  };
+
+  const loadApprovedBookStories = async () => {
+    const response = await fetch("/api/admin/book-stories?status=approved", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil cerita yang sudah disetujui");
+    }
+    const result = (await response.json()) as { stories: BookStory[] };
+    setApprovedBookStories(result.stories);
+  };
+
+  const loadStoryReports = async () => {
+    const response = await fetch("/api/admin/book-stories?type=reports", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil laporan cerita");
+    }
+    const result = (await response.json()) as { reports: Array<{ id: string; storyId: string; userId: string; reason: string; createdAt: string; story?: BookStory }> };
+    setStoryReports(result.reports);
+  };
+
   const loadPrivacyPolicy = async () => {
     const response = await fetch("/api/admin/privacy-policy", { cache: "no-store" });
     if (!response.ok) {
@@ -683,6 +716,23 @@ export default function AdminPage() {
       qrisImageUrl: result.paymentSettings.qrisImageUrl,
       instructionText: result.paymentSettings.instructionText,
       expiryMinutes: result.paymentSettings.expiryMinutes,
+    });
+  };
+
+  const loadMaintenanceSettings = async () => {
+    const response = await fetch("/api/admin/maintenance-settings", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil pengaturan pemeliharaan");
+    }
+    const result = (await response.json()) as { settings: any };
+    setMaintenanceSettingsForm({
+      isEnabled: result.settings.isEnabled || false,
+      message: result.settings.message || "",
+      accessKey: result.settings.accessKey || "",
+      openDate: result.settings.openDate || "",
+      openTime: result.settings.openTime || "",
+      closeDate: result.settings.closeDate || "",
+      closeTime: result.settings.closeTime || "",
     });
   };
 
@@ -782,8 +832,12 @@ export default function AdminPage() {
           loadInformations(),
           loadTestimonials(),
           loadMarquees(),
+          loadBookStories(),
+          loadApprovedBookStories(),
+          loadStoryReports(),
           loadPrivacyPolicy(),
           loadPaymentSettings(),
+          loadMaintenanceSettings(),
           loadOrders(),
           loadStats(),
           loadUsers(),
@@ -1045,6 +1099,33 @@ export default function AdminPage() {
     }
   };
 
+  const onSaveMaintenanceSettings = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/admin/maintenance-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(maintenanceSettingsForm),
+      });
+      const result = (await response.json()) as { message?: string; settings?: any };
+      if (!response.ok) {
+        setError(result.message ?? "Gagal simpan pengaturan pemeliharaan.");
+        return;
+      }
+      setMessage("Pengaturan pemeliharaan berhasil disimpan.");
+      await loadMaintenanceSettings().catch(() => {});
+      bumpPreview();
+    } catch {
+      setError("Gagal simpan pengaturan pemeliharaan.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const onSaveOrderStatus = async (orderId: string) => {
     const statusDraft = orderStatusDrafts[orderId] ?? "process";
     setError("");
@@ -1170,6 +1251,139 @@ export default function AdminPage() {
     bumpPreview();
   };
 
+  const onApproveBookStory = async (storyId: string) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId, action: "approve" }),
+      });
+      if (!response.ok) {
+        throw new Error("Gagal setujui cerita");
+      }
+      setMessage("Cerita disetujui!");
+      await loadBookStories();
+      await loadApprovedBookStories();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal setujui cerita");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onRejectBookStory = async (storyId: string) => {
+    if (!window.confirm("Yakin tolak cerita ini?")) {
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId, action: "reject" }),
+      });
+      if (!response.ok) {
+        throw new Error("Gagal tolak cerita");
+      }
+      setMessage("Cerita ditolak!");
+      await loadBookStories();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal tolak cerita");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onDeleteBookStory = async (storyId: string) => {
+    if (!window.confirm("Yakin hapus cerita ini?")) {
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId, action: "delete" }),
+      });
+      if (!response.ok) {
+        throw new Error("Gagal hapus cerita");
+      }
+      setMessage("Cerita dihapus!");
+      await loadBookStories();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal hapus cerita");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateStoryLikes = async (storyId: string, likes: number) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId, action: "update-likes", likes }),
+      });
+      if (!response.ok) {
+        throw new Error("Gagal update likes");
+      }
+      setMessage("Like berhasil diupdate!");
+      await loadApprovedBookStories();
+      setExpandedStoryId(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal update likes");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addCustomComments = async (storyId: string, comments: Array<{ userName: string; text: string }>) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId, action: "add-comments", comments }),
+      });
+      if (!response.ok) {
+        throw new Error("Gagal tambah komentar");
+      }
+      setMessage("Komentar berhasil ditambahkan!");
+      await loadApprovedBookStories();
+      setStoryCommentsForm(prev => ({ ...prev, [storyId]: [] }));
+      setExpandedStoryId(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal tambah komentar");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resolveStoryReport = async (reportId: string, deleteStory: boolean) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportId, action: "resolve-report", deleteReportedStory: deleteStory }),
+      });
+      if (!response.ok) {
+        throw new Error("Gagal selesaikan laporan");
+      }
+      setMessage(deleteStory ? "Cerita dihapus dan laporan diselesaikan!" : "Laporan diselesaikan!");
+      await loadStoryReports();
+      if (deleteStory) {
+        await loadApprovedBookStories();
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal selesaikan laporan");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const onVoteInformation = async (informationId: string, option: string) => {
     setActivePollVoteId(informationId);
     try {
@@ -1236,6 +1450,7 @@ export default function AdminPage() {
       imageUrl: product.imageUrl,
       productType: product.productType || "jual_beli",
       jobApplicationLink: product.jobApplicationLink || "",
+      maxApplicants: product.maxApplicants ?? 0,
     });
     setPriceInput(formatRupiahInput(String(product.price)));
   };
@@ -1581,6 +1796,131 @@ export default function AdminPage() {
         </article>
         ) : null}
 
+        {activeSection === "maintenanceSettings" ? (
+        <article className={styles.card}>
+          <h2>Pengaturan Pemeliharaan Website</h2>
+          <form className={styles.form} onSubmit={onSaveMaintenanceSettings}>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <input
+                type="checkbox"
+                checked={maintenanceSettingsForm.isEnabled}
+                onChange={(event) =>
+                  setMaintenanceSettingsForm((current) => ({
+                    ...current,
+                    isEnabled: event.target.checked,
+                  }))
+                }
+              />
+              <span>Aktifkan Mode Pemeliharaan (Website Tertutup)</span>
+            </label>
+            <textarea
+              value={maintenanceSettingsForm.message}
+              onChange={(event) =>
+                setMaintenanceSettingsForm((current) => ({
+                  ...current,
+                  message: event.target.value,
+                }))
+              }
+              placeholder="Pesan pemeliharaan yang akan ditampilkan ke user"
+              required
+            />
+            <input
+              type="text"
+              value={maintenanceSettingsForm.accessKey}
+              onChange={(event) =>
+                setMaintenanceSettingsForm((current) => ({
+                  ...current,
+                  accessKey: event.target.value,
+                }))
+              }
+              placeholder="Kunci akses (kosongkan jika tidak dibutuhkan)"
+            />
+            <small style={{ color: "#666", marginTop: "-4px" }}>
+              Jika diisi, user perlu memasukkan kunci ini untuk mengakses website saat mode pemeliharaan aktif
+            </small>
+            
+            <div style={{ marginTop: "16px", borderTop: "1px solid #e0e0e0", paddingTop: "16px" }}>
+              <h3 style={{ fontSize: "0.95rem", marginBottom: "12px", fontWeight: 600 }}>⏰ Jadwal Pemeliharaan (Opsional)</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                    Tanggal Ditutup
+                  </label>
+                  <input
+                    type="date"
+                    value={maintenanceSettingsForm.closeDate}
+                    onChange={(event) =>
+                      setMaintenanceSettingsForm((current) => ({
+                        ...current,
+                        closeDate: event.target.value,
+                      }))
+                    }
+                    placeholder="YYYY-MM-DD"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                    Jam Ditutup
+                  </label>
+                  <input
+                    type="time"
+                    value={maintenanceSettingsForm.closeTime}
+                    onChange={(event) =>
+                      setMaintenanceSettingsForm((current) => ({
+                        ...current,
+                        closeTime: event.target.value,
+                      }))
+                    }
+                    placeholder="HH:MM"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                    Tanggal Dibuka
+                  </label>
+                  <input
+                    type="date"
+                    value={maintenanceSettingsForm.openDate}
+                    onChange={(event) =>
+                      setMaintenanceSettingsForm((current) => ({
+                        ...current,
+                        openDate: event.target.value,
+                      }))
+                    }
+                    placeholder="YYYY-MM-DD"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                    Jam Dibuka
+                  </label>
+                  <input
+                    type="time"
+                    value={maintenanceSettingsForm.openTime}
+                    onChange={(event) =>
+                      setMaintenanceSettingsForm((current) => ({
+                        ...current,
+                        openTime: event.target.value,
+                      }))
+                    }
+                    placeholder="HH:MM"
+                  />
+                </div>
+              </div>
+              <small style={{ color: "#999", display: "block", marginTop: "8px" }}>
+                Atur tanggal & jam kapan website akan ditutup dan dibuka. Website akan otomatis tertutup saat jam tercapai.
+              </small>
+            </div>
+
+            {error ? <p className={styles.errorText}>{error}</p> : null}
+            {message ? <p className={styles.successText}>{message}</p> : null}
+            <button type="submit" disabled={isLoading}>
+              {isLoading ? "Menyimpan..." : "Simpan Pengaturan"}
+            </button>
+          </form>
+        </article>
+        ) : null}
+
         {activeSection === "products" ? (
         <article className={styles.card}>
           <div className={styles.cardHead}>
@@ -1638,6 +1978,7 @@ export default function AdminPage() {
                       ...current,
                       productType: "jual_beli",
                       jobApplicationLink: "",
+                      maxApplicants: 0,
                     }))
                   }
                 />
@@ -1671,6 +2012,22 @@ export default function AdminPage() {
                 }
                 placeholder="Link pendaftaran/aplikasi pekerjaan"
                 required
+              />
+            ) : null}
+            {productForm.productType === "pekerjaan" ? (
+              <input
+                type="number"
+                min={1}
+                value={productForm.maxApplicants}
+                onChange={(event) =>
+                  setProductForm((current) => ({
+                    ...current,
+                    maxApplicants: event.target.value
+                      ? Math.max(1, Number(event.target.value))
+                      : 0,
+                  }))
+                }
+                placeholder="Jumlah maksimal pelamar"
               />
             ) : null}
             <input
@@ -1748,6 +2105,11 @@ export default function AdminPage() {
                       {product.category}
                       {product.duration ? ` - ${product.duration}` : ""}
                     </span>
+                    {product.productType === "pekerjaan" ? (
+                      <span style={{ color: "#666", fontSize: "0.85rem" }}>
+                        Pelamar: {product.applicantCount || 0} / {product.maxApplicants || 0}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <div className={styles.rowActions}>
@@ -1943,7 +2305,7 @@ export default function AdminPage() {
 
         {activeSection === "testimonials" ? (
         <article className={styles.card}>
-          <h2>{testimonialEditId ? "Edit Testimonial" : "CRUD Testimonial + Voice"}</h2>
+          <h2>{testimonialEditId ? "Edit Testimonial" : "CRUD Testimonial"}</h2>
           <form className={styles.form} onSubmit={onSaveTestimonial}>
             <input
               value={testimonialForm.name}
@@ -2021,17 +2383,7 @@ export default function AdminPage() {
                 <span>{testimonialForm.roleLabel || testimonialForm.country}</span>
               </div>
             </div>
-            <input value={testimonialForm.audioUrl} readOnly placeholder="URL voice otomatis" />
-            {isFileUploadEnabled ? (
-              <label className={styles.fileField}>
-                Upload Voice Testimoni
-                <input type="file" accept="audio/*" onChange={onSelectTestimonialAudio} />
-                <small>
-                  {isUploadingTestimonialAudio ? "Uploading..." : "Pilih file suara (mp3/wav)"}
-                </small>
-              </label>
-            ) : null}
-            <audio controls src={testimonialForm.audioUrl} className={styles.audioPreview} />
+
             <div className={styles.formActions}>
               <button type="submit" disabled={isLoading}>
                 {testimonialEditId ? "Simpan Perubahan" : "Tambah Testimoni"}
@@ -2063,7 +2415,6 @@ export default function AdminPage() {
                       className={styles.listThumb}
                       unoptimized
                     />
-                    <audio controls src={testimonial.audioUrl} className={styles.audioPreview} />
                   </div>
                 </div>
                 <div className={styles.rowActions}>
@@ -2187,6 +2538,319 @@ export default function AdminPage() {
             {marquees.length === 0 ? <p>Belum ada logo marquee.</p> : null}
           </div>
         </article>
+        ) : null}
+
+        {activeSection === "bookStories" ? (
+        <article className={styles.card}>
+          <h2>Book Spirit - Cerita Menunggu Persetujuan</h2>
+          <div className={styles.list}>
+            {bookStories.length === 0 ? (
+              <p>Belum ada cerita yang menunggu persetujuan.</p>
+            ) : (
+              bookStories.map((story) => (
+                <div key={story.id} className={styles.listItem}>
+                  <div className={styles.listPreview}>
+                    <div>
+                      <p><strong>{story.userName}</strong></p>
+                      <span>{story.userEmail}</span>
+                      <span>{new Date(story.createdAt).toLocaleString("id-ID")}</span>
+                      <p style={{ marginTop: "12px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        {story.story}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={styles.rowActions}>
+                    <button
+                      type="button"
+                      onClick={() => onApproveBookStory(story.id)}
+                      disabled={isLoading}
+                      style={{ background: "#4CAF50", color: "white" }}
+                    >
+                      Setujui
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRejectBookStory(story.id)}
+                      disabled={isLoading}
+                      style={{ background: "#FF9800", color: "white" }}
+                    >
+                      Tolak
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteBookStory(story.id)}
+                      disabled={isLoading}
+                      style={{ background: "#f44336", color: "white" }}
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
+        ) : null}
+
+        {activeSection === "bookStories" ? (
+        <article className={styles.card} style={{ marginTop: "24px" }}>
+          <h2>Book Spirit - Cerita yang Sudah Disetujui</h2>
+          <div className={styles.list}>
+            {approvedBookStories.length === 0 ? (
+              <p>Belum ada cerita yang disetujui.</p>
+            ) : (
+              approvedBookStories.map((story) => (
+                <div key={story.id} className={styles.listItem}>
+                  <div className={styles.listPreview}>
+                    <div>
+                      <p><strong>{story.userName}</strong></p>
+                      <span>{story.userEmail}</span>
+                      <span>{new Date(story.createdAt).toLocaleString("id-ID")}</span>
+                      {story.photos && story.photos.length > 0 && (
+                        <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
+                          {story.photos.slice(0, 3).map((photo, idx) => (
+                            <img
+                              key={idx}
+                              src={photo}
+                              alt={`Story photo ${idx + 1}`}
+                              style={{
+                                width: "60px",
+                                height: "60px",
+                                borderRadius: "4px",
+                                objectFit: "cover",
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <p style={{ marginTop: "12px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        {story.story}
+                      </p>
+                      <p style={{ marginTop: "8px", fontSize: "12px", color: "#666", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          <FiThumbsUp aria-hidden="true" /> {story.likedBy.length}
+                        </span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          <FiMessageCircle aria-hidden="true" /> {story.comments.length}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className={styles.rowActions}>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteBookStory(story.id)}
+                      disabled={isLoading}
+                      style={{ background: "#f44336", color: "white" }}
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
+        ) : null}
+
+        {activeSection === "bookStories" ? (
+        <article className={styles.card} style={{ marginTop: "24px" }}>
+          <h2>Book Spirit - Kelola Cerita & Komentar</h2>
+          <div className={styles.list}>
+            {approvedBookStories.length === 0 ? (
+              <p>Belum ada cerita yang disetujui.</p>
+            ) : (
+              approvedBookStories.map((story) => (
+                <div key={story.id} className={styles.listItem}>
+                  <div className={styles.listPreview}>
+                    <div style={{ width: "100%" }}>
+                      <p><strong>{story.userName}</strong></p>
+                      <span>{story.userEmail}</span>
+                      <span>{new Date(story.createdAt).toLocaleString("id-ID")}</span>
+                      <p style={{ marginTop: "12px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        {story.story}
+                      </p>
+                      <p style={{ marginTop: "8px", fontSize: "12px", color: "#666", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          <FiThumbsUp aria-hidden="true" /> {story.likedBy.length}
+                        </span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          <FiMessageCircle aria-hidden="true" /> {story.comments.length}
+                        </span>
+                      </p>
+
+                      {expandedStoryId === story.id && (
+                        <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #eee" }}>
+                          <div>
+                            <label style={{ display: "block", marginBottom: "8px" }}>
+                              <strong>Atur Jumlah Like:</strong>
+                              <input
+                                type="number"
+                                min="0"
+                                value={storyLikesForm[story.id] ?? story.likedBy.length}
+                                onChange={(e) =>
+                                  setStoryLikesForm(prev => ({ ...prev, [story.id]: parseInt(e.target.value) || 0 }))
+                                }
+                                style={{ marginLeft: "8px", width: "80px", padding: "4px" }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => updateStoryLikes(story.id, storyLikesForm[story.id] ?? story.likedBy.length)}
+                                disabled={isLoading}
+                                style={{ marginLeft: "8px", padding: "4px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                              >
+                                Update
+                              </button>
+                            </label>
+                          </div>
+
+                          <div style={{ marginTop: "16px" }}>
+                            <strong>Tambah Komentar Custom:</strong>
+                            {(storyCommentsForm[story.id] || []).map((comment, idx) => (
+                              <div key={idx} style={{ marginTop: "8px", padding: "8px", background: "#f5f5f5", borderRadius: "4px" }}>
+                                <input
+                                  type="text"
+                                  placeholder="Nama user"
+                                  value={comment.userName}
+                                  onChange={(e) => {
+                                    const newComments = [...(storyCommentsForm[story.id] || [])];
+                                    newComments[idx].userName = e.target.value;
+                                    setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
+                                  }}
+                                  style={{ width: "100%", padding: "4px", marginBottom: "4px", boxSizing: "border-box" }}
+                                />
+                                <textarea
+                                  placeholder="Isi komentar"
+                                  value={comment.text}
+                                  onChange={(e) => {
+                                    const newComments = [...(storyCommentsForm[story.id] || [])];
+                                    newComments[idx].text = e.target.value;
+                                    setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
+                                  }}
+                                  style={{ width: "100%", padding: "4px", minHeight: "60px", boxSizing: "border-box" }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newComments = (storyCommentsForm[story.id] || []).filter((_, i) => i !== idx);
+                                    setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
+                                  }}
+                                  style={{ marginTop: "4px", padding: "4px 8px", background: "#f44336", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
+                                >
+                                  Hapus
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newComments = [...(storyCommentsForm[story.id] || []), { userName: "", text: "" }];
+                                setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
+                              }}
+                              style={{ marginTop: "8px", padding: "6px 12px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                            >
+                              + Tambah Komentar
+                            </button>
+                            {(storyCommentsForm[story.id] || []).length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => addCustomComments(story.id, storyCommentsForm[story.id] || [])}
+                                disabled={isLoading}
+                                style={{ marginLeft: "8px", padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                              >
+                                Kirim Komentar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.rowActions}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedStoryId(expandedStoryId === story.id ? null : story.id)}
+                      style={{ background: "#FF9800", color: "white" }}
+                    >
+                      {expandedStoryId === story.id ? "Tutup" : "Kelola"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteBookStory(story.id)}
+                      disabled={isLoading}
+                      style={{ background: "#f44336", color: "white" }}
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
+        ) : null}
+
+        {activeSection === "bookStories" ? (
+        <article className={styles.card} style={{ marginTop: "24px" }}>
+          <h2>Book Spirit - Cerita Yang Di-Report</h2>
+          <div className={styles.list}>
+            {storyReports.length === 0 ? (
+              <p>Belum ada laporan cerita.</p>
+            ) : (
+              storyReports.map((report) => (
+                <div key={report.id} className={styles.listItem}>
+                  <div className={styles.listPreview}>
+                    <div style={{ width: "100%" }}>
+                      <p><strong>Laporan dari: {report.userId}</strong></p>
+                      <span>Alasan: {report.reason}</span>
+                      <span>{new Date(report.createdAt).toLocaleString("id-ID")}</span>
+                      
+                      {report.story && (
+                        <>
+                          <p style={{ marginTop: "12px", fontWeight: "bold" }}>Cerita yang di-report:</p>
+                          <p><strong>{report.story.userName}</strong></p>
+                          <span>{report.story.userEmail}</span>
+                          <p style={{ marginTop: "8px", whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: "14px" }}>
+                            {report.story.story}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.rowActions}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm("Hapus cerita ini dan selesaikan laporan?")) {
+                          resolveStoryReport(report.id, true);
+                        }
+                      }}
+                      disabled={isLoading}
+                      style={{ background: "#f44336", color: "white" }}
+                    >
+                      Hapus Cerita
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => resolveStoryReport(report.id, false)}
+                      disabled={isLoading}
+                      style={{ background: "#FF9800", color: "white" }}
+                    >
+                      Selesaikan
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
+        ) : null}
+
+        {activeSection === "portfolio" || activeSection === "homepageSettings" ? (
+        <AdminPortfolioSection
+          isFileUploadEnabled={isFileUploadEnabled}
+          onUploadMedia={uploadMedia}
+        />
         ) : null}
 
         {activeSection === "privacyPolicy" ? (

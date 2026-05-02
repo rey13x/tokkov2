@@ -9,6 +9,7 @@ import { gsap } from "gsap";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
+import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { formatRupiah } from "@/data/products";
 import { addToCart } from "@/lib/cart";
 import {
@@ -37,6 +38,16 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const [added, setAdded] = useState(false);
   const [isRedirectingToCart, setIsRedirectingToCart] = useState(false);
   const [isProductTutorialRunning, setIsProductTutorialRunning] = useState(false);
+  const [currentApplicantCount, setCurrentApplicantCount] = useState(product.applicantCount ?? 0);
+
+  const hasApplicantLimit = typeof product.maxApplicants === "number" && product.maxApplicants > 0;
+  const maxApplicants = product.maxApplicants ?? 0;
+  const maxApplicantsLabel = hasApplicantLimit ? maxApplicants : "-";
+  const applicantLimitReached = hasApplicantLimit && currentApplicantCount >= maxApplicants;
+
+  useEffect(() => {
+    setCurrentApplicantCount(product.applicantCount ?? 0);
+  }, [product.applicantCount]);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -244,6 +255,12 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       return;
     }
 
+    // Show confirmation popup
+    const confirmed = window.confirm(
+      "Yakin ingin melamar pekerjaan ini?\n\nSetelah kamu lamar, kamu akan dicatat di sistem kami."
+    );
+    if (!confirmed) return;
+
     // User is authenticated, record application and redirect to job link
     try {
       const response = await fetch("/api/job-applications", {
@@ -253,6 +270,12 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
       if (!response.ok) {
         const error = await response.json();
+        if (error.max_reached) {
+          if (hasApplicantLimit) {
+            setCurrentApplicantCount(maxApplicants);
+          }
+          return;
+        }
         if (typeof window !== "undefined") {
           window.alert(error.message ?? "Gagal mencatat lamaran.");
         }
@@ -261,6 +284,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
       const result = await response.json();
       setAdded(true);
+      setCurrentApplicantCount(prev => prev + 1); // Optimistically increment count
       setIsRedirectingToCart(true);
 
       // Redirect to job application link after a short delay
@@ -403,18 +427,40 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             </>
           ) : (
             <>
+              <p className={styles.price}>{formatRupiah(product.price)}</p>
+              <p className={styles.duration}>
+                Durasi: {product.duration?.trim() ? product.duration : "-"}
+              </p>
+              
+              {/* Show applicant count */}
+              <p style={{ fontSize: "14px", color: "#666", marginTop: "12px", marginBottom: "8px" }}>
+                Pelamar: <strong>{currentApplicantCount} / {maxApplicantsLabel}</strong>
+              </p>
+
               <button
                 type="button"
                 className={styles.orderButton}
                 onClick={onAddToCart}
-                disabled={status === "loading"}
+                disabled={status === "loading" || applicantLimitReached || status === "unauthenticated"}
+                style={(applicantLimitReached || status === "unauthenticated") ? { opacity: 0.6, cursor: "not-allowed" } : {}}
                 data-onboarding="product-add-to-cart"
               >
-                {status === "loading" ? "Memuat..." : "Lamar"}
+                {status === "loading" ? "Memuat..." : status === "unauthenticated" ? "Login Terlebih Dahulu" : applicantLimitReached ? "Tidak Tersedia" : "Lamar"}
               </button>
               <p className={styles.orderHint}>
-                Klik tombol Lamar untuk melamar pekerjaan ini. Jika belum login, kamu akan diarahkan
-                ke halaman auth terlebih dahulu.
+                {status === "unauthenticated" ? (
+                  <>
+                    Anda harus <Link href={`/auth?redirect=${encodeURIComponent(`/produk/${product.slug}`)}`} style={{ color: "#4a5fe3", textDecoration: "underline" }}>login terlebih dahulu</Link> untuk melamar pekerjaan ini.
+                  </>
+                ) : applicantLimitReached ? (
+                  <>
+                    Pekerjaan ini sudah penuh.
+                  </>
+                ) : (
+                  <>
+                    Klik tombol Lamar untuk melamar pekerjaan ini.
+                  </>
+                )}
               </p>
 
               {added ? (
@@ -426,6 +472,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           )}
         </div>
       </section>
+      <MaintenanceModal />
     </main>
   );
 }
