@@ -13,10 +13,10 @@ import {
   FiArrowLeft,
   FiChevronRight,
   FiMenu,
+  FiUser,
   FiX,
 } from "react-icons/fi";
 import bagasPhoto from "@/app/assets/Bagas.jpg";
-import logoImage from "@/app/assets/Logo.png";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
 import { getCartCount } from "@/lib/cart";
@@ -50,7 +50,8 @@ type HomeMarquee = StoreMarqueeItem;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
-const heroImage = "/assets/ramadhan.jpg";
+const heroImage = "/assets/backgroundv2.png";
+const logoImage = "/assets/logo.svg";
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
   return item.name.trim().toLowerCase() === "founder" ? bagasPhoto.src : item.mediaUrl;
@@ -120,10 +121,11 @@ export default function HomeClient() {
       .filter((item) => item.isActive)
       .sort((a, b) => a.sortOrder - b.sortOrder);
   }, [marquees]);
-  const shouldAutoSlideMarquees = activeMarquees.length > 1;
+  // Enable marquee animation for any number of active logos (creates infinite loop with proper spacing)
+  const shouldAutoSlideMarquees = activeMarquees.length > 0;
   const marqueeCarouselItems = useMemo(
     () =>
-      shouldAutoSlideMarquees
+      shouldAutoSlideMarquees && activeMarquees.length > 0
         ? [...activeMarquees, ...activeMarquees, ...activeMarquees]
         : activeMarquees,
     [activeMarquees, shouldAutoSlideMarquees],
@@ -825,7 +827,16 @@ export default function HomeClient() {
                 <span>{profileLabel}</span>
               )}
             </button>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              className={styles.profileShortcut}
+              onClick={() => router.push("/auth")}
+              aria-label="Login"
+            >
+              <FiUser />
+            </button>
+          )}
         </div>
 
         <div className={styles.heroBottom} data-animate="hero">
@@ -1028,6 +1039,12 @@ export default function HomeClient() {
               <nav className={styles.menuNav} aria-label="Menu utama">
                 <button type="button" onClick={() => moveMenu("products", 1)} data-menu-item>
                   Semua Layanan
+                  <span>
+                    <FiChevronRight />
+                  </span>
+                </button>
+                <button type="button" onClick={() => router.push("/informasi")} data-menu-item>
+                  Informasi
                   <span>
                     <FiChevronRight />
                   </span>

@@ -67,6 +67,17 @@
   font-weight: 700;
   cursor: pointer;
   backdrop-filter: blur(6px);
+  transition: all 0.3s ease;
+}
+
+.profileShortcut:hover {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.profileShortcut svg {
+  width: 24px;
+  height: 24px;
 }
 
 .profileShortcutImage {

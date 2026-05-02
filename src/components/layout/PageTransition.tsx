@@ -43,7 +43,7 @@ export default function PageTransition({
     setIsRouteLoading(true);
     const timer = window.setTimeout(() => {
       setIsRouteLoading(false);
-    }, 480);
+    }, 300);
     return () => window.clearTimeout(timer);
   }, [pathname]);
 

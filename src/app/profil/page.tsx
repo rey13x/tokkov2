@@ -291,6 +291,16 @@ export default function ProfilePage() {
             ) : (
               <small className={styles.avatarHint}>Mode database-only: upload avatar dimatikan.</small>
             )}
+
+            {session?.user?.role === "admin" ? (
+              <Link
+                href="/admin"
+                className={styles.adminButton}
+                title="Masuk ke halaman admin"
+              >
+                🚪
+              </Link>
+            ) : null}
           </aside>
 
           <form className={styles.form} onSubmit={onSubmit}>

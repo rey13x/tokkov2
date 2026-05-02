@@ -1,3 +1,5 @@
+export type ProductType = "jual_beli" | "pekerjaan";
+
 export type StoreProduct = {
   id: string;
   slug: string;
@@ -9,6 +11,8 @@ export type StoreProduct = {
   price: number;
   imageUrl: string;
   isActive: boolean;
+  productType: ProductType;
+  jobApplicationLink?: string;
 };
 
 export type InformationType = "message" | "poll" | "update";

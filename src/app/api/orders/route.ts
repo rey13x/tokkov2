@@ -7,6 +7,9 @@ import {
   listOrdersWithItems,
 } from "@/server/store-data";
 import {
+  updateUserLastActive,
+} from "@/server/db";
+import {
   appendOrderToCsv,
   sendTelegramActivityNotification,
   sendTelegramOrderNotification,
@@ -101,6 +104,7 @@ export async function POST(request: Request) {
     const createdAt = new Date().toISOString();
 
     await Promise.allSettled([
+      updateUserLastActive(session.user.id),
       appendOrderToCsv({
         orderId: created.id,
         createdAt,

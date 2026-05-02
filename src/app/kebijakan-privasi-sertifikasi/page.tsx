@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const FALLBACK_POLICY = {
   title: "Kebijakan Privasi & Sertifikasi Layanan",
   updatedLabel: "Terakhir diperbarui: 28 Februari 2026",
-  bannerImageUrl: "/assets/ramadhan.jpg",
+  bannerImageUrl: "/assets/backgroundv2.png",
   contentHtml: `
 <h2>Kebijakan Privasi</h2>
 <p>Konten sedang dimuat. Jika ini terus terjadi, silakan hubungi admin.</p>

@@ -118,6 +118,8 @@ function mapProduct(row: Record<string, unknown>): StoreProduct {
     price: Number(row.price),
     imageUrl: resolveMediaUrl(String(row.image_url ?? "")),
     isActive: Number(row.is_active) === 1,
+    productType: (String(row.product_type ?? "jual_beli") as "jual_beli" | "pekerjaan"),
+    jobApplicationLink: String(row.job_application_link ?? ""),
   };
 }
 
@@ -249,31 +251,23 @@ async function runOneTimeInitialContentReset() {
   await run("INSERT INTO app_meta (key, value) VALUES (?, ?)", [markerKey, String(now())]);
 }
 
-async function ensureLocalAdminUser() {
-  const adminUsername = "Admin123x";
-  const adminEmail = "admin123x@local.tokko";
-  const adminPasswordHash = await hash("Admin123x", 10);
-
-  const existing = await run(
-    "SELECT id FROM users WHERE lower(username) = lower(?) OR lower(email) = lower(?) LIMIT 1",
-    [adminUsername, adminEmail],
-  );
-
-  if (existing.rows.length > 0) {
-    await run(
-      `UPDATE users
-       SET role = 'admin', password_hash = ?, updated_at = ?
-       WHERE id = ?`,
-      [adminPasswordHash, now(), String(existing.rows[0]?.id)],
-    );
+async function ensureAdminEmailIfNotExists() {
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  if (!adminEmail) {
     return;
   }
 
-  await run(
-    `INSERT INTO users (id, username, email, phone, password_hash, role, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'admin', ?, ?)`,
-    [randomId(), adminUsername, adminEmail, "", adminPasswordHash, now(), now()],
+  const existing = await run(
+    "SELECT id FROM admin_emails WHERE lower(email) = lower(?) LIMIT 1",
+    [adminEmail],
   );
+
+  if (existing.rows.length === 0) {
+    await run(
+      "INSERT INTO admin_emails (id, email, created_at) VALUES (?, ?, ?)",
+      [randomId(), adminEmail, now()],
+    );
+  }
 }
 
 async function run(sql: string, args?: InArgs) {
@@ -412,12 +406,16 @@ export async function ensureDatabase() {
           avatar_url TEXT NOT NULL DEFAULT '',
           password_hash TEXT,
           role TEXT NOT NULL DEFAULT 'user',
+          last_active_at INTEGER,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
       );
       await run(
         "ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE users ADD COLUMN last_active_at INTEGER",
       ).catch(() => {});
 
       await run(
@@ -439,12 +437,20 @@ export async function ensureDatabase() {
           price INTEGER NOT NULL,
           image_url TEXT NOT NULL,
           is_active INTEGER NOT NULL DEFAULT 1,
+          product_type TEXT NOT NULL DEFAULT 'jual_beli',
+          job_application_link TEXT NOT NULL DEFAULT '',
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
       );
       await run(
         "ALTER TABLE products ADD COLUMN duration TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE products ADD COLUMN product_type TEXT NOT NULL DEFAULT 'jual_beli'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE products ADD COLUMN job_application_link TEXT NOT NULL DEFAULT ''",
       ).catch(() => {});
 
       await run(
@@ -597,10 +603,29 @@ export async function ensureDatabase() {
         )`,
       );
 
+      await run(
+        `CREATE TABLE IF NOT EXISTS admin_emails (
+          id TEXT PRIMARY KEY,
+          email TEXT NOT NULL UNIQUE,
+          added_by TEXT,
+          created_at INTEGER NOT NULL
+        )`,
+      );
+
+      await run(
+        `CREATE TABLE IF NOT EXISTS job_applications (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          product_id TEXT NOT NULL,
+          product_name TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        )`,
+      );
+
       await runOneTimeInitialContentReset();
       await seedIfEmpty();
       await runOneTimeCatalogCleanup();
-      await ensureLocalAdminUser();
+      await ensureAdminEmailIfNotExists();
       initialized = true;
     })();
   }
@@ -680,7 +705,7 @@ async function findLocalUserByIdentifier(identifier: string) {
 }
 
 async function findFirestoreUserById(id: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return null;
   }
@@ -693,7 +718,7 @@ async function findFirestoreUserById(id: string) {
 }
 
 async function findFirestoreUserByEmail(email: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return null;
   }
@@ -706,7 +731,7 @@ async function findFirestoreUserByEmail(email: string) {
     .get();
 
   if (snapshot.empty) {
-    snapshot = await firestore
+    snapshot = await (firestore as any)
       .collection("users")
       .where("email", "==", email.trim())
       .limit(1)
@@ -722,7 +747,7 @@ async function findFirestoreUserByEmail(email: string) {
 }
 
 async function findFirestoreUserByIdentifier(identifier: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return null;
   }
@@ -739,7 +764,7 @@ async function findFirestoreUserByIdentifier(identifier: string) {
     return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
   }
 
-  const byUsernameLower = await firestore
+  const byUsernameLower = await (firestore as any)
     .collection("users")
     .where("usernameLower", "==", normalized)
     .limit(1)
@@ -750,7 +775,7 @@ async function findFirestoreUserByIdentifier(identifier: string) {
   }
 
   const rawIdentifier = identifier.trim();
-  const byEmailRaw = await firestore
+  const byEmailRaw = await (firestore as any)
     .collection("users")
     .where("email", "==", rawIdentifier)
     .limit(1)
@@ -760,7 +785,7 @@ async function findFirestoreUserByIdentifier(identifier: string) {
     return mapFirestoreUser(doc.id, doc.data() as Record<string, unknown>);
   }
 
-  const byUsernameRaw = await firestore
+  const byUsernameRaw = await (firestore as any)
     .collection("users")
     .where("username", "==", rawIdentifier)
     .limit(1)
@@ -873,7 +898,7 @@ export async function createUser(input: {
   const avatarUrl = (input.avatarUrl ?? "").trim();
   const normalizedEmail = normalizeEmail(input.email);
   const normalizedUsername = normalizeUsername(input.username);
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
 
   if (firestore) {
     try {
@@ -933,7 +958,7 @@ export async function updateUserById(
     role: "user" | "admin";
   }>,
 ) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (firestore) {
     try {
       const current = (await findFirestoreUserById(id)) ?? (await findLocalUserById(id));
@@ -1043,6 +1068,8 @@ export async function createProduct(input: {
   duration: string;
   price: number;
   imageUrl: string;
+  productType?: string;
+  jobApplicationLink?: string;
 }) {
   await ensureDatabase();
   const id = randomId();
@@ -1063,10 +1090,13 @@ export async function createProduct(input: {
   }
 
   const mediaUrl = resolveMediaUrl(input.imageUrl);
+  const productType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
+  const jobLink = productType === "pekerjaan" ? (input.jobApplicationLink?.trim() ?? "") : "";
+
   await run(
     `INSERT INTO products
-      (id, slug, name, category, short_description, description, duration, price, image_url, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+      (id, slug, name, category, short_description, description, duration, price, image_url, is_active, product_type, job_application_link, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
     [
       id,
       slug,
@@ -1077,6 +1107,8 @@ export async function createProduct(input: {
       input.duration.trim(),
       input.price,
       mediaUrl,
+      productType,
+      jobLink,
       now(),
       now(),
     ],
@@ -1095,6 +1127,8 @@ export async function updateProduct(
     price: number;
     imageUrl: string;
     isActive: boolean;
+    productType: string;
+    jobApplicationLink: string;
   }>,
 ) {
   await ensureDatabase();
@@ -1110,10 +1144,15 @@ export async function updateProduct(
     nextName !== current.name
       ? `${slugify(nextName)}-${Math.floor(Math.random() * 900 + 100)}`
       : current.slug;
+  const nextProductType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
+  const nextJobLink =
+    nextProductType === "pekerjaan"
+      ? (input.jobApplicationLink ?? current.jobApplicationLink ?? "").trim()
+      : "";
 
   await run(
     `UPDATE products
-     SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, is_active = ?, updated_at = ?
+     SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, is_active = ?, product_type = ?, job_application_link = ?, updated_at = ?
      WHERE id = ?`,
     [
       nextSlug,
@@ -1125,6 +1164,8 @@ export async function updateProduct(
       input.price ?? current.price,
       nextMediaUrl,
       input.isActive === undefined ? Number(current.isActive) : Number(input.isActive),
+      nextProductType,
+      nextJobLink,
       now(),
       id,
     ],
@@ -1901,4 +1942,119 @@ export async function getOrderStatsLastHours(hours = 12) {
       totalAmount: Number(data.total_amount ?? 0),
     };
   });
+}
+
+export async function getAdminEmails() {
+  const result = await run(
+    "SELECT id, email, created_at FROM admin_emails ORDER BY created_at DESC",
+  );
+
+  return (result.rows ?? []).map((row: any) => ({
+    id: String(row.id),
+    email: String(row.email),
+    createdAt: Number(row.created_at),
+  }));
+}
+
+export async function isAdminEmail(email: string): Promise<boolean> {
+  const normalized = email.trim().toLowerCase();
+  const result = await run(
+    "SELECT id FROM admin_emails WHERE lower(email) = ? LIMIT 1",
+    [normalized],
+  );
+  return result.rows.length > 0;
+}
+
+export async function addAdminEmail(email: string, addedBy?: string): Promise<boolean> {
+  const normalized = email.trim().toLowerCase();
+
+  // Check if already exists
+  const existing = await run(
+    "SELECT id FROM admin_emails WHERE lower(email) = ? LIMIT 1",
+    [normalized],
+  );
+
+  if (existing.rows.length > 0) {
+    return false; // Already exists
+  }
+
+  try {
+    await run(
+      "INSERT INTO admin_emails (id, email, added_by, created_at) VALUES (?, ?, ?, ?)",
+      [randomId(), normalized, addedBy ?? null, now()],
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function removeAdminEmail(email: string): Promise<boolean> {
+  const normalized = email.trim().toLowerCase();
+
+  try {
+    await run("DELETE FROM admin_emails WHERE lower(email) = ?", [normalized]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function listAllUsers() {
+  await ensureDatabase();
+  const res = await run(
+    "SELECT id, username, email, phone, created_at, last_active_at FROM users ORDER BY created_at DESC",
+  );
+  return ((res.rows ?? []) as unknown) as Array<{
+    id: string;
+    username: string;
+    email: string;
+    phone: string;
+    created_at: number;
+    last_active_at: number | null;
+  }>;
+}
+
+export async function getUserPurchases(userId: string) {
+  await ensureDatabase();
+  const res = await run("SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC", [
+    userId,
+  ]);
+  return res.rows ?? [];
+}
+
+export async function getUserJobApplications(userId: string) {
+  await ensureDatabase();
+  const res = await run(
+    "SELECT product_name, created_at FROM job_applications WHERE user_id = ? ORDER BY created_at DESC",
+    [userId],
+  );
+  return ((res.rows ?? []) as unknown) as Array<{
+    product_name: string;
+    created_at: number;
+  }>;
+}
+
+export async function recordJobApplication(userId: string, productId: string, productName: string) {
+  await ensureDatabase();
+  const id = randomId();
+  await run(
+    "INSERT INTO job_applications (id, user_id, product_id, product_name, created_at) VALUES (?, ?, ?, ?, ?)",
+    [id, userId, productId, productName, now()],
+  ).catch(() => {
+    // Ignore duplicate errors
+  });
+}
+
+export async function updateUserLastActive(userId: string) {
+  await ensureDatabase();
+  await run("UPDATE users SET last_active_at = ? WHERE id = ?", [now(), userId]).catch(() => {});
+}
+
+export async function deleteUser(userId: string) {
+  await ensureDatabase();
+  // Delete user and all related data
+  await run("DELETE FROM users WHERE id = ?", [userId]).catch(() => {});
+  await run("DELETE FROM orders WHERE user_id = ?", [userId]).catch(() => {});
+  await run("DELETE FROM job_applications WHERE user_id = ?", [userId]).catch(() => {});
 }

@@ -67,7 +67,7 @@ async function buildReceiptPdf(input: {
     doc.moveDown(0.2);
   }
 
-  doc.fontSize(12).font("Helvetica-Bold").text("TOKKO RAMADHAN", { align: "center" });
+  doc.fontSize(12).font("Helvetica-Bold").text("TOKKO", { align: "center" });
   doc.moveDown(0.3);
   doc.fontSize(9).font("Helvetica");
   doc.text(`Order ID: ${input.orderId}`);
@@ -99,7 +99,7 @@ async function buildReceiptPdf(input: {
     align: "center",
   });
   doc.moveDown(0.1);
-  doc.fontSize(7).text("** Tokko Ramadhan **", { align: "center" });
+  doc.fontSize(7).text("** Tokko **", { align: "center" });
   doc.end();
 
   return await new Promise<Buffer>((resolve, reject) => {
@@ -160,7 +160,7 @@ function buildReceiptHtml(input: {
     <div class="top">
       <img src="/assets/logo.png" alt="Tokko" />
       <div>
-        <h1>TOKKO RAMADHAN</h1>
+        <h1>TOKKO</h1>
         <p>Struk pemesanan</p>
       </div>
     </div>

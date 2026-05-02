@@ -147,6 +147,8 @@ function mapProductDoc(
     price: Number(data?.price ?? 0),
     imageUrl: resolveMediaUrl(String(data?.imageUrl ?? "")),
     isActive: Boolean(data?.isActive ?? true),
+    productType: (String(data?.productType ?? "jual_beli") as "jual_beli" | "pekerjaan"),
+    jobApplicationLink: String(data?.jobApplicationLink ?? ""),
   };
 }
 
@@ -297,7 +299,7 @@ function normalizePaymentSettings(
   };
 }
 
-async function getUniqueSlug(firestore: FirebaseFirestore.Firestore, baseName: string) {
+async function getUniqueSlug(firestore: any, baseName: string) {
   const baseSlug = slugify(baseName) || "produk";
   let candidate = baseSlug;
   let counter = 1;
@@ -319,7 +321,7 @@ async function getUniqueSlug(firestore: FirebaseFirestore.Firestore, baseName: s
 }
 
 export async function listProducts() {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return listProductsDb();
   }
@@ -331,8 +333,8 @@ export async function listProducts() {
       .get();
 
     return snapshot.docs
-      .map((doc) => mapProductDoc(doc.id, doc.data() as Record<string, unknown>))
-      .filter((product) => product.isActive);
+      .map((doc: any) => mapProductDoc(doc.id, doc.data() as Record<string, unknown>))
+      .filter((product: any) => product.isActive);
   } catch (error) {
     console.error("Failed to read products from Firestore. Falling back to local database.", error);
     return listProductsDb();
@@ -340,7 +342,7 @@ export async function listProducts() {
 }
 
 export async function listAllProducts() {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return listAllProductsDb();
   }
@@ -351,7 +353,7 @@ export async function listAllProducts() {
       .orderBy("createdAt", "desc")
       .get();
 
-    return snapshot.docs.map((doc) =>
+    return snapshot.docs.map((doc: any) =>
       mapProductDoc(doc.id, doc.data() as Record<string, unknown>),
     );
   } catch (error) {
@@ -361,7 +363,7 @@ export async function listAllProducts() {
 }
 
 export async function getProductById(id: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return getProductByIdDb(id);
   }
@@ -387,8 +389,10 @@ export async function createProduct(input: {
   duration: string;
   price: number;
   imageUrl: string;
+  productType?: string;
+  jobApplicationLink?: string;
 }) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return createProductDb(input);
   }
@@ -398,6 +402,8 @@ export async function createProduct(input: {
     const createdAt = now();
     const slug = await getUniqueSlug(firestore, input.name);
     const mediaUrl = resolveMediaUrl(input.imageUrl);
+    const productType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
+    const jobLink = productType === "pekerjaan" ? (input.jobApplicationLink?.trim() ?? "") : "";
 
     await firestore.collection("products").doc(id).set({
       slug,
@@ -410,6 +416,8 @@ export async function createProduct(input: {
       price: input.price,
       imageUrl: mediaUrl,
       isActive: true,
+      productType,
+      jobApplicationLink: jobLink,
       createdAt,
       updatedAt: createdAt,
     });
@@ -432,9 +440,11 @@ export async function updateProduct(
     price: number;
     imageUrl: string;
     isActive: boolean;
+    productType: string;
+    jobApplicationLink: string;
   }>,
 ) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return updateProductDb(id, input);
   }
@@ -451,6 +461,11 @@ export async function updateProduct(
     let nextSlug = String(currentData.slug ?? "");
     const nextMediaUrl =
       input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
+    const nextProductType = input.productType === "pekerjaan" ? "pekerjaan" : undefined;
+    const nextJobLink =
+      nextProductType === "pekerjaan"
+        ? (input.jobApplicationLink ?? String(currentData.jobApplicationLink ?? "")).trim()
+        : undefined;
 
     if (input.name && input.name !== currentData.name) {
       nextSlug = await getUniqueSlug(firestore, nextName);
@@ -467,6 +482,8 @@ export async function updateProduct(
       ...(input.price !== undefined ? { price: input.price } : {}),
       ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
       ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+      ...(nextProductType !== undefined ? { productType: nextProductType } : {}),
+      ...(nextJobLink !== undefined ? { jobApplicationLink: nextJobLink } : {}),
       slug: nextSlug,
       slugLower: nextSlug.toLowerCase(),
       updatedAt: now(),
@@ -480,7 +497,7 @@ export async function updateProduct(
 }
 
 export async function deleteProduct(id: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     await deleteProductDb(id);
     return;
@@ -494,7 +511,7 @@ export async function deleteProduct(id: string) {
 }
 
 export async function deleteAllProducts() {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     await deleteAllProductsDb();
     return;
@@ -503,7 +520,7 @@ export async function deleteAllProducts() {
   try {
     const snapshot = await firestore.collection("products").get();
     const batch = firestore.batch();
-    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    snapshot.docs.forEach((doc: any) => batch.delete(doc.ref));
     await batch.commit();
   } catch (error) {
     console.error("Failed to delete all products in Firestore. Falling back to local database.", error);
@@ -512,7 +529,7 @@ export async function deleteAllProducts() {
 }
 
 export async function listInformations() {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return listInformationsDb();
   }
@@ -522,7 +539,7 @@ export async function listInformations() {
       .collection("informations")
       .orderBy("createdAt", "desc")
       .get();
-    return snapshot.docs.map((doc) =>
+    return snapshot.docs.map((doc: any) =>
       mapInformationDoc(doc.id, doc.data() as Record<string, unknown>),
     );
   } catch (error) {
@@ -541,7 +558,7 @@ export async function createInformation(input: {
   imageUrl: string;
   pollOptions: string[];
 }) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return createInformationDb(input);
   }
@@ -584,7 +601,7 @@ export async function updateInformation(
     pollOptions: string[];
   }>,
 ) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return updateInformationDb(id, input);
   }
@@ -628,7 +645,7 @@ export async function updateInformation(
 }
 
 export async function getInformationById(id: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return getInformationByIdDb(id);
   }
@@ -650,7 +667,7 @@ export async function getInformationById(id: string) {
 }
 
 export async function voteInformationPoll(id: string, option: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return voteInformationPollDb(id, option);
   }
@@ -658,7 +675,7 @@ export async function voteInformationPoll(id: string, option: string) {
   const ref = firestore.collection("informations").doc(id);
   let updated: StoreInformation | null = null;
 
-  await firestore.runTransaction(async (transaction) => {
+  await firestore.runTransaction(async (transaction: any) => {
     const doc = await transaction.get(ref);
     if (!doc.exists) {
       return;
@@ -691,7 +708,7 @@ export async function voteInformationPoll(id: string, option: string) {
 }
 
 export async function deleteInformation(id: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     await deleteInformationDb(id);
     return;
@@ -708,7 +725,7 @@ export async function deleteInformation(id: string) {
 }
 
 export async function listTestimonials() {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return listTestimonialsDb();
   }
@@ -719,7 +736,7 @@ export async function listTestimonials() {
       .orderBy("createdAt", "desc")
       .get();
 
-    return snapshot.docs.map((doc) =>
+    return snapshot.docs.map((doc: any) =>
       mapTestimonialDoc(doc.id, doc.data() as Record<string, unknown>),
     );
   } catch (error) {
@@ -740,7 +757,7 @@ export async function createTestimonial(input: {
   mediaUrl: string;
   audioUrl: string;
 }) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return createTestimonialDb(input);
   }
@@ -785,7 +802,7 @@ export async function updateTestimonial(
     audioUrl: string;
   }>,
 ) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return updateTestimonialDb(id, input);
   }
@@ -824,7 +841,7 @@ export async function updateTestimonial(
 }
 
 export async function deleteTestimonial(id: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     await deleteTestimonialDb(id);
     return;
@@ -841,7 +858,7 @@ export async function deleteTestimonial(id: string) {
 }
 
 export async function listMarquees() {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return listMarqueesDb();
   }
@@ -853,8 +870,8 @@ export async function listMarquees() {
       .get();
 
     return snapshot.docs
-      .map((doc) => mapMarqueeDoc(doc.id, doc.data() as Record<string, unknown>))
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+      .map((doc: any) => mapMarqueeDoc(doc.id, doc.data() as Record<string, unknown>))
+      .sort((a: any, b: any) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
   } catch (error) {
     console.error(
       "Failed to read marquees from Firestore. Falling back to local database.",
@@ -865,7 +882,7 @@ export async function listMarquees() {
 }
 
 export async function getMarqueeById(id: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return getMarqueeByIdDb(id);
   }
@@ -891,7 +908,7 @@ export async function createMarquee(input: {
   isActive: boolean;
   sortOrder: number;
 }) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return createMarqueeDb(input);
   }
@@ -926,7 +943,7 @@ export async function updateMarquee(
     sortOrder: number;
   }>,
 ) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return updateMarqueeDb(id, input);
   }
@@ -959,7 +976,7 @@ export async function updateMarquee(
 }
 
 export async function deleteMarquee(id: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     await deleteMarqueeDb(id);
     return;
@@ -973,7 +990,7 @@ export async function deleteMarquee(id: string) {
 }
 
 export async function getPrivacyPolicyPage() {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     try {
       return await getPrivacyPolicyPageDb();
@@ -1006,7 +1023,7 @@ export async function upsertPrivacyPolicyPage(input: {
   bannerImageUrl: string;
   contentHtml: string;
 }) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return upsertPrivacyPolicyPageDb(input);
   }
@@ -1048,7 +1065,7 @@ export async function createOrder(input: {
     unitPrice: number;
   }>;
 }) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return createOrderDb(input);
   }
@@ -1084,7 +1101,7 @@ export async function updateOrderStatus(
   id: string,
   status: "process" | "done" | "error",
 ) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return updateOrderStatusDb(id, status);
   }
@@ -1114,7 +1131,7 @@ export async function updateOrderStatus(
 }
 
 export async function deleteOrder(id: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return deleteOrderDb(id);
   }
@@ -1134,7 +1151,7 @@ export async function deleteOrder(id: string) {
 }
 
 export async function listOrders(limit = 100) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return listOrdersDb(limit);
   }
@@ -1146,7 +1163,7 @@ export async function listOrders(limit = 100) {
       .limit(Math.max(1, limit))
       .get();
 
-    return snapshot.docs.map((doc) => {
+    return snapshot.docs.map((doc: any) => {
       const data = doc.data() as Record<string, unknown>;
       return {
         id: doc.id,
@@ -1169,7 +1186,7 @@ export async function listOrders(limit = 100) {
 }
 
 export async function listOrderItemsByOrderId(orderId: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return listOrderItemsByOrderIdDb(orderId);
   }
@@ -1205,7 +1222,7 @@ export async function listOrderItemsByOrderId(orderId: string) {
 }
 
 export async function getOrderById(id: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return getOrderByIdDb(id);
   }
@@ -1242,7 +1259,7 @@ export async function requestOrderCancellation(id: string, reason: string) {
     throw new Error("Alasan pembatalan minimal 5 karakter.");
   }
 
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return requestOrderCancellationDb(id, safeReason);
   }
@@ -1270,7 +1287,7 @@ export async function requestOrderCancellation(id: string, reason: string) {
 }
 
 export async function confirmOrderCancellation(id: string) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return confirmOrderCancellationDb(id);
   }
@@ -1297,7 +1314,7 @@ export async function confirmOrderCancellation(id: string) {
 }
 
 export async function listOrdersWithItems(limit = 100) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return listOrdersWithItemsDb(limit);
   }
@@ -1325,7 +1342,7 @@ export async function listOrdersWithItems(limit = 100) {
 }
 
 export async function getOrderStatsLastHours(hours = 12) {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     return getOrderStatsLastHoursDb(hours);
   }
@@ -1347,7 +1364,7 @@ export async function getOrderStatsLastHours(hours = 12) {
       }
     >();
 
-    snapshot.docs.forEach((doc) => {
+    snapshot.docs.forEach((doc: any) => {
       const data = doc.data() as Record<string, unknown>;
       const createdAt = Number(data.createdAt ?? now());
       const bucket = bucketFromTimestamp(createdAt);
@@ -1371,7 +1388,7 @@ export async function getOrderStatsLastHours(hours = 12) {
 }
 
 export async function getPaymentSettings() {
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     try {
       const raw = await getAppMetaValueDb(PAYMENT_SETTINGS_META_KEY);
@@ -1422,7 +1439,7 @@ export async function upsertPaymentSettings(input: {
     throw new Error("Gambar QRIS inline terlalu besar. Gunakan file lebih kecil atau aktifkan bucket upload.");
   }
 
-  const firestore = getFirebaseFirestore();
+  const firestore = getFirebaseFirestore() as any;
   if (!firestore) {
     await upsertAppMetaValueDb(PAYMENT_SETTINGS_META_KEY, JSON.stringify(next));
     return next;

@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const extension = file.type === "image/png" ? "png" : file.type === "image/gif" ? "gif" : "jpg";
     const fileUploadEnabled = process.env.FILE_UPLOAD_ENABLED === "true";
-    const bucket = getFirebaseStorageBucket();
+    const bucket = getFirebaseStorageBucket() as any;
 
     let avatarUrl = "";
     if (!fileUploadEnabled || !bucket) {

@@ -2,9 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  reactCompiler: true,
+  // Disable React Compiler untuk dev yang lebih cepat
+  reactCompiler: false,
   turbopack: {
     root: process.cwd(),
+  },
+  experimental: {
+    // Enable faster full page generation
+    optimizePackageImports: ["react", "react-dom"],
   },
 };
 

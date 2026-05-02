@@ -21,16 +21,16 @@ export default function SiteFooter() {
             <h2>
               Tokko
               <br />
-              Ramadhan
+
             </h2>
           </div>
         </div>
         <div className={styles.contactWrap}>
           <nav className={styles.links} aria-label="Footer link">
-            <a href="https://wa.me/6281319865384" target="_blank" rel="noreferrer">
+            <a href="https://wa.me/6285121579597?text=Halo%20Founder%20aku%20dari%20website%20Tokko%20%F0%9F%91%8B%F0%9F%8F%BB" target="_blank" rel="noreferrer">
               WhatsApp
             </a>
-            <a href="https://instagram.com/layanan_tokko" target="_blank" rel="noreferrer">
+            <a href="https://www.instagram.com/sixsevenrai/" target="_blank" rel="noreferrer">
               Instagram
             </a>
           </nav>

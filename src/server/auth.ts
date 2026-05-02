@@ -10,44 +10,14 @@ import {
   findUserByEmail,
   findUserByIdentifier,
   updateUserById,
+  isAdminEmail,
+  updateUserLastActive,
 } from "@/server/db";
-import { sendTelegramActivityNotification } from "@/server/notifications";
 
-const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
 
-async function safeFindUserByEmail(email: string) {
-  try {
-    return await findUserByEmail(email);
-  } catch (error) {
-    console.error("Failed to query user by email:", error);
-    return null;
-  }
-}
 
-async function safeAttachTokenByEmail(
-  token: Record<string, unknown>,
-  email: string | null | undefined,
-) {
-  const normalized = email?.trim().toLowerCase();
-  if (!normalized) {
-    return token;
-  }
-
-  const dbUser = await safeFindUserByEmail(normalized);
-  if (!dbUser) {
-    return token;
-  }
-
-  token.userId = dbUser.id;
-  token.username = dbUser.username;
-  token.role = dbUser.role;
-  token.phone = dbUser.phone;
-  token.avatarUrl = dbUser.avatarUrl;
-
-  return token;
-}
 
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
@@ -74,12 +44,23 @@ const providers: NextAuthOptions["providers"] = [
         return null;
       }
 
+      // Check if user's email is in admin_emails and update role if needed
+      let role = user.role;
+      if (user.email && user.role !== "admin") {
+        const isAdmin = await isAdminEmail(user.email);
+        if (isAdmin) {
+          role = "admin";
+          // Update user role in database
+          await updateUserById(user.id, { role: "admin" });
+        }
+      }
+
       return {
         id: user.id,
         email: user.email,
         name: user.username,
         image: user.avatarUrl || null,
-        role: user.role,
+        role: role,
         phone: user.phone,
       };
     },
@@ -105,40 +86,15 @@ export const authOptions: NextAuthOptions = {
     error: "/auth",
   },
   providers,
-  events: {
-    async signIn({ user }) {
-      await sendTelegramActivityNotification({
-        event: "user_login",
-        actorName: user.name ?? "User",
-        actorEmail: user.email ?? "-",
-        actorPhone: "",
-        description: "User berhasil login.",
-      });
-    },
-    async signOut({ token, session }) {
-      const actorName =
-        (session?.user?.name as string | undefined) ??
-        (token?.name as string | undefined) ??
-        "User";
-      const actorEmail =
-        (session?.user?.email as string | undefined) ??
-        (token?.email as string | undefined) ??
-        "-";
-      await sendTelegramActivityNotification({
-        event: "user_logout",
-        actorName,
-        actorEmail,
-        actorPhone: "",
-        description: "User logout dari aplikasi.",
-      });
-    },
-  },
+  events: {},
   callbacks: {
     async signIn({ account, profile, user }) {
+      // Allow credentials provider without database check
       if (account?.provider !== "google") {
         return true;
       }
 
+      // Google OAuth flow
       const email = (profile?.email ?? user?.email ?? "").trim().toLowerCase();
       if (!email) {
         return false;
@@ -154,25 +110,36 @@ export const authOptions: NextAuthOptions = {
         rawProfile && typeof rawProfile.picture === "string" ? rawProfile.picture : "";
 
       try {
-        const existing = await safeFindUserByEmail(email);
+        // Check if user exists
+        const existing = await findUserByEmail(email);
         if (existing) {
+          // Check if user should be admin based on admin_emails list
+          const isAdmin = await isAdminEmail(email);
+          if (isAdmin && existing.role !== "admin") {
+            await updateUserById(existing.id, { role: "admin" });
+          }
+          
+          // Update avatar if changed
           if (profilePicture && profilePicture !== existing.avatarUrl) {
             await updateUserById(existing.id, { avatarUrl: profilePicture });
           }
           return true;
         }
 
+        // Create new user from Google
+        const adminRole = await isAdminEmail(email);
         await createUser({
           username: displayName,
           email,
           phone: "",
           avatarUrl: profilePicture,
           passwordHash: null,
-          role: adminEmail && email === adminEmail ? "admin" : "user",
+          role: adminRole ? "admin" : "user",
         });
       } catch (error) {
-        console.error("Failed to sync Google user to database:", error);
-        const fallbackUser = await safeFindUserByEmail(email);
+        console.error("Failed to sync Google user:", error);
+        // Check if user was created despite error
+        const fallbackUser = await findUserByEmail(email);
         if (!fallbackUser) {
           return false;
         }
@@ -180,15 +147,14 @@ export const authOptions: NextAuthOptions = {
 
       return true;
     },
-    async jwt({ token, user, trigger }) {
-      await safeAttachTokenByEmail(token as Record<string, unknown>, user?.email);
-      if (!token.userId && token.email) {
-        await safeAttachTokenByEmail(token as Record<string, unknown>, String(token.email));
+    async jwt({ token, user }) {
+      if (user) {
+        token.userId = user.id;
+        token.username = user.name ?? undefined;
+        token.role = (user as any).role;
+        token.phone = (user as any).phone;
+        token.avatarUrl = user.image ?? undefined;
       }
-      if (trigger === "update" && token.email) {
-        await safeAttachTokenByEmail(token as Record<string, unknown>, String(token.email));
-      }
-
       return token;
     },
     async session({ session, token }) {
@@ -201,6 +167,11 @@ export const authOptions: NextAuthOptions = {
       session.user.role = token.role ?? "user";
       session.user.phone = token.phone ?? "";
       session.user.image = token.avatarUrl || session.user.image || null;
+
+      // Update user last active time
+      if (token.userId) {
+        await updateUserLastActive(token.userId as string).catch(() => {});
+      }
 
       return session;
     },

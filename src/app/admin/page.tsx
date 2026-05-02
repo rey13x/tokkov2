@@ -3,11 +3,9 @@
 import { type ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut as firebaseSignOut } from "firebase/auth";
 import { signOut as nextAuthSignOut } from "next-auth/react";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
-import { getFirebaseClientAuth } from "@/lib/firebase-client";
 import type {
   OrderSummary,
   StoreInformation,
@@ -43,6 +41,8 @@ type AdminSection =
   | "marquees"
   | "paymentSettings"
   | "privacyPolicy"
+  | "admins"
+  | "users"
   | "preview";
 
 const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
@@ -58,6 +58,8 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
     label: "Kebijakan Privasi",
     desc: "Atur konten halaman privasi",
   },
+  { id: "admins", label: "Admin", desc: "Kelola admin" },
+  { id: "users", label: "User", desc: "Lihat data user & aktivitas" },
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
 ];
 
@@ -69,6 +71,8 @@ const defaultProductForm = {
   duration: "",
   price: 0,
   imageUrl: "/assets/logo.png",
+  productType: "jual_beli" as "jual_beli" | "pekerjaan",
+  jobApplicationLink: "",
 };
 
 const defaultInfoForm = {
@@ -145,6 +149,174 @@ function cancelRequestStatusLabel(status: string | undefined) {
   return "Tidak ada";
 }
 
+type AdminManagementSectionProps = {
+  session: any;
+};
+
+function AdminManagementSection({ session }: AdminManagementSectionProps) {
+  const [adminEmails, setAdminEmails] = useState<Array<{ id: string; email: string; createdAt: number }>>([]);
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadAdmins = async () => {
+      try {
+        const response = await fetch("/api/admin/emails");
+        if (!response.ok) {
+          throw new Error("Gagal load admin");
+        }
+        const data = await response.json();
+        setAdminEmails(data.adminEmails || []);
+      } catch (err) {
+        console.error("Error loading admin emails:", err);
+      }
+    };
+
+    loadAdmins();
+  }, []);
+
+  const handleAddAdmin = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+
+    if (!newAdminEmail.trim()) {
+      setError("Email tidak boleh kosong.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/admin/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newAdminEmail.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Gagal menambahkan admin.");
+        return;
+      }
+
+      setMessage(data.message || "Admin berhasil ditambahkan.");
+      setNewAdminEmail("");
+
+      // Reload admin list
+      const listResponse = await fetch("/api/admin/emails");
+      if (listResponse.ok) {
+        const listData = await listResponse.json();
+        setAdminEmails(listData.adminEmails || []);
+      }
+    } catch (err) {
+      setError("Terjadi kesalahan. Coba lagi.");
+      console.error("Error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveAdmin = async (email: string) => {
+    if (!confirm(`Yakin mau hapus ${email} dari daftar admin?`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/admin/emails?email=${encodeURIComponent(email)}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Gagal menghapus admin.");
+        return;
+      }
+
+      setMessage(data.message || "Admin berhasil dihapus.");
+
+      // Reload admin list
+      const listResponse = await fetch("/api/admin/emails");
+      if (listResponse.ok) {
+        const listData = await listResponse.json();
+        setAdminEmails(listData.adminEmails || []);
+      }
+    } catch (err) {
+      setError("Terjadi kesalahan. Coba lagi.");
+      console.error("Error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <article className={styles.card}>
+      <div className={styles.cardHead}>
+        <h2>Kelola Admin</h2>
+      </div>
+
+      <form onSubmit={handleAddAdmin} className={styles.form}>
+        <div className={styles.formGroup}>
+          <label>Tambah Admin Email</label>
+          <input
+            type="email"
+            value={newAdminEmail}
+            onChange={(e) => setNewAdminEmail(e.target.value)}
+            placeholder="admin@example.com"
+            disabled={isLoading}
+          />
+        </div>
+
+        {error && <p className={styles.error}>{error}</p>}
+        {message && <p className={styles.success}>{message}</p>}
+
+        <button type="submit" disabled={isLoading} className={styles.submitButton}>
+          {isLoading ? "Memproses..." : "Tambah Admin"}
+        </button>
+      </form>
+
+      <div className={styles.section}>
+        <h3>Daftar Admin ({adminEmails.length})</h3>
+        {adminEmails.length === 0 ? (
+          <p className={styles.emptyState}>Belum ada admin yang terdaftar.</p>
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Ditambahkan</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {adminEmails.map((admin) => (
+                <tr key={admin.id}>
+                  <td>{admin.email}</td>
+                  <td>{new Date(admin.createdAt).toLocaleDateString("id-ID")}</td>
+                  <td>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAdmin(admin.email)}
+                      disabled={isLoading || admin.email.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL?.toLowerCase()}
+                      className={styles.deleteButton}
+                    >
+                      Hapus
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </article>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const isFileUploadEnabled = true;
@@ -156,6 +328,18 @@ export default function AdminPage() {
   const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
   const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [users, setUsers] = useState<
+    Array<{
+      id: string;
+      username: string;
+      email: string;
+      phone: string;
+      purchaseCount: number;
+      jobApplicationCount: number;
+      lastActiveAt: string | null;
+      createdAt: string;
+    }>
+  >([]);
   const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, "process" | "done" | "error">>({});
   const [series, setSeries] = useState<StatsPoint[]>([]);
   const [latestOrders, setLatestOrders] = useState<OrderLite[]>([]);
@@ -182,6 +366,7 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [session, setSession] = useState<{ user?: { email?: string; uid?: string } } | null>(null);
   const privacyEditorRef = useRef<HTMLDivElement | null>(null);
 
   const maxOrderCount = useMemo(
@@ -534,6 +719,40 @@ export default function AdminPage() {
     setLatestOrders(result.latestOrders);
   };
 
+  const loadUsers = async () => {
+    const response = await fetch("/api/admin/users", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil data user");
+    }
+    const result = (await response.json()) as { users: typeof users };
+    setUsers(result.users);
+  };
+
+  const onDeleteUser = async (userId: string) => {
+    if (!window.confirm("Yakin ingin menghapus user ini? Data user akan terhapus selamanya.")) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "DELETE",
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal menghapus user");
+      }
+
+      setMessage("User berhasil dihapus.");
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menghapus user");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetch("/api/admin/session", { cache: "no-store" })
       .then(async (response) => {
@@ -545,7 +764,7 @@ export default function AdminPage() {
 
         const payload = (await response.json()) as {
           authenticated: boolean;
-          user?: { email?: string };
+          user?: { email?: string; uid?: string };
         };
 
         if (!payload.authenticated) {
@@ -553,6 +772,9 @@ export default function AdminPage() {
           router.replace("/admin/login");
           return;
         }
+
+        // Set session
+        setSession(payload);
 
         setAuthState("allowed");
         await Promise.allSettled([
@@ -564,6 +786,7 @@ export default function AdminPage() {
           loadPaymentSettings(),
           loadOrders(),
           loadStats(),
+          loadUsers(),
         ]);
       })
       .catch(() => {
@@ -585,10 +808,6 @@ export default function AdminPage() {
   }, [authState]);
 
   const onLogoutAdmin = async () => {
-    const auth = getFirebaseClientAuth();
-    if (auth) {
-      await firebaseSignOut(auth).catch(() => {});
-    }
     await nextAuthSignOut({ redirect: false }).catch(() => {});
     await fetch("/api/admin/session", { method: "DELETE" }).catch(() => {});
     router.replace("/admin/login");
@@ -1015,6 +1234,8 @@ export default function AdminPage() {
       duration: product.duration ?? "",
       price: product.price,
       imageUrl: product.imageUrl,
+      productType: product.productType || "jual_beli",
+      jobApplicationLink: product.jobApplicationLink || "",
     });
     setPriceInput(formatRupiahInput(String(product.price)));
   };
@@ -1405,6 +1626,53 @@ export default function AdminPage() {
               placeholder="Deskripsi lengkap"
               required
             />
+            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              <label>
+                <input
+                  type="radio"
+                  name="productType"
+                  value="jual_beli"
+                  checked={productForm.productType === "jual_beli"}
+                  onChange={() =>
+                    setProductForm((current) => ({
+                      ...current,
+                      productType: "jual_beli",
+                      jobApplicationLink: "",
+                    }))
+                  }
+                />
+                Jual Beli
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="productType"
+                  value="pekerjaan"
+                  checked={productForm.productType === "pekerjaan"}
+                  onChange={() =>
+                    setProductForm((current) => ({
+                      ...current,
+                      productType: "pekerjaan",
+                    }))
+                  }
+                />
+                Pekerjaan
+              </label>
+            </div>
+            {productForm.productType === "pekerjaan" ? (
+              <input
+                type="url"
+                value={productForm.jobApplicationLink}
+                onChange={(event) =>
+                  setProductForm((current) => ({
+                    ...current,
+                    jobApplicationLink: event.target.value,
+                  }))
+                }
+                placeholder="Link pendaftaran/aplikasi pekerjaan"
+                required
+              />
+            ) : null}
             <input
               value={productForm.duration}
               onChange={(event) =>
@@ -2041,6 +2309,110 @@ export default function AdminPage() {
             </div>
           </form>
         </article>
+        ) : null}
+
+        {activeSection === "admins" && session?.user?.email?.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL?.toLowerCase() ? (
+          <AdminManagementSection session={session} />
+        ) : null}
+
+        {activeSection === "users" ? (
+          <article className={styles.card}>
+            <div className={styles.cardHead}>
+              <h2>Manajemen User</h2>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => loadUsers()}
+                disabled={isLoading}
+              >
+                Refresh
+              </button>
+            </div>
+
+            <div className={styles.list}>
+              {users.length === 0 ? (
+                <p style={{ padding: "16px", textAlign: "center", color: "#999" }}>
+                  Belum ada user yang mendaftar.
+                </p>
+              ) : (
+                <table className={styles.table} style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #ddd" }}>
+                      <th style={{ padding: "8px", textAlign: "left" }}>Username</th>
+                      <th style={{ padding: "8px", textAlign: "left" }}>Email</th>
+                      <th style={{ padding: "8px", textAlign: "left" }}>Beli</th>
+                      <th style={{ padding: "8px", textAlign: "left" }}>Lamar</th>
+                      <th style={{ padding: "8px", textAlign: "left" }}>Last Active</th>
+                      <th style={{ padding: "8px", textAlign: "left" }}>Join</th>
+                      <th style={{ padding: "8px", textAlign: "center" }}>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((user) => (
+                      <tr key={user.id} style={{ borderBottom: "1px solid #eee" }}>
+                        <td style={{ padding: "8px" }}>{user.username}</td>
+                        <td style={{ padding: "8px", fontSize: "12px" }}>{user.email}</td>
+                        <td style={{ padding: "8px", textAlign: "center" }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              background: user.purchaseCount > 0 ? "#4CAF50" : "#f0f0f0",
+                              color: user.purchaseCount > 0 ? "white" : "black",
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                            }}
+                          >
+                            {user.purchaseCount}
+                          </span>
+                        </td>
+                        <td style={{ padding: "8px", textAlign: "center" }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              background: user.jobApplicationCount > 0 ? "#2196F3" : "#f0f0f0",
+                              color: user.jobApplicationCount > 0 ? "white" : "black",
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                            }}
+                          >
+                            {user.jobApplicationCount}
+                          </span>
+                        </td>
+                        <td style={{ padding: "8px", fontSize: "12px" }}>
+                          {user.lastActiveAt
+                            ? new Date(user.lastActiveAt).toLocaleDateString("id-ID", {
+                                month: "short",
+                                day: "numeric",
+                              })
+                            : "-"}
+                        </td>
+                        <td style={{ padding: "8px", fontSize: "12px" }}>
+                          {new Date(user.createdAt).toLocaleDateString("id-ID", {
+                            month: "short",
+                            day: "numeric",
+                            year: "2-digit",
+                          })}
+                        </td>
+                        <td style={{ padding: "8px", textAlign: "center" }}>
+                          <button
+                            type="button"
+                            className={styles.deleteButton}
+                            onClick={() => onDeleteUser(user.id)}
+                            disabled={isLoading}
+                            style={{ fontSize: "12px", padding: "4px 8px" }}
+                          >
+                            Hapus
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </article>
         ) : null}
 
         {activeSection === "preview" ? (

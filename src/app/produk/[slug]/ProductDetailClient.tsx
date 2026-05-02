@@ -94,6 +94,50 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
     const raw = window.sessionStorage.getItem(PENDING_CART_ACTION_KEY);
     if (!raw) {
+      // Check for pending job application
+      const jobRaw = window.sessionStorage.getItem("tokko_pending_job_apply");
+      if (!jobRaw) {
+        return;
+      }
+
+      hasHandledPendingRef.current = true;
+      try {
+        const pending = JSON.parse(jobRaw) as { slug?: string; link?: string };
+        if (pending.slug !== product.slug || !pending.link) {
+          return;
+        }
+
+        window.sessionStorage.removeItem("tokko_pending_job_apply");
+        setAdded(true);
+        setIsRedirectingToCart(true);
+
+        // Record job application and redirect
+        const recordApplication = async () => {
+          try {
+            const response = await fetch("/api/job-applications", {
+              method: "POST",
+              body: JSON.stringify({ productId: product.id }),
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              window.location.href = result.applicationLink;
+            } else {
+              window.location.href = pending.link!;
+            }
+          } catch {
+            window.location.href = pending.link!;
+          }
+        };
+
+        const timer = window.setTimeout(() => {
+          recordApplication();
+        }, 550);
+
+        return () => window.clearTimeout(timer);
+      } catch {
+        window.sessionStorage.removeItem("tokko_pending_job_apply");
+      }
       return;
     }
 
@@ -117,9 +161,14 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     } catch {
       window.sessionStorage.removeItem(PENDING_CART_ACTION_KEY);
     }
-  }, [status, product.slug, router]);
+  }, [status, product.slug, product.id, router]);
 
   const onAddToCart = () => {
+    if (product.productType === "pekerjaan") {
+      onApplyForJob();
+      return;
+    }
+
     const onboardingActive = getOnboardingState().active;
     const isProductTutorialStep = isOnboardingStageActive(ONBOARDING_STAGE.PRODUCT_ADD_TO_CART);
 
@@ -167,6 +216,64 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     window.setTimeout(() => {
       router.push("/troli");
     }, 420);
+  };
+
+  const onApplyForJob = async () => {
+    if (!product.jobApplicationLink) {
+      if (typeof window !== "undefined") {
+        window.alert("Link pendaftaran tidak tersedia.");
+      }
+      return;
+    }
+
+    if (status === "unauthenticated") {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(
+          "tokko_pending_job_apply",
+          JSON.stringify({
+            slug: product.slug,
+            link: product.jobApplicationLink,
+          }),
+        );
+      }
+      router.push(`/auth?redirect=${encodeURIComponent(`/produk/${product.slug}`)}`);
+      return;
+    }
+
+    if (status === "loading") {
+      return;
+    }
+
+    // User is authenticated, record application and redirect to job link
+    try {
+      const response = await fetch("/api/job-applications", {
+        method: "POST",
+        body: JSON.stringify({ productId: product.id }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (typeof window !== "undefined") {
+          window.alert(error.message ?? "Gagal mencatat lamaran.");
+        }
+        return;
+      }
+
+      const result = await response.json();
+      setAdded(true);
+      setIsRedirectingToCart(true);
+
+      // Redirect to job application link after a short delay
+      window.setTimeout(() => {
+        window.location.href = result.applicationLink;
+      }, 550);
+    } catch (error) {
+      console.error("Failed to record job application:", error);
+      if (typeof window !== "undefined") {
+        window.alert("Gagal mencatat lamaran. Anda akan dialihkan ke link pendaftaran.");
+        window.location.href = product.jobApplicationLink;
+      }
+    }
   };
 
   const decreaseQty = () => {
@@ -250,47 +357,73 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           <span className={styles.badge}>{product.category}</span>
           <h1>{product.name}</h1>
           <p className={styles.description}>{product.description}</p>
-          <p className={styles.price}>{formatRupiah(product.price)}</p>
-          <p className={styles.duration}>
-            Durasi: {product.duration?.trim() ? product.duration : "-"}
-          </p>
+          {product.productType === "jual_beli" ? (
+            <>
+              <p className={styles.price}>{formatRupiah(product.price)}</p>
+              <p className={styles.duration}>
+                Durasi: {product.duration?.trim() ? product.duration : "-"}
+              </p>
 
-          <div className={styles.qtyRow}>
-            <p>Jumlah</p>
-            <div className={styles.qtyControl}>
-              <button type="button" onClick={decreaseQty} aria-label="Kurangi jumlah">
-                -
+              <div className={styles.qtyRow}>
+                <p>Jumlah</p>
+                <div className={styles.qtyControl}>
+                  <button type="button" onClick={decreaseQty} aria-label="Kurangi jumlah">
+                    -
+                  </button>
+                  <input
+                    value={quantity}
+                    onChange={(event) => updateQtyDirectly(event.target.value)}
+                    inputMode="numeric"
+                    aria-label="Jumlah produk"
+                  />
+                  <button type="button" onClick={increaseQty} aria-label="Tambah jumlah">
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className={styles.orderButton}
+                onClick={onAddToCart}
+                disabled={status === "loading"}
+                data-onboarding="product-add-to-cart"
+              >
+                {status === "loading" ? "Memuat..." : "Tambah ke Troli"}
               </button>
-              <input
-                value={quantity}
-                onChange={(event) => updateQtyDirectly(event.target.value)}
-                inputMode="numeric"
-                aria-label="Jumlah produk"
-              />
-              <button type="button" onClick={increaseQty} aria-label="Tambah jumlah">
-                +
+              <p className={styles.orderHint}>
+                Klik tambah ke troli. Jika belum login, kamu akan diarahkan ke halaman auth.
+              </p>
+
+              {added ? (
+                <p className={styles.successMessage} ref={noticeRef}>
+                  {quantity} item berhasil ditambahkan ke troli.
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.orderButton}
+                onClick={onAddToCart}
+                disabled={status === "loading"}
+                data-onboarding="product-add-to-cart"
+              >
+                {status === "loading" ? "Memuat..." : "Lamar"}
               </button>
-            </div>
-          </div>
+              <p className={styles.orderHint}>
+                Klik tombol Lamar untuk melamar pekerjaan ini. Jika belum login, kamu akan diarahkan
+                ke halaman auth terlebih dahulu.
+              </p>
 
-          <button
-            type="button"
-            className={styles.orderButton}
-            onClick={onAddToCart}
-            disabled={status === "loading"}
-            data-onboarding="product-add-to-cart"
-          >
-            {status === "loading" ? "Memuat..." : "Tambah ke Troli"}
-          </button>
-          <p className={styles.orderHint}>
-            Klik tambah ke troli. Jika belum login, kamu akan diarahkan ke halaman auth.
-          </p>
-
-          {added ? (
-            <p className={styles.successMessage} ref={noticeRef}>
-              {quantity} item berhasil ditambahkan ke troli.
-            </p>
-          ) : null}
+              {added ? (
+                <p className={styles.successMessage} ref={noticeRef}>
+                  Anda akan dialihkan ke halaman pendaftaran pekerjaan...
+                </p>
+              ) : null}
+            </>
+          )}
         </div>
       </section>
     </main>

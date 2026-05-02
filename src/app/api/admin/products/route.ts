@@ -16,6 +16,8 @@ const productSchema = z.object({
   duration: z.string().max(80).default(""),
   price: z.number().int().min(0),
   imageUrl: z.string().max(3000000).default("/assets/logo.png"),
+  productType: z.enum(["jual_beli", "pekerjaan"]).default("jual_beli"),
+  jobApplicationLink: z.string().url().optional().or(z.literal("")),
 });
 
 export async function GET() {

@@ -17,8 +17,8 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tokk'o Ramadhan",
-  description: "Tokk'o Ramadhan",
+  title: "Tokk'o",
+  description: "Tokk'o",
   icons: {
     icon: "/assets/logo.png",
     shortcut: "/assets/logo.png",

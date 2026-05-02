@@ -118,6 +118,28 @@
   text-align: center;
 }
 
+.adminButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #101319;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  text-decoration: none;
+  border: 2px solid #d7dce7;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.adminButton:hover {
+  background: #1a1f2e;
+  border-color: #8ea1cb;
+  transform: scale(1.05);
+}
+
 .form {
   display: flex;
   flex-direction: column;

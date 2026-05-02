@@ -1,7 +1,7 @@
 import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createUser, findUserByEmail, findUserByIdentifier } from "@/server/db";
+import { createUser, findUserByEmail, findUserByIdentifier, isAdminEmail } from "@/server/db";
 
 const registerSchema = z
   .object({
@@ -38,17 +38,14 @@ export async function POST(request: Request) {
     }
 
     const passwordHash = await hash(payload.password, 10);
-    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    const adminRole = await isAdminEmail(payload.email);
 
     await createUser({
       username: payload.username.trim(),
       email: payload.email.trim().toLowerCase(),
       phone: payload.phone.trim(),
       passwordHash,
-      role:
-        adminEmail && payload.email.trim().toLowerCase() === adminEmail
-          ? "admin"
-          : "user",
+      role: adminRole ? "admin" : "user",
     });
 
     return NextResponse.json({ message: "Registrasi berhasil." });

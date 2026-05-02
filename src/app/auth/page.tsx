@@ -244,7 +244,7 @@ export default function AuthPage() {
 
     try {
       if (!canUseGoogleSignIn) {
-        setError("Login Google belum aktif di server.");
+        setError("Google login belum aktif di server.");
         setIsGoogleSubmitting(false);
         return;
       }
@@ -264,7 +264,7 @@ export default function AuthPage() {
 
       await signIn("google", { callbackUrl: redirectTarget });
     } catch {
-      setError("Login Google gagal. Coba lagi.");
+      setError("Google login gagal. Coba lagi.");
       setIsGoogleSubmitting(false);
     }
   };

@@ -5,16 +5,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Optional: allow Firebase-auth admin clients (if custom claim is set).
     function isAdmin() {
       return signedIn() &&
-        (
-          request.auth.token.admin == true ||
-          request.auth.token.role == "admin"
-        );
+        (request.auth.token.admin == true || request.auth.token.role == "admin");
     }
 
-    // Public storefront content (safe to read by anyone).
+    // Public storefront content
     match /products/{productId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
@@ -40,9 +36,7 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // Sensitive collections:
-    // this app writes users/orders from server (firebase-admin),
-    // so direct client access is blocked by default.
+    // Admin only access
     match /users/{userId} {
       allow read, write: if isAdmin();
     }
@@ -51,10 +45,9 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Deny everything else.
+    // Deny everything else
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
-

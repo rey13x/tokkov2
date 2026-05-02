@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     }
 
     const fileUploadEnabled = process.env.FILE_UPLOAD_ENABLED === "true";
-    const bucket = getFirebaseStorageBucket();
+    const bucket = getFirebaseStorageBucket() as any;
     if (!fileUploadEnabled || !bucket) {
       if (buffer.length > MAX_INLINE_FILE_SIZE_BYTES) {
         return NextResponse.json(

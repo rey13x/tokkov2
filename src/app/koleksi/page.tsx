@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { FiChevronRight } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
@@ -10,6 +12,8 @@ import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
 
 export default function KoleksiPage() {
+  const router = useRouter();
+  const { data: session } = useSession();
   const initialCategory =
     typeof window === "undefined"
       ? "Semua"
@@ -55,13 +59,33 @@ export default function KoleksiPage() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Cari produk..."
             />
-            <div className={styles.gifBox} aria-hidden="true">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://media.giphy.com/media/13HgwGsXF0aiGY/giphy.gif"
-                alt=""
-              />
-            </div>
+            {session?.user ? (
+              <button
+                type="button"
+                onClick={() => router.push("/profil")}
+                className={styles.gifBox}
+                style={{ cursor: "pointer", border: "none", background: "none", padding: 0 }}
+                title="Lihat profil"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={session.user.image || "/assets/logov2.png"}
+                  alt="Profil"
+                  style={{
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                  }}
+                />
+              </button>
+            ) : (
+              <div className={styles.gifBox} aria-hidden="true">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://media.giphy.com/media/13HgwGsXF0aiGY/giphy.gif"
+                  alt=""
+                />
+              </div>
+            )}
           </div>
         </div>
 
