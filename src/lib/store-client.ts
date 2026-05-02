@@ -7,7 +7,9 @@ import type {
 } from "@/types/store";
 
 export async function fetchStoreData() {
-  const response = await fetch("/api/store");
+  const response = await fetch("/api/store", {
+    next: { revalidate: 5 },
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch store");
   }

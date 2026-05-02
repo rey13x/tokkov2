@@ -21,7 +21,7 @@ export async function GET() {
       { products, informations, testimonials, marquees, paymentSettings },
       {
         headers: {
-          "Cache-Control": "public, max-age=15, s-maxage=30, stale-while-revalidate=120",
+          "Cache-Control": "public, max-age=5, s-maxage=10, stale-while-revalidate=60",
         },
       },
     );
