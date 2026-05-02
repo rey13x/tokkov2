@@ -12,7 +12,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["react", "react-dom"],
   },
   compress: true,
-  swcMinify: true,
   productionBrowserSourceMaps: false,
   onDemandEntries: {
     maxInactiveAge: 25 * 1000,
