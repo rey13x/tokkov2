@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
     // Enable faster full page generation
     optimizePackageImports: ["react", "react-dom"],
   },
+  compress: true,
+  swcMinify: true,
+  productionBrowserSourceMaps: false,
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 5,
+  },
 };
 
 export default nextConfig;
