@@ -812,7 +812,7 @@ export default function HomeClient() {
 
         <div className={styles.heroTop} data-animate="hero">
           <Link href="/" aria-label="Beranda">
-            <Image src={logoImage} alt="Tokko Logo" className={styles.logo} priority />
+            <Image src={logoImage} alt="Tokko Logo" className={styles.logo} width={86} height={86} priority />
           </Link>
           {sessionStatus === "authenticated" ? (
             <button
@@ -1032,7 +1032,7 @@ export default function HomeClient() {
             >
               <div className={styles.menuTop}>
                 <Link href="/" aria-label="Beranda">
-                  <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
+                  <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} width={60} height={60} />
                 </Link>
               </div>
 
@@ -1096,7 +1096,7 @@ export default function HomeClient() {
             >
               <div className={styles.menuTop}>
                 <Link href="/" aria-label="Beranda">
-                  <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} />
+                  <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} width={60} height={60} />
                 </Link>
               </div>
               <p className={styles.menuLabel} data-menu-item>
