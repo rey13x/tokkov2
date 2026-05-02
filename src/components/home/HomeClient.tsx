@@ -18,6 +18,7 @@ import {
 } from "react-icons/fi";
 import bagasPhoto from "@/app/assets/Bagas.jpg";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import ProductCard from "@/components/home/ProductCard";
 import { formatRupiah } from "@/data/products";
 import { getCartCount } from "@/lib/cart";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
@@ -878,38 +879,17 @@ export default function HomeClient() {
         </div>
         <div className={styles.productGrid}>
           {bestSellerProducts.map((product, index) => (
-            <article key={product.id} className={styles.productShell} data-card="product">
-              <Link
-                href={`/produk/${product.slug}`}
-                className={styles.productCard}
-                data-onboarding={index === 0 ? "home-product-card" : undefined}
-                onClick={() => {
-                  if (isOnboardingStageActive(ONBOARDING_STAGE.HOME_PRODUCT)) {
-                    advanceOnboarding(ONBOARDING_STAGE.PRODUCT_ADD_TO_CART);
-                  }
-                }}
-              >
-                <div className={styles.productImageWrap}>
-                  <FlexibleMedia
-                    src={product.imageUrl}
-                    alt={product.name}
-                    fill
-                    className={styles.productImage}
-                    sizes="(max-width: 760px) 44vw, (max-width: 1140px) 30vw, 20vw"
-                    unoptimized
-                  />
-                </div>
-                <div className={styles.floatingMeta}>
-                  <div>
-                    <p>{product.name}</p>
-                    <span>{formatRupiah(product.price)}</span>
-                  </div>
-                  <i>
-                    <FiChevronRight />
-                  </i>
-                </div>
-              </Link>
-            </article>
+            <ProductCard
+              key={product.id}
+              product={product}
+              index={index}
+              onboardingStage={index === 0 ? "home-product-card" : undefined}
+              onClick={() => {
+                if (isOnboardingStageActive(ONBOARDING_STAGE.HOME_PRODUCT)) {
+                  advanceOnboarding(ONBOARDING_STAGE.PRODUCT_ADD_TO_CART);
+                }
+              }}
+            />
           ))}
         </div>
       </section>
