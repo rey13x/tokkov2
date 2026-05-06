@@ -11,6 +11,9 @@ import {
   resolveStoryReport,
   updateBookStoryLikes,
   addCustomBookStoryComments,
+  incrementBookStoryViews,
+  updateBookStorySaves,
+  updateBookStoryShareCount,
 } from "@/server/store-data";
 
 export async function GET(request: Request) {
@@ -51,10 +54,12 @@ export async function GET(request: Request) {
 
 const approveStorySchema = z.object({
   storyId: z.string().min(1).optional(),
-  action: z.enum(["approve", "reject", "delete", "update-likes", "add-comments", "resolve-report"]),
+  action: z.enum(["approve", "reject", "delete", "update-likes", "add-comments", "resolve-report", "increment-views", "update-saves", "update-shares"]),
   reportId: z.string().optional(),
   deleteReportedStory: z.boolean().optional(),
   likes: z.number().optional(),
+  saves: z.number().optional(),
+  shares: z.number().optional(),
   comments: z
     .array(
       z.object({
@@ -103,6 +108,21 @@ export async function POST(request: Request) {
     if (payload.action === "resolve-report" && payload.reportId) {
       await resolveStoryReport(payload.reportId, auth.admin.uid, payload.deleteReportedStory ?? false);
       return NextResponse.json({ success: true, message: "Laporan berhasil diselesaikan" });
+    }
+
+    if (payload.action === "increment-views" && payload.storyId) {
+      const story = await incrementBookStoryViews(payload.storyId);
+      return NextResponse.json({ story, message: "Views berhasil ditambah" });
+    }
+
+    if (payload.action === "update-saves" && payload.storyId && payload.saves !== undefined) {
+      const story = await updateBookStorySaves(payload.storyId, payload.saves);
+      return NextResponse.json({ story, message: "Saves berhasil diupdate" });
+    }
+
+    if (payload.action === "update-shares" && payload.storyId && payload.shares !== undefined) {
+      const story = await updateBookStoryShareCount(payload.storyId, payload.shares);
+      return NextResponse.json({ story, message: "Shares berhasil diupdate" });
     }
 
     return NextResponse.json(

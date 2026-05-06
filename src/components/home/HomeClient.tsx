@@ -850,7 +850,7 @@ export default function HomeClient() {
               className={styles.heroSearchButton}
               onClick={() => router.push("/koleksi")}
             >
-              Liat Semua
+              Semua Layanan
             </button>
           </div>
         </div>
@@ -873,7 +873,7 @@ export default function HomeClient() {
             className={styles.inlineAction}
             onClick={() => router.push("/koleksi")}
           >
-            Liat Semua <span>{">"}</span>
+            Semua Layanan <span>{">"}</span>
           </button>
         </div>
         <div className={styles.productGrid}>
@@ -1016,32 +1016,11 @@ export default function HomeClient() {
                     <FiChevronRight />
                   </span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(
-                      sessionStatus === "authenticated" ? "/profil" : "/auth?redirect=/profil",
-                    )
-                  }
-                  data-menu-item
-                >
-                  Profil
+                <button type="button" onClick={() => router.push("/portfolio")} data-menu-item>
+                  Portfolio
                 </button>
                 <button type="button" onClick={() => router.push("/troli")} data-menu-item>
                   Troli ({cartCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(
-                      sessionStatus === "authenticated"
-                        ? "/status-pemesanan"
-                        : "/auth?redirect=/status-pemesanan",
-                    )
-                  }
-                  data-menu-item
-                >
-                  Status Pemesanan
                 </button>
               </nav>
 

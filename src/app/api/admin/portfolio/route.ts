@@ -16,6 +16,7 @@ const portfolioItemSchema = z.object({
   category: z.string().min(1).max(50),
   link: z.string().url().optional().or(z.literal("")),
   sortOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
 });
 
 const homepageConfigSchema = z.object({

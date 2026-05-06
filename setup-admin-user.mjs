@@ -8,7 +8,7 @@ const db = createClient({
 
 async function setupAdminUser() {
   const adminEmail = 'digitalawanku2@gmail.com';
-  const adminPassword = 'admin123x';
+  const adminPassword = 'Ayiamessi139087z';
   
   try {
     console.log('🔧 Setting up admin user...');

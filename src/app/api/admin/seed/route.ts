@@ -145,6 +145,18 @@ export async function POST(request: Request) {
       },
     ];
 
+    const portfolioItems = [
+      {
+        title: "Portfolio Raihaan Bp",
+        description: "Portfolio profesional Raihaan Bp dalam bidang digital marketing dan development.",
+        imageUrl: "/assets/bagas.jpg",
+        category: "Portfolio",
+        link: "",
+        sortOrder: 1,
+        isActive: true,
+      },
+    ];
+
     // Seed products
     for (const product of products) {
       await firestore
@@ -177,6 +189,16 @@ export async function POST(request: Request) {
       });
     }
 
+    // Seed portfolio items
+    for (const item of portfolioItems) {
+      const docId = crypto.randomUUID();
+      await firestore.collection("portfolioItems").doc(docId).set({
+        ...item,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
     // Seed system settings
     await firestore.collection("systemSettings").doc("main").set({
       maintenanceMode: false,
@@ -191,6 +213,7 @@ export async function POST(request: Request) {
           products: products.length,
           informations: informations.length,
           testimonials: testimonials.length,
+          portfolioItems: portfolioItems.length,
           systemSettings: 1,
         },
       },

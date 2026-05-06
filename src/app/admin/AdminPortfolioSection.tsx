@@ -2,7 +2,7 @@
 
 import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useState } from "react";
-import type { PortfolioItem, HomepageConfig } from "@/types/store";
+import type { PortfolioItem } from "@/types/store";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import styles from "./AdminPortfolioSection.module.css";
 
@@ -18,25 +18,11 @@ const defaultPortfolioForm = {
   category: "Portfolio",
   link: "",
   sortOrder: 0,
-};
-
-const defaultHomepageConfig: HomepageConfig = {
-  id: "main",
-  portfolioEnabled: true,
-  servicesEnabled: true,
-  testimonialEnabled: true,
-  productsEnabled: true,
-  informationEnabled: true,
-  marqueeEnabled: true,
-  heroTitle: "Tokko",
-  heroSubtitle: "Your Digital Vision, Perfectly Realized.",
-  portfolioSectionTitle: "Portfolio",
-  updatedAt: new Date().toISOString(),
+  isActive: true,
 };
 
 export function AdminPortfolioSection({ isFileUploadEnabled, onUploadMedia }: Props) {
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
-  const [homepageConfig, setHomepageConfig] = useState<HomepageConfig>(defaultHomepageConfig);
   const [portfolioForm, setPortfolioForm] = useState(defaultPortfolioForm);
   const [portfolioEditId, setPortfolioEditId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -51,7 +37,6 @@ export function AdminPortfolioSection({ isFileUploadEnabled, onUploadMedia }: Pr
         const response = await fetch("/api/admin/portfolio");
         const data = await response.json();
         setPortfolioItems(data.portfolioItems || []);
-        setHomepageConfig(data.homepageConfig || defaultHomepageConfig);
       } catch (err) {
         console.error("Failed to load portfolio data:", err);
       }
@@ -143,6 +128,7 @@ export function AdminPortfolioSection({ isFileUploadEnabled, onUploadMedia }: Pr
       category: item.category,
       link: item.link || "",
       sortOrder: item.sortOrder,
+      isActive: item.isActive,
     });
     setPortfolioEditId(item.id);
   };
@@ -181,46 +167,6 @@ export function AdminPortfolioSection({ isFileUploadEnabled, onUploadMedia }: Pr
     }
   };
 
-  const onUpdateHomepageConfig = async (event: FormEvent) => {
-    event.preventDefault();
-    setIsLoading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      const response = await fetch("/api/admin/portfolio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "homepage-config",
-          portfolioEnabled: homepageConfig.portfolioEnabled,
-          servicesEnabled: homepageConfig.servicesEnabled,
-          testimonialEnabled: homepageConfig.testimonialEnabled,
-          productsEnabled: homepageConfig.productsEnabled,
-          informationEnabled: homepageConfig.informationEnabled,
-          marqueeEnabled: homepageConfig.marqueeEnabled,
-          heroTitle: homepageConfig.heroTitle,
-          heroSubtitle: homepageConfig.heroSubtitle,
-          portfolioSectionTitle: homepageConfig.portfolioSectionTitle,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || "Gagal memperbarui homepage config.");
-        return;
-      }
-
-      setMessage("Homepage config berhasil diperbarui.");
-      setHomepageConfig(data.config);
-    } catch (err) {
-      setError("Terjadi kesalahan. Coba lagi.");
-      console.error("Error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className={styles.container}>
@@ -290,6 +236,19 @@ export function AdminPortfolioSection({ isFileUploadEnabled, onUploadMedia }: Pr
             }
             placeholder="Urutan tampil"
           />
+          <label className={styles.checkField}>
+            <input
+              type="checkbox"
+              checked={portfolioForm.isActive}
+              onChange={(event) =>
+                setPortfolioForm((current) => ({
+                  ...current,
+                  isActive: event.target.checked,
+                }))
+              }
+            />
+            Aktifkan Portfolio Item
+          </label>
           <input value={portfolioForm.imageUrl} readOnly placeholder="URL gambar portfolio otomatis" />
           {isFileUploadEnabled ? (
             <label className={styles.fileField}>
@@ -358,6 +317,9 @@ export function AdminPortfolioSection({ isFileUploadEnabled, onUploadMedia }: Pr
                   <p>{item.title}</p>
                   <span>{item.category}</span>
                   <span>Urutan: {item.sortOrder}</span>
+                  <span className={item.isActive ? styles.statusActive : styles.statusInactive}>
+                    {item.isActive ? "Aktif" : "Nonaktif"}
+                  </span>
                 </div>
               </div>
               <div className={styles.rowActions}>
@@ -380,142 +342,6 @@ export function AdminPortfolioSection({ isFileUploadEnabled, onUploadMedia }: Pr
             <p>Belum ada portfolio item.</p>
           ) : null}
         </div>
-      </article>
-
-      {/* Homepage Config Section */}
-      <article className={styles.card}>
-        <div className={styles.cardHead}>
-          <h2>Konfigurasi Homepage</h2>
-        </div>
-
-        <form className={styles.form} onSubmit={onUpdateHomepageConfig}>
-          <input
-            type="text"
-            value={homepageConfig.heroTitle}
-            onChange={(event) =>
-              setHomepageConfig((current) => ({
-                ...current,
-                heroTitle: event.target.value,
-              }))
-            }
-            placeholder="Hero Title"
-            maxLength={100}
-          />
-          <textarea
-            value={homepageConfig.heroSubtitle}
-            onChange={(event) =>
-              setHomepageConfig((current) => ({
-                ...current,
-                heroSubtitle: event.target.value,
-              }))
-            }
-            placeholder="Hero Subtitle"
-            maxLength={200}
-            rows={2}
-          />
-          <input
-            type="text"
-            value={homepageConfig.portfolioSectionTitle}
-            onChange={(event) =>
-              setHomepageConfig((current) => ({
-                ...current,
-                portfolioSectionTitle: event.target.value,
-              }))
-            }
-            placeholder="Portfolio Section Title"
-            maxLength={100}
-          />
-
-          <div className={styles.checkboxGroup}>
-            <label className={styles.checkField}>
-              <input
-                type="checkbox"
-                checked={homepageConfig.portfolioEnabled}
-                onChange={(event) =>
-                  setHomepageConfig((current) => ({
-                    ...current,
-                    portfolioEnabled: event.target.checked,
-                  }))
-                }
-              />
-              Tampilkan Portfolio
-            </label>
-            <label className={styles.checkField}>
-              <input
-                type="checkbox"
-                checked={homepageConfig.servicesEnabled}
-                onChange={(event) =>
-                  setHomepageConfig((current) => ({
-                    ...current,
-                    servicesEnabled: event.target.checked,
-                  }))
-                }
-              />
-              Tampilkan Services
-            </label>
-            <label className={styles.checkField}>
-              <input
-                type="checkbox"
-                checked={homepageConfig.testimonialEnabled}
-                onChange={(event) =>
-                  setHomepageConfig((current) => ({
-                    ...current,
-                    testimonialEnabled: event.target.checked,
-                  }))
-                }
-              />
-              Tampilkan Testimonial
-            </label>
-            <label className={styles.checkField}>
-              <input
-                type="checkbox"
-                checked={homepageConfig.productsEnabled}
-                onChange={(event) =>
-                  setHomepageConfig((current) => ({
-                    ...current,
-                    productsEnabled: event.target.checked,
-                  }))
-                }
-              />
-              Tampilkan Products
-            </label>
-            <label className={styles.checkField}>
-              <input
-                type="checkbox"
-                checked={homepageConfig.informationEnabled}
-                onChange={(event) =>
-                  setHomepageConfig((current) => ({
-                    ...current,
-                    informationEnabled: event.target.checked,
-                  }))
-                }
-              />
-              Tampilkan Information
-            </label>
-            <label className={styles.checkField}>
-              <input
-                type="checkbox"
-                checked={homepageConfig.marqueeEnabled}
-                onChange={(event) =>
-                  setHomepageConfig((current) => ({
-                    ...current,
-                    marqueeEnabled: event.target.checked,
-                  }))
-                }
-              />
-              Tampilkan Marquee
-            </label>
-          </div>
-
-          <div className={styles.formActions}>
-            <button type="submit" disabled={isLoading}>
-              Simpan Konfigurasi
-            </button>
-          </div>
-
-          {error && <p className={styles.error}>{error}</p>}
-          {message && <p className={styles.success}>{message}</p>}
-        </form>
       </article>
     </div>
   );

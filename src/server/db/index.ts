@@ -16,7 +16,7 @@ import { getFirebaseFirestore } from "@/server/firebase-admin";
 
 const now = () => Date.now();
 
-const db = createClient({
+export const db = createClient({
   url: process.env.TURSO_URL ?? "file:./tokko.db",
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
@@ -634,11 +634,17 @@ export async function ensureDatabase() {
           user_name TEXT NOT NULL,
           user_email TEXT NOT NULL,
           user_avatar_url TEXT NOT NULL DEFAULT '',
+          title TEXT NOT NULL DEFAULT '',
+          category TEXT NOT NULL DEFAULT '',
           story TEXT NOT NULL,
           photos TEXT NOT NULL DEFAULT '[]',
           likes INTEGER NOT NULL DEFAULT 0,
           liked_by TEXT NOT NULL DEFAULT '[]',
           comments TEXT NOT NULL DEFAULT '[]',
+          views INTEGER NOT NULL DEFAULT 0,
+          viewed_by TEXT NOT NULL DEFAULT '[]',
+          saved_by TEXT NOT NULL DEFAULT '[]',
+          share_count INTEGER NOT NULL DEFAULT 0,
           report_count INTEGER NOT NULL DEFAULT 0,
           status TEXT NOT NULL DEFAULT 'approved',
           created_at INTEGER NOT NULL,
@@ -659,7 +665,25 @@ export async function ensureDatabase() {
         "ALTER TABLE book_stories ADD COLUMN comments TEXT NOT NULL DEFAULT '[]'",
       ).catch(() => {});
       await run(
+        "ALTER TABLE book_stories ADD COLUMN views INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN viewed_by TEXT NOT NULL DEFAULT '[]'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN saved_by TEXT NOT NULL DEFAULT '[]'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN share_count INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+      await run(
         "ALTER TABLE book_stories ADD COLUMN user_avatar_url TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN title TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN category TEXT NOT NULL DEFAULT ''",
       ).catch(() => {});
       await run(
         "ALTER TABLE book_stories ADD COLUMN report_count INTEGER NOT NULL DEFAULT 0",

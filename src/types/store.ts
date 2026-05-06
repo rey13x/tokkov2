@@ -87,6 +87,8 @@ export type BookStory = {
   userName: string;
   userEmail: string;
   userAvatarUrl?: string;
+  title: string;
+  category: string;
   story: string;
   photos: string[];
   likes: number;
@@ -99,6 +101,10 @@ export type BookStory = {
     createdAt: string;
   }>;
   reportCount?: number;
+  views: number;
+  viewedBy: string[];
+  savedBy: string[];
+  shareCount: number;
   status: "pending" | "approved" | "rejected";
   createdAt: string;
   approvedAt?: string;

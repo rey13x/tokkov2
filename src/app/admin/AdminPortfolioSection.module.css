@@ -224,6 +224,16 @@
   color: #666;
 }
 
+.statusActive {
+  color: #388e3c;
+  font-weight: 600;
+}
+
+.statusInactive {
+  color: #d32f2f;
+  font-weight: 600;
+}
+
 .rowActions {
   display: flex;
   gap: 0.5rem;

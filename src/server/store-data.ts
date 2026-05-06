@@ -1702,11 +1702,35 @@ function mapBookStoryDoc(
     userName: String(data?.userName ?? data?.user_name ?? ""),
     userEmail: String(data?.userEmail ?? data?.user_email ?? ""),
     userAvatarUrl: String(data?.userAvatarUrl ?? data?.user_avatar_url ?? ""),
+    title: String(data?.title ?? data?.title ?? ""),
+    category: String(data?.category ?? data?.category ?? ""),
     story: String(data?.story ?? ""),
     photos,
     likes: likedBy.length,
     likedBy,
     comments,
+    views: Number(data?.views ?? data?.view ?? 0),
+    viewedBy: (() => {
+      try {
+        const val = data?.viewedBy || data?.viewed_by;
+        if (typeof val === "string") return JSON.parse(val);
+        if (Array.isArray(val)) return val;
+        return [];
+      } catch {
+        return [];
+      }
+    })(),
+    savedBy: (() => {
+      try {
+        const val = data?.savedBy || data?.saved_by;
+        if (typeof val === "string") return JSON.parse(val);
+        if (Array.isArray(val)) return val;
+        return [];
+      } catch {
+        return [];
+      }
+    })(),
+    shareCount: Number(data?.shareCount ?? data?.share_count ?? 0),
     reportCount: Number(data?.reportCount ?? data?.report_count ?? 0),
     status: (data?.status as "pending" | "approved" | "rejected") ?? "pending",
     createdAt: new Date(Number(data?.createdAt ?? data?.created_at ?? now())).toISOString(),
@@ -1719,6 +1743,8 @@ export async function createBookStory(input: {
   userName: string;
   userEmail: string;
   userAvatarUrl?: string;
+  title: string;
+  category: string;
   story: string;
   photos?: string[];
 }) {
@@ -1734,6 +1760,8 @@ export async function createBookStory(input: {
       userName: input.userName || "Anonymous",
       userEmail: input.userEmail || "",
       userAvatarUrl: input.userAvatarUrl || "",
+      title: input.title.trim(),
+      category: input.category.trim(),
       story: input.story.trim(),
       photos: JSON.stringify(input.photos || []),
       likedBy: JSON.stringify([]),
@@ -1750,17 +1778,23 @@ export async function createBookStory(input: {
     });
 
     await run(
-      `INSERT INTO book_stories (id, user_id, user_name, user_email, user_avatar_url, story, photos, liked_by, status, created_at, approved_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO book_stories (id, user_id, user_name, user_email, user_avatar_url, title, category, story, photos, liked_by, views, viewed_by, saved_by, share_count, status, created_at, approved_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         storyData.id,
         storyData.userId,
         storyData.userName,
         storyData.userEmail,
         storyData.userAvatarUrl,
+        storyData.title,
+        storyData.category,
         storyData.story,
         storyData.photos,
         storyData.likedBy,
+        0,
+        JSON.stringify([]),
+        JSON.stringify([]),
+        0,
         storyData.status,
         storyData.createdAt,
         storyData.approvedAt,
@@ -1773,10 +1807,16 @@ export async function createBookStory(input: {
       userName: storyData.userName,
       userEmail: storyData.userEmail,
       userAvatarUrl: storyData.userAvatarUrl,
+      title: storyData.title,
+      category: storyData.category,
       story: storyData.story,
       photos: input.photos || [],
       likedBy: [],
       comments: [],
+      views: 0,
+      viewedBy: [],
+      savedBy: [],
+      shareCount: 0,
       status: storyData.status,
       createdAt: storyData.createdAt,
       approvedAt: storyData.approvedAt,
@@ -1797,18 +1837,7 @@ export async function listPendingBookStories() {
     );
 
     return ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) =>
-      mapBookStoryDoc(String(row.id), {
-        userId: row.user_id,
-        userName: row.user_name,
-        userEmail: row.user_email,
-        story: row.story,
-        photos: row.photos,
-        likedBy: row.liked_by,
-        comments: row.comments,
-        status: row.status,
-        createdAt: row.created_at,
-        approvedAt: row.approved_at,
-      }),
+      mapBookStoryDoc(String(row.id), row),
     );
   } catch (error) {
     markFirestoreUnavailable(error);
@@ -1825,18 +1854,7 @@ export async function listApprovedBookStories() {
     );
 
     return ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) =>
-      mapBookStoryDoc(String(row.id), {
-        userId: row.user_id,
-        userName: row.user_name,
-        userEmail: row.user_email,
-        story: row.story,
-        photos: row.photos,
-        likedBy: row.liked_by,
-        comments: row.comments,
-        status: row.status,
-        createdAt: row.created_at,
-        approvedAt: row.approved_at,
-      }),
+      mapBookStoryDoc(String(row.id), row),
     );
   } catch (error) {
     markFirestoreUnavailable(error);
@@ -1864,18 +1882,7 @@ export async function approveBookStory(storyId: string) {
       throw new Error("Story not found");
     }
 
-    return mapBookStoryDoc(storyId, {
-      userId: row.user_id,
-      userName: row.user_name,
-      userEmail: row.user_email,
-      story: row.story,
-      photos: row.photos,
-      likedBy: row.liked_by,
-      comments: row.comments,
-      status: row.status,
-      createdAt: row.created_at,
-      approvedAt: row.approved_at,
-    });
+    return mapBookStoryDoc(storyId, row);
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to approve book story in database.", error);
@@ -1901,18 +1908,7 @@ export async function rejectBookStory(storyId: string) {
       throw new Error("Story not found");
     }
 
-    return mapBookStoryDoc(storyId, {
-      userId: row.user_id,
-      userName: row.user_name,
-      userEmail: row.user_email,
-      story: row.story,
-      photos: row.photos,
-      likedBy: row.liked_by,
-      comments: row.comments,
-      status: row.status,
-      createdAt: row.created_at,
-      approvedAt: row.approved_at,
-    });
+    return mapBookStoryDoc(storyId, row);
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to reject book story in database.", error);
@@ -1986,6 +1982,197 @@ export async function incrementBookStoryLikes(storyId: string, userId: string) {
   }
 }
 
+export async function toggleBookStorySave(storyId: string, userId: string) {
+  try {
+    await ensureDatabase();
+    const result = await run(
+      "SELECT saved_by FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId]
+    );
+
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Story not found");
+    }
+
+    let savedBy: string[] = [];
+    try {
+      const val = row.saved_by;
+      if (typeof val === "string") savedBy = JSON.parse(val);
+      else if (Array.isArray(val)) savedBy = val;
+    } catch {
+      savedBy = [];
+    }
+
+    if (savedBy.includes(userId)) {
+      savedBy = savedBy.filter((id) => id !== userId);
+    } else {
+      savedBy.push(userId);
+    }
+
+    await run(
+      "UPDATE book_stories SET saved_by = ? WHERE id = ?",
+      [JSON.stringify(savedBy), storyId]
+    );
+
+    const updatedResult = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId]
+    );
+    const updatedRow = updatedResult.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Story not found");
+    }
+
+    return mapBookStoryDoc(storyId, updatedRow);
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to toggle book story save.", error);
+    throw new Error("Gagal menyimpan cerita");
+  }
+}
+
+export async function incrementBookStoryShareCount(storyId: string) {
+  try {
+    await ensureDatabase();
+    const result = await run(
+      "SELECT share_count FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId]
+    );
+
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Story not found");
+    }
+
+    const currentCount = Number(row.share_count ?? 0);
+    const nextCount = currentCount + 1;
+
+    await run(
+      "UPDATE book_stories SET share_count = ? WHERE id = ?",
+      [nextCount, storyId]
+    );
+
+    const updatedResult = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId]
+    );
+    const updatedRow = updatedResult.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Story not found");
+    }
+
+    return mapBookStoryDoc(storyId, updatedRow);
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to increment book story share count.", error);
+    throw new Error("Gagal menambah share");
+  }
+}
+
+export async function updateBookStorySaves(storyId: string, savedCount: number) {
+  try {
+    await ensureDatabase();
+    const savedBy = Array.from({ length: Math.max(0, savedCount) }, (_, i) => `system_save_${i}`);
+
+    await run(
+      "UPDATE book_stories SET saved_by = ? WHERE id = ?",
+      [JSON.stringify(savedBy), storyId],
+    );
+
+    const updatedResult = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+    const updatedRow = updatedResult.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Story not found");
+    }
+
+    return mapBookStoryDoc(storyId, updatedRow);
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to update book story saves.", error);
+    throw new Error("Gagal memperbarui jumlah simpanan");
+  }
+}
+
+export async function updateBookStoryShareCount(storyId: string, shareCount: number) {
+  try {
+    await ensureDatabase();
+    await run(
+      "UPDATE book_stories SET share_count = ? WHERE id = ?",
+      [Math.max(0, shareCount), storyId],
+    );
+
+    const updatedResult = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+    const updatedRow = updatedResult.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Story not found");
+    }
+
+    return mapBookStoryDoc(storyId, updatedRow);
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to update book story share count.", error);
+    throw new Error("Gagal memperbarui jumlah share");
+  }
+}
+
+export async function incrementBookStoryViews(storyId: string, userId?: string) {
+  try {
+    await ensureDatabase();
+    
+    const result = await run(
+      "SELECT views, viewed_by FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+    
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Story not found");
+    }
+
+    let viewedBy: string[] = [];
+    try {
+      const val = row.viewed_by;
+      if (typeof val === "string") viewedBy = JSON.parse(val);
+      else if (Array.isArray(val)) viewedBy = val;
+    } catch {
+      viewedBy = [];
+    }
+
+    if (userId && !viewedBy.includes(userId)) {
+      viewedBy.push(userId);
+    }
+
+    const views = userId ? viewedBy.length : Number(row.views ?? 0) + 1;
+
+    await run(
+      "UPDATE book_stories SET viewed_by = ?, views = ? WHERE id = ?",
+      [JSON.stringify(viewedBy), views, storyId],
+    );
+
+    const updated = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+    
+    const updatedRow = updated.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Story not found after update");
+    }
+
+    return mapBookStoryDoc(storyId, updatedRow);
+  } catch (error) {
+    console.error("Failed to increment views:", error);
+    throw new Error("Gagal menambah views");
+  }
+}
+
 export async function addBookStoryComment(storyId: string, comment: { id: string; userId: string; userName: string; text: string; createdAt: string }) {
   try {
     await ensureDatabase();
@@ -2026,20 +2213,7 @@ export async function addBookStoryComment(storyId: string, comment: { id: string
       throw new Error("Story not found");
     }
 
-    return mapBookStoryDoc(storyId, {
-      userId: updatedRow.user_id,
-      userName: updatedRow.user_name,
-      userEmail: updatedRow.user_email,
-      userAvatarUrl: updatedRow.user_avatar_url,
-      story: updatedRow.story,
-      photos: updatedRow.photos,
-      likes: updatedRow.likes,
-      likedBy: updatedRow.liked_by,
-      comments: updatedRow.comments,
-      status: updatedRow.status,
-      createdAt: updatedRow.created_at,
-      approvedAt: updatedRow.approved_at,
-    });
+    return mapBookStoryDoc(storyId, updatedRow);
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to add book story comment.", error);
@@ -2239,19 +2413,7 @@ export async function updateBookStoryLikes(storyId: string, likeCount: number) {
       throw new Error("Story not found");
     }
 
-    return mapBookStoryDoc(storyId, {
-      userId: row.user_id,
-      userName: row.user_name,
-      userEmail: row.user_email,
-      userAvatarUrl: row.user_avatar_url,
-      story: row.story,
-      photos: row.photos,
-      likedBy: row.liked_by,
-      comments: row.comments,
-      status: row.status,
-      createdAt: row.created_at,
-      approvedAt: row.approved_at,
-    });
+    return mapBookStoryDoc(storyId, row);
   } catch (error) {
     console.error("Failed to update likes:", error);
     throw new Error("Gagal mengupdate like");
@@ -2263,7 +2425,7 @@ export async function addCustomBookStoryComments(storyId: string, comments: Arra
     await ensureDatabase();
 
     const result = await run(
-      "SELECT comments FROM book_stories WHERE id = ? LIMIT 1",
+      "SELECT comments, views FROM book_stories WHERE id = ? LIMIT 1",
       [storyId],
     );
 
@@ -2315,6 +2477,7 @@ export async function addCustomBookStoryComments(storyId: string, comments: Arra
       photos: updatedRow.photos,
       likedBy: updatedRow.liked_by,
       comments: updatedRow.comments,
+      views: updatedRow.views,
       status: updatedRow.status,
       createdAt: updatedRow.created_at,
       approvedAt: updatedRow.approved_at,
@@ -2402,6 +2565,7 @@ export async function createPortfolioItem(input: {
   category: string;
   link?: string;
   sortOrder?: number;
+  isActive?: boolean;
 }) {
   const firestore = getFirestoreOrNull();
   if (!firestore) {
@@ -2420,7 +2584,7 @@ export async function createPortfolioItem(input: {
       category: input.category.trim(),
       link: (input.link ?? "").trim(),
       sortOrder: Math.max(0, Math.floor(input.sortOrder ?? 0)),
-      isActive: true,
+      isActive: input.isActive ?? true,
       createdAt,
       updatedAt: createdAt,
     });

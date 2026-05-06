@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listApprovedBookStories } from "@/server/store-data";
+import { incrementBookStoryShareCount, listApprovedBookStories } from "@/server/store-data";
 
 export async function GET(
   request: Request,
@@ -18,7 +18,12 @@ export async function GET(
     }
 
     // Create a simple SVG image with white background
-    const textLines = story.story.split('\n').slice(0, 20);
+    const plainText = story.story
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const textLines = plainText.match(/.{1,80}(?:\s|$)/g)?.slice(0, 20) ?? [];
     const svgContent = `
       <svg width="1080" height="1440" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -50,6 +55,27 @@ export async function GET(
     console.error("GET /api/book-stories/[storyId]/share failed:", error);
     return NextResponse.json(
       { message: "Gagal membuat gambar bagikan" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ storyId: string }> }
+) {
+  try {
+    const { storyId } = await params;
+    const story = await incrementBookStoryShareCount(storyId);
+    return NextResponse.json({ story });
+  } catch (error) {
+    console.error("POST /api/book-stories/[storyId]/share failed:", error);
+    const message =
+      error instanceof Error && error.message.trim()
+        ? error.message.trim()
+        : "Gagal menambah share";
+    return NextResponse.json(
+      { message },
       { status: 500 },
     );
   }

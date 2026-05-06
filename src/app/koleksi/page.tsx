@@ -46,7 +46,7 @@ export default function KoleksiPage() {
     <main className={styles.page}>
       <section className={styles.stickyTop}>
         <header className={styles.header}>
-          <h1>Katalog</h1>
+          <h1>Layanan</h1>
           <Link href="/" className={styles.backLink}>
             Kembali
           </Link>
@@ -58,7 +58,7 @@ export default function KoleksiPage() {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Cari produk..."
+              placeholder="Cari Layanan..."
             />
             {session?.user ? (
               <button

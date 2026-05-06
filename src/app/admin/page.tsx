@@ -43,7 +43,6 @@ type AdminSection =
   | "testimonials"
   | "marquees"
   | "portfolio"
-  | "homepageSettings"
   | "paymentSettings"
   | "privacyPolicy"
   | "maintenanceSettings"
@@ -60,7 +59,6 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
   { id: "portfolio", label: "Portfolio", desc: "Atur portfolio items" },
-  { id: "homepageSettings", label: "Homepage Config", desc: "Atur tampilan homepage" },
   { id: "bookStories", label: "Book Spirit", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
@@ -149,6 +147,12 @@ function formatRupiahInput(value: string) {
 function parseRupiahInput(value: string) {
   const digits = value.replace(/[^\d]/g, "");
   return Number(digits || 0);
+}
+
+function stripHtmlTags(html: string): string {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return div.textContent || div.innerText || "";
 }
 
 function statusOrderLabel(status: string) {
@@ -394,7 +398,11 @@ export default function AdminPage() {
   const [storyReports, setStoryReports] = useState<Array<{ id: string; storyId: string; userId: string; reason: string; createdAt: string; story?: BookStory }>>([]);
   const [expandedStoryId, setExpandedStoryId] = useState<string | null>(null);
   const [storyLikesForm, setStoryLikesForm] = useState<Record<string, number>>({});
+  const [storySavesForm, setStorySavesForm] = useState<Record<string, number>>({});
+  const [storySharesForm, setStorySharesForm] = useState<Record<string, number>>({});
   const [storyCommentsForm, setStoryCommentsForm] = useState<Record<string, Array<{ userName: string; text: string }>>>({});
+  const [storyEditId, setStoryEditId] = useState<string | null>(null);
+  const [storyEditText, setStoryEditText] = useState("");
   const privacyEditorRef = useRef<HTMLDivElement | null>(null);
 
   const maxOrderCount = useMemo(
@@ -1339,6 +1347,48 @@ export default function AdminPage() {
     }
   };
 
+  const updateStorySaves = async (storyId: string, saves: number) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId, action: "update-saves", saves }),
+      });
+      if (!response.ok) {
+        throw new Error("Gagal update saves");
+      }
+      setMessage("Saves berhasil diupdate!");
+      await loadApprovedBookStories();
+      setExpandedStoryId(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal update saves");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateStoryShares = async (storyId: string, shares: number) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId, action: "update-shares", shares }),
+      });
+      if (!response.ok) {
+        throw new Error("Gagal update shares");
+      }
+      setMessage("Shares berhasil diupdate!");
+      await loadApprovedBookStories();
+      setExpandedStoryId(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal update shares");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const addCustomComments = async (storyId: string, comments: Array<{ userName: string; text: string }>) => {
     try {
       setIsLoading(true);
@@ -1379,6 +1429,68 @@ export default function AdminPage() {
       }
     } catch (error) {
       setError(error instanceof Error ? error.message : "Gagal selesaikan laporan");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onEditStory = (story: BookStory) => {
+    setStoryEditId(story.id);
+    setStoryEditText(story.story);
+    setExpandedStoryId(story.id);
+  };
+
+  const onSaveStoryEdit = async (storyId: string) => {
+    if (!storyEditText.trim()) {
+      setError("Cerita tidak boleh kosong");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/book-stories/${storyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ story: storyEditText }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal update cerita");
+      }
+
+      setMessage("Cerita berhasil diupdate!");
+      setStoryEditId(null);
+      setStoryEditText("");
+      await loadApprovedBookStories();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal update cerita");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onCancelStoryEdit = () => {
+    setStoryEditId(null);
+    setStoryEditText("");
+  };
+
+  const incrementStoryViews = async (storyId: string) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/admin/book-stories`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId, action: "increment-views" }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal update views");
+      }
+
+      setMessage("Views berhasil ditambah!");
+      await loadApprovedBookStories();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal update views");
     } finally {
       setIsLoading(false);
     }
@@ -2594,15 +2706,15 @@ export default function AdminPage() {
 
         {activeSection === "bookStories" ? (
         <article className={styles.card} style={{ marginTop: "24px" }}>
-          <h2>Book Spirit - Cerita yang Sudah Disetujui</h2>
+          <h2>Book Spirit - Cerita yang Sudah Disetujui & Kelola</h2>
           <div className={styles.list}>
             {approvedBookStories.length === 0 ? (
               <p>Belum ada cerita yang disetujui.</p>
             ) : (
               approvedBookStories.map((story) => (
-                <div key={story.id} className={styles.listItem}>
+                <div key={story.id} className={styles.listItem} style={{ flexDirection: "column", alignItems: "stretch" }}>
                   <div className={styles.listPreview}>
-                    <div>
+                    <div style={{ width: "100%" }}>
                       <p><strong>{story.userName}</strong></p>
                       <span>{story.userEmail}</span>
                       <span>{new Date(story.createdAt).toLocaleString("id-ID")}</span>
@@ -2623,20 +2735,209 @@ export default function AdminPage() {
                           ))}
                         </div>
                       )}
-                      <p style={{ marginTop: "12px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                        {story.story}
-                      </p>
-                      <p style={{ marginTop: "8px", fontSize: "12px", color: "#666", display: "flex", alignItems: "center", gap: "8px" }}>
+                      
+                      {/* Story Stats Row */}
+                      <div style={{ marginTop: "8px", display: "flex", gap: "12px", fontSize: "12px", color: "#666" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          <FiThumbsUp aria-hidden="true" /> {story.likedBy.length}
+                          <FiThumbsUp aria-hidden="true" /> Suka: {story.likedBy.length}
                         </span>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          <FiMessageCircle aria-hidden="true" /> {story.comments.length}
+                          <FiMessageCircle aria-hidden="true" /> Komentar: {story.comments.length}
                         </span>
-                      </p>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          👁️ Views: {story.views || story.viewedBy?.length || 0}
+                        </span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          💾 Disimpan: {story.savedBy?.length || 0}
+                        </span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          🔄 Share: {story.shareCount || 0}
+                        </span>
+                      </div>
+
+                      {/* Story Text Preview */}
+                      {storyEditId !== story.id && (
+                        <p style={{ marginTop: "12px", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: "100px", overflow: "hidden" }}>
+                          {stripHtmlTags(story.story).substring(0, 300)}...
+                        </p>
+                      )}
+
+                      {/* Edit Form */}
+                      {storyEditId === story.id && (
+                        <div style={{ marginTop: "12px" }}>
+                          <textarea
+                            value={storyEditText}
+                            onChange={(e) => setStoryEditText(e.target.value)}
+                            style={{
+                              width: "100%",
+                              minHeight: "100px",
+                              padding: "8px",
+                              border: "1px solid #ddd",
+                              borderRadius: "4px",
+                              fontFamily: "monospace",
+                              fontSize: "12px",
+                            }}
+                            placeholder="Edit teks cerita..."
+                          />
+                          <div style={{ marginTop: "8px", display: "flex", gap: "8px" }}>
+                            <button
+                              type="button"
+                              onClick={() => onSaveStoryEdit(story.id)}
+                              disabled={isLoading}
+                              style={{ padding: "6px 12px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                            >
+                              {isLoading ? "Menyimpan..." : "Simpan"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={onCancelStoryEdit}
+                              disabled={isLoading}
+                              style={{ padding: "6px 12px", background: "#999", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Manage Likes & Comments */}
+                      {expandedStoryId === story.id && storyEditId !== story.id && (
+                        <div style={{ marginTop: "12px", borderTop: "1px solid #eee", paddingTop: "12px" }}>
+                          <div style={{ marginBottom: "12px" }}>
+                            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
+                              Jumlah Suka
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={storyLikesForm[story.id] ?? story.likedBy.length}
+                              onChange={(e) => setStoryLikesForm(prev => ({ ...prev, [story.id]: parseInt(e.target.value) || 0 }))}
+                              style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "4px" }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateStoryLikes(story.id, storyLikesForm[story.id] ?? story.likedBy.length)}
+                              disabled={isLoading}
+                              style={{ marginTop: "6px", padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
+                            >
+                              Update Suka
+                            </button>
+                          </div>
+
+                          <div style={{ marginBottom: "12px" }}>
+                            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
+                              Tambah Komentar
+                            </label>
+                            <div style={{ display: "flex", gap: "4px", marginBottom: "6px" }}>
+                              <input
+                                type="text"
+                                placeholder="Nama..."
+                                id={`name-${story.id}`}
+                                style={{ flex: 1, padding: "6px", border: "1px solid #ddd", borderRadius: "4px", fontSize: "12px" }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Komentar..."
+                                id={`text-${story.id}`}
+                                style={{ flex: 2, padding: "6px", border: "1px solid #ddd", borderRadius: "4px", fontSize: "12px" }}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nameEl = document.getElementById(`name-${story.id}`) as HTMLInputElement;
+                                const textEl = document.getElementById(`text-${story.id}`) as HTMLInputElement;
+                                if (nameEl && textEl && nameEl.value && textEl.value) {
+                                  const existing = storyCommentsForm[story.id] || [];
+                                  addCustomComments(story.id, [...existing, { userName: nameEl.value, text: textEl.value }]);
+                                  nameEl.value = "";
+                                  textEl.value = "";
+                                }
+                              }}
+                              disabled={isLoading}
+                              style={{ width: "100%", padding: "6px", background: "#FF9800", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
+                            >
+                              Tambah
+                            </button>
+                          </div>
+
+                          <div>
+                            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
+                              Penonton
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => incrementStoryViews(story.id)}
+                              disabled={isLoading}
+                              style={{ width: "100%", padding: "6px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
+                            >
+                              +1 View
+                            </button>
+                          </div>
+
+                          <div style={{ marginTop: "12px", marginBottom: "12px" }}>
+                            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
+                              Jumlah Simpan
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={storySavesForm[story.id] ?? story.savedBy?.length ?? 0}
+                              onChange={(e) => setStorySavesForm(prev => ({ ...prev, [story.id]: parseInt(e.target.value) || 0 }))}
+                              style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "4px" }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateStorySaves(story.id, storySavesForm[story.id] ?? story.savedBy?.length ?? 0)}
+                              disabled={isLoading}
+                              style={{ marginTop: "6px", padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
+                            >
+                              Update Simpan
+                            </button>
+                          </div>
+
+                          <div>
+                            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
+                              Jumlah Share
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={storySharesForm[story.id] ?? story.shareCount ?? 0}
+                              onChange={(e) => setStorySharesForm(prev => ({ ...prev, [story.id]: parseInt(e.target.value) || 0 }))}
+                              style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "4px" }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateStoryShares(story.id, storySharesForm[story.id] ?? story.shareCount ?? 0)}
+                              disabled={isLoading}
+                              style={{ marginTop: "6px", padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
+                            >
+                              Update Share
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className={styles.rowActions}>
+
+                  <div className={styles.rowActions} style={{ marginTop: "12px" }}>
+                    <button
+                      type="button"
+                      onClick={() => onEditStory(story)}
+                      disabled={isLoading}
+                      style={{ background: "#2196F3", color: "white" }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedStoryId(expandedStoryId === story.id ? null : story.id)}
+                      disabled={storyEditId === story.id}
+                      style={{ background: "#9C27B0", color: "white" }}
+                    >
+                      {expandedStoryId === story.id ? "Sembunyikan" : "Kelola"}
+                    </button>
                     <button
                       type="button"
                       onClick={() => onDeleteBookStory(story.id)}
@@ -2846,7 +3147,7 @@ export default function AdminPage() {
         </article>
         ) : null}
 
-        {activeSection === "portfolio" || activeSection === "homepageSettings" ? (
+        {activeSection === "portfolio" ? (
         <AdminPortfolioSection
           isFileUploadEnabled={isFileUploadEnabled}
           onUploadMedia={uploadMedia}
