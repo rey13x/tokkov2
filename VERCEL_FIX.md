@@ -72,23 +72,6 @@ Buka Vercel → tokkov2 → **Functions** → **Logs** untuk melihat error.
 
 ---
 
-## ⚡ Quick Check Commands
-
-Jalankan di lokal untuk verifikasi:
-
-```bash
-# Test database connection
-node check-admin.mjs
-
-# Test login functionality
-node test-login.mjs
-
-# Start dev server
-npm run dev
-```
-
----
-
 ## 🔒 Keamanan
 
 - ✅ Password di-hash dengan bcryptjs
