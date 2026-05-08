@@ -33,7 +33,7 @@ function toExportRows(data: Awaited<ReturnType<typeof listOrdersWithItems>>) {
     const bulan = String(date.getMonth() + 1).padStart(2, "0");
     const tahun = String(date.getFullYear());
 
-    order.items.forEach((item) => {
+    order.items.forEach((item: any) => {
       rows.push({
         nomor: counter,
         nama: order.userName,

@@ -54,6 +54,7 @@ export type StoreTestimonial = {
   createdAt: string;
 };
 
+
 export type StoreMarqueeItem = {
   id: string;
   label: string;
@@ -62,6 +63,7 @@ export type StoreMarqueeItem = {
   sortOrder: number;
   createdAt: string;
 };
+
 
 export type StorePrivacyPolicyPage = {
   id: string;
@@ -87,8 +89,8 @@ export type BookStory = {
   userName: string;
   userEmail: string;
   userAvatarUrl?: string;
-  title: string;
-  category: string;
+  title?: string;
+  category?: string;
   story: string;
   photos: string[];
   likes: number;
@@ -100,14 +102,18 @@ export type BookStory = {
     text: string;
     createdAt: string;
   }>;
+  views?: number;
+  viewedBy?: string[];
+  savedBy?: string[];
+  shareCount?: number;
   reportCount?: number;
-  views: number;
-  viewedBy: string[];
-  savedBy: string[];
-  shareCount: number;
+  isPrivate?: boolean;
+  restrictedViewers?: string[];
+  originalUserId?: string;
   status: "pending" | "approved" | "rejected";
   createdAt: string;
   approvedAt?: string;
+  approvedBy?: string;
 };
 
 export type OrderItemInput = {
@@ -140,32 +146,16 @@ export type StoreOrderItem = {
   unitPrice: number;
 };
 
-export type StoreOrderDetail = OrderSummary & {
-  items: StoreOrderItem[];
-};
-
+// PortfolioItem type used in admin and server modules
 export type PortfolioItem = {
   id: string;
   title: string;
   description: string;
   imageUrl: string;
   category: string;
-  link?: string;
+  link: string;
   sortOrder: number;
   isActive: boolean;
-  createdAt: string;
-};
-
-export type ServiceConfig = {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  icon?: string;
-  isActive: boolean;
-  sortOrder: number;
-  parentId?: string; // For nested menu
-  children?: ServiceConfig[];
   createdAt: string;
 };
 
@@ -181,4 +171,8 @@ export type HomepageConfig = {
   heroSubtitle: string;
   portfolioSectionTitle: string;
   updatedAt: string;
+};
+
+export type StoreOrderDetail = OrderSummary & {
+  items: StoreOrderItem[];
 };

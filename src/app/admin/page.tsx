@@ -1,39 +1,17 @@
+
 "use client";
 
-import { type ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import React, { useState, useEffect, useRef, useMemo, FormEvent, ChangeEvent } from "react";
 import Link from "next/link";
-import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
 import { useRouter } from "next/navigation";
-import { signOut as nextAuthSignOut } from "next-auth/react";
+import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
-import { AdminPortfolioSection } from "@/app/admin/AdminPortfolioSection";
-import type {
-  OrderSummary,
-  StoreInformation,
-  StoreMarqueeItem,
-  StorePaymentSettings,
-  StorePrivacyPolicyPage,
-  StoreProduct,
-  StoreTestimonial,
-  BookStory,
-} from "@/types/store";
 import styles from "./page.module.css";
+import { StoreProduct, StoreInformation, StoreTestimonial, StoreMarqueeItem, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
 
-type StatsPoint = {
-  bucket: string;
-  totalOrders: number;
-  totalAmount: number;
-};
-
-type OrderLite = {
-  id: string;
-  userName: string;
-  userEmail: string;
-  total: number;
-  status: string;
-  createdAt: string;
-};
+// ...existing code...
+export default AdminManagementSection;
 
 type AdminSection =
   | "overview"
@@ -42,13 +20,12 @@ type AdminSection =
   | "informations"
   | "testimonials"
   | "marquees"
-  | "portfolio"
+  | "bookStories"
   | "paymentSettings"
   | "privacyPolicy"
   | "maintenanceSettings"
   | "admins"
   | "users"
-  | "bookStories"
   | "preview";
 
 const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
@@ -58,7 +35,6 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
-  { id: "portfolio", label: "Portfolio", desc: "Atur portfolio items" },
   { id: "bookStories", label: "Book Spirit", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
@@ -106,8 +82,7 @@ const defaultTestimonialForm = {
 const defaultMarqueeForm = {
   label: "",
   imageUrl: "/assets/logo.png",
-  isActive: true,
-  sortOrder: 1,
+  sortOrder: 0,
 };
 
 const defaultPrivacyPolicyForm = {
@@ -149,12 +124,6 @@ function parseRupiahInput(value: string) {
   return Number(digits || 0);
 }
 
-function stripHtmlTags(html: string): string {
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return div.textContent || div.innerText || "";
-}
-
 function statusOrderLabel(status: string) {
   if (status === "done") {
     return "Habis";
@@ -175,16 +144,84 @@ function cancelRequestStatusLabel(status: string | undefined) {
   return "Tidak ada";
 }
 
-type AdminManagementSectionProps = {
-  session: any;
-};
-
-function AdminManagementSection({ session }: AdminManagementSectionProps) {
+function AdminManagementSection() {
+      const [productForm, setProductForm] = useState<typeof defaultProductForm>(defaultProductForm);
+    // Main admin dashboard state
+    const [authState, setAuthState] = useState<"checking" | "allowed" | "blocked">("checking");
+    const [activeSection, setActiveSection] = useState<AdminSection>("overview");
+    const [products, setProducts] = useState<StoreProduct[]>([]);
+    const [informations, setInformations] = useState<StoreInformation[]>([]);
+    const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
+    const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
+    const [orders, setOrders] = useState<OrderSummary[]>([]);
+    const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, string>>({});
+    const [series, setSeries] = useState<Array<{ bucket: string; totalOrders: number }>>([]);
+    const [latestOrders, setLatestOrders] = useState<Array<{ id: string; userName: string; total: number; createdAt: string }>>([]);
+    const [users, setUsers] = useState<any[]>([]); // Replace any with user type if available
+    const [session, setSession] = useState<any>(null); // Replace any with session type if available
+    const [productEditId, setProductEditId] = useState<string | null>(null);
+    const [priceInput, setPriceInput] = useState<string>("");
   const [adminEmails, setAdminEmails] = useState<Array<{ id: string; email: string; createdAt: number }>>([]);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [infoForm, setInfoForm] = useState(defaultInfoForm);
+  const [infoEditId, setInfoEditId] = useState<string | null>(null);
+  const [testimonialForm, setTestimonialForm] = useState(defaultTestimonialForm);
+  const [testimonialEditId, setTestimonialEditId] = useState<string | null>(null);
+  const [marqueeForm, setMarqueeForm] = useState(defaultMarqueeForm);
+  const [marqueeEditId, setMarqueeEditId] = useState<string | null>(null);
+  const [privacyPolicyForm, setPrivacyPolicyForm] = useState(defaultPrivacyPolicyForm);
+  const [paymentSettingsForm, setPaymentSettingsForm] = useState(defaultPaymentSettingsForm);
+  const [maintenanceSettingsForm, setMaintenanceSettingsForm] = useState(defaultMaintenanceSettingsForm);
+  const [previewVersion, setPreviewVersion] = useState(0);
+  const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
+  const [isUploadingInfoImage, setIsUploadingInfoImage] = useState(false);
+  const [isUploadingTestimonialMedia, setIsUploadingTestimonialMedia] = useState(false);
+  const [isUploadingTestimonialAudio, setIsUploadingTestimonialAudio] = useState(false);
+  const [isUploadingMarqueeImage, setIsUploadingMarqueeImage] = useState(false);
+  const [isUploadingPrivacyBanner, setIsUploadingPrivacyBanner] = useState(false);
+  const [isUploadingPaymentQris, setIsUploadingPaymentQris] = useState(false);
+  const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
+  const [bookStories, setBookStories] = useState<BookStory[]>([]);
+  const [approvedBookStories, setApprovedBookStories] = useState<BookStory[]>([]);
+  const [storyReports, setStoryReports] = useState<Array<{ id: string; storyId: string; userId: string; reason: string; createdAt: string; story?: BookStory }>>([]);
+  const [expandedStoryId, setExpandedStoryId] = useState<string | null>(null);
+  const [storyLikesForm, setStoryLikesForm] = useState<Record<string, number>>({});
+  const [storyCommentsForm, setStoryCommentsForm] = useState<Record<string, Array<{ userName: string; text: string }>>>({});
+  const [editingWriterId, setEditingWriterId] = useState<string | null>(null);
+  const [editingViewersId, setEditingViewersId] = useState<string | null>(null);
+  const [writerForm, setWriterForm] = useState<{ userId: string; userName: string; userEmail: string; userAvatarUrl: string }>({
+    userId: "",
+    userName: "",
+    userEmail: "",
+    userAvatarUrl: "",
+  });
+  const [viewersForm, setViewersForm] = useState<{ isPrivate: boolean; restrictedViewerIds: string[] }>({
+    isPrivate: false,
+    restrictedViewerIds: [],
+  });
+  const privacyEditorRef = useRef<HTMLDivElement | null>(null);
+  const maxOrderCount = useMemo(
+    () => Math.max(1, ...series.map((item) => item.totalOrders)),
+    [series],
+  );
+  const totalRevenue = useMemo(
+    () => latestOrders.reduce((sum, order) => sum + order.total, 0),
+    [latestOrders],
+  );
+
+  // Router
+  const router = useRouter();
+
+  // Dummy for file upload toggle (should be set from env/config)
+  const isFileUploadEnabled = true;
+
+  // Dummy bumpPreview (should be replaced with actual logic if needed)
+  function bumpPreview() {
+    setPreviewVersion((v) => v + 1);
+  }
 
   useEffect(() => {
     const loadAdmins = async () => {
@@ -277,145 +314,6 @@ function AdminManagementSection({ session }: AdminManagementSectionProps) {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  return (
-    <article className={styles.card}>
-      <div className={styles.cardHead}>
-        <h2>Kelola Admin</h2>
-      </div>
-
-      <form onSubmit={handleAddAdmin} className={styles.form}>
-        <div className={styles.formGroup}>
-          <label>Tambah Admin Email</label>
-          <input
-            type="email"
-            value={newAdminEmail}
-            onChange={(e) => setNewAdminEmail(e.target.value)}
-            placeholder="admin@example.com"
-            disabled={isLoading}
-          />
-        </div>
-
-        {error && <p className={styles.error}>{error}</p>}
-        {message && <p className={styles.success}>{message}</p>}
-
-        <button type="submit" disabled={isLoading} className={styles.submitButton}>
-          {isLoading ? "Memproses..." : "Tambah Admin"}
-        </button>
-      </form>
-
-      <div className={styles.section}>
-        <h3>Daftar Admin ({adminEmails.length})</h3>
-        {adminEmails.length === 0 ? (
-          <p className={styles.emptyState}>Belum ada admin yang terdaftar.</p>
-        ) : (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Ditambahkan</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {adminEmails.map((admin) => (
-                <tr key={admin.id}>
-                  <td>{admin.email}</td>
-                  <td>{new Date(admin.createdAt).toLocaleDateString("id-ID")}</td>
-                  <td>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveAdmin(admin.email)}
-                      disabled={isLoading || admin.email.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL?.toLowerCase()}
-                      className={styles.deleteButton}
-                    >
-                      Hapus
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </article>
-  );
-}
-
-export default function AdminPage() {
-  const router = useRouter();
-  const isFileUploadEnabled = true;
-
-  const [authState, setAuthState] = useState<"checking" | "allowed" | "blocked">("checking");
-  const [activeSection, setActiveSection] = useState<AdminSection>("overview");
-  const [products, setProducts] = useState<StoreProduct[]>([]);
-  const [informations, setInformations] = useState<StoreInformation[]>([]);
-  const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
-  const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
-  const [orders, setOrders] = useState<OrderSummary[]>([]);
-  const [users, setUsers] = useState<
-    Array<{
-      id: string;
-      username: string;
-      email: string;
-      phone: string;
-      purchaseCount: number;
-      jobApplicationCount: number;
-      lastActiveAt: string | null;
-      createdAt: string;
-    }>
-  >([]);
-  const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, "process" | "done" | "error">>({});
-  const [series, setSeries] = useState<StatsPoint[]>([]);
-  const [latestOrders, setLatestOrders] = useState<OrderLite[]>([]);
-  const [productForm, setProductForm] = useState(defaultProductForm);
-  const [priceInput, setPriceInput] = useState("");
-  const [productEditId, setProductEditId] = useState<string | null>(null);
-  const [infoForm, setInfoForm] = useState(defaultInfoForm);
-  const [infoEditId, setInfoEditId] = useState<string | null>(null);
-  const [testimonialForm, setTestimonialForm] = useState(defaultTestimonialForm);
-  const [testimonialEditId, setTestimonialEditId] = useState<string | null>(null);
-  const [marqueeForm, setMarqueeForm] = useState(defaultMarqueeForm);
-  const [marqueeEditId, setMarqueeEditId] = useState<string | null>(null);
-  const [privacyPolicyForm, setPrivacyPolicyForm] = useState(defaultPrivacyPolicyForm);
-  const [paymentSettingsForm, setPaymentSettingsForm] = useState(defaultPaymentSettingsForm);
-  const [maintenanceSettingsForm, setMaintenanceSettingsForm] = useState(defaultMaintenanceSettingsForm);
-  const [previewVersion, setPreviewVersion] = useState(0);
-  const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
-  const [isUploadingInfoImage, setIsUploadingInfoImage] = useState(false);
-  const [isUploadingTestimonialMedia, setIsUploadingTestimonialMedia] = useState(false);
-  const [isUploadingMarqueeImage, setIsUploadingMarqueeImage] = useState(false);
-  const [isUploadingPrivacyBanner, setIsUploadingPrivacyBanner] = useState(false);
-  const [isUploadingPaymentQris, setIsUploadingPaymentQris] = useState(false);
-  const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [session, setSession] = useState<{ user?: { email?: string; uid?: string } } | null>(null);
-  const [bookStories, setBookStories] = useState<BookStory[]>([]);
-  const [approvedBookStories, setApprovedBookStories] = useState<BookStory[]>([]);
-  const [storyReports, setStoryReports] = useState<Array<{ id: string; storyId: string; userId: string; reason: string; createdAt: string; story?: BookStory }>>([]);
-  const [expandedStoryId, setExpandedStoryId] = useState<string | null>(null);
-  const [storyLikesForm, setStoryLikesForm] = useState<Record<string, number>>({});
-  const [storySavesForm, setStorySavesForm] = useState<Record<string, number>>({});
-  const [storySharesForm, setStorySharesForm] = useState<Record<string, number>>({});
-  const [storyCommentsForm, setStoryCommentsForm] = useState<Record<string, Array<{ userName: string; text: string }>>>({});
-  const [storyEditId, setStoryEditId] = useState<string | null>(null);
-  const [storyEditText, setStoryEditText] = useState("");
-  const privacyEditorRef = useRef<HTMLDivElement | null>(null);
-
-  const maxOrderCount = useMemo(
-    () => Math.max(1, ...series.map((item) => item.totalOrders)),
-    [series],
-  );
-  const totalRevenue = useMemo(
-    () => latestOrders.reduce((sum, order) => sum + order.total, 0),
-    [latestOrders],
-  );
-
-  const bumpPreview = () => {
-    setPreviewVersion((current) => current + 1);
   };
 
   const resetProductForm = () => {
@@ -562,7 +460,29 @@ export default function AdminPage() {
     }
   };
 
+  const onSelectTestimonialAudio = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
 
+    setError("");
+    setMessage("");
+    setIsUploadingTestimonialAudio(true);
+    try {
+      const uploaded = await uploadMedia(file, "testimonials-audio");
+      setTestimonialForm((current) => ({
+        ...current,
+        audioUrl: uploaded,
+      }));
+      setMessage("Voice testimonial berhasil diupload.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload voice gagal.");
+    } finally {
+      setIsUploadingTestimonialAudio(false);
+      event.target.value = "";
+    }
+  };
 
   const onSelectMarqueeImage = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -770,8 +690,8 @@ export default function AdminPage() {
       throw new Error("Gagal ambil stats");
     }
     const result = (await response.json()) as {
-      series: StatsPoint[];
-      latestOrders: OrderLite[];
+      series: Array<{ bucket: string; totalOrders: number }>;
+      latestOrders: Array<{ id: string; userName: string; total: number; createdAt: string }>;
     };
     setSeries(result.series);
     setLatestOrders(result.latestOrders);
@@ -870,7 +790,8 @@ export default function AdminPage() {
   }, [authState]);
 
   const onLogoutAdmin = async () => {
-    await nextAuthSignOut({ redirect: false }).catch(() => {});
+    // If using next-auth, replace with signOut from 'next-auth/react' if needed
+    // await signOut({ redirect: false }).catch(() => {});
     await fetch("/api/admin/session", { method: "DELETE" }).catch(() => {});
     router.replace("/admin/login");
   };
@@ -1347,48 +1268,6 @@ export default function AdminPage() {
     }
   };
 
-  const updateStorySaves = async (storyId: string, saves: number) => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/admin/book-stories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storyId, action: "update-saves", saves }),
-      });
-      if (!response.ok) {
-        throw new Error("Gagal update saves");
-      }
-      setMessage("Saves berhasil diupdate!");
-      await loadApprovedBookStories();
-      setExpandedStoryId(null);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal update saves");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const updateStoryShares = async (storyId: string, shares: number) => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/admin/book-stories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storyId, action: "update-shares", shares }),
-      });
-      if (!response.ok) {
-        throw new Error("Gagal update shares");
-      }
-      setMessage("Shares berhasil diupdate!");
-      await loadApprovedBookStories();
-      setExpandedStoryId(null);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal update shares");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const addCustomComments = async (storyId: string, comments: Array<{ userName: string; text: string }>) => {
     try {
       setIsLoading(true);
@@ -1434,63 +1313,68 @@ export default function AdminPage() {
     }
   };
 
-  const onEditStory = (story: BookStory) => {
-    setStoryEditId(story.id);
-    setStoryEditText(story.story);
-    setExpandedStoryId(story.id);
-  };
-
-  const onSaveStoryEdit = async (storyId: string) => {
-    if (!storyEditText.trim()) {
-      setError("Cerita tidak boleh kosong");
+  const updateStoryWriter = async (storyId: string) => {
+    if (!writerForm.userId.trim() || !writerForm.userName.trim() || !writerForm.userEmail.trim()) {
+      setError("Semua field harus diisi");
       return;
     }
 
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/book-stories/${storyId}`, {
-        method: "PATCH",
+      const response = await fetch(`/api/admin/book-stories`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ story: storyEditText }),
+        body: JSON.stringify({
+          action: "update-writer",
+          storyId,
+          newUserId: writerForm.userId,
+          newUserName: writerForm.userName,
+          newUserEmail: writerForm.userEmail,
+          newUserAvatarUrl: writerForm.userAvatarUrl,
+        }),
       });
 
+      const data = await response.json();
       if (!response.ok) {
-        throw new Error("Gagal update cerita");
+        throw new Error(data.message || "Gagal ubah penulis");
       }
 
-      setMessage("Cerita berhasil diupdate!");
-      setStoryEditId(null);
-      setStoryEditText("");
+      setMessage("Penulis cerita berhasil diubah!");
+      setEditingWriterId(null);
+      setWriterForm({ userId: "", userName: "", userEmail: "", userAvatarUrl: "" });
       await loadApprovedBookStories();
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal update cerita");
+      setError(error instanceof Error ? error.message : "Gagal ubah penulis");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const onCancelStoryEdit = () => {
-    setStoryEditId(null);
-    setStoryEditText("");
-  };
-
-  const incrementStoryViews = async (storyId: string) => {
+  const updateStoryViewers = async (storyId: string) => {
     try {
       setIsLoading(true);
       const response = await fetch(`/api/admin/book-stories`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storyId, action: "increment-views" }),
+        body: JSON.stringify({
+          action: "update-viewers",
+          storyId,
+          isPrivate: viewersForm.isPrivate,
+          restrictedViewerIds: viewersForm.restrictedViewerIds,
+        }),
       });
 
+      const data = await response.json();
       if (!response.ok) {
-        throw new Error("Gagal update views");
+        throw new Error(data.message || "Gagal atur penonton");
       }
 
-      setMessage("Views berhasil ditambah!");
+      setMessage("Pengaturan penonton cerita berhasil diubah!");
+      setEditingViewersId(null);
+      setViewersForm({ isPrivate: false, restrictedViewerIds: [] });
       await loadApprovedBookStories();
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal update views");
+      setError(error instanceof Error ? error.message : "Gagal atur penonton");
     } finally {
       setIsLoading(false);
     }
@@ -1599,8 +1483,7 @@ export default function AdminPage() {
     setMarqueeForm({
       label: marquee.label,
       imageUrl: marquee.imageUrl || "/assets/logo.png",
-      isActive: marquee.isActive,
-      sortOrder: marquee.sortOrder,
+      sortOrder: (typeof marquee.sortOrder === "number" ? marquee.sortOrder : 0),
     });
   };
 
@@ -1778,7 +1661,10 @@ export default function AdminPage() {
                       <span>
                         Produk:{" "}
                         {order.items
-                          .map((item) => `${item.productName} x${item.quantity}`)
+                          .map((item) => {
+                            // Try to display productId and quantity (StoreOrderItem)
+                            return `${item.productId} x${(item as any).quantity ?? "?"}`;
+                          })
                           .join(", ")}
                       </span>
                     ) : null}
@@ -2417,7 +2303,7 @@ export default function AdminPage() {
 
         {activeSection === "testimonials" ? (
         <article className={styles.card}>
-          <h2>{testimonialEditId ? "Edit Testimonial" : "CRUD Testimonial"}</h2>
+          <h2>{testimonialEditId ? "Edit Testimonial" : "CRUD Testimonial + Voice"}</h2>
           <form className={styles.form} onSubmit={onSaveTestimonial}>
             <input
               value={testimonialForm.name}
@@ -2495,7 +2381,17 @@ export default function AdminPage() {
                 <span>{testimonialForm.roleLabel || testimonialForm.country}</span>
               </div>
             </div>
-
+            <input value={testimonialForm.audioUrl} readOnly placeholder="URL voice otomatis" />
+            {isFileUploadEnabled ? (
+              <label className={styles.fileField}>
+                Upload Voice Testimoni
+                <input type="file" accept="audio/*" onChange={onSelectTestimonialAudio} />
+                <small>
+                  {isUploadingTestimonialAudio ? "Uploading..." : "Pilih file suara (mp3/wav)"}
+                </small>
+              </label>
+            ) : null}
+            <audio controls src={testimonialForm.audioUrl} className={styles.audioPreview} />
             <div className={styles.formActions}>
               <button type="submit" disabled={isLoading}>
                 {testimonialEditId ? "Simpan Perubahan" : "Tambah Testimoni"}
@@ -2527,6 +2423,7 @@ export default function AdminPage() {
                       className={styles.listThumb}
                       unoptimized
                     />
+                    <audio controls src={testimonial.audioUrl} className={styles.audioPreview} />
                   </div>
                 </div>
                 <div className={styles.rowActions}>
@@ -2580,19 +2477,14 @@ export default function AdminPage() {
                 </small>
               </label>
             ) : null}
+            {/*
             <label className={styles.checkField}>
               <input
                 type="checkbox"
-                checked={marqueeForm.isActive}
-                onChange={(event) =>
-                  setMarqueeForm((current) => ({
-                    ...current,
-                    isActive: event.target.checked,
-                  }))
-                }
               />
               Aktif ditampilkan di beranda
             </label>
+            */}
             <div className={styles.previewCard}>
               <FlexibleMedia
                 src={marqueeForm.imageUrl}
@@ -2604,7 +2496,7 @@ export default function AdminPage() {
               />
               <div>
                 <p>{marqueeForm.label || "Preview label marquee"}</p>
-                <span>Urutan: {marqueeForm.sortOrder}</span>
+                {/* Urutan marquee tidak tersedia */}
               </div>
             </div>
             <div className={styles.formActions}>
@@ -2633,8 +2525,7 @@ export default function AdminPage() {
                   />
                   <div>
                     <p>{marquee.label}</p>
-                    <span>Urutan: {marquee.sortOrder}</span>
-                    <span>{marquee.isActive ? "Aktif" : "Nonaktif"}</span>
+                    {/* Urutan dan status marquee tidak tersedia */}
                   </div>
                 </div>
                 <div className={styles.rowActions}>
@@ -2706,15 +2597,15 @@ export default function AdminPage() {
 
         {activeSection === "bookStories" ? (
         <article className={styles.card} style={{ marginTop: "24px" }}>
-          <h2>Book Spirit - Cerita yang Sudah Disetujui & Kelola</h2>
+          <h2>Book Spirit - Cerita yang Sudah Disetujui</h2>
           <div className={styles.list}>
             {approvedBookStories.length === 0 ? (
               <p>Belum ada cerita yang disetujui.</p>
             ) : (
               approvedBookStories.map((story) => (
-                <div key={story.id} className={styles.listItem} style={{ flexDirection: "column", alignItems: "stretch" }}>
+                <div key={story.id} className={styles.listItem}>
                   <div className={styles.listPreview}>
-                    <div style={{ width: "100%" }}>
+                    <div>
                       <p><strong>{story.userName}</strong></p>
                       <span>{story.userEmail}</span>
                       <span>{new Date(story.createdAt).toLocaleString("id-ID")}</span>
@@ -2735,209 +2626,20 @@ export default function AdminPage() {
                           ))}
                         </div>
                       )}
-                      
-                      {/* Story Stats Row */}
-                      <div style={{ marginTop: "8px", display: "flex", gap: "12px", fontSize: "12px", color: "#666" }}>
+                      <p style={{ marginTop: "12px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        {story.story}
+                      </p>
+                      <p style={{ marginTop: "8px", fontSize: "12px", color: "#666", display: "flex", alignItems: "center", gap: "8px" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          <FiThumbsUp aria-hidden="true" /> Suka: {story.likedBy.length}
+                          <FiThumbsUp aria-hidden="true" /> {story.likedBy.length}
                         </span>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          <FiMessageCircle aria-hidden="true" /> Komentar: {story.comments.length}
+                          <FiMessageCircle aria-hidden="true" /> {story.comments.length}
                         </span>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          👁️ Views: {story.views || story.viewedBy?.length || 0}
-                        </span>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          💾 Disimpan: {story.savedBy?.length || 0}
-                        </span>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          🔄 Share: {story.shareCount || 0}
-                        </span>
-                      </div>
-
-                      {/* Story Text Preview */}
-                      {storyEditId !== story.id && (
-                        <p style={{ marginTop: "12px", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: "100px", overflow: "hidden" }}>
-                          {stripHtmlTags(story.story).substring(0, 300)}...
-                        </p>
-                      )}
-
-                      {/* Edit Form */}
-                      {storyEditId === story.id && (
-                        <div style={{ marginTop: "12px" }}>
-                          <textarea
-                            value={storyEditText}
-                            onChange={(e) => setStoryEditText(e.target.value)}
-                            style={{
-                              width: "100%",
-                              minHeight: "100px",
-                              padding: "8px",
-                              border: "1px solid #ddd",
-                              borderRadius: "4px",
-                              fontFamily: "monospace",
-                              fontSize: "12px",
-                            }}
-                            placeholder="Edit teks cerita..."
-                          />
-                          <div style={{ marginTop: "8px", display: "flex", gap: "8px" }}>
-                            <button
-                              type="button"
-                              onClick={() => onSaveStoryEdit(story.id)}
-                              disabled={isLoading}
-                              style={{ padding: "6px 12px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
-                            >
-                              {isLoading ? "Menyimpan..." : "Simpan"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={onCancelStoryEdit}
-                              disabled={isLoading}
-                              style={{ padding: "6px 12px", background: "#999", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
-                            >
-                              Batal
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Manage Likes & Comments */}
-                      {expandedStoryId === story.id && storyEditId !== story.id && (
-                        <div style={{ marginTop: "12px", borderTop: "1px solid #eee", paddingTop: "12px" }}>
-                          <div style={{ marginBottom: "12px" }}>
-                            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
-                              Jumlah Suka
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={storyLikesForm[story.id] ?? story.likedBy.length}
-                              onChange={(e) => setStoryLikesForm(prev => ({ ...prev, [story.id]: parseInt(e.target.value) || 0 }))}
-                              style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "4px" }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => updateStoryLikes(story.id, storyLikesForm[story.id] ?? story.likedBy.length)}
-                              disabled={isLoading}
-                              style={{ marginTop: "6px", padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
-                            >
-                              Update Suka
-                            </button>
-                          </div>
-
-                          <div style={{ marginBottom: "12px" }}>
-                            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
-                              Tambah Komentar
-                            </label>
-                            <div style={{ display: "flex", gap: "4px", marginBottom: "6px" }}>
-                              <input
-                                type="text"
-                                placeholder="Nama..."
-                                id={`name-${story.id}`}
-                                style={{ flex: 1, padding: "6px", border: "1px solid #ddd", borderRadius: "4px", fontSize: "12px" }}
-                              />
-                              <input
-                                type="text"
-                                placeholder="Komentar..."
-                                id={`text-${story.id}`}
-                                style={{ flex: 2, padding: "6px", border: "1px solid #ddd", borderRadius: "4px", fontSize: "12px" }}
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const nameEl = document.getElementById(`name-${story.id}`) as HTMLInputElement;
-                                const textEl = document.getElementById(`text-${story.id}`) as HTMLInputElement;
-                                if (nameEl && textEl && nameEl.value && textEl.value) {
-                                  const existing = storyCommentsForm[story.id] || [];
-                                  addCustomComments(story.id, [...existing, { userName: nameEl.value, text: textEl.value }]);
-                                  nameEl.value = "";
-                                  textEl.value = "";
-                                }
-                              }}
-                              disabled={isLoading}
-                              style={{ width: "100%", padding: "6px", background: "#FF9800", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
-                            >
-                              Tambah
-                            </button>
-                          </div>
-
-                          <div>
-                            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
-                              Penonton
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => incrementStoryViews(story.id)}
-                              disabled={isLoading}
-                              style={{ width: "100%", padding: "6px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
-                            >
-                              +1 View
-                            </button>
-                          </div>
-
-                          <div style={{ marginTop: "12px", marginBottom: "12px" }}>
-                            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
-                              Jumlah Simpan
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={storySavesForm[story.id] ?? story.savedBy?.length ?? 0}
-                              onChange={(e) => setStorySavesForm(prev => ({ ...prev, [story.id]: parseInt(e.target.value) || 0 }))}
-                              style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "4px" }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => updateStorySaves(story.id, storySavesForm[story.id] ?? story.savedBy?.length ?? 0)}
-                              disabled={isLoading}
-                              style={{ marginTop: "6px", padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
-                            >
-                              Update Simpan
-                            </button>
-                          </div>
-
-                          <div>
-                            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
-                              Jumlah Share
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={storySharesForm[story.id] ?? story.shareCount ?? 0}
-                              onChange={(e) => setStorySharesForm(prev => ({ ...prev, [story.id]: parseInt(e.target.value) || 0 }))}
-                              style={{ width: "100%", padding: "6px", border: "1px solid #ddd", borderRadius: "4px" }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => updateStoryShares(story.id, storySharesForm[story.id] ?? story.shareCount ?? 0)}
-                              disabled={isLoading}
-                              style={{ marginTop: "6px", padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
-                            >
-                              Update Share
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                      </p>
                     </div>
                   </div>
-
-                  <div className={styles.rowActions} style={{ marginTop: "12px" }}>
-                    <button
-                      type="button"
-                      onClick={() => onEditStory(story)}
-                      disabled={isLoading}
-                      style={{ background: "#2196F3", color: "white" }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setExpandedStoryId(expandedStoryId === story.id ? null : story.id)}
-                      disabled={storyEditId === story.id}
-                      style={{ background: "#9C27B0", color: "white" }}
-                    >
-                      {expandedStoryId === story.id ? "Sembunyikan" : "Kelola"}
-                    </button>
+                  <div className={styles.rowActions}>
                     <button
                       type="button"
                       onClick={() => onDeleteBookStory(story.id)}
@@ -3077,6 +2779,34 @@ export default function AdminPage() {
                     </button>
                     <button
                       type="button"
+                      onClick={() => {
+                        setEditingWriterId(editingWriterId === story.id ? null : story.id);
+                        setWriterForm({
+                          userId: story.userId,
+                          userName: story.userName,
+                          userEmail: story.userEmail,
+                          userAvatarUrl: story.userAvatarUrl || "",
+                        });
+                      }}
+                      style={{ background: "#9C27B0", color: "white" }}
+                    >
+                      {editingWriterId === story.id ? "Batal" : "Ubah Penulis"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingViewersId(editingViewersId === story.id ? null : story.id);
+                        setViewersForm({
+                          isPrivate: story.isPrivate ?? false,
+                          restrictedViewerIds: story.restrictedViewers || [],
+                        });
+                      }}
+                      style={{ background: "#00BCD4", color: "white" }}
+                    >
+                      {editingViewersId === story.id ? "Batal" : "Atur Penonton"}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => onDeleteBookStory(story.id)}
                       disabled={isLoading}
                       style={{ background: "#f44336", color: "white" }}
@@ -3084,6 +2814,116 @@ export default function AdminPage() {
                       Hapus
                     </button>
                   </div>
+                  
+                  {editingWriterId === story.id && (
+                    <div style={{ marginTop: "12px", padding: "12px", background: "#f9f9f9", borderRadius: "4px" }}>
+                      <h4>Ubah Penulis Cerita</h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <input
+                          type="text"
+                          placeholder="User ID"
+                          value={writerForm.userId}
+                          onChange={(e) => setWriterForm(prev => ({ ...prev, userId: e.target.value }))}
+                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Nama Penulis"
+                          value={writerForm.userName}
+                          onChange={(e) => setWriterForm(prev => ({ ...prev, userName: e.target.value }))}
+                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                        />
+                        <input
+                          type="email"
+                          placeholder="Email Penulis"
+                          value={writerForm.userEmail}
+                          onChange={(e) => setWriterForm(prev => ({ ...prev, userEmail: e.target.value }))}
+                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Avatar URL (opsional)"
+                          value={writerForm.userAvatarUrl}
+                          onChange={(e) => setWriterForm(prev => ({ ...prev, userAvatarUrl: e.target.value }))}
+                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                        />
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button
+                            type="button"
+                            onClick={() => updateStoryWriter(story.id)}
+                            disabled={isLoading}
+                            style={{ flex: 1, padding: "8px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                          >
+                            Simpan Penulis
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingWriterId(null)}
+                            style={{ flex: 1, padding: "8px", background: "#ccc", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {editingViewersId === story.id && (
+                    <div style={{ marginTop: "12px", padding: "12px", background: "#f9f9f9", borderRadius: "4px" }}>
+                      <h4>Atur Penonton Cerita</h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <input
+                            type="checkbox"
+                            checked={viewersForm.isPrivate}
+                            onChange={(e) => setViewersForm(prev => ({ ...prev, isPrivate: e.target.checked }))}
+                          />
+                          <span>Cerita Private (Pembaca Terbatas)</span>
+                        </label>
+                        
+                        {viewersForm.isPrivate && (
+                          <div>
+                            <p style={{ fontSize: "12px", color: "#666", marginBottom: "8px" }}>
+                              Masukkan User ID yang dipisahkan dengan koma untuk pembaca yang diizinkan:
+                            </p>
+                            <textarea
+                              placeholder="user_id_1, user_id_2, user_id_3"
+                              value={viewersForm.restrictedViewerIds.join(", ")}
+                              onChange={(e) => {
+                                const ids = e.target.value
+                                  .split(",")
+                                  .map(id => id.trim())
+                                  .filter(id => id.length > 0);
+                                setViewersForm(prev => ({ ...prev, restrictedViewerIds: ids }));
+                              }}
+                              style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "4px", minHeight: "80px", fontFamily: "monospace" }}
+                            />
+                            <p style={{ fontSize: "12px", color: "#999", marginTop: "4px" }}>
+                              Total pembaca yang diizinkan: {viewersForm.restrictedViewerIds.length}
+                            </p>
+                          </div>
+                        )}
+
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button
+                            type="button"
+                            onClick={() => updateStoryViewers(story.id)}
+                            disabled={isLoading}
+                            style={{ flex: 1, padding: "8px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                          >
+                            Simpan Pengaturan
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingViewersId(null)}
+                            style={{ flex: 1, padding: "8px", background: "#ccc", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -3145,13 +2985,6 @@ export default function AdminPage() {
             )}
           </div>
         </article>
-        ) : null}
-
-        {activeSection === "portfolio" ? (
-        <AdminPortfolioSection
-          isFileUploadEnabled={isFileUploadEnabled}
-          onUploadMedia={uploadMedia}
-        />
         ) : null}
 
         {activeSection === "privacyPolicy" ? (
@@ -3260,13 +3093,13 @@ export default function AdminPage() {
                 className={styles.policyBannerImage}
                 unoptimized
               />
+              <div
+                className={styles.policyHtmlPreview}
+                dangerouslySetInnerHTML={{ __html: privacyPolicyForm.contentHtml }}
+              />
             </div>
-
-            <div
-              className={styles.policyHtmlPreview}
-              dangerouslySetInnerHTML={{ __html: privacyPolicyForm.contentHtml }}
-            />
-
+            {error && <p className={styles.error}>{error}</p>}
+            {message && <p className={styles.success}>{message}</p>}
             <div className={styles.formActions}>
               <button type="submit" disabled={isLoading}>
                 Simpan Kebijakan Privasi
@@ -3277,7 +3110,7 @@ export default function AdminPage() {
         ) : null}
 
         {activeSection === "admins" && session?.user?.email?.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL?.toLowerCase() ? (
-          <AdminManagementSection session={session} />
+          <AdminManagementSection />
         ) : null}
 
         {activeSection === "users" ? (

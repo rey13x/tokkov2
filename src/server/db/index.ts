@@ -688,6 +688,15 @@ export async function ensureDatabase() {
       await run(
         "ALTER TABLE book_stories ADD COLUMN report_count INTEGER NOT NULL DEFAULT 0",
       ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN restricted_viewers TEXT NOT NULL DEFAULT '[]'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN original_user_id TEXT",
+      ).catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS story_reports (

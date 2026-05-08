@@ -4,7 +4,6 @@ import type {
   MaintenanceSettings,
   OrderSummary,
   PortfolioItem,
-  ServiceConfig,
   HomepageConfig,
   StoreInformation,
   StoreMarqueeItem,
@@ -1696,6 +1695,17 @@ function mapBookStoryDoc(
     }
   })();
 
+  const restrictedViewers = (() => {
+    try {
+      const val = data?.restrictedViewers || data?.restricted_viewers;
+      if (typeof val === "string") return JSON.parse(val);
+      if (Array.isArray(val)) return val;
+      return [];
+    } catch {
+      return [];
+    }
+  })();
+
   return {
     id,
     userId: String(data?.userId ?? data?.user_id ?? ""),
@@ -1732,9 +1742,13 @@ function mapBookStoryDoc(
     })(),
     shareCount: Number(data?.shareCount ?? data?.share_count ?? 0),
     reportCount: Number(data?.reportCount ?? data?.report_count ?? 0),
+    isPrivate: Number(data?.isPrivate ?? data?.is_private ?? 0) === 1,
+    restrictedViewers,
+    originalUserId: String(data?.originalUserId ?? data?.original_user_id ?? "").trim() || undefined,
     status: (data?.status as "pending" | "approved" | "rejected") ?? "pending",
     createdAt: new Date(Number(data?.createdAt ?? data?.created_at ?? now())).toISOString(),
     approvedAt: data?.approvedAt || data?.approved_at ? new Date(Number(data.approvedAt || data.approved_at)).toISOString() : undefined,
+    approvedBy: data?.approvedBy || data?.approved_by ? String(data.approvedBy || data.approved_by) : undefined,
   };
 }
 
@@ -2485,6 +2499,94 @@ export async function addCustomBookStoryComments(storyId: string, comments: Arra
   } catch (error) {
     console.error("Failed to add comments:", error);
     throw new Error("Gagal menambah komentar");
+  }
+}
+
+export async function changeBookStoryWriter(
+  storyId: string,
+  newUserId: string,
+  newUserName: string,
+  newUserEmail: string,
+  newUserAvatarUrl: string = "",
+) {
+  try {
+    await ensureDatabase();
+
+    const result = await run(
+      "SELECT user_id, original_user_id FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Cerita tidak ditemukan");
+    }
+
+    // Track original author if this is the first change
+    const originalUserId = String(row.original_user_id || row.user_id);
+
+    await run(
+      `UPDATE book_stories 
+       SET user_id = ?, user_name = ?, user_email = ?, user_avatar_url = ?, original_user_id = ?
+       WHERE id = ?`,
+      [newUserId, newUserName, newUserEmail, newUserAvatarUrl, originalUserId, storyId],
+    );
+
+    const updatedResult = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+
+    const updatedRow = updatedResult.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Cerita tidak ditemukan setelah update");
+    }
+
+    return mapBookStoryDoc(storyId, updatedRow);
+  } catch (error) {
+    console.error("Failed to change story writer:", error);
+    throw new Error("Gagal mengubah penulis cerita");
+  }
+}
+
+export async function manageBookStoryViewers(
+  storyId: string,
+  isPrivate: boolean,
+  restrictedViewerIds: string[] = [],
+) {
+  try {
+    await ensureDatabase();
+
+    const result = await run(
+      "SELECT id FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+
+    if (!result.rows?.[0]) {
+      throw new Error("Cerita tidak ditemukan");
+    }
+
+    await run(
+      `UPDATE book_stories 
+       SET is_private = ?, restricted_viewers = ?
+       WHERE id = ?`,
+      [Number(isPrivate), JSON.stringify(restrictedViewerIds), storyId],
+    );
+
+    const updatedResult = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+
+    const updatedRow = updatedResult.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Cerita tidak ditemukan setelah update");
+    }
+
+    return mapBookStoryDoc(storyId, updatedRow);
+  } catch (error) {
+    console.error("Failed to manage story viewers:", error);
+    throw new Error("Gagal mengatur penonton cerita");
   }
 }
 

@@ -8,18 +8,31 @@ import {
 } from "@/server/store-data";
 import { sendTelegramActivityNotification } from "@/server/notifications";
 
-const productSchema = z.object({
+const baseSchema = z.object({
   name: z.string().min(2).max(120),
   category: z.string().min(2).max(50),
   shortDescription: z.string().min(3).max(140),
   description: z.string().min(6).max(2000),
-  duration: z.string().max(80).default(""),
+  duration: z.string().max(80).default("") ,
   price: z.number().int().min(0),
   imageUrl: z.string().max(3000000).default("/assets/logo.png"),
   productType: z.enum(["jual_beli", "pekerjaan"]).default("jual_beli"),
-  jobApplicationLink: z.string().url().optional().or(z.literal("")),
-  maxApplicants: z.number().int().min(1).optional(),
 });
+
+const productSchema = baseSchema.and(
+  z.union([
+    z.object({
+      productType: z.literal("jual_beli"),
+      jobApplicationLink: z.string().optional().or(z.literal("")),
+      maxApplicants: z.undefined().optional(),
+    }),
+    z.object({
+      productType: z.literal("pekerjaan"),
+      jobApplicationLink: z.string().url("Link pendaftaran wajib diisi dan valid").or(z.literal("")),
+      maxApplicants: z.number().int().min(1, { message: "Jumlah pelamar maksimal minimal 1" }),
+    }),
+  ])
+);
 
 export async function GET() {
   const auth = await requireAdmin();

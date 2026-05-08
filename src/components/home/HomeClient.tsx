@@ -51,7 +51,7 @@ const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
 const heroImage = "/assets/backgroundv2.png";
-const logoImage = "/assets/logo.png";
+const logoImage = "/assets/logov2.svg";
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
   return item.name.trim().toLowerCase() === "founder" ? bagasPhoto.src : item.mediaUrl;
@@ -117,16 +117,21 @@ export default function HomeClient() {
   );
   const shouldAutoSlideTestimonials = testimonials.length > 1;
   const activeMarquees = useMemo(() => {
-    return marquees
-      .filter((item) => item.isActive)
-      .sort((a, b) => a.sortOrder - b.sortOrder);
+    return marquees;
   }, [marquees]);
   // Enable marquee animation for any number of active logos (creates infinite loop with proper spacing)
   const shouldAutoSlideMarquees = activeMarquees.length > 0;
+  // Perbanyak pengulangan agar track panjang dan tidak ada area kosong
   const marqueeCarouselItems = useMemo(
     () =>
       shouldAutoSlideMarquees && activeMarquees.length > 0
-        ? [...activeMarquees, ...activeMarquees, ...activeMarquees]
+        ? [
+            ...activeMarquees,
+            ...activeMarquees,
+            ...activeMarquees,
+            ...activeMarquees,
+            ...activeMarquees,
+          ]
         : activeMarquees,
     [activeMarquees, shouldAutoSlideMarquees],
   );
@@ -811,8 +816,9 @@ export default function HomeClient() {
         <div className={styles.heroShade} />
 
         <div className={styles.heroTop} data-animate="hero">
-          <Link href="/" aria-label="Beranda">
-            <Image src={logoImage} alt="Tokko Logo" className={styles.logo} width={86} height={86} priority />
+          <Link href="/" aria-label="Beranda" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Image src={logoImage} alt="TokkoV2 Logo" className={styles.logo} width={86} height={86} priority />
+            <span style={{ fontWeight: 700, fontSize: 32, color: "#fff", letterSpacing: 1 }}>TokkoV2</span>
           </Link>
           {sessionStatus === "authenticated" ? (
             <button

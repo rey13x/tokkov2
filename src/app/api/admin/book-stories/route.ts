@@ -54,7 +54,19 @@ export async function GET(request: Request) {
 
 const approveStorySchema = z.object({
   storyId: z.string().min(1).optional(),
-  action: z.enum(["approve", "reject", "delete", "update-likes", "add-comments", "resolve-report", "increment-views", "update-saves", "update-shares"]),
+  action: z.enum([
+    "approve",
+    "reject",
+    "delete",
+    "update-likes",
+    "add-comments",
+    "resolve-report",
+    "increment-views",
+    "update-saves",
+    "update-shares",
+    "update-writer",
+    "update-viewers",
+  ]),
   reportId: z.string().optional(),
   deleteReportedStory: z.boolean().optional(),
   likes: z.number().optional(),
@@ -68,6 +80,14 @@ const approveStorySchema = z.object({
       }),
     )
     .optional(),
+  // Untuk update writer
+  newUserId: z.string().optional(),
+  newUserName: z.string().optional(),
+  newUserEmail: z.string().optional(),
+  newUserAvatarUrl: z.string().optional(),
+  // Untuk update viewers
+  isPrivate: z.boolean().optional(),
+  restrictedViewerIds: z.array(z.string()).optional(),
 });
 
 export async function POST(request: Request) {
@@ -123,6 +143,39 @@ export async function POST(request: Request) {
     if (payload.action === "update-shares" && payload.storyId && payload.shares !== undefined) {
       const story = await updateBookStoryShareCount(payload.storyId, payload.shares);
       return NextResponse.json({ story, message: "Shares berhasil diupdate" });
+    }
+
+    // Update writer
+    if (
+      payload.action === "update-writer" &&
+      payload.storyId &&
+      payload.newUserId &&
+      payload.newUserName &&
+      payload.newUserEmail
+    ) {
+      const story = await (await import("@/server/store-data")).changeBookStoryWriter(
+        payload.storyId,
+        payload.newUserId,
+        payload.newUserName,
+        payload.newUserEmail,
+        payload.newUserAvatarUrl || ""
+      );
+      return NextResponse.json({ story, message: "Penulis berhasil diupdate" });
+    }
+
+    // Update viewers
+    if (
+      payload.action === "update-viewers" &&
+      payload.storyId &&
+      typeof payload.isPrivate === "boolean" &&
+      Array.isArray(payload.restrictedViewerIds)
+    ) {
+      const story = await (await import("@/server/store-data")).manageBookStoryViewers(
+        payload.storyId,
+        payload.isPrivate,
+        payload.restrictedViewerIds
+      );
+      return NextResponse.json({ story, message: "Penonton berhasil diupdate" });
     }
 
     return NextResponse.json(
