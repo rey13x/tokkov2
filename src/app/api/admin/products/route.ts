@@ -24,11 +24,11 @@ const productSchema = baseSchema.and(
     z.object({
       productType: z.literal("jual_beli"),
       jobApplicationLink: z.string().optional().or(z.literal("")),
-      maxApplicants: z.undefined().optional(),
+      maxApplicants: z.number().optional().or(z.literal(0)),
     }),
     z.object({
       productType: z.literal("pekerjaan"),
-      jobApplicationLink: z.string().url("Link pendaftaran wajib diisi dan valid").or(z.literal("")),
+      jobApplicationLink: z.string().min(1, "Link pendaftaran wajib diisi").url("Link pendaftaran harus berupa URL yang valid"),
       maxApplicants: z.number().int().min(1, { message: "Jumlah pelamar maksimal minimal 1" }),
     }),
   ])

@@ -8,13 +8,14 @@ import { FiChevronRight } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { formatRupiah } from "@/data/products";
+import { addToCart } from "@/lib/cart";
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
 
 export default function KoleksiPage() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const initialCategory =
     typeof window === "undefined"
       ? "Semua"
@@ -22,6 +23,7 @@ export default function KoleksiPage() {
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [query, setQuery] = useState("");
+  const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStoreData()
@@ -41,6 +43,37 @@ export default function KoleksiPage() {
     const byQuery = normalizedQuery.length === 0 || text.includes(normalizedQuery);
     return byCategory && byQuery;
   });
+
+  const onAddToCart = (e: React.MouseEvent, product: StoreProduct) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (product.productType === "pekerjaan") {
+      // For jobs, navigate to product detail page instead
+      router.push(`/produk/${product.slug}`);
+      return;
+    }
+
+    if (status === "unauthenticated") {
+      router.push(`/auth?redirect=${encodeURIComponent(`/koleksi?category=${activeCategory}`)}`);
+      return;
+    }
+
+    if (status === "loading") {
+      return;
+    }
+
+    setAddingToCartId(product.id);
+    try {
+      addToCart(product.slug, 1);
+      // Show brief feedback
+      setTimeout(() => {
+        setAddingToCartId(null);
+      }, 800);
+    } catch {
+      setAddingToCartId(null);
+    }
+  };
 
   return (
     <main className={styles.page}>
@@ -120,6 +153,22 @@ export default function KoleksiPage() {
                     sizes="(max-width: 760px) 44vw, (max-width: 1140px) 30vw, 20vw"
                     unoptimized
                   />
+                  {product.productType === "jual_beli" && (
+                    <button
+                      type="button"
+                      className={styles.cartIconOverlay}
+                      onClick={(e) => onAddToCart(e, product)}
+                      disabled={addingToCartId === product.id || status === "loading"}
+                      title="Tambahkan ke troli"
+                      aria-label={`Tambahkan ${product.name} ke troli`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="9" cy="21" r="1"></circle>
+                        <circle cx="20" cy="21" r="1"></circle>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                      </svg>
+                    </button>
+                  )}
                 </div>
                 <div className={styles.floatingMeta}>
                   <div>

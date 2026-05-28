@@ -9,6 +9,7 @@ import type { CallBackProps, Step } from "react-joyride";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
+import { captureReceiptAsImage, uploadReceiptImage } from "@/lib/receipt-capture";
 import {
   ONBOARDING_STAGE,
   ONBOARDING_TUTORIAL_ORDER_ID,
@@ -65,6 +66,7 @@ function PaymentIcon() {
 }
 
 const ADMIN_WHATSAPP_URL = "https://wa.me/6281319865384";
+const CONFIRMATION_WHATSAPP_NUMBER = "6285121579597";
 const STATUS_ONBOARDING_STAGES: OnboardingStage[] = [
   ONBOARDING_STAGE.STATUS_PAYMENT_OR_RECEIPT,
   ONBOARDING_STAGE.STATUS_OPEN_PAYMENT,
@@ -106,6 +108,9 @@ export default function StatusPemesananPage() {
   const [showTutorialReceiptModal, setShowTutorialReceiptModal] = useState(false);
   const [cancelReasonDrafts, setCancelReasonDrafts] = useState<Record<string, string>>({});
   const [isCancelSubmittingOrderId, setIsCancelSubmittingOrderId] = useState<string | null>(null);
+  const [confirmationNotes, setConfirmationNotes] = useState<Record<string, string>>({});
+  const [isConfirmationSubmittingOrderId, setIsConfirmationSubmittingOrderId] = useState<string | null>(null);
+  const [isDeletingOrderId, setIsDeletingOrderId] = useState<string | null>(null);
   const [statusTutorialStage, setStatusTutorialStage] = useState<OnboardingStage | null>(null);
 
   const loadOrders = useCallback(async () => {
@@ -384,6 +389,74 @@ export default function StatusPemesananPage() {
     }
   };
 
+  const onChangeConfirmationNotes = (orderId: string, value: string) => {
+    setConfirmationNotes((current) => ({
+      ...current,
+      [orderId]: value,
+    }));
+  };
+
+  const onSendConfirmationViaWhatsapp = async (order: OrderSummary) => {
+    const notes = (confirmationNotes[order.id] ?? "").trim();
+    
+    setError("");
+    setSuccess("");
+    setIsConfirmationSubmittingOrderId(order.id);
+
+    try {
+      // Format product items
+      const itemLines =
+        order.items && order.items.length > 0
+          ? order.items
+              .map((item, index) => {
+                const lineTotal = item.quantity * item.unitPrice;
+                return `${index + 1}. ${item.productName}\n   Qty: ${item.quantity}\n   Harga: ${formatRupiah(
+                  item.unitPrice,
+                )}\n   Total: ${formatRupiah(lineTotal)}`;
+              })
+              .join("\n\n")
+          : "-";
+
+      // Build simple confirmation message
+      const messageParts = [
+        `Username: ${order.userName}`,
+        `Email: ${order.userEmail}`,
+        "",
+        "*SPESIFIKASI PRODUK:*",
+        itemLines,
+        "",
+        `*HARGA TOTAL: ${formatRupiah(order.total)}*`,
+        "",
+        "Mohon konfirmasi.",
+      ];
+
+      const message = messageParts.join("\n");
+
+      // Open WhatsApp with message
+      const waUrl = `https://wa.me/${CONFIRMATION_WHATSAPP_NUMBER}?text=${encodeURIComponent(
+        message,
+      )}`;
+      
+      // Create a temporary link and click it to ensure it opens
+      const link = document.createElement("a");
+      link.href = waUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setSuccess(
+        "Link WhatsApp dibuka. Silakan kirim pesan untuk mengkonfirmasi pesanan.",
+      );
+    } catch (err) {
+      setError("Gagal membuka WhatsApp. Silakan coba lagi.");
+      console.error("Failed to send confirmation:", err);
+    } finally {
+      setIsConfirmationSubmittingOrderId(null);
+    }
+  };
+
   const onRequestCancelViaWhatsapp = async (order: OrderSummary) => {
     const reason = (cancelReasonDrafts[order.id] ?? "").trim();
     const onboardingActive = getOnboardingState().active;
@@ -465,6 +538,38 @@ export default function StatusPemesananPage() {
       setError("Gagal mengajukan pembatalan pesanan.");
     } finally {
       setIsCancelSubmittingOrderId(null);
+    }
+  };
+
+  const onCancelTransaction = async (order: OrderSummary) => {
+    if (!window.confirm("Yakin ingin membatalkan transaksi ini?\n\nOrder akan dihapus dari sistem secara permanen.")) {
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setIsDeletingOrderId(order.id);
+
+    try {
+      const response = await fetch(`/api/orders/${order.id}/delete`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.message ?? "Gagal membatalkan transaksi.");
+        setIsDeletingOrderId(null);
+        return;
+      }
+
+      setSuccess("Transaksi berhasil dibatalkan dan dihapus.");
+      await loadOrders();
+    } catch (err) {
+      setError("Gagal membatalkan transaksi.");
+      console.error("Failed to cancel transaction:", err);
+    } finally {
+      setIsDeletingOrderId(null);
     }
   };
 
@@ -749,12 +854,12 @@ export default function StatusPemesananPage() {
               {order.cancelRequestStatus !== "confirmed" ? (
                 <div className={styles.cancelRequestBox}>
                   <textarea
-                    value={cancelReasonDrafts[order.id] ?? ""}
-                    onChange={(event) => onChangeCancelReason(order.id, event.target.value)}
+                    value={confirmationNotes[order.id] ?? ""}
+                    onChange={(event) => onChangeConfirmationNotes(order.id, event.target.value)}
                     onInput={(event) =>
-                      onChangeCancelReason(order.id, (event.target as HTMLTextAreaElement).value)
+                      onChangeConfirmationNotes(order.id, (event.target as HTMLTextAreaElement).value)
                     }
-                    placeholder="Tulis alasan pembatalan (wajib)"
+                    placeholder="Tulis catatan atau komentar (opsional)"
                     spellCheck={false}
                     data-onboarding={isOnboardingTargetOrder ? "status-cancel-reason" : undefined}
                     id={isOnboardingTargetOrder ? `status-cancel-reason-${order.id}` : undefined}
@@ -762,14 +867,14 @@ export default function StatusPemesananPage() {
                   <button
                     type="button"
                     className={styles.cancelRequestButton}
-                    disabled={isCancelSubmittingOrderId === order.id}
-                    onClick={() => onRequestCancelViaWhatsapp(order)}
+                    disabled={isConfirmationSubmittingOrderId === order.id}
+                    onClick={() => onSendConfirmationViaWhatsapp(order)}
                     data-onboarding={isOnboardingTargetOrder ? "status-cancel-submit" : undefined}
                     id={isOnboardingTargetOrder ? `status-cancel-submit-${order.id}` : undefined}
                   >
-                    {isCancelSubmittingOrderId === order.id
+                    {isConfirmationSubmittingOrderId === order.id
                       ? "Mengirim..."
-                      : "Ajukan Batal & Kirim WhatsApp"}
+                      : "Konfirmasi Pemesanan & Kirim WhatsApp"}
                   </button>
                 </div>
               ) : null}
@@ -800,6 +905,18 @@ export default function StatusPemesananPage() {
                 >
                   <ReceiptIcon />
                 </button>
+                {order.status === "process" && (
+                  <button
+                    type="button"
+                    className={styles.cancelTransactionButton}
+                    onClick={() => onCancelTransaction(order)}
+                    disabled={isDeletingOrderId === order.id}
+                    title="Batalkan transaksi"
+                    aria-label={`Batalkan transaksi order ${order.id}`}
+                  >
+                    {isDeletingOrderId === order.id ? "Membatalkan..." : "✕"}
+                  </button>
+                )}
               </div>
             </article>
           );

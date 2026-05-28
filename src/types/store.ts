@@ -44,16 +44,37 @@ export type StoreInformation = {
 
 export type StoreTestimonial = {
   id: string;
+  userId?: string;
   name: string;
   country: string;
   roleLabel: string;
   message: string;
   rating: number;
   mediaUrl: string;
+  userAvatarUrl?: string;
   audioUrl: string;
+  verified?: boolean;
+  linkedProducts?: Array<{
+    productId: string;
+    productName: string;
+  }>;
+  likeCount?: number;
+  commentCount?: number;
   createdAt: string;
 };
 
+export type StoreTestimonialComment = {
+  id: string;
+  testimonialId: string;
+  userId?: string;
+  userName: string;
+  userAvatarUrl?: string;
+  verified?: boolean;
+  text: string;
+  replyToId?: string;
+  replyToName?: string;
+  createdAt: string;
+};
 
 export type StoreMarqueeItem = {
   id: string;
@@ -93,6 +114,17 @@ export type BookStory = {
   category?: string;
   story: string;
   photos: string[];
+  rating?: number; // 1-5 star rating
+  linkedProducts?: Array<{
+    productId: string;
+    productName: string;
+    productImage?: string;
+    productPrice?: number;
+  }>;
+  elements?: Array<{
+    emoji: string;
+    opacity?: number;
+  }>;
   likes: number;
   likedBy: string[];
   comments: Array<{

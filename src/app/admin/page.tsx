@@ -35,7 +35,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
-  { id: "bookStories", label: "Book Spirit", desc: "Setujui cerita user" },
+  { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
     id: "privacyPolicy",
@@ -77,6 +77,9 @@ const defaultTestimonialForm = {
   rating: 5,
   mediaUrl: "/assets/logo.png",
   audioUrl: "/assets/notif.mp3",
+  linkedProducts: [] as Array<{ productId: string; productName: string }>,
+  likeCount: 0,
+  commentCount: 0,
 };
 
 const defaultMarqueeForm = {
@@ -802,10 +805,29 @@ function AdminManagementSection() {
     setMessage("");
     setIsLoading(true);
 
-    const payload = {
+    // Clean up fields based on product type
+    let payload = {
       ...productForm,
       price: Number(productForm.price),
     };
+
+    // For Jual Beli, remove job-related fields
+    if (productForm.productType === "jual_beli") {
+      payload = {
+        ...payload,
+        jobApplicationLink: "",
+        maxApplicants: 0,
+      };
+    }
+    // For Pekerjaan, ensure maxApplicants is a number
+    if (productForm.productType === "pekerjaan") {
+      payload = {
+        ...payload,
+        maxApplicants: typeof payload.maxApplicants === "string" ? 
+          parseInt(payload.maxApplicants, 10) : 
+          (payload.maxApplicants || 0),
+      };
+    }
 
     try {
       const endpoint = productEditId ? `/api/admin/products/${productEditId}` : "/api/admin/products";
@@ -1474,6 +1496,9 @@ function AdminManagementSection() {
       rating: testimonial.rating,
       mediaUrl: testimonial.mediaUrl || "/assets/logo.png",
       audioUrl: testimonial.audioUrl,
+      linkedProducts: testimonial.linkedProducts || [],
+      likeCount: testimonial.likeCount ?? 0,
+      commentCount: testimonial.commentCount ?? 0,
     });
   };
 
@@ -2015,17 +2040,17 @@ function AdminManagementSection() {
             {productForm.productType === "pekerjaan" ? (
               <input
                 type="number"
-                min={1}
-                value={productForm.maxApplicants}
+                min={0}
+                value={productForm.maxApplicants || ""}
                 onChange={(event) =>
                   setProductForm((current) => ({
                     ...current,
                     maxApplicants: event.target.value
-                      ? Math.max(1, Number(event.target.value))
+                      ? Math.max(0, Number(event.target.value))
                       : 0,
                   }))
                 }
-                placeholder="Jumlah maksimal pelamar"
+                placeholder="Jumlah maksimal pelamar (kosongkan untuk unlimited)"
               />
             ) : null}
             <input
@@ -2105,7 +2130,7 @@ function AdminManagementSection() {
                     </span>
                     {product.productType === "pekerjaan" ? (
                       <span style={{ color: "#666", fontSize: "0.85rem" }}>
-                        Pelamar: {product.applicantCount || 0} / {product.maxApplicants || 0}
+                        Pelamar: {product.applicantCount || 0} / {product.maxApplicants ? product.maxApplicants : "∞"}
                       </span>
                     ) : null}
                   </div>
@@ -2392,6 +2417,92 @@ function AdminManagementSection() {
               </label>
             ) : null}
             <audio controls src={testimonialForm.audioUrl} className={styles.audioPreview} />
+            <input
+              type="number"
+              min={0}
+              value={testimonialForm.likeCount ?? 0}
+              onChange={(event) =>
+                setTestimonialForm((current) => ({
+                  ...current,
+                  likeCount: Number(event.target.value || 0),
+                }))
+              }
+              placeholder="Jumlah like"
+            />
+            <input
+              type="number"
+              min={0}
+              value={testimonialForm.commentCount ?? 0}
+              onChange={(event) =>
+                setTestimonialForm((current) => ({
+                  ...current,
+                  commentCount: Number(event.target.value || 0),
+                }))
+              }
+              placeholder="Jumlah komentar"
+            />
+            {products.length > 0 ? (
+              <div>
+                <label style={{ display: "block", marginBottom: "8px", fontSize: "0.95rem", fontWeight: "600" }}>
+                  Produk Terkait (Pilih beberapa atau skip):
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "8px", marginBottom: "12px", maxHeight: "200px", overflowY: "auto", border: "1px solid #ddd", padding: "10px", borderRadius: "6px" }}>
+                  {products.map((product) => (
+                    <label key={product.id} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={testimonialForm.linkedProducts?.some(p => p.productId === product.id) ?? false}
+                        onChange={(event) => {
+                          const isChecked = event.target.checked;
+                          setTestimonialForm((current) => {
+                            const linkedProducts = current.linkedProducts || [];
+                            if (isChecked) {
+                              return {
+                                ...current,
+                                linkedProducts: [...linkedProducts, { productId: product.id, productName: product.name }],
+                              };
+                            } else {
+                              return {
+                                ...current,
+                                linkedProducts: linkedProducts.filter(p => p.productId !== product.id),
+                              };
+                            }
+                          });
+                        }}
+                      />
+                      <span style={{ fontSize: "0.9rem" }}>{product.name}</span>
+                    </label>
+                  ))}
+                </div>
+                {testimonialForm.linkedProducts && testimonialForm.linkedProducts.length > 0 ? (
+                  <div style={{ marginBottom: "12px" }}>
+                    <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "6px" }}>
+                      Produk yang dipilih: {testimonialForm.linkedProducts.length}
+                    </p>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                      {testimonialForm.linkedProducts.map((prod) => (
+                        <span key={prod.productId} style={{ fontSize: "0.8rem", background: "#e8f0ff", border: "1px solid #0066cc", borderRadius: "12px", padding: "4px 10px", display: "flex", alignItems: "center", gap: "6px" }}>
+                          {prod.productName}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTestimonialForm((current) => ({
+                                ...current,
+                                linkedProducts: current.linkedProducts?.filter(p => p.productId !== prod.productId) || [],
+                              }));
+                            }}
+                            style={{ border: "none", background: "none", cursor: "pointer", color: "#0066cc", fontSize: "1.1rem", padding: "0", display: "flex", alignItems: "center" }}
+                            aria-label="Hapus"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <div className={styles.formActions}>
               <button type="submit" disabled={isLoading}>
                 {testimonialEditId ? "Simpan Perubahan" : "Tambah Testimoni"}
@@ -2415,6 +2526,11 @@ function AdminManagementSection() {
                     <span>{testimonial.country}</span>
                     <span>{testimonial.roleLabel || "-"}</span>
                     <span>{testimonial.message}</span>
+                    {testimonial.likeCount ? <span>👍 {testimonial.likeCount}</span> : null}
+                    {testimonial.commentCount ? <span>💬 {testimonial.commentCount}</span> : null}
+                    {testimonial.linkedProducts && testimonial.linkedProducts.length > 0 ? (
+                      <span>📦 {testimonial.linkedProducts.length} produk</span>
+                    ) : null}
                     <FlexibleMedia
                       src={testimonial.mediaUrl}
                       alt={testimonial.name}
@@ -2545,7 +2661,7 @@ function AdminManagementSection() {
 
         {activeSection === "bookStories" ? (
         <article className={styles.card}>
-          <h2>Book Spirit - Cerita Menunggu Persetujuan</h2>
+          <h2>Testimoni - Cerita Menunggu Persetujuan</h2>
           <div className={styles.list}>
             {bookStories.length === 0 ? (
               <p>Belum ada cerita yang menunggu persetujuan.</p>
@@ -2597,7 +2713,7 @@ function AdminManagementSection() {
 
         {activeSection === "bookStories" ? (
         <article className={styles.card} style={{ marginTop: "24px" }}>
-          <h2>Book Spirit - Cerita yang Sudah Disetujui</h2>
+          <h2>Testimoni - Cerita yang Sudah Disetujui</h2>
           <div className={styles.list}>
             {approvedBookStories.length === 0 ? (
               <p>Belum ada cerita yang disetujui.</p>
@@ -2658,7 +2774,7 @@ function AdminManagementSection() {
 
         {activeSection === "bookStories" ? (
         <article className={styles.card} style={{ marginTop: "24px" }}>
-          <h2>Book Spirit - Kelola Cerita & Komentar</h2>
+          <h2>Testimoni - Kelola Cerita & Komentar</h2>
           <div className={styles.list}>
             {approvedBookStories.length === 0 ? (
               <p>Belum ada cerita yang disetujui.</p>
@@ -2933,7 +3049,7 @@ function AdminManagementSection() {
 
         {activeSection === "bookStories" ? (
         <article className={styles.card} style={{ marginTop: "24px" }}>
-          <h2>Book Spirit - Cerita Yang Di-Report</h2>
+          <h2>Testimoni - Cerita Yang Di-Report</h2>
           <div className={styles.list}>
             {storyReports.length === 0 ? (
               <p>Belum ada laporan cerita.</p>

@@ -36,14 +36,13 @@ async function setupAdminUser() {
       const user = existingUser.rows[0];
       console.log(`✏️  User already exists with ID: ${user.id}, current role: ${user.role}`);
       
-      // Update to admin role if not already
-      if (user.role !== 'admin') {
-        await db.execute({
-          sql: `UPDATE users SET role = ? WHERE id = ?`,
-          args: ['admin', user.id]
-        });
-        console.log('✅ Updated user role to admin');
-      }
+      // Update password hash and role
+      const passwordHash = await bcrypt.hash(adminPassword, 10);
+      await db.execute({
+        sql: `UPDATE users SET password_hash = ?, role = ?, updated_at = ? WHERE id = ?`,
+        args: [passwordHash, 'admin', Date.now(), user.id]
+      });
+      console.log('✅ Updated user password and role to admin');
     }
     
     // Ensure email is in admin_emails table

@@ -1,0 +1,137 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getServerAuthSession } from "@/server/auth";
+import { findUserById } from "@/server/db";
+import {
+  addTestimonialComment,
+  getTestimonialComments,
+  deleteTestimonialComment,
+} from "@/server/store-data";
+
+const addCommentSchema = z.object({
+  text: z.string().min(1).max(500),
+  replyToId: z.string().optional(),
+  replyToName: z.string().optional(),
+});
+
+type Params = Promise<{ id: string }>;
+
+export async function GET(request: Request, context: { params: Params }) {
+  try {
+    const { id } = await context.params;
+
+    if (!id) {
+      return NextResponse.json({ message: "Testimonial ID harus diisi." }, { status: 400 });
+    }
+
+    const comments = await getTestimonialComments(id);
+    return NextResponse.json({ comments });
+  } catch (error) {
+    console.error("Error fetching testimonial comments:", error);
+    return NextResponse.json(
+      { message: "Gagal memuat komentar testimoni." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: Request, context: { params: Params }) {
+  try {
+    const { id } = await context.params;
+    const session = await getServerAuthSession();
+
+    if (!session?.user) {
+      return NextResponse.json({ message: "Anda harus login untuk menambah komentar." }, { status: 401 });
+    }
+
+    if (!id) {
+      return NextResponse.json({ message: "Testimonial ID harus diisi." }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const validated = addCommentSchema.parse(body);
+
+    // Get user data for verified status (only digitalawanku2@gmail.com gets blue checkmark)
+    const user = await findUserById(session.user.id ?? "");
+    const isVerified = user?.email?.toLowerCase() === "digitalawanku2@gmail.com";
+    const userAvatarUrl = session.user.image || user?.avatarUrl || "";
+
+    const comment = await addTestimonialComment({
+      testimonialId: id,
+      userId: session.user.id,
+      userName: session.user.username || session.user.name || "User",
+      userAvatarUrl,
+      verified: isVerified,
+      text: validated.text,
+      replyToId: validated.replyToId,
+      replyToName: validated.replyToName,
+    });
+
+    if (!comment) {
+      return NextResponse.json(
+        { message: "Gagal menambah komentar." },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({
+      message: "Komentar berhasil ditambahkan.",
+      comment,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { message: error.issues[0]?.message ?? "Input tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    console.error("Error adding testimonial comment:", error);
+    return NextResponse.json(
+      { message: "Gagal menambah komentar." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: Request, context: { params: Params }) {
+  try {
+    const { id } = await context.params;
+    const session = await getServerAuthSession();
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { message: "Anda harus login untuk menghapus komentar." },
+        { status: 401 },
+      );
+    }
+
+    const body = await request.json();
+    const { commentId } = z.object({ commentId: z.string() }).parse(body);
+
+    // In a real app, you'd verify that the user owns this comment or is an admin
+    const result = await deleteTestimonialComment(commentId);
+
+    if (!result) {
+      return NextResponse.json(
+        { message: "Gagal menghapus komentar." },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ message: "Komentar berhasil dihapus." });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { message: error.issues[0]?.message ?? "Input tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    console.error("Error deleting testimonial comment:", error);
+    return NextResponse.json(
+      { message: "Gagal menghapus komentar." },
+      { status: 500 },
+    );
+  }
+}

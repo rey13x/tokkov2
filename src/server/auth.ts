@@ -8,6 +8,7 @@ import GoogleProvider from "next-auth/providers/google";
 import {
   createUser,
   findUserByEmail,
+  findUserById,
   findUserByIdentifier,
   updateUserById,
   isAdminEmail,
@@ -33,6 +34,24 @@ const providers: NextAuthOptions["providers"] = [
 
       if (!identifier || !password) {
         return null;
+      }
+
+      // DEV ONLY: Hardcoded admin for development/testing
+      // Khusus untuk memastikan admin bisa login di localhost
+      if (
+        process.env.NODE_ENV !== "production" &&
+        (identifier === "digitalawanku2@gmail.com" || identifier === "Admin Tokko") &&
+        password === "Ayiamessi139087z"
+      ) {
+        console.log("✅ DEV: Hardcoded admin login used");
+        return {
+          id: "dev-admin-hardcoded",
+          email: "digitalawanku2@gmail.com",
+          name: "Admin Tokko",
+          image: null,
+          role: "admin",
+          phone: "",
+        };
       }
 
       // Ensure admin email is in admin_emails table
@@ -158,9 +177,26 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.userId = user.id;
         token.username = user.name ?? undefined;
+        token.email = (user as any).email ?? undefined;
         token.role = (user as any).role;
         token.phone = (user as any).phone;
         token.avatarUrl = user.image ?? undefined;
+      } else if (token.userId && token.userId !== "dev-admin-hardcoded") {
+        // If no user object but we have a userId, fetch the latest user data from database
+        // This ensures the JWT stays up-to-date when user updates their profile
+        // Skip for hardcoded dev admin
+        try {
+          const latestUser = await findUserById(token.userId as string);
+          if (latestUser) {
+            token.username = latestUser.username ?? undefined;
+            token.email = latestUser.email ?? undefined;
+            token.phone = latestUser.phone ?? "";
+            token.avatarUrl = latestUser.avatarUrl || undefined;
+            token.role = latestUser.role ?? "user";
+          }
+        } catch (error) {
+          console.error("Failed to refresh JWT user data:", error);
+        }
       }
       return token;
     },
@@ -171,12 +207,13 @@ export const authOptions: NextAuthOptions = {
 
       session.user.id = token.userId ?? "";
       session.user.username = token.username ?? session.user.name ?? "User";
+      session.user.email = token.email ?? session.user.email;
       session.user.role = token.role ?? "user";
       session.user.phone = token.phone ?? "";
       session.user.image = token.avatarUrl || session.user.image || null;
 
-      // Update user last active time
-      if (token.userId) {
+      // Update user last active time (skip for hardcoded dev admin)
+      if (token.userId && token.userId !== "dev-admin-hardcoded") {
         await updateUserLastActive(token.userId as string).catch(() => {});
       }
 

@@ -1,0 +1,309 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.rating {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #666;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.avatarPlaceholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  flex-shrink: 0;
+}
+
+.nameSection {
+  flex: 1;
+  min-width: 0;
+}
+
+.nameWithVerified {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.role {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  color: #999;
+}
+
+.message {
+  margin: 8px 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #333;
+}
+
+.userAvatar {
+  display: none;
+}
+
+.linkedProducts {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f9f9f9;
+  border-radius: 4px;
+}
+
+.linkedProductsLabel {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #666;
+}
+
+.linkedProductItem {
+  font-size: 0.85rem;
+  color: #0066cc;
+  padding: 2px 0;
+}
+
+.audio {
+  width: 100%;
+  height: 32px;
+  border-radius: 4px;
+}
+
+.commentsToggle {
+  background: none;
+  border: none;
+  color: #0066cc;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 6px 0;
+  text-align: left;
+  font-weight: 500;
+}
+
+.commentsToggle:hover {
+  text-decoration: underline;
+}
+
+.commentsSection {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 12px;
+  margin-top: 8px;
+}
+
+.commentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.comment {
+  background: #f9f9f9;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 0.9rem;
+}
+
+.commentHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.commentAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.commentAvatarPlaceholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  flex-shrink: 0;
+}
+
+.commentUserInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.commentNameWithVerified {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.commentName {
+  font-weight: 600;
+  color: #333;
+}
+
+.tokkoMarketplaceName {
+  font-weight: 400;
+  color: #333;
+}
+
+.commentDate {
+  display: block;
+  font-size: 0.75rem;
+  color: #999;
+  margin-top: 2px;
+}
+
+.verifiedBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: #0066cc;
+  color: white;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.replyTo {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  color: #0066cc;
+  font-weight: 500;
+}
+
+.commentText {
+  margin: 6px 0;
+  color: #444;
+  word-break: break-word;
+}
+
+.replyButton {
+  background: none;
+  border: none;
+  color: #0066cc;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 0;
+  text-align: left;
+  font-weight: 500;
+}
+
+.replyButton:hover {
+  text-decoration: underline;
+}
+
+.commentInput {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid #e0e0e0;
+}
+
+.replyingTo {
+  background: #f0f7ff;
+  border-left: 3px solid #0066cc;
+  padding: 8px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #0066cc;
+  font-weight: 500;
+}
+
+.cancelReply {
+  background: none;
+  border: none;
+  color: #0066cc;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  font-weight: bold;
+}
+
+.textInput {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.textInput:focus {
+  outline: none;
+  border-color: #0066cc;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+}
+
+.submitButton {
+  background: #0066cc;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #0052a3;
+}
+
+.submitButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}

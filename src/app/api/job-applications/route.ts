@@ -50,7 +50,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check product max applicants limit
+    // Check if user already applied to this position
+    if (userApplications.some(app => app.product_id === productId)) {
+      return NextResponse.json(
+        {
+          message: "Anda sudah melamar pekerjaan ini.",
+          already_applied: true,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Check product max applicants limit (CRITICAL: Double-check before insertion)
     const maxApplicants = product.maxApplicants ?? 0;
     const currentApplicants = product.applicantCount ?? 0;
 

@@ -14,7 +14,7 @@ const updateSchema = z.object({
   imageUrl: z.string().max(3000000).optional(),
   isActive: z.boolean().optional(),
   productType: z.enum(["jual_beli", "pekerjaan"]).optional(),
-  jobApplicationLink: z.string().url().optional().or(z.literal("")),
+  jobApplicationLink: z.union([z.string().url(), z.literal("")]).optional(),
   maxApplicants: z.number().int().min(1).optional(),
 });
 

@@ -142,13 +142,16 @@ function mapInfo(row: Record<string, unknown>): StoreInformation {
 function mapTestimonial(row: Record<string, unknown>): StoreTestimonial {
   return {
     id: String(row.id),
+    userId: String(row.user_id ?? "").trim() || undefined,
     name: String(row.name),
     country: String(row.country ?? "Indonesia"),
     roleLabel: String(row.role_label ?? ""),
     message: String(row.message),
     rating: Math.max(1, Math.min(5, Number(row.rating ?? 5))),
     mediaUrl: resolveMediaUrl(String(row.media_url ?? "")),
+    userAvatarUrl: resolveMediaUrl(String(row.user_avatar_url ?? "")),
     audioUrl: String(row.audio_url ?? "/assets/notif.mp3"),
+    verified: Number(row.verified ?? 0) === 1,
     createdAt: new Date(Number(row.created_at ?? now())).toISOString(),
   };
 }
@@ -507,13 +510,16 @@ export async function ensureDatabase() {
       await run(
         `CREATE TABLE IF NOT EXISTS testimonials (
           id TEXT PRIMARY KEY,
+          user_id TEXT,
           name TEXT NOT NULL,
           country TEXT NOT NULL DEFAULT 'Indonesia',
           role_label TEXT NOT NULL DEFAULT '',
           message TEXT NOT NULL,
           rating INTEGER NOT NULL DEFAULT 5,
           media_url TEXT NOT NULL DEFAULT '/assets/logo.png',
+          user_avatar_url TEXT NOT NULL DEFAULT '/assets/logo.png',
           audio_url TEXT NOT NULL DEFAULT '/assets/notif.mp3',
+          verified INTEGER NOT NULL DEFAULT 0,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
@@ -523,6 +529,32 @@ export async function ensureDatabase() {
       ).catch(() => {});
       await run(
         "ALTER TABLE testimonials ADD COLUMN media_url TEXT NOT NULL DEFAULT '/assets/logo.png'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE testimonials ADD COLUMN user_id TEXT",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE testimonials ADD COLUMN user_avatar_url TEXT NOT NULL DEFAULT '/assets/logo.png'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE testimonials ADD COLUMN verified INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+
+      await run(
+        `CREATE TABLE IF NOT EXISTS testimonial_comments (
+          id TEXT PRIMARY KEY,
+          testimonial_id TEXT NOT NULL,
+          user_id TEXT,
+          user_name TEXT NOT NULL,
+          user_avatar_url TEXT NOT NULL DEFAULT '/assets/logo.png',
+          verified INTEGER NOT NULL DEFAULT 0,
+          text TEXT NOT NULL,
+          reply_to_id TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (testimonial_id) REFERENCES testimonials(id) ON DELETE CASCADE,
+          FOREIGN KEY (reply_to_id) REFERENCES testimonial_comments(id) ON DELETE SET NULL
+        )`,
       ).catch(() => {});
 
       await run(
@@ -696,6 +728,15 @@ export async function ensureDatabase() {
       ).catch(() => {});
       await run(
         "ALTER TABLE book_stories ADD COLUMN original_user_id TEXT",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN rating INTEGER",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN linked_products TEXT DEFAULT '[]'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE book_stories ADD COLUMN elements TEXT DEFAULT '[]'",
       ).catch(() => {});
 
       await run(
@@ -1420,31 +1461,38 @@ export async function listTestimonials() {
 }
 
 export async function createTestimonial(input: {
+  userId?: string;
   name: string;
   country: string;
   roleLabel: string;
   message: string;
   rating: number;
   mediaUrl: string;
+  userAvatarUrl?: string;
   audioUrl: string;
+  verified?: boolean;
 }) {
   await ensureDatabase();
   const id = randomId();
   const mediaUrl = resolveMediaUrl(input.mediaUrl);
+  const userAvatarUrl = resolveMediaUrl(input.userAvatarUrl ?? "/assets/logo.png");
   const audioUrl = input.audioUrl.trim() || "/assets/notif.mp3";
   await run(
     `INSERT INTO testimonials
-      (id, name, country, role_label, message, rating, media_url, audio_url, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, name, country, role_label, message, rating, media_url, user_avatar_url, audio_url, verified, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
+      input.userId ?? null,
       input.name,
       input.country,
       input.roleLabel.trim(),
       input.message,
       Math.max(1, Math.min(5, input.rating)),
       mediaUrl,
+      userAvatarUrl,
       audioUrl,
+      input.verified ? 1 : 0,
       now(),
       now(),
     ],
@@ -1458,13 +1506,16 @@ export async function createTestimonial(input: {
 export async function updateTestimonial(
   id: string,
   input: Partial<{
+    userId: string;
     name: string;
     country: string;
     roleLabel: string;
     message: string;
     rating: number;
     mediaUrl: string;
+    userAvatarUrl: string;
     audioUrl: string;
+    verified: boolean;
   }>,
 ) {
   await ensureDatabase();
@@ -1476,14 +1527,17 @@ export async function updateTestimonial(
   const current = mapTestimonial(row);
   const nextMediaUrl =
     input.mediaUrl === undefined ? current.mediaUrl : resolveMediaUrl(input.mediaUrl);
+  const nextUserAvatarUrl =
+    input.userAvatarUrl === undefined ? (current.userAvatarUrl ?? "") : resolveMediaUrl(input.userAvatarUrl);
   const nextAudioUrl =
     input.audioUrl === undefined ? current.audioUrl : input.audioUrl.trim() || "/assets/notif.mp3";
 
   await run(
     `UPDATE testimonials
-     SET name = ?, country = ?, role_label = ?, message = ?, rating = ?, media_url = ?, audio_url = ?, updated_at = ?
+     SET user_id = ?, name = ?, country = ?, role_label = ?, message = ?, rating = ?, media_url = ?, user_avatar_url = ?, audio_url = ?, verified = ?, updated_at = ?
      WHERE id = ?`,
     [
+      input.userId ?? current.userId ?? null,
       input.name ?? current.name,
       input.country ?? current.country,
       input.roleLabel?.trim() ?? current.roleLabel,
@@ -1492,7 +1546,9 @@ export async function updateTestimonial(
         ? current.rating
         : Math.max(1, Math.min(5, input.rating)),
       nextMediaUrl,
+      nextUserAvatarUrl,
       nextAudioUrl,
+      input.verified === undefined ? (current.verified ? 1 : 0) : input.verified ? 1 : 0,
       now(),
       id,
     ],
@@ -2138,10 +2194,12 @@ export async function getUserPurchases(userId: string) {
 export async function getUserJobApplications(userId: string) {
   await ensureDatabase();
   const res = await run(
-    "SELECT product_name, created_at FROM job_applications WHERE user_id = ? ORDER BY created_at DESC",
+    "SELECT id, product_id, product_name, created_at FROM job_applications WHERE user_id = ? ORDER BY created_at DESC",
     [userId],
   );
   return ((res.rows ?? []) as unknown) as Array<{
+    id: string;
+    product_id: string;
     product_name: string;
     created_at: number;
   }>;

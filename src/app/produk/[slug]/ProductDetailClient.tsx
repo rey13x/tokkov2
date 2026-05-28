@@ -31,6 +31,8 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const rootRef = useRef<HTMLDivElement | null>(null);
   const noticeRef = useRef<HTMLParagraphElement | null>(null);
   const hasHandledPendingRef = useRef(false);
+  const isApplyingRef = useRef(false); // Prevent concurrent job applications
+  const lastApplyTimeRef = useRef(0); // Rate limiting
   const router = useRouter();
   const { status } = useSession();
 
@@ -39,6 +41,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const [isRedirectingToCart, setIsRedirectingToCart] = useState(false);
   const [isProductTutorialRunning, setIsProductTutorialRunning] = useState(false);
   const [currentApplicantCount, setCurrentApplicantCount] = useState(product.applicantCount ?? 0);
+  const [jobApplicationError, setJobApplicationError] = useState("");
 
   const hasApplicantLimit = typeof product.maxApplicants === "number" && product.maxApplicants > 0;
   const maxApplicants = product.maxApplicants ?? 0;
@@ -230,10 +233,37 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   };
 
   const onApplyForJob = async () => {
+    // ===== SECURITY: Prevent devtools bypass =====
+    // Check if already applying (prevent concurrent requests)
+    if (isApplyingRef.current) {
+      setJobApplicationError("Mohon tunggu hingga lamaran selesai diproses.");
+      return;
+    }
+
+    // Rate limiting: prevent rapid-fire clicks (500ms minimum between attempts)
+    const now = Date.now();
+    if (now - lastApplyTimeRef.current < 500) {
+      setJobApplicationError("Mohon tunggu sebelum melamar lagi.");
+      return;
+    }
+    lastApplyTimeRef.current = now;
+
+    // Verify button should actually be disabled (check limit state)
+    if (applicantLimitReached) {
+      setJobApplicationError("Anda tidak dapat melamar pekerjaan ini saat ini.");
+      return;
+    }
+
+    // Verify not loading
+    if (status === "loading") {
+      return;
+    }
+    // ===== END SECURITY =====
+
+    setJobApplicationError(""); // Clear previous errors
+    
     if (!product.jobApplicationLink) {
-      if (typeof window !== "undefined") {
-        window.alert("Link pendaftaran tidak tersedia.");
-      }
+      setJobApplicationError("Link pendaftaran tidak tersedia.");
       return;
     }
 
@@ -251,15 +281,17 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       return;
     }
 
-    if (status === "loading") {
-      return;
-    }
-
     // Show confirmation popup
     const confirmed = window.confirm(
       "Yakin ingin melamar pekerjaan ini?\n\nSetelah kamu lamar, kamu akan dicatat di sistem kami."
     );
-    if (!confirmed) return;
+    if (!confirmed) {
+      lastApplyTimeRef.current = 0; // Reset rate limit on cancel
+      return;
+    }
+
+    // Mark as applying to prevent concurrent requests
+    isApplyingRef.current = true;
 
     // User is authenticated, record application and redirect to job link
     try {
@@ -271,14 +303,16 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       if (!response.ok) {
         const error = await response.json();
         if (error.max_reached) {
+          // Update limit reached state
           if (hasApplicantLimit) {
             setCurrentApplicantCount(maxApplicants);
           }
+          setJobApplicationError("Posisi ini sudah penuh. Silakan coba pekerjaan lainnya.");
+          isApplyingRef.current = false;
           return;
         }
-        if (typeof window !== "undefined") {
-          window.alert(error.message ?? "Gagal mencatat lamaran.");
-        }
+        setJobApplicationError(error.message ?? "Gagal mencatat lamaran.");
+        isApplyingRef.current = false;
         return;
       }
 
@@ -293,10 +327,14 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       }, 550);
     } catch (error) {
       console.error("Failed to record job application:", error);
-      if (typeof window !== "undefined") {
-        window.alert("Gagal mencatat lamaran. Anda akan dialihkan ke link pendaftaran.");
-        window.location.href = product.jobApplicationLink;
+      setJobApplicationError("Gagal mencatat lamaran. Anda akan dialihkan ke link pendaftaran.");
+      const applicationLink = product.jobApplicationLink;
+      if (applicationLink) {
+        window.setTimeout(() => {
+          window.location.href = applicationLink;
+        }, 1000);
       }
+      isApplyingRef.current = false;
     }
   };
 
@@ -406,15 +444,32 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                 </div>
               </div>
 
-              <button
-                type="button"
-                className={styles.orderButton}
-                onClick={onAddToCart}
-                disabled={status === "loading"}
-                data-onboarding="product-add-to-cart"
-              >
-                {status === "loading" ? "Memuat..." : "Tambah ke Troli"}
-              </button>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <button
+                  type="button"
+                  className={styles.orderButton}
+                  onClick={onAddToCart}
+                  disabled={status === "loading"}
+                  data-onboarding="product-add-to-cart"
+                  style={{ flex: 1 }}
+                >
+                  {status === "loading" ? "Memuat..." : "Beli Sekarang"}
+                </button>
+                <button
+                  type="button"
+                  className={styles.cartIconButton}
+                  onClick={onAddToCart}
+                  disabled={status === "loading"}
+                  title="Tambahkan ke troli"
+                  aria-label="Tambahkan ke troli"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                  </svg>
+                </button>
+              </div>
               <p className={styles.orderHint}>
                 Klik tambah ke troli. Jika belum login, kamu akan diarahkan ke halaman auth.
               </p>
@@ -435,37 +490,36 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
               {/* Show applicant count */}
               <p style={{ fontSize: "14px", color: "#666", marginTop: "12px", marginBottom: "8px" }}>
                 Pelamar: <strong>{currentApplicantCount} / {maxApplicantsLabel}</strong>
+                {applicantLimitReached && <span style={{ marginLeft: "8px", color: "#d32f2f", fontWeight: "bold" }}>✗ Penuh</span>}
               </p>
 
               <button
                 type="button"
                 className={styles.orderButton}
-                onClick={onAddToCart}
-                disabled={status === "loading" || applicantLimitReached || status === "unauthenticated"}
-                style={(applicantLimitReached || status === "unauthenticated") ? { opacity: 0.6, cursor: "not-allowed" } : {}}
+                onClick={onApplyForJob}
+                disabled={status === "loading" || applicantLimitReached || isRedirectingToCart}
+                style={applicantLimitReached ? { opacity: 0.6, cursor: "not-allowed", backgroundColor: "#ccc" } : {}}
                 data-onboarding="product-add-to-cart"
               >
-                {status === "loading" ? "Memuat..." : status === "unauthenticated" ? "Login Terlebih Dahulu" : applicantLimitReached ? "Tidak Tersedia" : "Lamar"}
+                {status === "loading" ? "Memuat..." : isRedirectingToCart ? "Mengarahkan..." : applicantLimitReached ? "Posisi Penuh" : "Lamar"}
               </button>
               <p className={styles.orderHint}>
-                {status === "unauthenticated" ? (
+                {jobApplicationError ? (
+                  <span style={{ color: "#d32f2f", fontWeight: "500" }}>{jobApplicationError}</span>
+                ) : applicantLimitReached ? (
+                  <span style={{ color: "#d32f2f", fontWeight: "500" }}>Posisi ini sudah penuh</span>
+                ) : status === "unauthenticated" ? (
                   <>
                     Anda harus <Link href={`/auth?redirect=${encodeURIComponent(`/produk/${product.slug}`)}`} style={{ color: "#4a5fe3", textDecoration: "underline" }}>login terlebih dahulu</Link> untuk melamar pekerjaan ini.
                   </>
-                ) : applicantLimitReached ? (
-                  <>
-                    Pekerjaan ini sudah penuh.
-                  </>
                 ) : (
-                  <>
-                    Klik tombol Lamar untuk melamar pekerjaan ini.
-                  </>
+                  <>Klik tombol Lamar untuk melamar pekerjaan ini.</>
                 )}
               </p>
 
               {added ? (
                 <p className={styles.successMessage} ref={noticeRef}>
-                  Anda akan dialihkan ke halaman pendaftaran pekerjaan...
+                  ✓ Lamaran berhasil dicatat! Cek riwayat lamaran di <Link href="/troli" style={{ color: "#214ebd", textDecoration: "underline", fontWeight: "600" }}>halaman troli</Link>. Anda akan dialihkan ke halaman pendaftaran...
                 </p>
               ) : null}
             </>

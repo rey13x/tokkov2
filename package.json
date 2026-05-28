@@ -1,5 +1,5 @@
 {
-  "name": "tokkov2",
+  "name": "tokko",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -15,10 +15,12 @@
     "firebase": "^12.9.0",
     "firebase-admin": "^13.7.0",
     "gsap": "^3.14.2",
+    "html2canvas": "^1.4.1",
     "next": "16.1.6",
     "next-auth": "^4.24.13",
     "nodemailer": "^7.0.13",
     "pdfkit": "^0.17.2",
+    "puppeteer-core": "^25.1.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-icons": "^5.5.0",

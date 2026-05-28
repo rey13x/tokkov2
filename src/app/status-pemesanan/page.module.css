@@ -232,6 +232,33 @@
   height: 20px;
 }
 
+.cancelTransactionButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid #d32f2f;
+  background: #ffebee;
+  color: #d32f2f;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.cancelTransactionButton:hover {
+  background: #c62828;
+  color: #ffffff;
+  border-color: #c62828;
+}
+
+.cancelTransactionButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .actionIcons {
   display: inline-flex;
   align-items: center;

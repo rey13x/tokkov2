@@ -9,7 +9,7 @@ type WaitLoadingProps = {
 
 export default function WaitLoading({
   centered = false,
-  text = "Tunggu sebentar yaa..",
+  text = "Pastikan Internet kamu Stabil...",
 }: WaitLoadingProps) {
   return (
     <div className={centered ? styles.centered : undefined}>

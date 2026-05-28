@@ -20,6 +20,7 @@ import bagasPhoto from "@/app/assets/Bagas.jpg";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import ProductCard from "@/components/home/ProductCard";
 import { formatRupiah } from "@/data/products";
+import { HERO_BACKGROUND_URLS, CAROUSEL_PHOTOS_ONLY, ANIMATION_DURATION_MS, getPhotoDuration } from "@/data/hero-backgrounds";
 import { getCartCount } from "@/lib/cart";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import {
@@ -50,7 +51,6 @@ type HomeMarquee = StoreMarqueeItem;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
-const heroImage = "/assets/backgroundv2.png";
 const logoImage = "/assets/logov2.svg";
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
@@ -86,6 +86,8 @@ export default function HomeClient() {
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
   const [profileAvatarPreview, setProfileAvatarPreview] = useState("");
   const [isHomeTutorialRunning, setIsHomeTutorialRunning] = useState(false);
+  const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0);
+  const heroImage = HERO_BACKGROUND_URLS[currentBackgroundIndex] || "/assets/backgroundv2.png";
 
   const categories = useMemo(() => {
     const set = new Set(products.map((product) => product.category));
@@ -255,6 +257,47 @@ export default function HomeClient() {
     }
     setIsTestimonialDragging(false);
   };
+
+  // Preload semua hero background images untuk smooth transition tanpa loading delay
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    HERO_BACKGROUND_URLS.forEach((url) => {
+      const img = new (window.Image as any)();
+      img.src = url;
+    });
+  }, []);
+
+  // Background carousel effect - random dengan durasi berbeda per foto
+  useEffect(() => {
+    if (CAROUSEL_PHOTOS_ONLY.length === 0) {
+      return;
+    }
+
+    // Ambil foto carousel yang bukan foto awal
+    const carouselPhotos = CAROUSEL_PHOTOS_ONLY;
+    let timeoutId: NodeJS.Timeout;
+
+    const scheduleNextCarousel = () => {
+      // Pilih random foto dari carousel
+      const randomIndex = Math.floor(Math.random() * carouselPhotos.length);
+      const nextPhotoUrl = carouselPhotos[randomIndex];
+      const nextPhotoIndex = HERO_BACKGROUND_URLS.indexOf(nextPhotoUrl);
+
+      // Set foto baru
+      setCurrentBackgroundIndex(nextPhotoIndex >= 0 ? nextPhotoIndex : 1);
+
+      // Ambil durasi untuk foto ini dan schedule foto berikutnya
+      const pauseDuration = getPhotoDuration(nextPhotoUrl);
+      timeoutId = setTimeout(scheduleNextCarousel, pauseDuration);
+    };
+
+    // Mulai carousel setelah loading awal
+    timeoutId = setTimeout(scheduleNextCarousel, getPhotoDuration(HERO_BACKGROUND_URLS[0]));
+
+    return () => clearTimeout(timeoutId);
+  }, []);
 
   useEffect(() => {
     const syncState = () => {
@@ -805,20 +848,24 @@ export default function HomeClient() {
   return (
     <main className={`${styles.page} ${isViewportLocked ? styles.pageLocked : ""}`} ref={rootRef}>
       <section className={styles.hero} style={heroVars} data-animate="hero">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          key={heroImage}
           src={heroImage}
           alt="Latar Tokko"
-          fill
-          priority
           className={styles.heroImage}
-          sizes="100vw"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+          }}
         />
         <div className={styles.heroShade} />
 
         <div className={styles.heroTop} data-animate="hero">
           <Link href="/" aria-label="Beranda" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Image src={logoImage} alt="TokkoV2 Logo" className={styles.logo} width={86} height={86} priority />
-            <span style={{ fontWeight: 700, fontSize: 32, color: "#fff", letterSpacing: 1 }}>TokkoV2</span>
+            <Image src={logoImage} alt="Tokko Logo" className={styles.logo} width={86} height={86} priority />
           </Link>
           {sessionStatus === "authenticated" ? (
             <button
@@ -862,7 +909,7 @@ export default function HomeClient() {
         </div>
       </section>
 
-      {!storeDataReady ? <div className={styles.storeLoadingBadge}>Tunggu sebentar yaa..</div> : null}
+      {!storeDataReady ? <div className={styles.storeLoadingBadge} style={{ textAlign: 'center' }}>Pastikan Internet kamu Stabil...</div> : null}
 
       <AppOnboardingJoyride
         run={isHomeTutorialRunning}
@@ -949,14 +996,6 @@ export default function HomeClient() {
                         sizes="(max-width: 820px) 72vw, 220px"
                       />
                     </div>
-                    <div className={styles.partnerMeta}>
-                      <span className={styles.bagasPill}>
-                        {"\u2605".repeat(Math.max(1, Math.min(5, item.rating)))}
-                      </span>
-                      <span className={styles.bagasPill}>
-                        {item.roleLabel || item.country || "Indonesia"}
-                      </span>
-                    </div>
                   </div>
                   <h3 className={styles.bagasName}>{item.name}</h3>
                   <p className={styles.testimonialText}>{item.message}</p>
@@ -1017,13 +1056,10 @@ export default function HomeClient() {
                   </span>
                 </button>
                 <button type="button" onClick={() => router.push("/book-spirit")} data-menu-item>
-                  Book Spirit
+                  Testimoni
                   <span>
                     <FiChevronRight />
                   </span>
-                </button>
-                <button type="button" onClick={() => router.push("/portfolio")} data-menu-item>
-                  Portfolio
                 </button>
                 <button type="button" onClick={() => router.push("/troli")} data-menu-item>
                   Troli ({cartCount})

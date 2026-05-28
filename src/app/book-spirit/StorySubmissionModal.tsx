@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { IoClose } from "react-icons/io5";
 import { FiCamera } from "react-icons/fi";
+import { MdStar } from "react-icons/md";
 import styles from "./StorySubmissionModal.module.css";
 
 type Props = {
@@ -11,14 +12,45 @@ type Props = {
   onSubmitted?: () => void;
 };
 
+// Popular emojis for quick selection
+const POPULAR_EMOJIS = ["😊", "❤️", "👍", "🎉", "✨", "💯", "😍", "🌟", "💪", "🔥", "😌", "🙌", "💕", "🎊", "👏"];
+
 export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
+  const [rating, setRating] = useState(0); // 0-5, 0 means disabled
+  const [linkedProducts, setLinkedProducts] = useState<Array<{id: string; name: string}>>([]);
+  const [availableProducts, setAvailableProducts] = useState<Array<{id: string; name: string}>>([]);
+  const [showProductPicker, setShowProductPicker] = useState(false);
+  const [selectedEmoji, setSelectedEmoji] = useState<string>("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [elements, setElements] = useState<Array<{emoji: string; opacity: number}>>([]);
+  const [emojiInput, setEmojiInput] = useState<string>("");
+  const [emojiOpacity, setEmojiOpacity] = useState(0.5);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    // Load available products
+    const loadProducts = async () => {
+      try {
+        const response = await fetch("/api/me/products");
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableProducts(data.products || []);
+        }
+      } catch (error) {
+        console.error("Failed to load products:", error);
+      }
+    };
+    
+    if (isOpen) {
+      loadProducts();
+    }
+  }, [isOpen]);
 
   const applyEditorCommand = (command: string, value?: string) => {
     if (!editorRef.current) return;
@@ -78,6 +110,34 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
     updateActiveFormats();
   };
 
+  const addProduct = (product: {id: string; name: string}) => {
+    if (!linkedProducts.find(p => p.id === product.id)) {
+      setLinkedProducts([...linkedProducts, product]);
+    }
+    setShowProductPicker(false);
+  };
+
+  const removeProduct = (productId: string) => {
+    setLinkedProducts(linkedProducts.filter(p => p.id !== productId));
+  };
+
+  const addEmoji = (emoji: string) => {
+    const newElements = [...elements, { emoji, opacity: emojiOpacity }];
+    setElements(newElements);
+    setShowEmojiPicker(false);
+  };
+
+  const removeElement = (index: number) => {
+    setElements(elements.filter((_, i) => i !== index));
+  };
+
+  const handleAddCustomEmoji = () => {
+    if (emojiInput.trim()) {
+      addEmoji(emojiInput);
+      setEmojiInput("");
+    }
+  };
+
   const cleanupHTML = (html: string): string => {
     // Create a temporary div to parse HTML
     const temp = document.createElement("div");
@@ -133,7 +193,13 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
       const response = await fetch("/api/book-stories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ story: cleanHTML, photos }),
+        body: JSON.stringify({
+          story: cleanHTML,
+          photos,
+          rating: rating > 0 ? rating : undefined,
+          linkedProducts: linkedProducts.length > 0 ? linkedProducts : undefined,
+          elements: elements.length > 0 ? elements : undefined,
+        }),
       });
 
       const data = (await response.json()) as { message: string };
@@ -143,6 +209,10 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
         setMessage(data.message);
         if (editorRef.current) editorRef.current.innerHTML = "";
         setPhotos([]);
+        setRating(0);
+        setLinkedProducts([]);
+        setElements([]);
+        setEmojiInput("");
         onSubmitted?.();
         setTimeout(onClose, 2000);
       } else {
@@ -162,7 +232,7 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
     <div className={styles.overlay}>
       <div className={styles.fullModal}>
         <div className={styles.header}>
-          <h1>Tell your Story!</h1>
+          <h1>Ceritakan Kepuasanmu</h1>
           <button
             type="button"
             className={styles.closeButton}
@@ -321,6 +391,322 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
         )}
 
         <form className={styles.form} onSubmit={handleSubmit}>
+          <div className={styles.formSectionsGrid}>
+            {/* Star Rating Section */}
+            <div className={styles.formSection}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                <label style={{ fontSize: "14px", fontWeight: 600 }}>Rating:</label>
+                <button
+                  type="button"
+                  onClick={() => setRating(rating > 0 ? 0 : 1)}
+                  style={{
+                    padding: "6px 12px",
+                    border: `2px solid ${rating > 0 ? "#007AFF" : "#e0e0e0"}`,
+                    borderRadius: "6px",
+                    background: rating > 0 ? "#f0f7ff" : "transparent",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: rating > 0 ? "#007AFF" : "#666",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  {rating > 0 ? "✓ Rating Aktif" : "Aktifkan Rating"}
+                </button>
+              </div>
+              {rating > 0 && (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "28px",
+                        padding: 0,
+                        opacity: star <= rating ? 1 : 0.3,
+                        transition: "opacity 0.2s ease",
+                      }}
+                    >
+                      <MdStar style={{ color: "#FFB800" }} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Product Picker Section */}
+            <div className={styles.formSection}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                <label style={{ fontSize: "14px", fontWeight: 600 }}>Produk:</label>
+                <button
+                  type="button"
+                  onClick={() => setShowProductPicker(!showProductPicker)}
+                  style={{
+                    padding: "6px 12px",
+                    border: "2px solid #007AFF",
+                    borderRadius: "6px",
+                    background: "#f0f7ff",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#007AFF",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  {showProductPicker ? "- Tutup" : "+ Pilih Produk"}
+                </button>
+              </div>
+
+              {showProductPicker && availableProducts.length > 0 && (
+                <div style={{
+                  border: "1px solid #e0e0e0",
+                  borderRadius: "8px",
+                  padding: "12px",
+                  marginBottom: "12px",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  background: "#f9f9f9",
+                }}>
+                  {availableProducts.map((product) => (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => addProduct(product)}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        border: "1px solid #e0e0e0",
+                        borderRadius: "6px",
+                        marginBottom: "8px",
+                        background: "#fff",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        fontSize: "13px",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = "#f0f7ff";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#007AFF";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = "#fff";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#e0e0e0";
+                      }}
+                    >
+                      {product.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {linkedProducts.length > 0 && (
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  {linkedProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "6px 10px",
+                        background: "#f0f7ff",
+                        border: "1px solid #007AFF",
+                        borderRadius: "16px",
+                        fontSize: "12px",
+                      }}
+                    >
+                      <span>{product.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeProduct(product.id)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: 0,
+                          fontSize: "16px",
+                          color: "#007AFF",
+                        }}
+                      >
+                        <IoClose />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Emoji Elements Section */}
+            <div className={styles.formSection}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                <label style={{ fontSize: "14px", fontWeight: 600 }}>Elemen:</label>
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  style={{
+                    padding: "6px 12px",
+                    border: "2px solid #007AFF",
+                    borderRadius: "6px",
+                    background: "#f0f7ff",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#007AFF",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  {showEmojiPicker ? "- Tutup" : "+ Pilih Emoji"}
+                </button>
+              </div>
+
+              {showEmojiPicker && (
+                <div style={{
+                  border: "1px solid #e0e0e0",
+                  borderRadius: "8px",
+                  padding: "12px",
+                  marginBottom: "12px",
+                  background: "#f9f9f9",
+                }}>
+                  <div style={{ marginBottom: "12px" }}>
+                    <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "8px" }}>Emoji Populer:</div>
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                      {POPULAR_EMOJIS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => addEmoji(emoji)}
+                          style={{
+                            width: "32px",
+                            height: "32px",
+                            border: "1px solid #e0e0e0",
+                            borderRadius: "6px",
+                            background: "#fff",
+                            cursor: "pointer",
+                            fontSize: "18px",
+                            transition: "all 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.background = "#f0f7ff";
+                            (e.currentTarget as HTMLButtonElement).style.borderColor = "#007AFF";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.background = "#fff";
+                            (e.currentTarget as HTMLButtonElement).style.borderColor = "#e0e0e0";
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "12px" }}>
+                    <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "8px" }}>Custom Emoji:</div>
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                    <input
+                      type="text"
+                      value={emojiInput}
+                      onChange={(e) => setEmojiInput(e.target.value)}
+                      placeholder="Paste emoji atau teks"
+                      style={{
+                        flex: 1,
+                        padding: "6px 10px",
+                        border: "1px solid #e0e0e0",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddCustomEmoji();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCustomEmoji}
+                      style={{
+                        padding: "6px 12px",
+                        background: "#007AFF",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      + Tambah
+                    </button>
+                  </div>
+
+                  <div style={{ fontSize: "12px", color: "#666", marginBottom: "8px" }}>
+                    Opacity: {Math.round(emojiOpacity * 100)}%
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={emojiOpacity}
+                    onChange={(e) => setEmojiOpacity(parseFloat(e.target.value))}
+                    style={{
+                      width: "100%",
+                      cursor: "pointer",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {elements.length > 0 && (
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {elements.map((element, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      position: "relative",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "6px 10px",
+                      background: "#f0f7ff",
+                      border: "1px solid #007AFF",
+                      borderRadius: "16px",
+                    }}
+                  >
+                    <span style={{ fontSize: "18px", opacity: element.opacity }}>
+                      {element.emoji}
+                    </span>
+                    <span style={{ fontSize: "11px", color: "#666" }}>
+                      {Math.round(element.opacity * 100)}%
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeElement(index)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                        fontSize: "16px",
+                        color: "#007AFF",
+                      }}
+                    >
+                      <IoClose />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            </div>
+          </div>
+
           <div
             ref={editorRef}
             className={styles.richEditor}

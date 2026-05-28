@@ -28,6 +28,19 @@ type CartLine = {
   selected: boolean;
 };
 
+type JobApplication = {
+  id: string;
+  product_id: string;
+  product_name: string;
+  created_at: number;
+  applicationLink?: string; // Will be fetched from product
+  imageUrl?: string;
+  price?: number;
+  maxApplicants?: number;
+  applicantCount?: number;
+  category?: string;
+};
+
 const TAX_RATE = 0.11;
 
 function getInitialCartLines(): CartLine[] {
@@ -48,6 +61,10 @@ export default function CartPage() {
   const [cartLines, setCartLines] = useState<CartLine[]>(getInitialCartLines);
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [isStoreLoading, setIsStoreLoading] = useState(true);
+  const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
+  const [isJobApplicationsLoading, setIsJobApplicationsLoading] = useState(true);
+  const [jobApplicationError, setJobApplicationError] = useState("");
+  const [cancelingApplicationId, setCancelingApplicationId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState("Semua");
   const [query, setQuery] = useState("");
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
@@ -82,6 +99,58 @@ export default function CartPage() {
     };
   }, []);
 
+  // Fetch job applications
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setIsJobApplicationsLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    setIsJobApplicationsLoading(true);
+    setJobApplicationError("");
+
+    fetch("/api/job-applications")
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Gagal memuat lamaran");
+        }
+        return res.json() as Promise<{ applications: Array<{ id: string; product_id: string; product_name: string; created_at: number }> }>;
+      })
+      .then((data) => {
+        if (!mounted) return;
+        // Enrich with application links from products
+        const enriched = data.applications.map((app) => {
+          const product = products.find((p) => p.id === app.product_id);
+          return {
+            ...app,
+            applicationLink: product?.jobApplicationLink,
+            imageUrl: product?.imageUrl,
+            price: product?.price,
+            maxApplicants: product?.maxApplicants,
+            applicantCount: product?.applicantCount,
+            category: product?.category,
+          };
+        });
+        setJobApplications(enriched);
+      })
+      .catch((err) => {
+        if (mounted) {
+          console.error("Failed to load job applications:", err);
+          setJobApplicationError("Gagal memuat riwayat lamaran");
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setIsJobApplicationsLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [status, products]);
+
   const detailedItems = useMemo(() => {
     return cartLines
       .map((line) => {
@@ -98,6 +167,10 @@ export default function CartPage() {
       })
       .filter((line): line is NonNullable<typeof line> => Boolean(line));
   }, [cartLines, products]);
+
+  const freelanceJobApplications = useMemo(() => {
+    return jobApplications.filter((app) => app.category === "Freelance");
+  }, [jobApplications]);
 
   useEffect(() => {
     const currentState = getOnboardingState();
@@ -289,6 +362,48 @@ export default function CartPage() {
     }
   };
 
+  const onContinueJobApplication = (app: JobApplication) => {
+    if (!app.applicationLink) {
+      setJobApplicationError("Link pendaftaran tidak tersedia untuk pekerjaan ini.");
+      return;
+    }
+    window.location.href = app.applicationLink;
+  };
+
+  const onCancelJobApplication = async (applicationId: string) => {
+    const confirmed = window.confirm("Yakin ingin membatalkan lamaran ini?");
+    if (!confirmed) return;
+
+    setCancelingApplicationId(applicationId);
+    setJobApplicationError("");
+
+    try {
+      const response = await fetch("/api/job-applications", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ applicationId }),
+      });
+
+      const result = (await response.json()) as { message?: string };
+
+      if (!response.ok) {
+        setJobApplicationError(result.message ?? "Gagal membatalkan lamaran.");
+        return;
+      }
+
+      // Remove from state
+      setJobApplications((current) => current.filter((app) => app.id !== applicationId));
+      setSuccess("Lamaran berhasil dibatalkan.");
+    } catch (err) {
+      console.error("Failed to cancel job application:", err);
+      setJobApplicationError("Gagal membatalkan lamaran. Coba lagi.");
+    } finally {
+      setCancelingApplicationId(null);
+    }
+  };
+
   const cartTutorialSteps: Step[] = [
     ...(cartTutorialStage === ONBOARDING_STAGE.CART_RETURN_STATUS
       ? [
@@ -331,9 +446,9 @@ export default function CartPage() {
         </Link>
       </header>
 
-      {!isClient || isStoreLoading ? <WaitLoading centered /> : null}
+      {!isClient || isStoreLoading || isJobApplicationsLoading ? <WaitLoading centered /> : null}
 
-      {isClient && !isStoreLoading && detailedItems.length === 0 ? (
+      {isClient && !isStoreLoading && !isJobApplicationsLoading && detailedItems.length === 0 && freelanceJobApplications.length === 0 ? (
         <section className={styles.emptyState}>
           <h2>Troli masih kosong</h2>
           <p>Pilih produk dulu dari halaman katalog.</p>
@@ -353,7 +468,59 @@ export default function CartPage() {
 
       {error ? <p className={styles.errorText}>{error}</p> : null}
       {success ? <p className={styles.successText}>{success}</p> : null}
+      {jobApplicationError ? <p className={styles.errorText}>{jobApplicationError}</p> : null}
 
+      {/* Job Applications Section */}
+      {isClient && !isJobApplicationsLoading && freelanceJobApplications.length > 0 ? (
+        <section className={styles.jobApplicationsSection}>
+          <h2 className={styles.sectionTitle}>Pekerjaan Dilamar</h2>
+          <div className={styles.jobApplicationsList}>
+            {freelanceJobApplications.map((app) => (
+              <article key={app.id} className={styles.jobApplicationItem}>
+                <div className={styles.jobApplicationImageWrap}>
+                  <FlexibleMedia
+                    src={app.imageUrl || "/assets/logo.png"}
+                    alt={app.product_name}
+                    fill
+                    className={styles.jobApplicationImage}
+                    sizes="80px"
+                    unoptimized
+                  />
+                </div>
+                <div className={styles.jobApplicationContent}>
+                  <h3>{app.product_name}</h3>
+                  <p className={styles.jobApplicationSalary}>{formatRupiah(app.price || 0)}</p>
+                  <p className={styles.jobApplicationDate}>
+                    Dilamar: {new Date(app.created_at).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })}
+                  </p>
+                  <p className={styles.jobApplicationApplicants}>
+                    {app.applicantCount || 0}/{app.maxApplicants ? app.maxApplicants : "∞"}
+                  </p>
+                </div>
+                <div className={styles.jobApplicationActions}>
+                  <button
+                    type="button"
+                    className={`${styles.actionButton} ${styles.actionBlack}`}
+                    onClick={() => onContinueJobApplication(app)}
+                  >
+                    Lanjutkan
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.actionButton} ${styles.actionBlack}`}
+                    onClick={() => onCancelJobApplication(app.id)}
+                    disabled={cancelingApplicationId === app.id}
+                  >
+                    {cancelingApplicationId === app.id ? "Membatalkan..." : "Batalkan"}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Products Section */}
       {isClient && !isStoreLoading && detailedItems.length > 0 ? (
         <section className={styles.cartLayout}>
           <div className={styles.itemsPanel}>

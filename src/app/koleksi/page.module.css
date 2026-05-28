@@ -18,6 +18,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 4px;
 }
 
 .header h1 {
@@ -32,6 +33,10 @@
   color: #ffffff;
   display: inline-flex;
   align-items: center;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 .searchWrap {
@@ -54,6 +59,7 @@
   background: #ffffff;
   box-shadow: 0 8px 20px rgba(14, 18, 30, 0.08);
   outline: none;
+  font-size: 0.9rem;
 }
 
 .gifBox {
@@ -85,12 +91,16 @@
   min-height: 34px;
   padding: 0 12px;
   white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .categoryChipActive {
   background: #11151f;
   color: #ffffff;
+  border-color: #11151f;
 }
 
 .productGrid {
@@ -121,6 +131,39 @@
 .productImage {
   object-fit: cover;
   display: block;
+}
+
+.cartIconOverlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(17, 21, 31, 0.9);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.cartIconOverlay:hover {
+  background: rgba(17, 21, 31, 1);
+  transform: scale(1.1);
+}
+
+.cartIconOverlay:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cartIconOverlay svg {
+  width: 20px;
+  height: 20px;
 }
 
 .floatingMeta {

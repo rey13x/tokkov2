@@ -26,6 +26,8 @@ export default function BookSpiritClient() {
   const [reportModal, setReportModal] = useState<{ storyId: string; storyTitle: string } | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [activeRating, setActiveRating] = useState<number | null>(null);
+  const [activeProductId, setActiveProductId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadStories = async () => {
@@ -44,6 +46,29 @@ export default function BookSpiritClient() {
 
     loadStories();
   }, []);
+
+  // Extract unique products from all stories
+  const allProducts = Array.from(
+    stories.reduce((acc, story) => {
+      if (story.linkedProducts) {
+        story.linkedProducts.forEach(product => {
+          acc.set(product.productId, product.productName);
+        });
+      }
+      return acc;
+    }, new Map<string, string>())
+  ).map(([id, name]) => ({ id, name }));
+
+  // Extract unique ratings
+  const availableRatings = Array.from(new Set(stories.filter(s => s.rating).map(s => s.rating))).sort() as number[];
+
+  // Filter stories based on active rating and product
+  const filteredStories = stories.filter(story => {
+    const matchesRating = activeRating === null || story.rating === activeRating;
+    const matchesProduct = activeProductId === null || 
+      (story.linkedProducts && story.linkedProducts.some(p => p.productId === activeProductId));
+    return matchesRating && matchesProduct;
+  });
 
   const handleTellStory = () => {
     if (!session?.user?.email) {
@@ -108,11 +133,11 @@ export default function BookSpiritClient() {
   const handleShare = async (story: BookStory) => {
     try {
       const storyUrl = "https://tokkov2.vercel.app/book-spirit";
-      const shareText = `"${story.story.slice(0, 100)}..." - ${story.userName}\n\nAyo lihat cerita lain dan ceritakan diri kamu yang menarik di Book Spirit, dapetin app premium gratis!\n\n${storyUrl}`;
+      const shareText = `\"${story.story.slice(0, 100)}...\" - ${story.userName}\n\nAyo lihat cerita lain dan ceritakan kepuasanmu di Testimoni, dapetin app premium gratis!\n\n${storyUrl}`;
       
       if (navigator.share) {
         await navigator.share({
-          title: "Book Spirit",
+          title: "Testimoni",
           text: shareText,
           url: storyUrl,
         });
@@ -174,7 +199,7 @@ export default function BookSpiritClient() {
     return (
       <main className={styles.page}>
         <div className={styles.loadingContainer}>
-          <p>Tunggu sebentar yaa..</p>
+          <p style={{ textAlign: 'center' }}>Pastikan Internet kamu Stabil...</p>
         </div>
       </main>
     );
@@ -182,35 +207,98 @@ export default function BookSpiritClient() {
 
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
-        <button
-          type="button"
-          className={styles.backButton}
-          onClick={() => router.back()}
-          aria-label="Kembali"
-        >
-          <FiArrowLeft />
-        </button>
-        <h1>Book Spirit</h1>
-        <div className={styles.headerPlaceholder} />
-      </header>
+      <section className={styles.stickyTop}>
+        <header className={styles.header}>
+          <h1>Testimoni</h1>
+          <button
+            type="button"
+            className={styles.backLink}
+            onClick={() => router.back()}
+          >
+            Kembali
+          </button>
+        </header>
 
-      <section className={styles.storyList}>
-        {stories.length === 0 ? (
-          <div className={styles.emptyState}>
+        <div className={styles.searchWrap}>
+          <div className={styles.searchRow}>
+            <input
+              type="search"
+              placeholder="Cari Testimoni..."
+              style={{ cursor: "pointer" }}
+            />
+            {session?.user ? (
+              <button
+                type="button"
+                onClick={() => router.push("/profil")}
+                className={styles.gifBox}
+                style={{ cursor: "pointer", border: "none", background: "none", padding: 0 }}
+                title="Lihat profil"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={session.user.image || "/assets/logo.png"}
+                  alt="Profil"
+                  style={{
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                  }}
+                />
+              </button>
+            ) : (
+              <div className={styles.gifBox} aria-hidden="true">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://media.giphy.com/media/13HgwGsXF0aiGY/giphy.gif"
+                  alt=""
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Filter Section */}
+        {stories.length > 0 && (
+          <div className={styles.categoryRow}>
+            <button
+              type="button"
+              onClick={() => setActiveRating(null)}
+              className={`${styles.categoryChip} ${activeRating === null ? styles.categoryChipActive : ""}`}
+            >
+              Semua
+            </button>
+            {availableRatings.map((rating) => (
+              <button
+                key={rating}
+                type="button"
+                onClick={() => setActiveRating(rating)}
+                className={`${styles.categoryChip} ${
+                  activeRating === rating ? styles.categoryChipActive : ""
+                }`}
+              >
+                {"\u2605".repeat(rating)}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className={styles.content}>
+        {filteredStories.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#999" }}>
             <button
               type="button"
               className={styles.tellStoryButton}
               onClick={handleTellStory}
               style={{ marginTop: "24px" }}
             >
-              Tell your Story!
+              Ceritakan Kepuasanmu
             </button>
+            <p style={{ marginTop: "16px", fontSize: "14px", color: "#666" }}>Bagikan pengalaman terbaik mu bersama kami</p>
           </div>
         ) : (
           <>
-            {stories.map((story) => (
-              <article key={story.id} className={styles.storyItem} style={{ position: "relative", overflow: "visible" }}>
+            {filteredStories.map((story) => (
+              <article key={story.id} className={styles.storyItem}>
                 {/* Decorative leaves */}
                 <div style={{ position: "absolute", top: "-12px", left: "20px", color: "#007AFF", fontSize: "32px", opacity: 0.6 }}>
                   <BsLeaf style={{ transform: "rotate(-30deg)" }} />
@@ -287,7 +375,42 @@ export default function BookSpiritClient() {
                     className={styles.storyText}
                     dangerouslySetInnerHTML={{ __html: story.story }}
                   />
-                  <p className={styles.storyBrand}>Book Spirit</p>
+                  
+                  {/* Rating Display */}
+                  {story.rating && story.rating > 0 && (
+                    <div style={{ marginTop: "12px", padding: "8px", background: "#FFF9E6", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      <span style={{ fontSize: "16px" }}>
+                        {"★".repeat(story.rating)}{"☆".repeat(5 - story.rating)}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Linked Products Display */}
+                  {story.linkedProducts && story.linkedProducts.length > 0 && (
+                    <div style={{ marginTop: "12px", padding: "8px", background: "#F0F4FF", borderRadius: "8px", border: "1px solid #007AFF" }}>
+                      <p style={{ fontSize: "12px", fontWeight: "600", margin: "0 0 6px 0", color: "#007AFF" }}>Produk Terkait:</p>
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        {story.linkedProducts.map((prod) => (
+                          <span key={prod.productId} style={{ fontSize: "12px", background: "white", border: "1px solid #007AFF", borderRadius: "12px", padding: "4px 8px", color: "#007AFF" }}>
+                            {prod.productName}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Emoji Elements Overlay */}
+                  {story.elements && story.elements.length > 0 && (
+                    <div style={{ marginTop: "8px", display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                      {story.elements.map((el, idx) => (
+                        <span key={idx} style={{ fontSize: "20px", opacity: el.opacity || 0.3 }}>
+                          {el.emoji}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <p className={styles.storyBrand}>Testimoni</p>
 
                   <div style={{ display: "flex", gap: "16px", marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #eee", alignItems: "center", flexWrap: "wrap" }}>
                     <button

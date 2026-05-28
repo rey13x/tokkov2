@@ -66,10 +66,17 @@ const categoryOptions = [
 ] as const;
 
 const submitStorySchema = z.object({
-  title: z.string().min(3).max(200),
-  category: z.enum(categoryOptions),
   story: z.string().min(10).max(5000),
   photos: z.array(z.string()).default([]),
+  rating: z.number().min(0).max(5).optional(),
+  linkedProducts: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+  })).optional(),
+  elements: z.array(z.object({
+    emoji: z.string(),
+    opacity: z.number().min(0).max(1),
+  })).optional(),
 });
 
 export async function POST(request: Request) {
@@ -102,10 +109,13 @@ export async function POST(request: Request) {
       userName: session.user.name || "Anonymous",
       userEmail: session.user.email,
       userAvatarUrl,
-      title: payload.title,
-      category: payload.category,
+      title: "", // Title is optional now
+      category: "", // Category is optional now
       story: payload.story,
       photos: payload.photos,
+      rating: payload.rating,
+      linkedProducts: payload.linkedProducts,
+      elements: payload.elements,
     });
 
     return NextResponse.json({

@@ -219,13 +219,16 @@ function mapTestimonialDoc(
 ): StoreTestimonial {
   return {
     id,
+    userId: String(data?.userId ?? "").trim() || undefined,
     name: String(data?.name ?? ""),
     country: String(data?.country ?? "Indonesia"),
     roleLabel: String(data?.roleLabel ?? ""),
     message: String(data?.message ?? ""),
     rating: Number(data?.rating ?? 5),
     mediaUrl: resolveMediaUrl(String(data?.mediaUrl ?? "")),
+    userAvatarUrl: resolveMediaUrl(String(data?.userAvatarUrl ?? "")),
     audioUrl: String(data?.audioUrl ?? "/assets/notif.mp3"),
+    verified: Boolean(data?.verified),
     createdAt: new Date(Number(data?.createdAt ?? now())).toISOString(),
   };
 }
@@ -828,13 +831,16 @@ export async function listTestimonials() {
 }
 
 export async function createTestimonial(input: {
+  userId?: string;
   name: string;
   country: string;
   roleLabel: string;
   message: string;
   rating: number;
   mediaUrl: string;
+  userAvatarUrl?: string;
   audioUrl: string;
+  verified?: boolean;
 }) {
   const firestore = getFirestoreOrNull();
   if (!firestore) {
@@ -843,17 +849,21 @@ export async function createTestimonial(input: {
 
   try {
     const mediaUrl = resolveMediaUrl(input.mediaUrl);
+    const userAvatarUrl = resolveMediaUrl(input.userAvatarUrl ?? "/assets/logo.png");
     const audioUrl = input.audioUrl.trim() || "/assets/notif.mp3";
     const id = crypto.randomUUID();
     const createdAt = now();
     await firestore.collection("testimonials").doc(id).set({
+      userId: input.userId ?? null,
       name: input.name,
       country: input.country,
       roleLabel: input.roleLabel.trim(),
       message: input.message,
       rating: Math.max(1, Math.min(5, input.rating)),
       mediaUrl,
+      userAvatarUrl,
       audioUrl,
+      verified: input.verified ? true : false,
       createdAt,
       updatedAt: createdAt,
     });
@@ -872,13 +882,16 @@ export async function createTestimonial(input: {
 export async function updateTestimonial(
   id: string,
   input: Partial<{
+    userId: string;
     name: string;
     country: string;
     roleLabel: string;
     message: string;
     rating: number;
     mediaUrl: string;
+    userAvatarUrl: string;
     audioUrl: string;
+    verified: boolean;
   }>,
 ) {
   const firestore = getFirestoreOrNull();
@@ -895,16 +908,21 @@ export async function updateTestimonial(
 
     const nextMediaUrl =
       input.mediaUrl !== undefined ? resolveMediaUrl(input.mediaUrl) : undefined;
+    const nextUserAvatarUrl =
+      input.userAvatarUrl !== undefined ? resolveMediaUrl(input.userAvatarUrl) : undefined;
     const nextAudioUrl =
       input.audioUrl !== undefined ? input.audioUrl.trim() || "/assets/notif.mp3" : undefined;
     await ref.update({
+      ...(input.userId !== undefined ? { userId: input.userId || null } : {}),
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.country !== undefined ? { country: input.country } : {}),
       ...(input.roleLabel !== undefined ? { roleLabel: input.roleLabel.trim() } : {}),
       ...(input.message !== undefined ? { message: input.message } : {}),
       ...(input.rating !== undefined ? { rating: Math.max(1, Math.min(5, input.rating)) } : {}),
       ...(nextMediaUrl !== undefined ? { mediaUrl: nextMediaUrl } : {}),
-      ...(nextAudioUrl !== undefined ? { audioUrl: nextAudioUrl } : {}),
+      ...(nextUserAvatarUrl !== undefined ? { userAvatarUrl: nextUserAvatarUrl } : {}),
+      ...(input.audioUrl !== undefined ? { audioUrl: nextAudioUrl } : {}),
+      ...(input.verified !== undefined ? { verified: input.verified ? true : false } : {}),
       updatedAt: now(),
     });
 
@@ -1745,6 +1763,27 @@ function mapBookStoryDoc(
     isPrivate: Number(data?.isPrivate ?? data?.is_private ?? 0) === 1,
     restrictedViewers,
     originalUserId: String(data?.originalUserId ?? data?.original_user_id ?? "").trim() || undefined,
+    rating: data?.rating ? Number(data.rating) : undefined,
+    linkedProducts: (() => {
+      try {
+        const val = data?.linkedProducts || data?.linked_products;
+        if (typeof val === "string") return JSON.parse(val);
+        if (Array.isArray(val)) return val;
+        return undefined;
+      } catch {
+        return undefined;
+      }
+    })(),
+    elements: (() => {
+      try {
+        const val = data?.elements;
+        if (typeof val === "string") return JSON.parse(val);
+        if (Array.isArray(val)) return val;
+        return undefined;
+      } catch {
+        return undefined;
+      }
+    })(),
     status: (data?.status as "pending" | "approved" | "rejected") ?? "pending",
     createdAt: new Date(Number(data?.createdAt ?? data?.created_at ?? now())).toISOString(),
     approvedAt: data?.approvedAt || data?.approved_at ? new Date(Number(data.approvedAt || data.approved_at)).toISOString() : undefined,
@@ -1761,6 +1800,9 @@ export async function createBookStory(input: {
   category: string;
   story: string;
   photos?: string[];
+  rating?: number;
+  linkedProducts?: Array<{id: string; name: string}>;
+  elements?: Array<{emoji: string; opacity: number}>;
 }) {
   try {
     // Use local database for book stories
@@ -1779,6 +1821,9 @@ export async function createBookStory(input: {
       story: input.story.trim(),
       photos: JSON.stringify(input.photos || []),
       likedBy: JSON.stringify([]),
+      rating: input.rating || null,
+      linkedProducts: JSON.stringify(input.linkedProducts || []),
+      elements: JSON.stringify(input.elements || []),
       status: "approved",
       createdAt,
       approvedAt: createdAt,
@@ -1792,8 +1837,8 @@ export async function createBookStory(input: {
     });
 
     await run(
-      `INSERT INTO book_stories (id, user_id, user_name, user_email, user_avatar_url, title, category, story, photos, liked_by, views, viewed_by, saved_by, share_count, status, created_at, approved_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO book_stories (id, user_id, user_name, user_email, user_avatar_url, title, category, story, photos, liked_by, views, viewed_by, saved_by, share_count, status, created_at, approved_at, rating, linked_products, elements)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         storyData.id,
         storyData.userId,
@@ -1812,6 +1857,9 @@ export async function createBookStory(input: {
         storyData.status,
         storyData.createdAt,
         storyData.approvedAt,
+        storyData.rating,
+        storyData.linkedProducts,
+        storyData.elements,
       ],
     );
 
@@ -1825,6 +1873,9 @@ export async function createBookStory(input: {
       category: storyData.category,
       story: storyData.story,
       photos: input.photos || [],
+      rating: input.rating,
+      linkedProducts: input.linkedProducts,
+      elements: input.elements,
       likedBy: [],
       comments: [],
       views: 0,
@@ -2862,5 +2913,169 @@ export async function updateHomepageConfig(
   } catch (error) {
     console.error("Failed to update homepage config in Firestore.", error);
     throw new Error("Gagal memperbarui homepage config");
+  }
+}
+
+// ==================== TESTIMONIAL COMMENTS ====================
+
+function mapTestimonialCommentDoc(
+  id: string,
+  data: Record<string, unknown> | undefined,
+): any {
+  return {
+    id,
+    testimonialId: String(data?.testimonialId ?? ""),
+    userId: String(data?.userId ?? "").trim() || undefined,
+    userName: String(data?.userName ?? ""),
+    userAvatarUrl: String(data?.userAvatarUrl ?? ""),
+    verified: Boolean(data?.verified),
+    text: String(data?.text ?? ""),
+    replyToId: String(data?.replyToId ?? "").trim() || undefined,
+    replyToName: String(data?.replyToName ?? "").trim() || undefined,
+    createdAt: new Date(Number(data?.createdAt ?? now())).toISOString(),
+  };
+}
+
+function mapTestimonialComment(row: Record<string, unknown>): any {
+  return {
+    id: String(row.id),
+    testimonialId: String(row.testimonial_id ?? ""),
+    userId: String(row.user_id ?? "").trim() || undefined,
+    userName: String(row.user_name ?? ""),
+    userAvatarUrl: String(row.user_avatar_url ?? ""),
+    verified: Number(row.verified ?? 0) === 1,
+    text: String(row.text ?? ""),
+    replyToId: String(row.reply_to_id ?? "").trim() || undefined,
+    replyToName: String(row.reply_to_name ?? "").trim() || undefined,
+    createdAt: new Date(Number(row.created_at ?? now())).toISOString(),
+  };
+}
+
+export async function addTestimonialComment(input: {
+  testimonialId: string;
+  userId?: string;
+  userName: string;
+  userAvatarUrl?: string;
+  verified?: boolean;
+  text: string;
+  replyToId?: string;
+  replyToName?: string;
+}): Promise<any> {
+  const firestore = getFirestoreOrNull();
+  if (firestore) {
+    try {
+      const id = crypto.randomUUID();
+      const createdAt = now();
+
+      await firestore.collection("testimonialComments").doc(id).set({
+        testimonialId: input.testimonialId,
+        userId: input.userId ?? null,
+        userName: input.userName,
+        userAvatarUrl: input.userAvatarUrl ?? "",
+        verified: input.verified ? true : false,
+        text: input.text.trim(),
+        replyToId: input.replyToId ?? null,
+        replyToName: input.replyToName ?? null,
+        createdAt,
+        updatedAt: createdAt,
+      });
+
+      const doc = await firestore.collection("testimonialComments").doc(id).get();
+      return mapTestimonialCommentDoc(id, doc.data() as Record<string, unknown>);
+    } catch (error) {
+      console.error("Failed to add testimonial comment in Firestore:", error);
+    }
+  }
+
+  // Fallback to local database
+  try {
+    const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
+    const id = crypto.randomUUID();
+    const createdAt = now();
+
+    await ensDb();
+    await dbRun(
+      `INSERT INTO testimonial_comments
+        (id, testimonial_id, user_id, user_name, user_avatar_url, verified, text, reply_to_id, reply_to_name, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        input.testimonialId,
+        input.userId ?? null,
+        input.userName,
+        input.userAvatarUrl ?? "",
+        input.verified ? 1 : 0,
+        input.text.trim(),
+        input.replyToId ?? null,
+        input.replyToName ?? null,
+        createdAt,
+        createdAt,
+      ],
+    );
+
+    const res = await dbRun("SELECT * FROM testimonial_comments WHERE id = ? LIMIT 1", [id]);
+    const row = res.rows[0] as Record<string, unknown> | undefined;
+    return row ? mapTestimonialComment(row) : null;
+  } catch (error) {
+    console.error("Failed to add testimonial comment in database:", error);
+    return null;
+  }
+}
+
+export async function getTestimonialComments(testimonialId: string): Promise<any[]> {
+  const firestore = getFirestoreOrNull();
+  if (firestore) {
+    try {
+      const snapshot = await firestore
+        .collection("testimonialComments")
+        .where("testimonialId", "==", testimonialId)
+        .orderBy("createdAt", "asc")
+        .get();
+
+      if (snapshot.size > 0) {
+        return snapshot.docs.map((doc: any) =>
+          mapTestimonialCommentDoc(doc.id, doc.data() as Record<string, unknown>),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to get testimonial comments from Firestore:", error);
+    }
+  }
+
+  // Fallback to local database
+  try {
+    const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
+    await ensDb();
+    const res = await dbRun(
+      "SELECT * FROM testimonial_comments WHERE testimonial_id = ? ORDER BY created_at ASC",
+      [testimonialId],
+    );
+    return (res.rows as Record<string, unknown>[]).map(mapTestimonialComment);
+  } catch (error) {
+    console.error("Failed to get testimonial comments from database:", error);
+    return [];
+  }
+}
+
+export async function deleteTestimonialComment(commentId: string): Promise<boolean> {
+  const firestore = getFirestoreOrNull();
+  if (firestore) {
+    try {
+      await firestore.collection("testimonialComments").doc(commentId).delete();
+      return true;
+    } catch (error) {
+      console.error("Failed to delete testimonial comment in Firestore:", error);
+    }
+  }
+
+  // Fallback to local database
+  try {
+    const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
+    await ensDb();
+    await dbRun("DELETE FROM testimonial_comments WHERE id = ?", [commentId]);
+    return true;
+  } catch (error) {
+    console.error("Failed to delete testimonial comment in database:", error);
+    return false;
   }
 }
