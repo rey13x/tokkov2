@@ -173,7 +173,7 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                       )}
                       <div className={styles.commentUserInfo}>
                         <div className={styles.commentNameWithVerified}>
-                          <span className={comment.userName === "Tokko Marketplace" ? styles.tokkoMarketplaceName : styles.commentName}>
+                          <span className={comment.verified ? styles.verifiedCommentName : styles.commentName}>
                             {comment.userName}
                           </span>
                           {comment.verified && (

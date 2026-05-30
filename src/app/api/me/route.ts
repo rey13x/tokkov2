@@ -10,6 +10,7 @@ import {
   incrementPasswordChangeOtpAttempts,
   updateUserById,
 } from "@/server/db";
+import { updateTestimonialCommentUserName } from "@/server/store-data";
 
 const MAX_OTP_ATTEMPTS = 5;
 
@@ -141,6 +142,11 @@ export async function PATCH(request: Request) {
 
     if (!updated) {
       return NextResponse.json({ message: "Gagal update profil." }, { status: 500 });
+    }
+
+    // Update username in all user's testimonial comments if username changed
+    if (payload.username.trim() !== user.username) {
+      await updateTestimonialCommentUserName(user.id, payload.username.trim());
     }
 
     if (wantsPasswordChange) {

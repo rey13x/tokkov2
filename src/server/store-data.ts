@@ -3079,3 +3079,40 @@ export async function deleteTestimonialComment(commentId: string): Promise<boole
     return false;
   }
 }
+
+export async function updateTestimonialCommentUserName(userId: string, newUserName: string): Promise<boolean> {
+  const firestore = getFirestoreOrNull();
+  if (firestore) {
+    try {
+      const snapshot = await firestore
+        .collection("testimonialComments")
+        .where("userId", "==", userId)
+        .get();
+
+      if (snapshot.size > 0) {
+        const batch = firestore.batch();
+        snapshot.docs.forEach((doc: any) => {
+          batch.update(doc.ref, { userName: newUserName });
+        });
+        await batch.commit();
+      }
+      return true;
+    } catch (error) {
+      console.error("Failed to update testimonial comment usernames in Firestore:", error);
+    }
+  }
+
+  // Fallback to local database
+  try {
+    const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
+    await ensDb();
+    await dbRun(
+      "UPDATE testimonial_comments SET user_name = ?, updated_at = ? WHERE user_id = ?",
+      [newUserName, now(), userId],
+    );
+    return true;
+  } catch (error) {
+    console.error("Failed to update testimonial comment usernames in database:", error);
+    return false;
+  }
+}
