@@ -7,6 +7,7 @@
 ## ✅ Current Admin Setup Status
 
 ### Admin Credentials
+
 ```
 📧 Email: digitalawanku2@gmail.com
 🔐 Password: Ayiamessi139087z
@@ -21,6 +22,7 @@
 ### ✅ Already Complete
 
 Admin account has been created in local database (`tokko.db`) with:
+
 - ✅ User created in `users` table
 - ✅ Password hashed with bcrypt
 - ✅ Role set to "admin"
@@ -29,9 +31,11 @@ Admin account has been created in local database (`tokko.db`) with:
 ### To Login Locally
 
 1. **Start Development Server**
+
    ```bash
    npm run dev
    ```
+
    - Server runs on http://localhost:3000
 
 2. **Open Auth Page**
@@ -51,12 +55,14 @@ Admin account has been created in local database (`tokko.db`) with:
 ## 🌐 PRODUCTION Setup (Vercel + Turso)
 
 ### ⚠️ Current Issue
+
 - TURSO_AUTH_TOKEN returns 401 error
 - Possible causes: Token expired or regenerated
 
 ### Fix Options
 
 #### Option A: Regenerate Turso Token (Recommended)
+
 1. Go to https://turso.tech
 2. Navigate to tokkov2-slinku database
 3. Go to Settings → API Tokens
@@ -69,19 +75,22 @@ Admin account has been created in local database (`tokko.db`) with:
 7. Run: `node setup-turso-admin.mjs`
 
 #### Option B: Use Vercel Environment Setup
+
 1. Go to Vercel Dashboard
 2. Navigate to tokkov2 project → Settings → Environment Variables
 3. Ensure `TURSO_URL` and `TURSO_AUTH_TOKEN` are set correctly
 4. Redeploy the project
 
 #### Option C: Direct Database Update (Turso CLI)
+
 If you have Turso CLI installed:
+
 ```bash
 # Connect to Turso database
 turso db shell tokkov2-slinku
 
 # Then run:
-INSERT INTO admin_emails (id, email, created_at) 
+INSERT INTO admin_emails (id, email, created_at)
 VALUES (uuid(), 'digitalawanku2@gmail.com', unixepoch() * 1000)
 ON CONFLICT(email) DO NOTHING;
 
@@ -145,6 +154,7 @@ Current config has `EMAIL_OTP_ENABLED=false`, so:
 ## 🔍 Database Tables
 
 ### `users` table
+
 ```sql
 - id (UUID)
 - username (unique)
@@ -158,6 +168,7 @@ Current config has `EMAIL_OTP_ENABLED=false`, so:
 ```
 
 ### `admin_emails` table
+
 ```sql
 - id (UUID)
 - email (unique, lowercase)
@@ -166,6 +177,7 @@ Current config has `EMAIL_OTP_ENABLED=false`, so:
 ```
 
 ### `device_account_creations` table
+
 ```sql
 - id (UUID)
 - device_id (fingerprint)
@@ -191,16 +203,19 @@ Current config has `EMAIL_OTP_ENABLED=false`, so:
 ## 🛠️ Useful Commands
 
 ### Reset Admin Locally
+
 ```bash
 node setup-admin-user.mjs
 ```
 
 ### Setup Admin on Turso (Production)
+
 ```bash
 node setup-turso-admin.mjs
 ```
 
 ### Check Local Database
+
 ```bash
 # Install sqlite3 CLI if not already installed
 brew install sqlite3
@@ -212,6 +227,7 @@ sqlite3 tokko.db
 ```
 
 ### Rebuild Database
+
 ```bash
 # Delete local database
 rm tokko.db
@@ -225,28 +241,34 @@ npm run dev
 ## 📞 Troubleshooting
 
 ### ❌ "Email sudah terdaftar"
+
 - Email already exists in database
 - Use different email for sign-up
 
 ### ❌ "Username sudah dipakai"
+
 - Username already exists
 - Use different username
 
 ### ❌ "Sudah mencapai batas pembuatan akun"
+
 - Device has created 10+ accounts in 10 days
 - Try again after 10 days or use different device
 
 ### ❌ "Konfirmasi password tidak sama"
+
 - Password and confirm password fields don't match
 - Retype both passwords carefully
 
 ### ❌ Admin can't login
+
 - Ensure email in admin_emails table
 - Check password is correct
 - Verify bcrypt hash is valid
 - Try: `node setup-admin-user.mjs` (local) or `node setup-turso-admin.mjs` (production)
 
 ### ❌ Production login fails but local works
+
 - Check Vercel env variables are set
 - Check TURSO_URL and TURSO_AUTH_TOKEN
 - Check ADMIN_EMAIL env var
@@ -256,14 +278,14 @@ npm run dev
 
 ## 📊 Implementation Summary
 
-| Feature | Local | Production |
-|---------|-------|------------|
-| Admin Account | ✅ Setup | ⚠️ Needs Token Fix |
-| Sign-Up | ✅ Working | ✅ (After token fixed) |
-| Device Limit | ✅ Active | ✅ Active |
-| Password Hashing | ✅ Bcrypt | ✅ Bcrypt |
-| Admin Role | ✅ Via admin_emails | ✅ Via admin_emails |
-| Email OTP | ❌ Disabled | ❌ Disabled |
+| Feature          | Local               | Production             |
+| ---------------- | ------------------- | ---------------------- |
+| Admin Account    | ✅ Setup            | ⚠️ Needs Token Fix     |
+| Sign-Up          | ✅ Working          | ✅ (After token fixed) |
+| Device Limit     | ✅ Active           | ✅ Active              |
+| Password Hashing | ✅ Bcrypt           | ✅ Bcrypt              |
+| Admin Role       | ✅ Via admin_emails | ✅ Via admin_emails    |
+| Email OTP        | ❌ Disabled         | ❌ Disabled            |
 
 ---
 

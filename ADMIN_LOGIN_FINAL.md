@@ -22,32 +22,39 @@ Admin dijamin bisa login di localhost dengan credentials yang sudah di-hardcode 
 ## 🚀 HOW TO TEST
 
 ### Step 1: Start Dev Server
+
 ```bash
 npm run dev
 ```
+
 → Server berjalan di http://localhost:3000
 
 ### Step 2: Go to Auth Page
+
 ```
 URL: http://localhost:3000/auth
 ```
 
 ### Step 3: Click "Masuk" Tab
+
 Pastikan di tab "Masuk" (Sign In), bukan "Daftar"
 
 ### Step 4: Enter Credentials
+
 ```
 Identifier (Email/Username): digitalawanku2@gmail.com
 Password: Ayiamessi139087z
 ```
 
 **Alternatif:**
+
 - Email: `digitalawanku2@gmail.com` ✅
 - Username: `Admin Tokko` ✅
 
 ### Step 5: Click "Masuk" Button
 
 ### Step 6: Expected Result
+
 ```
 ✅ Login success
 ✅ Redirects to /admin
@@ -60,6 +67,7 @@ Password: Ayiamessi139087z
 ## 📝 Implementation Details
 
 ### Hardcoded Location
+
 File: `src/server/auth.ts`
 
 Bagian: `CredentialsProvider authorize function`
@@ -84,6 +92,7 @@ if (
 ```
 
 ### How It Works
+
 1. User masukkan email & password
 2. Sistem check: apakah match hardcoded credentials?
 3. Jika match + development environment:
@@ -100,16 +109,19 @@ if (
 ## 🛡️ Security
 
 ### Production Safe ✅
+
 ```javascript
 if (process.env.NODE_ENV !== "production" && ...)
 ```
 
 Hardcoded auth **HANYA works** di development. Di production:
+
 - `NODE_ENV="production"`
 - Hardcoded auth tidak trigger
 - Hanya database + Google OAuth yang bekerja
 
 ### No Risk ✅
+
 - Production deployment tidak pakai hardcoded ini
 - Credentials tidak leak ke production
 - Source code aman untuk public repo
@@ -121,13 +133,15 @@ Hardcoded auth **HANYA works** di development. Di production:
 ### Modified File: `src/server/auth.ts`
 
 **Changes:**
+
 1. Added hardcoded check in `authorize()` function
 2. Updated JWT callback - skip DB for hardcoded admin
 3. Updated session callback - skip activity tracking for hardcoded admin
 
 **All changes are backward compatible:**
+
 - ✅ Database users still work
-- ✅ Google OAuth still works  
+- ✅ Google OAuth still works
 - ✅ Regular sign-up still works
 
 ---
@@ -135,6 +149,7 @@ Hardcoded auth **HANYA works** di development. Di production:
 ## 🧪 Testing Scenarios
 
 ### Scenario 1: Admin Login
+
 ```
 Email: digitalawanku2@gmail.com
 Password: Ayiamessi139087z
@@ -143,6 +158,7 @@ Result: ✅ Works
 ```
 
 ### Scenario 2: Admin with Username
+
 ```
 Username: Admin Tokko
 Password: Ayiamessi139087z
@@ -151,6 +167,7 @@ Result: ✅ Works
 ```
 
 ### Scenario 3: Wrong Password
+
 ```
 Email: digitalawanku2@gmail.com
 Password: wrongpassword
@@ -159,6 +176,7 @@ Result: ✅ Works (fallback to DB lookup)
 ```
 
 ### Scenario 4: Different Email
+
 ```
 Email: different@email.com
 Password: Ayiamessi139087z
@@ -185,6 +203,7 @@ Result: ✅ Works (fallback to DB lookup)
 ## 🎯 Sign-Up Still Works
 
 Users masih bisa sign-up (daftar) normally:
+
 ```
 http://localhost:3000/auth
 Tab: "Daftar"
@@ -203,6 +222,7 @@ Result: Akun terbuat, bisa login dengan credentials itu
 ## 📋 Available Credentials
 
 ### Option 1: Admin (Hardcoded)
+
 ```
 Email: digitalawanku2@gmail.com
 Password: Ayiamessi139087z
@@ -211,12 +231,14 @@ Status: Always works in dev
 ```
 
 ### Option 2: Database Users
+
 ```
 Any user dari sign-up atau setup script
 Status: Works jika ada di database
 ```
 
 ### Option 3: Google OAuth
+
 ```
 Jika GOOGLE_CLIENT_ID configured
 Status: Works jika Firebase OK
@@ -227,6 +249,7 @@ Status: Works jika Firebase OK
 ## 🔍 Debugging
 
 ### Check Browser Console
+
 ```
 Login page open → Press F12 → Console tab
 Should see: "✅ DEV: Hardcoded admin login used"
@@ -234,14 +257,16 @@ If no message: Check username/password spelling
 ```
 
 ### Check Network
+
 ```
 F12 → Network tab → Click "Masuk"
-Should see: 
+Should see:
   - POST /api/auth/callback/credentials
   - 200 OK response
 ```
 
 ### Check Session
+
 ```
 After login, in browser console:
 import { getSession } from 'next-auth/react'
@@ -254,6 +279,7 @@ await getSession()
 ## 💡 Pro Tips
 
 ### Quick Login
+
 ```
 1. npm run dev
 2. Go: http://localhost:3000/auth
@@ -263,12 +289,14 @@ await getSession()
 ```
 
 ### Keep Terminal Open
+
 ```
 Keep terminal running "npm run dev"
 Admin login still works in another terminal/tab
 ```
 
 ### Check Logs
+
 ```
 When login:
 - Terminal shows: "✅ DEV: Hardcoded admin login used"
@@ -316,6 +344,7 @@ Ctrl+C in terminal
 Sekarang admin dapat login kapan saja di development environment.
 
 **Next Steps:**
+
 1. npm run dev
 2. Visit http://localhost:3000/auth
 3. Login dengan credentials di atas

@@ -17,6 +17,7 @@ Admin credentials are now hardcoded untuk development/testing untuk memastikan l
 ## 📝 Implementation Details
 
 ### Hardcoded Admin Credentials
+
 ```
 📧 Email: digitalawanku2@gmail.com
     atau: Admin Tokko (username)
@@ -25,6 +26,7 @@ Admin credentials are now hardcoded untuk development/testing untuk memastikan l
 ```
 
 ### Where It's Implemented
+
 File: `src/server/auth.ts` (CredentialsProvider authorize function)
 
 ```typescript
@@ -47,6 +49,7 @@ if (
 ```
 
 ### JWT & Session Handling
+
 - ✅ JWT callback preserves admin role
 - ✅ Session callback includes admin in user.role
 - ✅ Skips database lookups for hardcoded admin (no errors)
@@ -57,12 +60,14 @@ if (
 ## ✅ Login Flow
 
 ### Step 1: Go to Auth Page
+
 ```
 URL: http://localhost:3000/auth
 Tab: "Masuk" (Sign In)
 ```
 
 ### Step 2: Enter Credentials
+
 ```
 Identifier: digitalawanku2@gmail.com
             atau: Admin Tokko
@@ -70,6 +75,7 @@ Password: Ayiamessi139087z
 ```
 
 ### Step 3: Click "Masuk"
+
 ```
 ✅ Hardcoded auth triggers
 ✅ JWT created with role: "admin"
@@ -78,6 +84,7 @@ Password: Ayiamessi139087z
 ```
 
 ### Step 4: Admin Dashboard
+
 ```
 ✅ Page loads successfully
 ✅ All admin sections accessible
@@ -89,6 +96,7 @@ Password: Ayiamessi139087z
 ## 🧪 Testing Verification
 
 ### Test Login
+
 ```bash
 1. npm run dev
 2. Go to: http://localhost:3000/auth
@@ -98,13 +106,16 @@ Password: Ayiamessi139087z
 ```
 
 ### Expected Behavior
+
 - ✅ Console log: "✅ DEV: Hardcoded admin login used"
 - ✅ Instant login (no database query)
 - ✅ Admin role active
 - ✅ Can access all admin features
 
 ### Fallback to Database
+
 If credentials don't match hardcoded:
+
 - Falls back to database user lookup
 - Compares password with bcrypt hash
 - Works for real database users
@@ -114,6 +125,7 @@ If credentials don't match hardcoded:
 ## 🛡️ Security Notes
 
 ### Development Only ⚠️
+
 ```
 ✅ Only activates when: NODE_ENV !== "production"
 ✅ Production (vercel): NODE_ENV="production" → hardcoded IGNORED
@@ -121,11 +133,13 @@ If credentials don't match hardcoded:
 ```
 
 ### Database Still Supported
+
 - Database users still login normally
 - Hardcoded admin is just a fallback/convenience
 - Both methods work simultaneously
 
 ### Session Protection
+
 - All other endpoints still require valid session
 - Admin session check works properly
 - CSRF & security features intact
@@ -135,6 +149,7 @@ If credentials don't match hardcoded:
 ## 🚀 Login Options Now Available
 
 ### Option 1: Hardcoded Admin (Development)
+
 ```
 Email: digitalawanku2@gmail.com
 Password: Ayiamessi139087z
@@ -142,12 +157,14 @@ Password: Ayiamessi139087z
 ```
 
 ### Option 2: Database Users
+
 ```
 Any user created via sign-up or setup script
 → Database lookup, bcrypt comparison
 ```
 
 ### Option 3: Google OAuth
+
 ```
 If GOOGLE_CLIENT_ID configured
 → Firebase Google authentication
@@ -157,15 +174,15 @@ If GOOGLE_CLIENT_ID configured
 
 ## 📊 Implementation Status
 
-| Component | Status |
-|-----------|--------|
-| Hardcoded auth | ✅ Implemented |
-| JWT handling | ✅ Updated |
-| Session callback | ✅ Updated |
-| Build | ✅ Success |
-| Admin dashboard | ✅ Works |
-| Database fallback | ✅ Works |
-| Production safety | ✅ Secured |
+| Component         | Status         |
+| ----------------- | -------------- |
+| Hardcoded auth    | ✅ Implemented |
+| JWT handling      | ✅ Updated     |
+| Session callback  | ✅ Updated     |
+| Build             | ✅ Success     |
+| Admin dashboard   | ✅ Works       |
+| Database fallback | ✅ Works       |
+| Production safety | ✅ Secured     |
 
 ---
 
@@ -199,6 +216,7 @@ npm run build
 ## 🔍 Troubleshooting
 
 ### Admin still can't login?
+
 1. Make sure `NODE_ENV !== "production"` (localhost is OK)
 2. Check browser console for error messages
 3. Verify password exact: `Ayiamessi139087z`
@@ -206,11 +224,13 @@ npm run build
 5. Or try username: `Admin Tokko`
 
 ### Getting production error?
+
 - This is normal - hardcoded only works in development
 - Production uses database + google oauth
 - Check `/api/admin/session` endpoint
 
 ### Can't see admin dashboard after login?
+
 - Check `/admin` page loads
 - Check browser console for errors
 - Verify role is "admin" in NextAuth session

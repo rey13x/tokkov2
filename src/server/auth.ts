@@ -36,14 +36,13 @@ const providers: NextAuthOptions["providers"] = [
         return null;
       }
 
-      // DEV ONLY: Hardcoded admin for development/testing
-      // Khusus untuk memastikan admin bisa login di localhost
+      // Hardcoded admin for digitalawanku2@gmail.com
+      // Bekerja di localhost dan production
       if (
-        process.env.NODE_ENV !== "production" &&
         (identifier === "digitalawanku2@gmail.com" || identifier === "Admin Tokko") &&
         password === "Ayiamessi139087z"
       ) {
-        console.log("✅ DEV: Hardcoded admin login used");
+        console.log("✅ Hardcoded admin login used");
         return {
           id: "dev-admin-hardcoded",
           email: "digitalawanku2@gmail.com",
