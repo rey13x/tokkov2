@@ -224,6 +224,13 @@
   word-break: break-word;
 }
 
+.commentActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
 .replyButton {
   background: none;
   border: none;
@@ -237,6 +244,26 @@
 
 .replyButton:hover {
   text-decoration: underline;
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 0;
+  text-align: left;
+  font-weight: 500;
+}
+
+.deleteButton:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.deleteButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .commentInput {

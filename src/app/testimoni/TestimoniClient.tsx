@@ -18,6 +18,7 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const [replyTo, setReplyTo] = useState<Record<string, { id: string; name: string } | null>>({});
   const [isSubmitting, setIsSubmitting] = useState<Record<string, boolean>>({});
+  const [isDeletingComment, setIsDeletingComment] = useState<Record<string, boolean>>({});
 
   const filtered = useMemo(() => {
     return testimonials.filter((testimonial) => activeRating === null || testimonial.rating === activeRating);
@@ -74,6 +75,38 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
       }
     },
     [commentText, replyTo, session],
+  );
+
+  const deleteComment = useCallback(
+    async (testimonialId: string, commentId: string) => {
+      if (!session?.user) return;
+      if (!confirm("Yakin hapus komentar ini?")) return;
+
+      setIsDeletingComment((prev) => ({ ...prev, [commentId]: true }));
+      try {
+        const res = await fetch(`/api/testimonials/${testimonialId}/comments`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ commentId }),
+        });
+
+        if (res.ok) {
+          setComments((prev) => ({
+            ...prev,
+            [testimonialId]: (prev[testimonialId] || []).filter((c) => c.id !== commentId),
+          }));
+        } else {
+          const error = (await res.json()) as { message?: string };
+          alert(error.message || "Gagal hapus komentar");
+        }
+      } catch (error) {
+        console.error("Failed to delete comment:", error);
+        alert("Gagal hapus komentar");
+      } finally {
+        setIsDeletingComment((prev) => ({ ...prev, [commentId]: false }));
+      }
+    },
+    [session],
   );
 
   const toggleComments = (testimonialId: string) => {
@@ -194,20 +227,32 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
 
                     <p className={styles.commentText}>{comment.text}</p>
 
-                    {session?.user && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setReplyTo((prev) => ({
-                            ...prev,
-                            [testimonial.id]: { id: comment.id, name: comment.userName },
-                          }))
-                        }
-                        className={styles.replyButton}
-                      >
-                        Reply
-                      </button>
-                    )}
+                    <div className={styles.commentActions}>
+                      {session?.user && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReplyTo((prev) => ({
+                              ...prev,
+                              [testimonial.id]: { id: comment.id, name: comment.userName },
+                            }))
+                          }
+                          className={styles.replyButton}
+                        >
+                          Reply
+                        </button>
+                      )}
+                      {session?.user && (session.user.role === "admin" || comment.userId === session.user.id) && (
+                        <button
+                          type="button"
+                          onClick={() => deleteComment(testimonial.id, comment.id)}
+                          disabled={isDeletingComment[comment.id]}
+                          className={styles.deleteButton}
+                        >
+                          {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

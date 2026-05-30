@@ -6,6 +6,7 @@ import { getServerAuthSession } from "@/server/auth";
 import {
   deletePasswordChangeOtpByUserId,
   findUserById,
+  findUserByEmail,
   getPasswordChangeOtpByUserId,
   incrementPasswordChangeOtpAttempts,
   updateUserById,
@@ -33,6 +34,18 @@ export async function GET() {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
+  // Handle special case for hardcoded admin
+  if (session.user.id === "dev-admin-hardcoded") {
+    return NextResponse.json({
+      id: session.user.id,
+      username: session.user.username || "Admin Tokko",
+      email: session.user.email || "digitalawanku2@gmail.com",
+      phone: session.user.phone || "",
+      avatarUrl: session.user.image || "",
+      role: "admin",
+    });
+  }
+
   const user = await findUserById(session.user.id);
   if (!user) {
     return NextResponse.json({ message: "User tidak ditemukan" }, { status: 404 });
@@ -57,7 +70,31 @@ export async function PATCH(request: Request) {
   try {
     const body = await request.json();
     const payload = updateSchema.parse(body);
-    const user = await findUserById(session.user.id);
+    
+    // Handle special case for hardcoded admin
+    let user = await findUserById(session.user.id);
+    if (!user && session.user.id === "dev-admin-hardcoded") {
+      // Create hardcoded admin user in database if not exists
+      const { createUser: createUserDb } = await import("@/server/db");
+      try {
+        await createUserDb({
+          username: "Admin Tokko",
+          email: "digitalawanku2@gmail.com",
+          phone: "",
+          avatarUrl: "",
+          passwordHash: null,
+          role: "admin",
+        });
+      } catch (error) {
+        console.error("Failed to create hardcoded admin user:", error);
+        // Try to find again
+        user = await findUserById("digitalawanku2@gmail.com");
+      }
+      // Find the user again after creation
+      if (!user) {
+        user = await findUserByEmail("digitalawanku2@gmail.com");
+      }
+    }
 
     if (!user) {
       return NextResponse.json({ message: "User tidak ditemukan" }, { status: 404 });

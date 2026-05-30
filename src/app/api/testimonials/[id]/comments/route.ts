@@ -109,7 +109,24 @@ export async function DELETE(request: Request, context: { params: Params }) {
     const body = await request.json();
     const { commentId } = z.object({ commentId: z.string() }).parse(body);
 
-    // In a real app, you'd verify that the user owns this comment or is an admin
+    // Verify that the user is admin or owns this comment
+    const user = await findUserById(session.user.id ?? "");
+    const isAdmin = user?.role === "admin" || user?.email?.toLowerCase() === "digitalawanku2@gmail.com";
+    
+    if (!isAdmin) {
+      // If not admin, verify user owns the comment
+      const { getTestimonialComments } = await import("@/server/store-data");
+      const comments = await getTestimonialComments(id);
+      const comment = comments.find((c: any) => c.id === commentId);
+      
+      if (!comment || comment.userId !== session.user.id) {
+        return NextResponse.json(
+          { message: "Anda tidak punya akses untuk menghapus komentar ini." },
+          { status: 403 },
+        );
+      }
+    }
+
     const result = await deleteTestimonialComment(commentId);
 
     if (!result) {

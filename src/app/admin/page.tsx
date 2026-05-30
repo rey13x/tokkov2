@@ -8,7 +8,7 @@ import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
-import { StoreProduct, StoreInformation, StoreTestimonial, StoreMarqueeItem, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
+import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
 
 // ...existing code...
 export default AdminManagementSection;
@@ -19,6 +19,7 @@ type AdminSection =
   | "products"
   | "informations"
   | "testimonials"
+  | "testimonialComments"
   | "marquees"
   | "bookStories"
   | "paymentSettings"
@@ -34,6 +35,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "products", label: "Produk", desc: "CRUD produk" },
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
+  { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
@@ -155,6 +157,9 @@ function AdminManagementSection() {
     const [products, setProducts] = useState<StoreProduct[]>([]);
     const [informations, setInformations] = useState<StoreInformation[]>([]);
     const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
+    const [testimonialComments, setTestimonialComments] = useState<Record<string, StoreTestimonialComment[]>>({});
+    const [loadedTestimonialIds, setLoadedTestimonialIds] = useState<Set<string>>(new Set());
+    const [isDeletingComment, setIsDeletingComment] = useState<Record<string, boolean>>({});
     const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
     const [orders, setOrders] = useState<OrderSummary[]>([]);
     const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, string>>({});
@@ -700,6 +705,56 @@ function AdminManagementSection() {
     setLatestOrders(result.latestOrders);
   };
 
+  const loadTestimonialComments = async () => {
+    const response = await fetch("/api/admin/testimonial-comments", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil komentar testimoni");
+    }
+    const result = (await response.json()) as { comments: StoreTestimonialComment[] };
+    // Group comments by testimonial ID
+    const grouped: Record<string, StoreTestimonialComment[]> = {};
+    for (const comment of result.comments) {
+      if (!grouped[comment.testimonialId]) {
+        grouped[comment.testimonialId] = [];
+      }
+      grouped[comment.testimonialId].push(comment);
+    }
+    setTestimonialComments(grouped);
+  };
+
+  const onDeleteTestimonialComment = async (commentId: string, testimonialId: string) => {
+    if (!window.confirm("Yakin hapus komentar ini?")) {
+      return;
+    }
+
+    setIsDeletingComment((prev) => ({ ...prev, [commentId]: true }));
+    try {
+      const response = await fetch("/api/admin/testimonial-comments", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json()) as { message?: string };
+        setError(data.message || "Gagal hapus komentar");
+        return;
+      }
+
+      // Remove comment from state
+      setTestimonialComments((prev) => ({
+        ...prev,
+        [testimonialId]: (prev[testimonialId] || []).filter((c) => c.id !== commentId),
+      }));
+
+      setMessage("Komentar berhasil dihapus.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal hapus komentar");
+    } finally {
+      setIsDeletingComment((prev) => ({ ...prev, [commentId]: false }));
+    }
+  };
+
   const loadUsers = async () => {
     const response = await fetch("/api/admin/users", { cache: "no-store" });
     if (!response.ok) {
@@ -762,6 +817,7 @@ function AdminManagementSection() {
           loadProducts(),
           loadInformations(),
           loadTestimonials(),
+          loadTestimonialComments(),
           loadMarquees(),
           loadBookStories(),
           loadApprovedBookStories(),
@@ -2553,6 +2609,105 @@ function AdminManagementSection() {
               </div>
             ))}
           </div>
+        </article>
+        ) : null}
+
+        {activeSection === "testimonialComments" ? (
+        <article className={styles.card}>
+          <h2>Kelola Komentar Testimoni</h2>
+          <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
+            {Object.values(testimonialComments).reduce((sum, comments) => sum + comments.length, 0)} komentar total
+          </p>
+
+          <div className={styles.list}>
+            {Object.entries(testimonialComments).map(([testimonialId, comments]) =>
+              comments.length > 0 ? (
+                <div key={testimonialId} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
+                  <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f7ff", borderRadius: "4px", borderLeft: "3px solid #0066cc" }}>
+                    <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
+                      Komentar pada Testimoni (Total: {comments.length})
+                    </p>
+                    <span style={{ fontSize: "0.85rem", color: "#666" }}>
+                      ID: {testimonialId}
+                    </span>
+                  </div>
+
+                  {comments.map((comment) => (
+                    <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "8px" }}>
+                        {comment.userAvatarUrl ? (
+                          <img
+                            src={comment.userAvatarUrl}
+                            alt={comment.userName}
+                            style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+                          />
+                        ) : (
+                          <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#e0e0e0", flexShrink: 0 }} />
+                        )}
+
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{
+                              fontWeight: comment.verified ? 700 : 600,
+                              color: comment.verified ? "#0066cc" : "#333",
+                              fontSize: "0.95rem",
+                            }}>
+                              {comment.userName}
+                            </span>
+                            {comment.verified && (
+                              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "16px", height: "16px", background: "#0066cc", color: "white", borderRadius: "50%", fontSize: "0.7rem", fontWeight: "700", flexShrink: 0 }}>
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>
+                            {new Date(comment.createdAt).toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                      </div>
+
+                      {comment.replyToName && (
+                        <p style={{ margin: "0 0 6px 0", fontSize: "0.85rem", color: "#0066cc", fontWeight: "500" }}>
+                          @{comment.replyToName}
+                        </p>
+                      )}
+
+                      <p style={{ margin: "6px 0", fontSize: "0.9rem", color: "#444", wordBreak: "break-word" }}>
+                        {comment.text}
+                      </p>
+
+                      <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteTestimonialComment(comment.id, testimonialId)}
+                          disabled={isDeletingComment[comment.id]}
+                          style={{
+                            background: "#f44336",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            padding: "6px 12px",
+                            fontSize: "0.85rem",
+                            cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer",
+                            opacity: isDeletingComment[comment.id] ? 0.6 : 1,
+                          }}
+                        >
+                          {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null
+            )}
+
+            {Object.values(testimonialComments).reduce((sum, comments) => sum + comments.length, 0) === 0 ? (
+              <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Belum ada komentar testimoni.</p>
+            ) : null}
+          </div>
+
+          {error ? <p className={styles.errorText}>{error}</p> : null}
+          {message ? <p className={styles.successText}>{message}</p> : null}
         </article>
         ) : null}
 
