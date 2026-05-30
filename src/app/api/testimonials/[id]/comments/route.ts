@@ -53,8 +53,11 @@ export async function POST(request: Request, context: { params: Params }) {
 
     // Get user data for verified status (only digitalawanku2@gmail.com gets blue checkmark)
     const user = await findUserById(session.user.id ?? "");
-    const isVerified = user?.email?.toLowerCase() === "digitalawanku2@gmail.com";
-    const userAvatarUrl = session.user.image || user?.avatarUrl || "";
+    const isVerified = user?.email?.toLowerCase() === "digitalawanku2@gmail.com" || 
+                      session.user.email?.toLowerCase() === "digitalawanku2@gmail.com" ||
+                      session.user.username === "Tokko Marketplace";
+    // Ensure avatar is provided
+    const userAvatarUrl = session.user.image || user?.avatarUrl || "https://via.placeholder.com/32?text=U";
 
     const comment = await addTestimonialComment({
       testimonialId: id,

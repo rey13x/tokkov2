@@ -39,14 +39,14 @@ const providers: NextAuthOptions["providers"] = [
       // Hardcoded admin for digitalawanku2@gmail.com
       // Bekerja di localhost dan production
       if (
-        (identifier === "digitalawanku2@gmail.com" || identifier === "Admin Tokko") &&
+        (identifier === "digitalawanku2@gmail.com" || identifier === "Tokko Marketplace") &&
         password === "Ayiamessi139087z"
       ) {
         console.log("✅ Hardcoded admin login used");
         return {
           id: "dev-admin-hardcoded",
           email: "digitalawanku2@gmail.com",
-          name: "Admin Tokko",
+          name: "Tokko Marketplace",
           image: null,
           role: "admin",
           phone: "",
@@ -196,6 +196,10 @@ export const authOptions: NextAuthOptions = {
         } catch (error) {
           console.error("Failed to refresh JWT user data:", error);
         }
+      } else if (token.userId === "dev-admin-hardcoded") {
+        // Ensure hardcoded admin always has "Tokko Marketplace" as username
+        token.username = "Tokko Marketplace";
+        token.email = "digitalawanku2@gmail.com";
       }
       return token;
     },
@@ -205,8 +209,14 @@ export const authOptions: NextAuthOptions = {
       }
 
       session.user.id = token.userId ?? "";
-      session.user.username = token.username ?? session.user.name ?? "User";
-      session.user.email = token.email ?? session.user.email;
+      // For hardcoded admin, always set to "Tokko Marketplace"
+      if (token.userId === "dev-admin-hardcoded") {
+        session.user.username = "Tokko Marketplace";
+        session.user.email = "digitalawanku2@gmail.com";
+      } else {
+        session.user.username = token.username ?? session.user.name ?? "User";
+        session.user.email = token.email ?? session.user.email;
+      }
       session.user.role = token.role ?? "user";
       session.user.phone = token.phone ?? "";
       session.user.image = token.avatarUrl || session.user.image || null;

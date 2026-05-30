@@ -74,6 +74,16 @@ export default function ProfilePage() {
       .finally(() => setIsProfileLoading(false));
   }, [status]);
 
+  useEffect(() => {
+    // Ensure avatarUrl is in sync with session
+    if (session?.user?.image && (!avatarUrl || avatarUrl.length < session.user.image.length)) {
+      setAvatarUrl(session.user.image);
+      try {
+        window.localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, session.user.image);
+      } catch {}
+    }
+  }, [session?.user?.image, avatarUrl]);
+
   const onSelectAvatarFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -102,7 +112,18 @@ export default function ProfilePage() {
       try {
         window.localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, result.avatarUrl);
       } catch {}
+      
+      // Update session with new avatar
       await update();
+      
+      // Fetch fresh user data to ensure consistency
+      const freshResponse = await fetch("/api/me", { cache: "no-store" });
+      if (freshResponse.ok) {
+        const freshData = (await freshResponse.json()) as { avatarUrl?: string };
+        if (freshData.avatarUrl) {
+          setAvatarUrl(freshData.avatarUrl);
+        }
+      }
     } catch {
       setError("Gagal upload foto profil.");
     } finally {

@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import VerifiedBadgeTenor from "@/components/VerifiedBadgeTenor";
 import type { StoreTestimonial, StoreTestimonialComment } from "@/types/store";
 import styles from "./TestimoniClient.module.css";
 
@@ -200,19 +201,27 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                           src={comment.userAvatarUrl}
                           alt={comment.userName}
                           className={styles.commentAvatar}
+                          onError={(e) => {
+                            const img = e.target as HTMLImageElement;
+                            img.src = "https://via.placeholder.com/32?text=" + encodeURIComponent(comment.userName.charAt(0));
+                          }}
                         />
                       ) : (
                         <div className={styles.commentAvatarPlaceholder} />
                       )}
                       <div className={styles.commentUserInfo}>
                         <div className={styles.commentNameWithVerified}>
-                          <span className={comment.verified ? styles.verifiedCommentName : styles.commentName}>
+                          <span className={
+                            comment.userName === "Tokko Marketplace" ? styles.adminCommentName :
+                            comment.userId === session?.user?.id ? styles.ownCommentName :
+                            comment.verified ? styles.verifiedCommentName : styles.commentName
+                          }>
                             {comment.userName}
                           </span>
-                          {comment.verified && (
-                            <span className={styles.verifiedBadge} title="Terverifikasi">
-                              ✓
-                            </span>
+                          {(comment.verified || comment.userName === "Tokko Marketplace") && (
+                            <div style={{ display: "inline-flex", alignItems: "center", height: "20px" }}>
+                              <VerifiedBadgeTenor />
+                            </div>
                           )}
                         </div>
                         <span className={styles.commentDate}>
