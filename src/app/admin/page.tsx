@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import VerifiedBadgeTenor from "@/components/VerifiedBadgeTenor";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
 import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
@@ -2646,18 +2647,18 @@ function AdminManagementSection() {
                         )}
 
                         <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                             <span style={{
-                              fontWeight: comment.verified ? 700 : 600,
-                              color: comment.verified ? "#0066cc" : "#333",
+                              fontWeight: comment.verified || comment.userName === "Tokko Marketplace" ? 700 : 600,
+                              color: comment.verified || comment.userName === "Tokko Marketplace" ? "#0066cc" : "#333",
                               fontSize: "0.95rem",
                             }}>
                               {comment.userName}
                             </span>
-                            {comment.verified && (
-                              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "16px", height: "16px", background: "#0066cc", color: "white", borderRadius: "50%", fontSize: "0.7rem", fontWeight: "700", flexShrink: 0 }}>
-                                ✓
-                              </span>
+                            {(comment.verified || comment.userName === "Tokko Marketplace") && (
+                              <div style={{ display: "inline-flex", alignItems: "center", height: "20px" }}>
+                                <VerifiedBadgeTenor />
+                              </div>
                             )}
                           </div>
                           <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>

@@ -113,16 +113,34 @@ export default function ProfilePage() {
         window.localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, result.avatarUrl);
       } catch {}
       
-      // Update session with new avatar
-      await update();
-      
-      // Fetch fresh user data to ensure consistency
-      const freshResponse = await fetch("/api/me", { cache: "no-store" });
-      if (freshResponse.ok) {
-        const freshData = (await freshResponse.json()) as { avatarUrl?: string };
-        if (freshData.avatarUrl) {
-          setAvatarUrl(freshData.avatarUrl);
+      // Update session with new avatar (wait for it to complete)
+      try {
+        const updateResult = await update({ avatarUrl: result.avatarUrl });
+        if (updateResult) {
+          // Session updated successfully
+          console.log("Session updated with new avatar:", updateResult);
         }
+      } catch (updateError) {
+        console.error("Failed to update session:", updateError);
+      }
+      
+      // Fetch fresh user data to ensure consistency (with no-cache)
+      try {
+        const freshResponse = await fetch("/api/me", { 
+          cache: "no-store",
+          headers: { "pragma": "no-cache", "cache-control": "no-cache" }
+        });
+        if (freshResponse.ok) {
+          const freshData = (await freshResponse.json()) as { avatarUrl?: string; username?: string };
+          if (freshData.avatarUrl) {
+            setAvatarUrl(freshData.avatarUrl);
+          }
+          if (freshData.username) {
+            setName(freshData.username);
+          }
+        }
+      } catch (freshError) {
+        console.error("Failed to fetch fresh user data:", freshError);
       }
     } catch {
       setError("Gagal upload foto profil.");
@@ -162,7 +180,46 @@ export default function ProfilePage() {
       setOldPassword("");
       setNewPassword("");
       setOtpCode("");
-      await update();
+      
+      // Update session with new profile data (wait for it to complete)
+      try {
+        const updateResult = await update();
+        if (updateResult) {
+          console.log("Session updated with new profile:", updateResult);
+        }
+      } catch (updateError) {
+        console.error("Failed to update session:", updateError);
+      }
+      
+      // Fetch fresh user data to ensure username sync is complete
+      try {
+        const freshResponse = await fetch("/api/me", { 
+          cache: "no-store",
+          headers: { "pragma": "no-cache", "cache-control": "no-cache" }
+        });
+        if (freshResponse.ok) {
+          const freshData = (await freshResponse.json()) as { 
+            username?: string; 
+            email?: string; 
+            phone?: string;
+            avatarUrl?: string;
+          };
+          if (freshData.username) {
+            setName(freshData.username);
+          }
+          if (freshData.email) {
+            setEmail(freshData.email);
+          }
+          if (freshData.phone) {
+            setPhone(freshData.phone);
+          }
+          if (freshData.avatarUrl) {
+            setAvatarUrl(freshData.avatarUrl);
+          }
+        }
+      } catch (freshError) {
+        console.error("Failed to fetch fresh user data:", freshError);
+      }
     } catch {
       setError("Gagal update profil.");
     } finally {

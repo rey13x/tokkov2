@@ -53,16 +53,25 @@ export async function POST(request: Request, context: { params: Params }) {
 
     // Get user data for verified status (only digitalawanku2@gmail.com gets blue checkmark)
     const user = await findUserById(session.user.id ?? "");
+    const isHardcodedAdmin = session.user.id === "dev-admin-hardcoded";
     const isVerified = user?.email?.toLowerCase() === "digitalawanku2@gmail.com" || 
                       session.user.email?.toLowerCase() === "digitalawanku2@gmail.com" ||
-                      session.user.username === "Tokko Marketplace";
+                      session.user.username === "Tokko Marketplace" ||
+                      user?.username === "Tokko Marketplace" ||
+                      isHardcodedAdmin;
     // Ensure avatar is provided
     const userAvatarUrl = session.user.image || user?.avatarUrl || "https://via.placeholder.com/32?text=U";
+    
+    // For hardcoded admin, always use "Tokko Marketplace" as username
+    let userName = session.user.username || session.user.name || "User";
+    if (isHardcodedAdmin) {
+      userName = "Tokko Marketplace";
+    }
 
     const comment = await addTestimonialComment({
       testimonialId: id,
       userId: session.user.id,
-      userName: session.user.username || session.user.name || "User",
+      userName,
       userAvatarUrl,
       verified: isVerified,
       text: validated.text,

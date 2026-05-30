@@ -16,9 +16,13 @@ import { getFirebaseFirestore } from "@/server/firebase-admin";
 
 const now = () => Date.now();
 
+// Use Turso remote database if configured, otherwise use local SQLite database
+const dbUrl = process.env.TURSO_URL?.trim() ? process.env.TURSO_URL : "file:./tokko.db";
+const authToken = process.env.TURSO_URL?.trim() ? process.env.TURSO_AUTH_TOKEN : undefined;
+
 export const db = createClient({
-  url: process.env.TURSO_URL ?? "file:./tokko.db",
-  authToken: process.env.TURSO_AUTH_TOKEN,
+  url: dbUrl,
+  authToken: authToken,
 });
 
 let initialized = false;
@@ -550,11 +554,17 @@ export async function ensureDatabase() {
           verified INTEGER NOT NULL DEFAULT 0,
           text TEXT NOT NULL,
           reply_to_id TEXT,
+          reply_to_name TEXT,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL,
           FOREIGN KEY (testimonial_id) REFERENCES testimonials(id) ON DELETE CASCADE,
           FOREIGN KEY (reply_to_id) REFERENCES testimonial_comments(id) ON DELETE SET NULL
         )`,
+      ).catch(() => {});
+
+      // Add reply_to_name column if it doesn't exist (migration for existing databases)
+      await run(
+        `ALTER TABLE testimonial_comments ADD COLUMN reply_to_name TEXT`,
       ).catch(() => {});
 
       await run(
