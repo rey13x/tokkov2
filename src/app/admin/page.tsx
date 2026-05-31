@@ -201,7 +201,7 @@ function AdminManagementSection() {
   const [storyReports, setStoryReports] = useState<Array<{ id: string; storyId: string; userId: string; reason: string; createdAt: string; story?: BookStory }>>([]);
   const [expandedStoryId, setExpandedStoryId] = useState<string | null>(null);
   const [storyLikesForm, setStoryLikesForm] = useState<Record<string, number>>({});
-  const [storyCommentsForm, setStoryCommentsForm] = useState<Record<string, Array<{ userName: string; text: string }>>>({});
+  const [storyCommentsForm, setStoryCommentsForm] = useState<Record<string, Array<{ userName: string; text: string; verified?: boolean }>>>({});
   const [editingWriterId, setEditingWriterId] = useState<string | null>(null);
   const [editingViewersId, setEditingViewersId] = useState<string | null>(null);
   const [writerForm, setWriterForm] = useState<{ userId: string; userName: string; userEmail: string; userAvatarUrl: string }>({
@@ -215,6 +215,12 @@ function AdminManagementSection() {
     restrictedViewerIds: [],
   });
   const [storyCommentSectionLoadTime, setStoryCommentSectionLoadTime] = useState<number>(0);
+  const [editingCommentAuthorId, setEditingCommentAuthorId] = useState<string | null>(null);
+  const [commentAuthorForm, setCommentAuthorForm] = useState<{ userName: string; userAvatarUrl: string }>({
+    userName: "",
+    userAvatarUrl: "",
+  });
+  const [updatingCommentVerified, setUpdatingCommentVerified] = useState<Record<string, boolean>>({});
   const privacyEditorRef = useRef<HTMLDivElement | null>(null);
   const maxOrderCount = useMemo(
     () => Math.max(1, ...series.map((item) => item.totalOrders)),
@@ -1468,6 +1474,68 @@ function AdminManagementSection() {
     }
   };
 
+  const updateTestimonialCommentAuthor = async (commentId: string) => {
+    if (!commentAuthorForm.userName.trim()) {
+      setError("Nama penulis harus diisi");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/admin/testimonial-comments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commentId,
+          action: "update-author",
+          userName: commentAuthorForm.userName,
+          userAvatarUrl: commentAuthorForm.userAvatarUrl,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal ubah penulis komentar");
+      }
+
+      setMessage("Penulis komentar berhasil diubah!");
+      setEditingCommentAuthorId(null);
+      setCommentAuthorForm({ userName: "", userAvatarUrl: "" });
+      await loadTestimonialComments();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal ubah penulis komentar");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleTestimonialCommentVerified = async (commentId: string, currentVerified: boolean) => {
+    try {
+      setUpdatingCommentVerified((prev) => ({ ...prev, [commentId]: true }));
+      const response = await fetch("/api/admin/testimonial-comments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commentId,
+          action: "update-verified",
+          verified: !currentVerified,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal ubah status verified");
+      }
+
+      setMessage(currentVerified ? "Badge verified dihapus!" : "Badge verified ditambahkan!");
+      await loadTestimonialComments();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal ubah status verified");
+    } finally {
+      setUpdatingCommentVerified((prev) => ({ ...prev, [commentId]: false }));
+    }
+  };
+
   const resolveStoryReport = async (reportId: string, deleteStory: boolean) => {
     try {
       setIsLoading(true);
@@ -2701,7 +2769,45 @@ function AdminManagementSection() {
                         {comment.text}
                       </p>
 
-                      <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                      <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => toggleTestimonialCommentVerified(comment.id, comment.verified || false)}
+                          disabled={updatingCommentVerified[comment.id]}
+                          style={{
+                            background: comment.verified ? "#4CAF50" : "#FFC107",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            padding: "6px 12px",
+                            fontSize: "0.85rem",
+                            cursor: updatingCommentVerified[comment.id] ? "not-allowed" : "pointer",
+                            opacity: updatingCommentVerified[comment.id] ? 0.6 : 1,
+                          }}
+                        >
+                          {updatingCommentVerified[comment.id] ? (comment.verified ? "Hapus..." : "Tambah...") : (comment.verified ? "✓ Verified" : "Tambah Verified")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCommentAuthorId(editingCommentAuthorId === comment.id ? null : comment.id);
+                            setCommentAuthorForm({
+                              userName: comment.userName,
+                              userAvatarUrl: comment.userAvatarUrl || "",
+                            });
+                          }}
+                          style={{
+                            background: "#9C27B0",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            padding: "6px 12px",
+                            fontSize: "0.85rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {editingCommentAuthorId === comment.id ? "Batal" : "Ubah Penulis"}
+                        </button>
                         <button
                           type="button"
                           onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
@@ -2720,6 +2826,64 @@ function AdminManagementSection() {
                           {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
                         </button>
                       </div>
+
+                      {editingCommentAuthorId === comment.id && (
+                        <div style={{ marginTop: "12px", padding: "12px", background: "#f9f9f9", borderRadius: "4px", border: "1px solid #ddd" }}>
+                          <h4 style={{ margin: "0 0 12px" }}>Ubah Penulis Komentar</h4>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <input
+                              type="text"
+                              placeholder="Nama Penulis"
+                              value={commentAuthorForm.userName}
+                              onChange={(e) => setCommentAuthorForm(prev => ({ ...prev, userName: e.target.value }))}
+                              style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Avatar URL (opsional)"
+                              value={commentAuthorForm.userAvatarUrl}
+                              onChange={(e) => setCommentAuthorForm(prev => ({ ...prev, userAvatarUrl: e.target.value }))}
+                              style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                            />
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              <button
+                                type="button"
+                                onClick={() => updateTestimonialCommentAuthor(comment.id)}
+                                disabled={isLoading}
+                                style={{
+                                  padding: "8px 16px",
+                                  background: "#2196F3",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "4px",
+                                  cursor: "pointer",
+                                  flex: 1,
+                                }}
+                              >
+                                {isLoading ? "Simpan..." : "Simpan"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCommentAuthorId(null);
+                                  setCommentAuthorForm({ userName: "", userAvatarUrl: "" });
+                                }}
+                                style={{
+                                  padding: "8px 16px",
+                                  background: "#ccc",
+                                  color: "black",
+                                  border: "none",
+                                  borderRadius: "4px",
+                                  cursor: "pointer",
+                                  flex: 1,
+                                }}
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -3127,8 +3291,23 @@ function AdminManagementSection() {
                                     newComments[idx].text = e.target.value;
                                     setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
                                   }}
-                                  style={{ width: "100%", padding: "4px", minHeight: "60px", boxSizing: "border-box" }}
+                                  style={{ width: "100%", padding: "4px", minHeight: "60px", boxSizing: "border-box", marginBottom: "4px" }}
                                 />
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                                  <input
+                                    type="checkbox"
+                                    id={`verified-${story.id}-${idx}`}
+                                    checked={comment.verified || false}
+                                    onChange={(e) => {
+                                      const newComments = [...(storyCommentsForm[story.id] || [])];
+                                      newComments[idx].verified = e.target.checked;
+                                      setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
+                                    }}
+                                  />
+                                  <label htmlFor={`verified-${story.id}-${idx}`} style={{ fontSize: "0.9rem", cursor: "pointer", margin: 0 }}>
+                                    Aktifkan badge verified
+                                  </label>
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -3144,7 +3323,7 @@ function AdminManagementSection() {
                             <button
                               type="button"
                               onClick={() => {
-                                const newComments = [...(storyCommentsForm[story.id] || []), { userName: "", text: "" }];
+                                const newComments = [...(storyCommentsForm[story.id] || []), { userName: "", text: "", verified: true }];
                                 setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
                               }}
                               style={{ marginTop: "8px", padding: "6px 12px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}

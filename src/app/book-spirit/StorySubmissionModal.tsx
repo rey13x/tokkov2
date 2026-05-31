@@ -12,9 +12,6 @@ type Props = {
   onSubmitted?: () => void;
 };
 
-// Popular emojis for quick selection
-const POPULAR_EMOJIS = ["😊", "❤️", "👍", "🎉", "✨", "💯", "😍", "🌟", "💪", "🔥", "😌", "🙌", "💕", "🎊", "👏"];
-
 export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -25,10 +22,6 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
   const [linkedProducts, setLinkedProducts] = useState<Array<{id: string; name: string}>>([]);
   const [availableProducts, setAvailableProducts] = useState<Array<{id: string; name: string}>>([]);
   const [showProductPicker, setShowProductPicker] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [elements, setElements] = useState<Array<{emoji: string; opacity: number}>>([]);
-  const [emojiInput, setEmojiInput] = useState<string>("");
-  const [emojiOpacity, setEmojiOpacity] = useState(0.5);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -120,22 +113,7 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
     setLinkedProducts(linkedProducts.filter(p => p.id !== productId));
   };
 
-  const addEmoji = (emoji: string) => {
-    const newElements = [...elements, { emoji, opacity: emojiOpacity }];
-    setElements(newElements);
-    setShowEmojiPicker(false);
-  };
 
-  const removeElement = (index: number) => {
-    setElements(elements.filter((_, i) => i !== index));
-  };
-
-  const handleAddCustomEmoji = () => {
-    if (emojiInput.trim()) {
-      addEmoji(emojiInput);
-      setEmojiInput("");
-    }
-  };
 
   const cleanupHTML = (html: string): string => {
     // Create a temporary div to parse HTML
@@ -197,7 +175,6 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
           photos,
           rating: rating > 0 ? rating : undefined,
           linkedProducts: linkedProducts.length > 0 ? linkedProducts : undefined,
-          elements: elements.length > 0 ? elements : undefined,
         }),
       });
 
@@ -210,8 +187,6 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
         setPhotos([]);
         setRating(0);
         setLinkedProducts([]);
-        setElements([]);
-        setEmojiInput("");
         onSubmitted?.();
         setTimeout(onClose, 2000);
       } else {
@@ -540,170 +515,7 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
               )}
             </div>
 
-            {/* Emoji Elements Section */}
-            <div className={styles.formSection}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                <label style={{ fontSize: "14px", fontWeight: 600 }}>Elemen:</label>
-                <button
-                  type="button"
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  style={{
-                    padding: "6px 12px",
-                    border: "2px solid #11151E",
-                    borderRadius: "6px",
-                    background: "#11151E",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#11151E",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {showEmojiPicker ? "- Tutup" : "+ Pilih Emoji"}
-                </button>
-              </div>
 
-              {showEmojiPicker && (
-                <div style={{
-                  border: "1px solid #e0e0e0",
-                  borderRadius: "8px",
-                  padding: "12px",
-                  marginBottom: "12px",
-                  background: "#f9f9f9",
-                }}>
-                  <div style={{ marginBottom: "12px" }}>
-                    <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "8px" }}>Emoji Populer:</div>
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                      {POPULAR_EMOJIS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => addEmoji(emoji)}
-                          style={{
-                            width: "32px",
-                            height: "32px",
-                            border: "1px solid #e0e0e0",
-                            borderRadius: "6px",
-                            background: "#fff",
-                            cursor: "pointer",
-                            fontSize: "18px",
-                            transition: "all 0.2s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.background = "#11151E";
-                            (e.currentTarget as HTMLButtonElement).style.borderColor = "#11151E";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.background = "#fff";
-                            (e.currentTarget as HTMLButtonElement).style.borderColor = "#e0e0e0";
-                          }}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "12px" }}>
-                    <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "8px" }}>Custom Emoji:</div>
-                  <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                    <input
-                      type="text"
-                      value={emojiInput}
-                      onChange={(e) => setEmojiInput(e.target.value)}
-                      placeholder="Paste emoji atau teks"
-                      style={{
-                        flex: 1,
-                        padding: "6px 10px",
-                        border: "1px solid #e0e0e0",
-                        borderRadius: "6px",
-                        fontSize: "12px",
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddCustomEmoji();
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddCustomEmoji}
-                      style={{
-                        padding: "6px 12px",
-                        background: "#11151E",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "6px",
-                        cursor: "pointer",
-                        fontSize: "12px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      + Tambah
-                    </button>
-                  </div>
-
-                  <div style={{ fontSize: "12px", color: "#666", marginBottom: "8px" }}>
-                    Opacity: {Math.round(emojiOpacity * 100)}%
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={emojiOpacity}
-                    onChange={(e) => setEmojiOpacity(parseFloat(e.target.value))}
-                    style={{
-                      width: "100%",
-                      cursor: "pointer",
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {elements.length > 0 && (
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {elements.map((element, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      position: "relative",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "6px 10px",
-                      background: "#11151E",
-                      border: "1px solid #11151E",
-                      borderRadius: "16px",
-                    }}
-                  >
-                    <span style={{ fontSize: "18px", opacity: element.opacity }}>
-                      {element.emoji}
-                    </span>
-                    <span style={{ fontSize: "11px", color: "#666" }}>
-                      {Math.round(element.opacity * 100)}%
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeElement(index)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: 0,
-                        fontSize: "16px",
-                        color: "#11151E",
-                      }}
-                    >
-                      <IoClose />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            </div>
           </div>
 
           <div

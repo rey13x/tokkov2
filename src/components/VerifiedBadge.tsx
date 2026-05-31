@@ -4,7 +4,7 @@ export default function VerifiedBadge() {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/assets/verified.gif"
+      src="/assets/verified.png"
       alt="Terverifikasi"
       width={20}
       height={20}

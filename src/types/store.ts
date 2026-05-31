@@ -147,6 +147,7 @@ export type BookStory = {
     userId: string;
     userName: string;
     userEmail?: string;
+    userAvatarUrl?: string;
     verified?: boolean;
     text: string;
     replyToId?: string;

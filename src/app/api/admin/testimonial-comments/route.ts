@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
-import { deleteTestimonialComment, listTestimonials, getTestimonialComments } from "@/server/store-data";
+import {
+  deleteTestimonialComment,
+  listTestimonials,
+  getTestimonialComments,
+  updateTestimonialCommentAuthor,
+  updateTestimonialCommentVerified,
+} from "@/server/store-data";
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -67,6 +73,70 @@ export async function DELETE(request: Request) {
     console.error("DELETE /api/admin/testimonial-comments failed:", error);
     return NextResponse.json(
       { message: "Gagal menghapus komentar." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  const auth = await requireAdmin();
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  try {
+    const body = await request.json();
+    const { commentId, action, userName, userAvatarUrl, verified } = z.object({
+      commentId: z.string(),
+      action: z.enum(["update-author", "update-verified"]),
+      userName: z.string().optional(),
+      userAvatarUrl: z.string().optional(),
+      verified: z.boolean().optional(),
+    }).parse(body);
+
+    if (action === "update-author") {
+      if (!userName) {
+        return NextResponse.json(
+          { message: "Nama penulis harus diisi." },
+          { status: 400 },
+        );
+      }
+
+      const comment = await updateTestimonialCommentAuthor(commentId, userName, userAvatarUrl || "");
+      return NextResponse.json({
+        message: "Penulis komentar berhasil diubah.",
+        comment,
+      });
+    } else if (action === "update-verified") {
+      if (verified === undefined) {
+        return NextResponse.json(
+          { message: "Status verified harus diisi." },
+          { status: 400 },
+        );
+      }
+
+      const comment = await updateTestimonialCommentVerified(commentId, verified);
+      return NextResponse.json({
+        message: "Status verified komentar berhasil diubah.",
+        comment,
+      });
+    }
+
+    return NextResponse.json(
+      { message: "Action tidak dikenali." },
+      { status: 400 },
+    );
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { message: error.issues[0]?.message ?? "Input tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    console.error("PATCH /api/admin/testimonial-comments failed:", error);
+    return NextResponse.json(
+      { message: "Gagal mengubah komentar." },
       { status: 500 },
     );
   }

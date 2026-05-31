@@ -2668,7 +2668,7 @@ export async function updateBookStoryLikes(storyId: string, likeCount: number) {
   }
 }
 
-export async function addCustomBookStoryComments(storyId: string, comments: Array<{ userName: string; text: string }>) {
+export async function addCustomBookStoryComments(storyId: string, comments: Array<{ userName: string; text: string; verified?: boolean }>) {
   try {
     await ensureDatabase();
 
@@ -2696,7 +2696,7 @@ export async function addCustomBookStoryComments(storyId: string, comments: Arra
       userId: "admin",
       userName: c.userName || "Admin",
       userEmail: "digitalawanku2@gmail.com",
-      verified: true,
+      verified: c.verified !== undefined ? c.verified : true,
       text: c.text,
       createdAt: new Date().toISOString(),
     }));
@@ -3335,6 +3335,84 @@ export async function updateTestimonialCommentUserName(userId: string, newUserNa
   } catch (error) {
     console.error("Failed to update testimonial comment usernames in database:", error);
     return false;
+  }
+}
+
+export async function updateTestimonialCommentAuthor(
+  commentId: string,
+  newUserName: string,
+  newUserAvatarUrl: string = "",
+): Promise<any> {
+  const firestore = getFirestoreOrNull();
+  if (firestore) {
+    try {
+      const updatedAt = now();
+      await firestore.collection("testimonialComments").doc(commentId).update({
+        userName: newUserName,
+        userAvatarUrl: newUserAvatarUrl,
+        updatedAt,
+      });
+
+      const doc = await firestore.collection("testimonialComments").doc(commentId).get();
+      return mapTestimonialCommentDoc(commentId, doc.data() as Record<string, unknown>);
+    } catch (error) {
+      console.error("Failed to update testimonial comment author in Firestore:", error);
+    }
+  }
+
+  // Fallback to local database
+  try {
+    const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
+    await ensDb();
+    await dbRun(
+      "UPDATE testimonial_comments SET user_name = ?, user_avatar_url = ?, updated_at = ? WHERE id = ?",
+      [newUserName, newUserAvatarUrl, now(), commentId],
+    );
+
+    const res = await dbRun("SELECT * FROM testimonial_comments WHERE id = ? LIMIT 1", [commentId]);
+    const row = res.rows[0] as Record<string, unknown> | undefined;
+    return row ? mapTestimonialComment(row) : null;
+  } catch (error) {
+    console.error("Failed to update testimonial comment author in database:", error);
+    throw new Error("Gagal mengubah penulis komentar");
+  }
+}
+
+export async function updateTestimonialCommentVerified(
+  commentId: string,
+  verified: boolean,
+): Promise<any> {
+  const firestore = getFirestoreOrNull();
+  if (firestore) {
+    try {
+      const updatedAt = now();
+      await firestore.collection("testimonialComments").doc(commentId).update({
+        verified,
+        updatedAt,
+      });
+
+      const doc = await firestore.collection("testimonialComments").doc(commentId).get();
+      return mapTestimonialCommentDoc(commentId, doc.data() as Record<string, unknown>);
+    } catch (error) {
+      console.error("Failed to update testimonial comment verified status in Firestore:", error);
+    }
+  }
+
+  // Fallback to local database
+  try {
+    const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
+    await ensDb();
+    await dbRun(
+      "UPDATE testimonial_comments SET verified = ?, updated_at = ? WHERE id = ?",
+      [verified ? 1 : 0, now(), commentId],
+    );
+
+    const res = await dbRun("SELECT * FROM testimonial_comments WHERE id = ? LIMIT 1", [commentId]);
+    const row = res.rows[0] as Record<string, unknown> | undefined;
+    return row ? mapTestimonialComment(row) : null;
+  } catch (error) {
+    console.error("Failed to update testimonial comment verified status in database:", error);
+    throw new Error("Gagal mengubah status verified komentar");
   }
 }
 
