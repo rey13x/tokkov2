@@ -57,7 +57,7 @@ function getInitialCartLines(): CartLine[] {
 
 export default function CartPage() {
   const router = useRouter();
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   const [cartLines, setCartLines] = useState<CartLine[]>(getInitialCartLines);
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [isStoreLoading, setIsStoreLoading] = useState(true);
@@ -72,6 +72,11 @@ export default function CartPage() {
   const [success, setSuccess] = useState("");
   const [isCartTutorialRunning, setIsCartTutorialRunning] = useState(false);
   const [cartTutorialStage, setCartTutorialStage] = useState<OnboardingStage | null>(null);
+  // Static QRIS state
+  const [staticQRData, setStaticQRData] = useState<{
+    qrImageUrl: string;
+    amount: number;
+  } | null>(null);
   const isClient = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -321,7 +326,8 @@ export default function CartPage() {
 
     setIsCheckoutLoading(true);
     try {
-      const response = await fetch("/api/orders", {
+      // Step 1: Create order in database
+      const orderResponse = await fetch("/api/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -334,28 +340,33 @@ export default function CartPage() {
         }),
       });
 
-      const result = (await response.json()) as {
+      const orderResult = (await orderResponse.json()) as {
         message?: string;
         orderId?: string;
         createdAt?: string;
       };
-      if (!response.ok) {
-        setError(result.message ?? "Gagal memproses pesanan.");
+
+      if (!orderResponse.ok) {
+        setError(orderResult.message ?? "Gagal memproses pesanan.");
         return;
       }
 
+      const orderId = orderResult.orderId ?? "";
+
+      // Step 2: Remove items from cart
       for (const item of selected) {
         removeFromCart(item.slug);
       }
 
       setCartLines((current) => current.filter((item) => !item.selected));
-      const orderId = result.orderId ?? "";
-      setSuccess("Pesanan berhasil dibuat. Mengarahkan ke status pemesanan...");
-      const highlightQuery = orderId ? `?highlight=${orderId}&pay=1` : "";
+
+      // Step 3: Show success and redirect to status page
+      setSuccess("Pesanan berhasil dibuat! Silakan lakukan pembayaran dengan QRIS statis.");
       window.setTimeout(() => {
-        router.push(`/status-pemesanan${highlightQuery}`);
-      }, 450);
-    } catch {
+        router.push(`/status-pemesanan?highlight=${orderId}`);
+      }, 1500);
+    } catch (err) {
+      console.error("Checkout error:", err);
       setError("Gagal memproses pesanan. Coba lagi.");
     } finally {
       setIsCheckoutLoading(false);
@@ -439,6 +450,7 @@ export default function CartPage() {
         steps={cartTutorialSteps}
         onCallback={onCartTutorialCallback}
       />
+      
       <header className={styles.header}>
         <h1>Troli</h1>
         <Link href="/" className={styles.backLink}>

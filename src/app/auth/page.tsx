@@ -601,7 +601,7 @@ export default function AuthPage() {
               {isForgotPasswordSubmitting ? "Mengirim..." : "Kirim Link Reset Password"}
             </button>
             <p className={styles.helperText}>
-              Kami akan mengirim link reset password ke email kamu. Link berlaku selama 1 jam.
+              Kami akan mengirim link reset password ke email kamu. link berlaku selama 1 jam
             </p>
           </form>
         ) : null}

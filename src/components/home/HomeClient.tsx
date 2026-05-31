@@ -867,29 +867,31 @@ export default function HomeClient() {
           <Link href="/" aria-label="Beranda" style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <Image src={logoImage} alt="Tokko Logo" className={styles.logo} width={86} height={86} priority />
           </Link>
-          {sessionStatus === "authenticated" ? (
-            <button
-              type="button"
-              className={styles.profileShortcut}
-              onClick={() => router.push("/profil")}
-            >
-              {profileImageSource ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={profileImageSource} alt="Profil" className={styles.profileShortcutImage} />
-              ) : (
-                <span>{profileLabel}</span>
-              )}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={styles.profileShortcut}
-              onClick={() => router.push("/auth")}
-              aria-label="Login"
-            >
-              <FiUser />
-            </button>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {sessionStatus === "authenticated" ? (
+              <button
+                type="button"
+                className={styles.profileShortcut}
+                onClick={() => router.push("/profil")}
+              >
+                {profileImageSource ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profileImageSource} alt="Profil" className={styles.profileShortcutImage} />
+                ) : (
+                  <span>{profileLabel}</span>
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={styles.profileShortcut}
+                onClick={() => router.push("/auth")}
+                aria-label="Login"
+              >
+                <FiUser />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className={styles.heroBottom} data-animate="hero">

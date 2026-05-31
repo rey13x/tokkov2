@@ -8,6 +8,18 @@
   --chip-active: #0f172c;
   --radius-lg: 34px;
   --radius-md: 20px;
+  --bg-primary: #efeff1;
+  --text-color: #111423;
+  --text-color-soft: #6b7387;
+}
+
+:root.dark-mode {
+  --bg-primary: #272727;
+  --text-color: #ffffff;
+  --text-color-soft: #cccccc;
+  --surface: #1a1a1a;
+  --chip: #404040;
+  --chip-active: #555555;
 }
 
 * {
@@ -28,11 +40,12 @@ html {
 
 body {
   min-height: 100vh;
-  color: var(--ink);
-  background: #efeff1;
+  color: var(--text-color);
+  background: var(--bg-primary);
   font-family: var(--font-sora), sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .route-transition-shell {

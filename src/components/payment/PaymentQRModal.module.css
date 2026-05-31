@@ -1,0 +1,329 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  max-width: 400px;
+  width: 100%;
+  padding: 30px;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 25px;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 15px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+}
+
+.orderInfo {
+  font-size: 12px;
+  color: #666;
+  display: block;
+}
+
+.qrContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 25px 0;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.qrWrapper {
+  padding: 15px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.qrWrapper canvas {
+  display: block;
+}
+
+.qrInstructions {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #666;
+  text-align: center;
+}
+
+.amountSection {
+  text-align: center;
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+}
+
+.label {
+  font-size: 12px;
+  color: #999;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.amount {
+  font-size: 24px;
+  font-weight: 700;
+  color: #11151e;
+  margin: 8px 0 0 0;
+}
+
+.timerSection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: #fff8e1;
+  border-radius: 8px;
+  margin: 15px 0;
+  border-left: 4px solid #ff9800;
+}
+
+.timerLabel {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+  font-weight: 500;
+}
+
+.timer {
+  font-size: 18px;
+  font-weight: 700;
+  color: #11151e;
+  margin: 0;
+}
+
+.timer.timerWarning {
+  color: #f44336;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.notification {
+  padding: 12px 15px;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+.notificationText {
+  margin: 0;
+  font-size: 13px;
+  color: #856404;
+  font-weight: 500;
+}
+
+.successMessage {
+  padding: 15px;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 8px;
+  margin: 15px 0;
+  text-align: center;
+}
+
+.successMessage p {
+  margin: 0;
+  font-weight: 600;
+  color: #155724;
+}
+
+.successMessage .subText {
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 4px;
+}
+
+.expiredMessage {
+  text-align: center;
+  padding: 30px 20px;
+}
+
+.expiredMessage p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #d32f2f;
+}
+
+.expiredMessage .subText {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 10px;
+  margin-top: 25px;
+}
+
+.button {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.primaryButton {
+  background-color: #11151e;
+  color: white;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background-color: #1a1f2a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.secondaryButton:hover {
+  background-color: #d0d0d0;
+}
+
+.successButton {
+  background-color: #4caf50;
+  color: white;
+}
+
+.successButton:hover {
+  background-color: #45a049;
+}
+
+.dangerButton {
+  background-color: #f44336;
+  color: white;
+}
+
+.dangerButton:hover {
+  background-color: #da190b;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .modalContent {
+    background-color: #1e1e1e;
+  }
+
+  .header {
+    border-bottom-color: #333;
+  }
+
+  .title {
+    color: #fff;
+  }
+
+  .qrContainer {
+    background-color: #2a2a2a;
+    border-color: #444;
+  }
+
+  .qrWrapper {
+    background-color: #333;
+  }
+
+  .qrInstructions {
+    color: #aaa;
+  }
+
+  .amountSection {
+    background-color: #2a2a2a;
+  }
+
+  .label {
+    color: #999;
+  }
+
+  .amount {
+    color: #fff;
+  }
+
+  .timer {
+    color: #fff;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .modalContent {
+    padding: 20px;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .amount {
+    font-size: 20px;
+  }
+
+  .buttonGroup {
+    flex-direction: column-reverse;
+  }
+
+  .button {
+    width: 100%;
+  }
+}

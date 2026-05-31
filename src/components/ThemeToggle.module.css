@@ -1,0 +1,41 @@
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+}
+
+.toggle:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: scale(1.05);
+}
+
+.toggle:active {
+  transform: scale(0.95);
+}
+
+.toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Dark mode styling - when dark-mode class is on root */
+:root.dark-mode .toggle {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+}
+
+:root.dark-mode .toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.6);
+}

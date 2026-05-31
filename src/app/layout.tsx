@@ -3,6 +3,7 @@ import { Sora, Space_Mono } from "next/font/google";
 import PageTransition from "@/components/layout/PageTransition";
 import SiteFooter from "@/components/layout/SiteFooter";
 import { AuthSessionProvider } from "@/components/providers/SessionProvider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import "./globals.css";
 
 const sora = Sora({
@@ -34,10 +35,12 @@ export default function RootLayout({
   return (
     <html lang="id">
       <body className={`${sora.variable} ${spaceMono.variable}`}>
-        <AuthSessionProvider>
-          <PageTransition>{children}</PageTransition>
-          <SiteFooter />
-        </AuthSessionProvider>
+        <ThemeProvider>
+          <AuthSessionProvider>
+            <PageTransition>{children}</PageTransition>
+            <SiteFooter />
+          </AuthSessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

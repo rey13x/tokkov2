@@ -15,6 +15,10 @@ export type StoreProduct = {
   jobApplicationLink?: string;
   maxApplicants?: number;
   applicantCount?: number;
+  // Payment/QRIS settings
+  paymentMethod?: "static_qris" | "dynamic_qris"; // static = static QR image, dynamic = API-based QRIS
+  paymentFileUrl?: string; // URL to download after payment for dynamic QRIS
+  paymentQrisImageUrl?: string; // Static QR code image URL for static QRIS
 };
 
 export type MaintenanceSettings = {
@@ -187,6 +191,14 @@ export type OrderSummary = {
   cancelRequestedAt?: string | null;
   cancelConfirmedAt?: string | null;
   createdAt: string;
+  // Payment/QRIS fields
+  paymentMethod?: "static_qris" | "dynamic_qris";
+  qrCode?: string; // QRIS string for QR code generation
+  qrReference?: string; // Reference ID from payment gateway
+  transactionId?: string; // Transaction ID after payment
+  paidAt?: string; // Payment timestamp
+  receiptUrl?: string; // Generated receipt file URL
+  downloadUrl?: string; // File download URL for digital products
 };
 
 export type StoreOrderItem = {

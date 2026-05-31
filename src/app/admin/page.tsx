@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import { ThemeToggleWrapper } from "@/components/ThemeToggleWrapper";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
 import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, CommentReactionSummary, StoreMarqueeItem, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
@@ -221,6 +222,12 @@ function AdminManagementSection() {
     userAvatarUrl: "",
   });
   const [updatingCommentVerified, setUpdatingCommentVerified] = useState<Record<string, boolean>>({});
+  const [editingBookStoryCommentAuthorId, setEditingBookStoryCommentAuthorId] = useState<string | null>(null);
+  const [bookStoryCommentAuthorForm, setBookStoryCommentAuthorForm] = useState<{ userName: string; userAvatarUrl: string }>({
+    userName: "",
+    userAvatarUrl: "",
+  });
+  const [updatingBookStoryCommentVerified, setUpdatingBookStoryCommentVerified] = useState<Record<string, boolean>>({});
   const privacyEditorRef = useRef<HTMLDivElement | null>(null);
   const maxOrderCount = useMemo(
     () => Math.max(1, ...series.map((item) => item.totalOrders)),
@@ -1536,6 +1543,70 @@ function AdminManagementSection() {
     }
   };
 
+  const updateBookStoryCommentAuthor = async (storyId: string, commentId: string) => {
+    if (!bookStoryCommentAuthorForm.userName.trim()) {
+      setError("Nama penulis harus diisi");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storyId,
+          commentId,
+          action: "update-comment-author",
+          newUserName: bookStoryCommentAuthorForm.userName,
+          newUserAvatarUrl: bookStoryCommentAuthorForm.userAvatarUrl,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal ubah penulis komentar");
+      }
+
+      setMessage("Penulis komentar berhasil diubah!");
+      setEditingBookStoryCommentAuthorId(null);
+      setBookStoryCommentAuthorForm({ userName: "", userAvatarUrl: "" });
+      await loadApprovedBookStories();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal ubah penulis komentar");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleBookStoryCommentVerified = async (storyId: string, commentId: string, currentVerified: boolean) => {
+    try {
+      setUpdatingBookStoryCommentVerified((prev) => ({ ...prev, [commentId]: true }));
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storyId,
+          commentId,
+          action: "update-comment-verified",
+          verified: currentVerified,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal ubah status verified");
+      }
+
+      setMessage(currentVerified ? "Badge verified dihapus!" : "Badge verified ditambahkan!");
+      await loadApprovedBookStories();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal ubah status verified");
+    } finally {
+      setUpdatingBookStoryCommentVerified((prev) => ({ ...prev, [commentId]: false }));
+    }
+  };
+
   const resolveStoryReport = async (reportId: string, deleteStory: boolean) => {
     try {
       setIsLoading(true);
@@ -1756,6 +1827,7 @@ function AdminManagementSection() {
           <p>Halo Admin, konsisten untuk produknya yaa. Hubungi melalui Whatsapp jika ada trouble</p>
         </div>
         <div className={styles.headerActions}>
+          <ThemeToggleWrapper />
           <Link href="/api/admin/orders/export?format=csv" className={styles.actionLink}>
             Export CSV
           </Link>
@@ -2722,26 +2794,26 @@ function AdminManagementSection() {
         <article className={styles.card}>
           <h2>Kelola Komentar Testimoni</h2>
           <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
-            {Object.values(testimonialComments).flat().length} komentar total dari halaman testimoni.
+            {approvedBookStories.reduce((total, story) => total + (story.comments?.length || 0), 0)} komentar total dari cerita book spirit.
           </p>
 
           <div className={styles.list}>
-            {Object.keys(testimonialComments).length === 0 ? (
+            {approvedBookStories.length === 0 || approvedBookStories.every(story => !story.comments || story.comments.length === 0) ? (
               <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Belum ada komentar testimoni.</p>
             ) : (
-              Object.entries(testimonialComments).map(([testimonialId, comments]) =>
-                comments.length > 0 ? (
-                  <div key={testimonialId} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
+              approvedBookStories.map((story) =>
+                story.comments && story.comments.length > 0 ? (
+                  <div key={story.id} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
                     <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
                       <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
-                        Testimoni - {comments.length} komentar
+                        {story.title} - {story.comments.length} komentar
                       </p>
                       <span style={{ fontSize: "0.85rem", color: "#666" }}>
-                        ID: {testimonialId.substring(0, 8)}...
+                        Oleh: {story.userName}
                       </span>
                     </div>
 
-                    {comments.map((comment) => (
+                    {story.comments.map((comment) => (
                       <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
                           {comment.userAvatarUrl && (
@@ -2752,17 +2824,12 @@ function AdminManagementSection() {
                             />
                           )}
                           <span style={{
-                            fontWeight: comment.verified ? 800 : 600,
+                            fontWeight: 600,
                             color: "#333",
                             fontSize: "0.95rem",
                           }}>
                             {comment.userName}
                           </span>
-                          {comment.verified && (
-                            <div style={{ display: "inline-flex", alignItems: "center", width: "22px", height: "22px", overflow: "hidden" }}>
-                              <VerifiedBadge />
-                            </div>
-                          )}
                         </div>
                         <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>
                           {new Date(comment.createdAt).toLocaleString("id-ID")}
@@ -2778,21 +2845,21 @@ function AdminManagementSection() {
                           {comment.text}
                         </p>
 
+                        {comment.photoUrl && (
+                          <img
+                            src={comment.photoUrl}
+                            alt="Comment photo"
+                            style={{ maxWidth: "150px", marginTop: "8px", borderRadius: "4px", maxHeight: "150px" }}
+                          />
+                        )}
+
                         <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
                           <button
                             type="button"
                             onClick={() => {
-                              const newVerified = !comment.verified;
-                              toggleTestimonialCommentVerified(comment.id, comment.verified || false);
-                              // Optimistically update the comment
-                              setTestimonialComments(prev => ({
-                                ...prev,
-                                [testimonialId]: comments.map(c => 
-                                  c.id === comment.id ? { ...c, verified: newVerified } : c
-                                )
-                              }));
+                              toggleBookStoryCommentVerified(story.id, comment.id, comment.verified || false);
                             }}
-                            disabled={updatingCommentVerified[comment.id]}
+                            disabled={updatingBookStoryCommentVerified[comment.id]}
                             style={{
                               background: comment.verified ? "#4CAF50" : "#FFC107",
                               color: "white",
@@ -2800,17 +2867,17 @@ function AdminManagementSection() {
                               borderRadius: "4px",
                               padding: "6px 12px",
                               fontSize: "0.85rem",
-                              cursor: updatingCommentVerified[comment.id] ? "not-allowed" : "pointer",
-                              opacity: updatingCommentVerified[comment.id] ? 0.6 : 1,
+                              cursor: updatingBookStoryCommentVerified[comment.id] ? "not-allowed" : "pointer",
+                              opacity: updatingBookStoryCommentVerified[comment.id] ? 0.6 : 1,
                             }}
                           >
-                            {updatingCommentVerified[comment.id] ? (comment.verified ? "Hapus..." : "Tambah...") : (comment.verified ? "✓ Verified" : "Tambah Verified")}
+                            {updatingBookStoryCommentVerified[comment.id] ? (comment.verified ? "Hapus..." : "Tambah...") : (comment.verified ? "✓ Verified" : "Tambah Verified")}
                           </button>
                           <button
                             type="button"
                             onClick={() => {
-                              setEditingCommentAuthorId(editingCommentAuthorId === comment.id ? null : comment.id);
-                              setCommentAuthorForm({
+                              setEditingBookStoryCommentAuthorId(editingBookStoryCommentAuthorId === comment.id ? null : comment.id);
+                              setBookStoryCommentAuthorForm({
                                 userName: comment.userName,
                                 userAvatarUrl: comment.userAvatarUrl || "",
                               });
@@ -2825,11 +2892,11 @@ function AdminManagementSection() {
                               cursor: "pointer",
                             }}
                           >
-                            {editingCommentAuthorId === comment.id ? "Batal" : "Ubah Penulis"}
+                            {editingBookStoryCommentAuthorId === comment.id ? "Batal" : "Ubah Penulis"}
                           </button>
                           <button
                             type="button"
-                            onClick={() => onDeleteTestimonialComment(comment.id, testimonialId)}
+                            onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
                             disabled={isDeletingComment[comment.id]}
                             style={{
                               background: "#f44336",
@@ -2846,40 +2913,29 @@ function AdminManagementSection() {
                           </button>
                         </div>
 
-                        {editingCommentAuthorId === comment.id && (
+                        {editingBookStoryCommentAuthorId === comment.id && (
                           <div style={{ marginTop: "12px", padding: "12px", background: "#f9f9f9", borderRadius: "4px", border: "1px solid #ddd" }}>
                             <h4 style={{ margin: "0 0 12px" }}>Ubah Penulis Komentar</h4>
                             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                               <input
                                 type="text"
                                 placeholder="Nama Penulis"
-                                value={commentAuthorForm.userName}
-                                onChange={(e) => setCommentAuthorForm(prev => ({ ...prev, userName: e.target.value }))}
+                                value={bookStoryCommentAuthorForm.userName}
+                                onChange={(e) => setBookStoryCommentAuthorForm(prev => ({ ...prev, userName: e.target.value }))}
                                 style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
                               />
                               <input
                                 type="text"
                                 placeholder="Avatar URL (opsional)"
-                                value={commentAuthorForm.userAvatarUrl}
-                                onChange={(e) => setCommentAuthorForm(prev => ({ ...prev, userAvatarUrl: e.target.value }))}
+                                value={bookStoryCommentAuthorForm.userAvatarUrl}
+                                onChange={(e) => setBookStoryCommentAuthorForm(prev => ({ ...prev, userAvatarUrl: e.target.value }))}
                                 style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
                               />
                               <div style={{ display: "flex", gap: "8px" }}>
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    updateTestimonialCommentAuthor(comment.id);
-                                    // Optimistically update the comment
-                                    setTestimonialComments(prev => ({
-                                      ...prev,
-                                      [testimonialId]: comments.map(c => 
-                                        c.id === comment.id ? { 
-                                          ...c, 
-                                          userName: commentAuthorForm.userName,
-                                          userAvatarUrl: commentAuthorForm.userAvatarUrl
-                                        } : c
-                                      )
-                                    }));
+                                    updateBookStoryCommentAuthor(story.id, comment.id);
                                   }}
                                   disabled={isLoading}
                                   style={{
@@ -2897,8 +2953,8 @@ function AdminManagementSection() {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setEditingCommentAuthorId(null);
-                                    setCommentAuthorForm({ userName: "", userAvatarUrl: "" });
+                                    setEditingBookStoryCommentAuthorId(null);
+                                    setBookStoryCommentAuthorForm({ userName: "", userAvatarUrl: "" });
                                   }}
                                   style={{
                                     padding: "8px 16px",
@@ -2923,6 +2979,9 @@ function AdminManagementSection() {
               )
             )}
           </div>
+
+          {error ? <p className={styles.errorText}>{error}</p> : null}
+          {message ? <p className={styles.successText}>{message}</p> : null}
 
           {error ? <p className={styles.errorText}>{error}</p> : null}
           {message ? <p className={styles.successText}>{message}</p> : null}

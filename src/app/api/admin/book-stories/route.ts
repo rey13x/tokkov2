@@ -68,6 +68,8 @@ const approveStorySchema = z.object({
     "update-shares",
     "update-writer",
     "update-viewers",
+    "update-comment-author",
+    "update-comment-verified",
   ]),
   reportId: z.string().optional(),
   deleteReportedStory: z.boolean().optional(),
@@ -88,6 +90,8 @@ const approveStorySchema = z.object({
   newUserName: z.string().optional(),
   newUserEmail: z.string().optional(),
   newUserAvatarUrl: z.string().optional(),
+  // Untuk update comment
+  verified: z.boolean().optional(),
   // Untuk update viewers
   isPrivate: z.boolean().optional(),
   restrictedViewerIds: z.array(z.string()).optional(),
@@ -172,6 +176,37 @@ export async function POST(request: Request) {
         payload.newUserAvatarUrl || ""
       );
       return NextResponse.json({ story, message: "Penulis berhasil diupdate" });
+    }
+
+    // Update comment author
+    if (
+      payload.action === "update-comment-author" &&
+      payload.storyId &&
+      payload.commentId &&
+      payload.newUserName
+    ) {
+      const story = await (await import("@/server/store-data")).updateBookStoryCommentAuthor(
+        payload.storyId,
+        payload.commentId,
+        payload.newUserName,
+        payload.newUserAvatarUrl || ""
+      );
+      return NextResponse.json({ story, message: "Penulis komentar berhasil diupdate" });
+    }
+
+    // Update comment verified
+    if (
+      payload.action === "update-comment-verified" &&
+      payload.storyId &&
+      payload.commentId &&
+      typeof payload.verified === "boolean"
+    ) {
+      const story = await (await import("@/server/store-data")).updateBookStoryCommentVerified(
+        payload.storyId,
+        payload.commentId,
+        payload.verified
+      );
+      return NextResponse.json({ story, message: "Verified komentar berhasil diupdate" });
     }
 
     // Update viewers
