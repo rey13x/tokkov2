@@ -30,7 +30,7 @@ export async function GET() {
     }
     
     // Sort by creation date, newest first
-    allComments.sort((a, b) => b.createdAt - a.createdAt);
+    allComments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     
     return NextResponse.json({ comments: allComments });
   } catch (error) {

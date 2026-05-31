@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { AiOutlineLike, AiFillLike } from "react-icons/ai";
 import { FaRegComment } from "react-icons/fa";
-import { MdOutlineShare } from "react-icons/md";
+import { MdOutlineShare, MdPhotoCamera } from "react-icons/md";
 import { MdFlagCircle } from "react-icons/md";
 import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import VerifiedBadge from "@/components/VerifiedBadge";
@@ -731,7 +731,7 @@ export default function BookSpiritClient() {
                               alignItems: "center",
                               justifyContent: "center",
                             }}>
-                              📷
+                              <MdPhotoCamera />
                               <input
                                 type="file"
                                 accept="image/*"
