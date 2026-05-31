@@ -785,6 +785,24 @@ export async function ensureDatabase() {
         "CREATE INDEX IF NOT EXISTS idx_device_account_creations_created_at ON device_account_creations(created_at)",
       ).catch(() => {});
 
+      await run(
+        `CREATE TABLE IF NOT EXISTS comment_reactions (
+          id TEXT PRIMARY KEY,
+          comment_id TEXT NOT NULL,
+          user_id TEXT,
+          emoji TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (comment_id) REFERENCES testimonial_comments(id) ON DELETE CASCADE,
+          UNIQUE(comment_id, user_id, emoji)
+        )`,
+      );
+      await run(
+        "CREATE INDEX IF NOT EXISTS idx_comment_reactions_comment_id ON comment_reactions(comment_id)",
+      ).catch(() => {});
+      await run(
+        "CREATE INDEX IF NOT EXISTS idx_comment_reactions_user_id ON comment_reactions(user_id)",
+      ).catch(() => {});
+
       await runOneTimeInitialContentReset();
       await seedIfEmpty();
       await runOneTimeCatalogCleanup();

@@ -33,9 +33,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id">
-      <head>
-        <script async src="https://tenor.com/embed.js"></script>
-      </head>
       <body className={`${sora.variable} ${spaceMono.variable}`}>
         <AuthSessionProvider>
           <PageTransition>{children}</PageTransition>

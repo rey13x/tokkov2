@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
-import { updateUserById } from "@/server/db";
+import { createUser, findUserByEmail, updateUserById } from "@/server/db";
 import { getFirebaseStorageBucket } from "@/server/firebase-admin";
+import { updateBookStoryUserProfile } from "@/server/store-data";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
@@ -82,11 +83,43 @@ export async function POST(request: Request) {
       avatarUrl = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
     }
 
-    const updated = await updateUserById(session.user.id, {
+    let userId = session.user.id;
+    if (session.user.id === "dev-admin-hardcoded") {
+      let adminUser = await findUserByEmail("digitalawanku2@gmail.com").catch(() => null);
+      if (!adminUser) {
+        adminUser = await createUser({
+          username: session.user.name || session.user.username || "Admin Tokko",
+          email: "digitalawanku2@gmail.com",
+          phone: "",
+          avatarUrl: "",
+          passwordHash: null,
+          role: "admin",
+        });
+      }
+      if (!adminUser) {
+        return NextResponse.json({ message: "Gagal update avatar." }, { status: 500 });
+      }
+      userId = adminUser.id;
+    }
+
+    const updated = await updateUserById(userId, {
       avatarUrl,
     });
     if (!updated) {
       return NextResponse.json({ message: "Gagal update avatar." }, { status: 500 });
+    }
+
+    await updateBookStoryUserProfile(updated.id, {
+      userName: updated.username,
+      userEmail: updated.email,
+      userAvatarUrl: updated.avatarUrl,
+    }).catch(() => {});
+    if (session.user.id !== updated.id) {
+      await updateBookStoryUserProfile(session.user.id, {
+        userName: updated.username,
+        userEmail: updated.email,
+        userAvatarUrl: updated.avatarUrl,
+      }).catch(() => {});
     }
 
     return NextResponse.json({

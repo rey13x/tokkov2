@@ -76,6 +76,20 @@ export type StoreTestimonialComment = {
   createdAt: string;
 };
 
+export type CommentReaction = {
+  id: string;
+  commentId: string;
+  userId?: string;
+  emoji: string;
+  createdAt: string;
+};
+
+export type CommentReactionSummary = {
+  emoji: string;
+  count: number;
+  userReacted: boolean; // whether current user reacted with this emoji
+};
+
 export type StoreMarqueeItem = {
   id: string;
   label: string;
@@ -110,6 +124,7 @@ export type BookStory = {
   userName: string;
   userEmail: string;
   userAvatarUrl?: string;
+  verified?: boolean;
   title?: string;
   category?: string;
   story: string;
@@ -131,7 +146,11 @@ export type BookStory = {
     id: string;
     userId: string;
     userName: string;
+    userEmail?: string;
+    verified?: boolean;
     text: string;
+    replyToId?: string;
+    replyToName?: string;
     createdAt: string;
   }>;
   views?: number;

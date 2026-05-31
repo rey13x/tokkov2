@@ -115,7 +115,7 @@ export default function ProfilePage() {
       
       // Update session with new avatar (wait for it to complete)
       try {
-        const updateResult = await update({ avatarUrl: result.avatarUrl });
+        const updateResult = await update({ avatarUrl: result.avatarUrl, image: result.avatarUrl });
         if (updateResult) {
           // Session updated successfully
           console.log("Session updated with new avatar:", updateResult);
@@ -170,7 +170,15 @@ export default function ProfilePage() {
         }),
       });
 
-      const result = (await response.json()) as { message?: string };
+      const result = (await response.json()) as {
+        message?: string;
+        user?: {
+          username: string;
+          email: string;
+          phone: string;
+          avatarUrl?: string;
+        };
+      };
       if (!response.ok) {
         setError(result.message ?? "Gagal update profil.");
         return;
@@ -180,10 +188,22 @@ export default function ProfilePage() {
       setOldPassword("");
       setNewPassword("");
       setOtpCode("");
+      if (result.user) {
+        setName(result.user.username);
+        setEmail(result.user.email);
+        setPhone(result.user.phone);
+        setAvatarUrl(result.user.avatarUrl ?? "");
+      }
       
       // Update session with new profile data (wait for it to complete)
       try {
-        const updateResult = await update();
+        const updateResult = await update({
+          username: result.user?.username ?? name,
+          email: result.user?.email ?? email,
+          phone: result.user?.phone ?? phone,
+          avatarUrl: result.user?.avatarUrl ?? avatarUrl,
+          image: result.user?.avatarUrl ?? avatarUrl,
+        });
         if (updateResult) {
           console.log("Session updated with new profile:", updateResult);
         }

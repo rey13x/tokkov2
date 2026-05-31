@@ -3,13 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { FiArrowLeft } from "react-icons/fi";
 import { AiOutlineLike, AiFillLike } from "react-icons/ai";
 import { FaRegComment } from "react-icons/fa";
 import { MdOutlineShare } from "react-icons/md";
-import { BsLeaf } from "react-icons/bs";
 import { MdFlagCircle } from "react-icons/md";
 import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import type { BookStory } from "@/types/store";
 import StorySubmissionModal from "./StorySubmissionModal";
 import styles from "./BookSpiritClient.module.css";
@@ -22,6 +21,7 @@ export default function BookSpiritClient() {
   const [showModal, setShowModal] = useState(false);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [commentText, setCommentText] = useState<Record<string, string>>({});
+  const [replyTo, setReplyTo] = useState<Record<string, { id: string; name: string } | null>>({});
   const [loadingActions, setLoadingActions] = useState<Record<string, string>>({}); // "like" | "comment_send" | ""
   const [reportModal, setReportModal] = useState<{ storyId: string; storyTitle: string } | null>(null);
   const [reportReason, setReportReason] = useState("");
@@ -107,6 +107,14 @@ export default function BookSpiritClient() {
     }
   };
 
+  const isVerifiedActor = (actor: { userEmail?: string; userName?: string; verified?: boolean }) => {
+    return (
+      Boolean(actor.verified) ||
+      actor.userEmail?.toLowerCase() === "digitalawanku2@gmail.com" ||
+      actor.userName === "Tokko Marketplace"
+    );
+  };
+
   const handleAddComment = async (storyId: string) => {
     const text = commentText[storyId]?.trim();
     if (!text) return;
@@ -116,17 +124,50 @@ export default function BookSpiritClient() {
       const response = await fetch(`/api/book-stories/${storyId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          replyToId: replyTo[storyId]?.id,
+          replyToName: replyTo[storyId]?.name,
+        }),
       });
       if (response.ok) {
         const data = (await response.json()) as { story: BookStory };
         setStories(stories.map(s => s.id === storyId ? data.story : s));
         setCommentText(prev => ({ ...prev, [storyId]: "" }));
+        setReplyTo(prev => ({ ...prev, [storyId]: null }));
       }
     } catch (error) {
       console.error("Failed to add comment:", error);
     } finally {
       setLoadingActions(prev => ({ ...prev, [storyId]: "" }));
+    }
+  };
+
+  const handleDeleteComment = async (storyId: string, commentId: string) => {
+    if (!confirm("Yakin hapus komentar ini?")) {
+      return;
+    }
+
+    setLoadingActions(prev => ({ ...prev, [commentId]: "comment_delete" }));
+    try {
+      const response = await fetch(`/api/book-stories/${storyId}/comments`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId }),
+      });
+
+      if (response.ok) {
+        const data = (await response.json()) as { story: BookStory };
+        setStories(stories.map(s => s.id === storyId ? data.story : s));
+      } else {
+        const data = (await response.json()) as { message?: string };
+        alert(data.message || "Gagal hapus komentar");
+      }
+    } catch (error) {
+      console.error("Failed to delete comment:", error);
+      alert("Gagal hapus komentar");
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [commentId]: "" }));
     }
   };
 
@@ -194,6 +235,71 @@ export default function BookSpiritClient() {
   const userHasLiked = (story: BookStory) => {
     return session?.user?.id ? story.likedBy.includes(session.user.id) : false;
   };
+
+  const getRootComments = (story: BookStory) => {
+    return story.comments.filter(
+      (comment) => !comment.replyToId || !story.comments.some((item) => item.id === comment.replyToId),
+    );
+  };
+
+  const getReplyComments = (story: BookStory, parentId: string) => {
+    return story.comments.filter((comment) => comment.replyToId === parentId);
+  };
+
+  const renderStoryComment = (
+    story: BookStory,
+    comment: BookStory["comments"][number],
+    isReply = false,
+  ) => (
+    <div
+      key={comment.id}
+      className={`${styles.commentItem} ${isReply ? styles.commentReply : ""}`}
+    >
+      <div className={styles.commentHeaderRow}>
+        <p className={isVerifiedActor(comment) ? styles.commentAuthorVerified : styles.commentAuthor}>
+          {comment.userName}
+        </p>
+        {isVerifiedActor(comment) ? (
+          <span className={styles.commentBadgeWrap} title="Terverifikasi">
+            <VerifiedBadge />
+          </span>
+        ) : null}
+      </div>
+      {comment.replyToName ? (
+        <p className={styles.replyTarget}>Membalas @{comment.replyToName}</p>
+      ) : null}
+      <p className={styles.commentText}>{comment.text}</p>
+      {session?.user ? (
+        <div className={styles.commentActions}>
+          <button
+            type="button"
+            onClick={() =>
+              setReplyTo(prev => ({
+                ...prev,
+                [story.id]: { id: comment.id, name: comment.userName },
+              }))
+            }
+          >
+            Balas
+          </button>
+          {(session.user.role === "admin" || comment.userId === session.user.id) ? (
+            <button
+              type="button"
+              onClick={() => handleDeleteComment(story.id, comment.id)}
+              disabled={loadingActions[comment.id] === "comment_delete"}
+            >
+              {loadingActions[comment.id] === "comment_delete" ? "Hapus..." : "Hapus"}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {!isReply && getReplyComments(story, comment.id).length > 0 ? (
+        <div className={styles.replyList}>
+          {getReplyComments(story, comment.id).map((reply) => renderStoryComment(story, reply, true))}
+        </div>
+      ) : null}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -280,6 +386,30 @@ export default function BookSpiritClient() {
             ))}
           </div>
         )}
+
+        {allProducts.length > 0 && (
+          <div className={styles.categoryRow}>
+            <button
+              type="button"
+              onClick={() => setActiveProductId(null)}
+              className={`${styles.categoryChip} ${activeProductId === null ? styles.categoryChipActive : ""}`}
+            >
+              Semua Produk
+            </button>
+            {allProducts.map((product) => (
+              <button
+                key={product.id}
+                type="button"
+                onClick={() => setActiveProductId(product.id)}
+                className={`${styles.categoryChip} ${
+                  activeProductId === product.id ? styles.categoryChipActive : ""
+                }`}
+              >
+                {product.name}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className={styles.content}>
@@ -291,7 +421,7 @@ export default function BookSpiritClient() {
               onClick={handleTellStory}
               style={{ marginTop: "24px" }}
             >
-              Ceritakan Kepuasanmu
+              Isi Testimoni
             </button>
             <p style={{ marginTop: "16px", fontSize: "14px", color: "#666" }}>Bagikan pengalaman terbaik mu bersama kami</p>
           </div>
@@ -299,20 +429,6 @@ export default function BookSpiritClient() {
           <>
             {filteredStories.map((story) => (
               <article key={story.id} className={styles.storyItem}>
-                {/* Decorative leaves */}
-                <div style={{ position: "absolute", top: "-12px", left: "20px", color: "#007AFF", fontSize: "32px", opacity: 0.6 }}>
-                  <BsLeaf style={{ transform: "rotate(-30deg)" }} />
-                </div>
-                <div style={{ position: "absolute", top: "20px", right: "-8px", color: "#007AFF", fontSize: "28px", opacity: 0.5 }}>
-                  <BsLeaf style={{ transform: "rotate(60deg)" }} />
-                </div>
-                <div style={{ position: "absolute", bottom: "-12px", right: "30px", color: "#007AFF", fontSize: "30px", opacity: 0.6 }}>
-                  <BsLeaf style={{ transform: "rotate(20deg)" }} />
-                </div>
-                <div style={{ position: "absolute", bottom: "40px", left: "-8px", color: "#007AFF", fontSize: "26px", opacity: 0.5 }}>
-                  <BsLeaf style={{ transform: "rotate(-60deg)" }} />
-                </div>
-
                 <div className={styles.storyContent}>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
                     {story.userAvatarUrl ? (
@@ -324,7 +440,7 @@ export default function BookSpiritClient() {
                           height: "40px",
                           borderRadius: "50%",
                           objectFit: "cover",
-                          border: "2px solid #007AFF",
+                          border: "2px solid #11151E",
                         }}
                       />
                     ) : (
@@ -333,7 +449,7 @@ export default function BookSpiritClient() {
                           width: "40px",
                           height: "40px",
                           borderRadius: "50%",
-                          background: "#007AFF",
+                          background: "#11151E",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -346,7 +462,16 @@ export default function BookSpiritClient() {
                       </div>
                     )}
                     <div>
-                      <h3 className={styles.storyAuthor}>{story.userName}</h3>
+                      <div className={styles.authorNameRow}>
+                        <h3 className={isVerifiedActor(story) ? styles.storyAuthorVerified : styles.storyAuthor}>
+                          {story.userName}
+                        </h3>
+                        {isVerifiedActor(story) ? (
+                          <span className={styles.verifiedBadgeWrap} title="Terverifikasi">
+                            <VerifiedBadge />
+                          </span>
+                        ) : null}
+                      </div>
                       <p style={{ fontSize: "12px", color: "#999", margin: "0" }}>
                         {new Date(story.createdAt).toLocaleDateString("id-ID")}
                       </p>
@@ -387,26 +512,15 @@ export default function BookSpiritClient() {
                   
                   {/* Linked Products Display */}
                   {story.linkedProducts && story.linkedProducts.length > 0 && (
-                    <div style={{ marginTop: "12px", padding: "8px", background: "#F0F4FF", borderRadius: "8px", border: "1px solid #007AFF" }}>
-                      <p style={{ fontSize: "12px", fontWeight: "600", margin: "0 0 6px 0", color: "#007AFF" }}>Produk Terkait:</p>
+                    <div style={{ marginTop: "12px", padding: "8px", background: "#f5f5f5", borderRadius: "8px", border: "1px solid #11151E" }}>
+                      <p style={{ fontSize: "12px", fontWeight: "600", margin: "0 0 6px 0", color: "#11151E" }}>Produk Terkait:</p>
                       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                         {story.linkedProducts.map((prod) => (
-                          <span key={prod.productId} style={{ fontSize: "12px", background: "white", border: "1px solid #007AFF", borderRadius: "12px", padding: "4px 8px", color: "#007AFF" }}>
+                          <span key={prod.productId} style={{ fontSize: "12px", background: "white", border: "1px solid #11151E", borderRadius: "12px", padding: "4px 8px", color: "#11151E" }}>
                             {prod.productName}
                           </span>
                         ))}
                       </div>
-                    </div>
-                  )}
-                  
-                  {/* Emoji Elements Overlay */}
-                  {story.elements && story.elements.length > 0 && (
-                    <div style={{ marginTop: "8px", display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                      {story.elements.map((el, idx) => (
-                        <span key={idx} style={{ fontSize: "20px", opacity: el.opacity || 0.3 }}>
-                          {el.emoji}
-                        </span>
-                      ))}
                     </div>
                   )}
                   
@@ -425,7 +539,7 @@ export default function BookSpiritClient() {
                         display: "flex",
                         alignItems: "center",
                         gap: "6px",
-                        color: userHasLiked(story) ? "#007AFF" : "#999",
+                        color: userHasLiked(story) ? "#11151E" : "#999",
                         opacity: loadingActions[story.id] === "like" ? 0.6 : 1,
                       }}
                     >
@@ -503,59 +617,63 @@ export default function BookSpiritClient() {
                       {story.comments.length === 0 ? (
                         <p style={{ fontSize: "14px", color: "#999" }}>Belum ada komentar</p>
                       ) : (
-                        <div style={{ maxHeight: "200px", overflowY: "auto", marginBottom: "8px" }}>
-                          {story.comments.map((comment) => (
-                            <div key={comment.id} style={{ marginBottom: "8px", paddingBottom: "8px", borderBottom: "1px solid #f0f0f0" }}>
-                              <p style={{ fontSize: "13px", fontWeight: "600", margin: "0 0 4px 0" }}>
-                                {comment.userName}
-                              </p>
-                              <p style={{ fontSize: "13px", color: "#333", margin: "0" }}>
-                                {comment.text}
-                              </p>
-                            </div>
-                          ))}
+                        <div className={styles.commentsList}>
+                          {getRootComments(story).map((comment) => renderStoryComment(story, comment))}
                         </div>
                       )}
 
                       {session?.user?.email && (
-                        <div style={{ display: "flex", gap: "4px" }}>
-                          <input
-                            type="text"
-                            placeholder="Tambah komentar..."
-                            value={commentText[story.id] || ""}
-                            onChange={(e) => setCommentText(prev => ({ ...prev, [story.id]: e.target.value }))}
-                            onKeyPress={(e) => {
-                              if (e.key === "Enter" && loadingActions[story.id] !== "comment_send") {
-                                handleAddComment(story.id);
-                              }
-                            }}
-                            disabled={loadingActions[story.id] === "comment_send"}
-                            style={{
-                              flex: 1,
-                              padding: "8px",
-                              border: "1px solid #ddd",
-                              borderRadius: "4px",
-                              fontSize: "13px",
-                              opacity: loadingActions[story.id] === "comment_send" ? 0.6 : 1,
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleAddComment(story.id)}
-                            disabled={loadingActions[story.id] === "comment_send"}
-                            style={{
-                              padding: "8px 12px",
-                              background: "#007AFF",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "4px",
-                              cursor: loadingActions[story.id] === "comment_send" ? "wait" : "pointer",
-                              fontSize: "13px",
-                              opacity: loadingActions[story.id] === "comment_send" ? 0.6 : 1,
-                            }}
-                          >
-                            {loadingActions[story.id] === "comment_send" ? "Mengirim..." : "Kirim"}
-                          </button>
+                        <div className={styles.commentComposer}>
+                          {replyTo[story.id] ? (
+                            <div className={styles.replyingTo}>
+                              Membalas @{replyTo[story.id]?.name}
+                              <button
+                                type="button"
+                                onClick={() => setReplyTo(prev => ({ ...prev, [story.id]: null }))}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ) : null}
+                          <div style={{ display: "flex", gap: "4px" }}>
+                            <input
+                              type="text"
+                              placeholder={replyTo[story.id] ? `Balas @${replyTo[story.id]?.name}...` : "Tambah komentar..."}
+                              value={commentText[story.id] || ""}
+                              onChange={(e) => setCommentText(prev => ({ ...prev, [story.id]: e.target.value }))}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && loadingActions[story.id] !== "comment_send") {
+                                  handleAddComment(story.id);
+                                }
+                              }}
+                              disabled={loadingActions[story.id] === "comment_send"}
+                              style={{
+                                flex: 1,
+                                padding: "8px",
+                                border: "1px solid #ddd",
+                                borderRadius: "4px",
+                                fontSize: "13px",
+                                opacity: loadingActions[story.id] === "comment_send" ? 0.6 : 1,
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleAddComment(story.id)}
+                              disabled={loadingActions[story.id] === "comment_send"}
+                              style={{
+                                padding: "8px 12px",
+                                background: "#11151E",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "4px",
+                                cursor: loadingActions[story.id] === "comment_send" ? "wait" : "pointer",
+                                fontSize: "13px",
+                                opacity: loadingActions[story.id] === "comment_send" ? 0.6 : 1,
+                              }}
+                            >
+                              {loadingActions[story.id] === "comment_send" ? "Mengirim..." : "Kirim"}
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -566,7 +684,7 @@ export default function BookSpiritClient() {
                   className={styles.tellStoryButton}
                   onClick={handleTellStory}
                 >
-                  Tell your Story!
+                  Isi Testimoni
                 </button>
               </article>
             ))}

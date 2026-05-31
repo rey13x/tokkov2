@@ -172,7 +172,7 @@ export const authOptions: NextAuthOptions = {
 
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.userId = user.id;
         token.username = user.name ?? undefined;
@@ -180,6 +180,19 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as any).role;
         token.phone = (user as any).phone;
         token.avatarUrl = user.image ?? undefined;
+      } else if (trigger === "update" && session) {
+        const nextSession = session as {
+          username?: string;
+          email?: string;
+          phone?: string;
+          avatarUrl?: string;
+          image?: string;
+        };
+        if (typeof nextSession.username === "string") token.username = nextSession.username;
+        if (typeof nextSession.email === "string") token.email = nextSession.email;
+        if (typeof nextSession.phone === "string") token.phone = nextSession.phone;
+        if (typeof nextSession.avatarUrl === "string") token.avatarUrl = nextSession.avatarUrl;
+        if (typeof nextSession.image === "string") token.avatarUrl = nextSession.image;
       } else if (token.userId && token.userId !== "dev-admin-hardcoded") {
         // If no user object but we have a userId, fetch the latest user data from database
         // This ensures the JWT stays up-to-date when user updates their profile

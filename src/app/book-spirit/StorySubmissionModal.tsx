@@ -25,7 +25,6 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
   const [linkedProducts, setLinkedProducts] = useState<Array<{id: string; name: string}>>([]);
   const [availableProducts, setAvailableProducts] = useState<Array<{id: string; name: string}>>([]);
   const [showProductPicker, setShowProductPicker] = useState(false);
-  const [selectedEmoji, setSelectedEmoji] = useState<string>("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [elements, setElements] = useState<Array<{emoji: string; opacity: number}>>([]);
   const [emojiInput, setEmojiInput] = useState<string>("");
@@ -37,10 +36,10 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
     // Load available products
     const loadProducts = async () => {
       try {
-        const response = await fetch("/api/me/products");
+        const response = await fetch("/api/store", { cache: "no-store" });
         if (response.ok) {
-          const data = await response.json();
-          setAvailableProducts(data.products || []);
+          const data = (await response.json()) as { products?: Array<{ id: string; name: string; isActive?: boolean }> };
+          setAvailableProducts((data.products || []).filter((product) => product.isActive !== false));
         }
       } catch (error) {
         console.error("Failed to load products:", error);
@@ -401,13 +400,13 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                   onClick={() => setRating(rating > 0 ? 0 : 1)}
                   style={{
                     padding: "6px 12px",
-                    border: `2px solid ${rating > 0 ? "#007AFF" : "#e0e0e0"}`,
+                    border: `2px solid ${rating > 0 ? "#11151E" : "#e0e0e0"}`,
                     borderRadius: "6px",
-                    background: rating > 0 ? "#f0f7ff" : "transparent",
+                    background: rating > 0 ? "#11151E" : "transparent",
                     cursor: "pointer",
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: rating > 0 ? "#007AFF" : "#666",
+                    color: rating > 0 ? "#11151E" : "#666",
                     transition: "all 0.2s ease",
                   }}
                 >
@@ -447,13 +446,13 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                   onClick={() => setShowProductPicker(!showProductPicker)}
                   style={{
                     padding: "6px 12px",
-                    border: "2px solid #007AFF",
+                    border: "2px solid #11151E",
                     borderRadius: "6px",
-                    background: "#f0f7ff",
+                    background: "#11151E",
                     cursor: "pointer",
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: "#007AFF",
+                    color: "#11151E",
                     transition: "all 0.2s ease",
                   }}
                 >
@@ -490,11 +489,11 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                         fontSize: "13px",
                       }}
                       onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = "#f0f7ff";
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#007AFF";
+                        (e.currentTarget as HTMLButtonElement).style.background = "#11151E";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#11151E";
                       }}
                       onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = "#fff";
+                        (e.currentTarget as HTMLButtonElement).style.background = "#11151E";
                         (e.currentTarget as HTMLButtonElement).style.borderColor = "#e0e0e0";
                       }}
                     >
@@ -514,8 +513,8 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                         alignItems: "center",
                         gap: "8px",
                         padding: "6px 10px",
-                        background: "#f0f7ff",
-                        border: "1px solid #007AFF",
+                        background: "#11151E",
+                        border: "1px solid #11151E",
                         borderRadius: "16px",
                         fontSize: "12px",
                       }}
@@ -530,7 +529,7 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                           cursor: "pointer",
                           padding: 0,
                           fontSize: "16px",
-                          color: "#007AFF",
+                          color: "#11151E",
                         }}
                       >
                         <IoClose />
@@ -550,13 +549,13 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   style={{
                     padding: "6px 12px",
-                    border: "2px solid #007AFF",
+                    border: "2px solid #11151E",
                     borderRadius: "6px",
-                    background: "#f0f7ff",
+                    background: "#11151E",
                     cursor: "pointer",
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: "#007AFF",
+                    color: "#11151E",
                     transition: "all 0.2s ease",
                   }}
                 >
@@ -591,8 +590,8 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                             transition: "all 0.2s ease",
                           }}
                           onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.background = "#f0f7ff";
-                            (e.currentTarget as HTMLButtonElement).style.borderColor = "#007AFF";
+                            (e.currentTarget as HTMLButtonElement).style.background = "#11151E";
+                            (e.currentTarget as HTMLButtonElement).style.borderColor = "#11151E";
                           }}
                           onMouseLeave={(e) => {
                             (e.currentTarget as HTMLButtonElement).style.background = "#fff";
@@ -632,7 +631,7 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                       onClick={handleAddCustomEmoji}
                       style={{
                         padding: "6px 12px",
-                        background: "#007AFF",
+                        background: "#11151E",
                         color: "#fff",
                         border: "none",
                         borderRadius: "6px",
@@ -675,8 +674,8 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                       alignItems: "center",
                       gap: "6px",
                       padding: "6px 10px",
-                      background: "#f0f7ff",
-                      border: "1px solid #007AFF",
+                      background: "#11151E",
+                      border: "1px solid #11151E",
                       borderRadius: "16px",
                     }}
                   >
@@ -695,7 +694,7 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                         cursor: "pointer",
                         padding: 0,
                         fontSize: "16px",
-                        color: "#007AFF",
+                        color: "#11151E",
                       }}
                     >
                       <IoClose />

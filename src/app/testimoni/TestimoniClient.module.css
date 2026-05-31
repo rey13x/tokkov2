@@ -1,8 +1,22 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
+  gap: 32px;
   margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    margin-right: -20px;
+    margin-left: -20px;
+    padding-right: 20px;
+    padding-left: 20px;
+    scroll-snap-type: x mandatory;
+  }
 }
 
 .card {
@@ -14,6 +28,16 @@
   flex-direction: column;
   gap: 12px;
   transition: box-shadow 0.2s ease;
+  flex-shrink: 0;
+  width: 100%;
+  scroll-snap-align: center;
+}
+
+@media (max-width: 768px) {
+  .card {
+    min-width: 320px;
+    width: 320px;
+  }
 }
 
 .card:hover {
@@ -24,6 +48,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: #666;
+  margin-bottom: 8px;
 }
 
 .cardHeader {
@@ -84,23 +109,57 @@
 }
 
 .linkedProducts {
-  margin-top: 8px;
-  padding: 8px;
-  background: #f9f9f9;
-  border-radius: 4px;
+  margin-top: 12px;
+  padding: 10px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 6px;
 }
 
 .linkedProductsLabel {
-  margin: 0 0 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #666;
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #11151E;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .linkedProductItem {
-  font-size: 0.85rem;
-  color: #0066cc;
-  padding: 2px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #fff;
+  background: #11151E;
+  padding: 6px 10px;
+  margin: 4px 4px 4px 0;
+  border-radius: 20px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.linkedProductItem:hover {
+  background: #0a0d14;
+  box-shadow: 0 2px 6px rgba(17, 21, 30, 0.2);
+}
+
+.linkedProductThumbnail {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.linkedProductName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
 }
 
 .audio {
@@ -112,7 +171,7 @@
 .commentsToggle {
   background: none;
   border: none;
-  color: #0066cc;
+  color: #11151E;
   cursor: pointer;
   font-size: 0.9rem;
   padding: 6px 0;
@@ -178,6 +237,14 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-wrap: wrap;
+}
+
+.verifiedBadgeInline {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 2px;
+  margin-left: 4px;
 }
 
 .commentName {
@@ -187,7 +254,7 @@
 
 .verifiedCommentName {
   font-weight: 700;
-  color: #0066cc;
+  color: #11151E;
 }
 
 .ownCommentName {
@@ -197,7 +264,7 @@
 
 .adminCommentName {
   font-weight: 700;
-  color: #0066cc;
+  color: #11151E;
 }
 
 .commentDate {
@@ -213,7 +280,7 @@
   justify-content: center;
   width: 18px;
   height: 18px;
-  background: #0066cc;
+  background: #11151E;
   color: white;
   border-radius: 50%;
   font-size: 0.75rem;
@@ -224,7 +291,7 @@
 .replyTo {
   margin: 0 0 4px;
   font-size: 0.85rem;
-  color: #0066cc;
+  color: #11151E;
   font-weight: 500;
 }
 
@@ -244,7 +311,7 @@
 .replyButton {
   background: none;
   border: none;
-  color: #0066cc;
+  color: #11151E;
   cursor: pointer;
   font-size: 0.85rem;
   padding: 4px 8px;
@@ -255,7 +322,7 @@
 }
 
 .replyButton:hover {
-  background: rgba(0, 102, 204, 0.1);
+  background: rgba(17, 21, 30, 0.1);
   text-decoration: underline;
 }
 
@@ -288,22 +355,22 @@
 }
 
 .replyingTo {
-  background: #f0f7ff;
-  border-left: 3px solid #0066cc;
+  background: #f0f0f0;
+  border-left: 3px solid #11151E;
   padding: 8px;
   border-radius: 4px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 0.85rem;
-  color: #0066cc;
+  color: #11151E;
   font-weight: 500;
 }
 
 .cancelReply {
   background: none;
   border: none;
-  color: #0066cc;
+  color: #11151E;
   cursor: pointer;
   font-size: 1rem;
   padding: 0;
@@ -323,12 +390,12 @@
 
 .textInput:focus {
   outline: none;
-  border-color: #0066cc;
-  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+  border-color: #11151E;
+  box-shadow: 0 0 0 2px rgba(17, 21, 30, 0.1);
 }
 
 .submitButton {
-  background: #0066cc;
+  background: #11151E;
   color: white;
   border: none;
   padding: 8px 12px;
@@ -340,10 +407,150 @@
 }
 
 .submitButton:hover:not(:disabled) {
-  background: #0052a3;
+  background: #0a0d14;
 }
 
 .submitButton:disabled {
   background: #ccc;
   cursor: not-allowed;
+}
+
+.editButton {
+  background: none;
+  border: none;
+  color: #11151E;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  text-align: left;
+  font-weight: 600;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.editButton:hover:not(:disabled) {
+  background: rgba(17, 21, 30, 0.1);
+  text-decoration: underline;
+}
+
+.editButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelButton {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.cancelButton:hover {
+  background: #f0f0f0;
+}
+
+.editCommentForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.editCommentActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.reactionButton {
+  background: none;
+  border: 1px solid #ddd;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 6px 8px;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.reactionButton:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.reactionPicker {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-bottom: 4px;
+}
+
+.reactionOption {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.reactionOption:hover {
+  background: #f0f0f0;
+}
+
+.commentReactions {
+  margin: 6px 0;
+}
+
+.reactionsDisplay {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.reactionBadge {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 16px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reactionBadge:hover {
+  background: #e8e8e8;
+  border-color: #bbb;
+}
+
+.reactionActive {
+  background: rgba(17, 21, 30, 0.1);
+  border-color: #11151E;
+  font-weight: 600;
+}
+
+.reactionActive:hover {
+  background: rgba(17, 21, 30, 0.15);
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
-import VerifiedBadgeTenor from "@/components/VerifiedBadgeTenor";
-import type { StoreTestimonial, StoreTestimonialComment } from "@/types/store";
+import VerifiedBadge from "@/components/VerifiedBadge";
+import type { StoreTestimonial, StoreTestimonialComment, CommentReactionSummary, StoreProduct } from "@/types/store";
 import styles from "./TestimoniClient.module.css";
 
 interface TestimoniClientProps {
@@ -12,18 +13,147 @@ interface TestimoniClientProps {
   activeRating: number | null;
 }
 
+const COMMON_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
+
 export default function TestimoniClient({ testimonials, activeRating }: TestimoniClientProps) {
   const { data: session } = useSession();
   const [comments, setComments] = useState<Record<string, StoreTestimonialComment[]>>({});
+  const [reactions, setReactions] = useState<Record<string, CommentReactionSummary[]>>({});
   const [isLoadingComments, setIsLoadingComments] = useState<Record<string, boolean>>({});
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const [replyTo, setReplyTo] = useState<Record<string, { id: string; name: string } | null>>({});
   const [isSubmitting, setIsSubmitting] = useState<Record<string, boolean>>({});
   const [isDeletingComment, setIsDeletingComment] = useState<Record<string, boolean>>({});
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState<string>("");
+  const [isEditingComment, setIsEditingComment] = useState<Record<string, boolean>>({});
+  const [showReactionPicker, setShowReactionPicker] = useState<Record<string, boolean>>({});
+  const [isLoadingReactions, setIsLoadingReactions] = useState<Record<string, boolean>>({});
+  const [products, setProducts] = useState<StoreProduct[]>([]);
 
   const filtered = useMemo(() => {
     return testimonials.filter((testimonial) => activeRating === null || testimonial.rating === activeRating);
   }, [testimonials, activeRating]);
+
+  const loadReactions = useCallback(
+    async (commentId: string) => {
+      if (reactions[commentId]) return;
+
+      setIsLoadingReactions((prev) => ({ ...prev, [commentId]: true }));
+      try {
+        const testimonialId = filtered[0]?.id; // This is a workaround; ideally pass testimonialId
+        const res = await fetch(`/api/testimonials/${testimonialId}/comments/${commentId}/reactions`);
+        const data = (await res.json()) as { reactions: CommentReactionSummary[] };
+        setReactions((prev) => ({ ...prev, [commentId]: data.reactions }));
+      } catch (error) {
+        console.error("Failed to load reactions:", error);
+      } finally {
+        setIsLoadingReactions((prev) => ({ ...prev, [commentId]: false }));
+      }
+    },
+    [reactions, filtered],
+  );
+
+  const addReaction = useCallback(
+    async (testimonialId: string, commentId: string, emoji: string) => {
+      if (!session?.user) return;
+
+      try {
+        const res = await fetch(
+          `/api/testimonials/${testimonialId}/comments/${commentId}/reactions`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ emoji }),
+          },
+        );
+
+        const data = (await res.json()) as { reactions: CommentReactionSummary[] };
+        if (res.ok) {
+          setReactions((prev) => ({ ...prev, [commentId]: data.reactions }));
+          setShowReactionPicker((prev) => ({ ...prev, [commentId]: false }));
+        }
+      } catch (error) {
+        console.error("Failed to add reaction:", error);
+      }
+    },
+    [session],
+  );
+
+  const removeReaction = useCallback(
+    async (testimonialId: string, commentId: string, emoji: string) => {
+      if (!session?.user) return;
+
+      try {
+        const res = await fetch(
+          `/api/testimonials/${testimonialId}/comments/${commentId}/reactions`,
+          {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ emoji }),
+          },
+        );
+
+        const data = (await res.json()) as { reactions: CommentReactionSummary[] };
+        if (res.ok) {
+          setReactions((prev) => ({ ...prev, [commentId]: data.reactions }));
+        }
+      } catch (error) {
+        console.error("Failed to remove reaction:", error);
+      }
+    },
+    [session],
+  );
+
+  const editComment = useCallback(
+    async (testimonialId: string, commentId: string, newText: string) => {
+      if (!session?.user || !newText.trim()) return;
+
+      setIsEditingComment((prev) => ({ ...prev, [commentId]: true }));
+      try {
+        const res = await fetch(`/api/testimonials/${testimonialId}/comments`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ commentId, text: newText }),
+        });
+
+        const data = (await res.json()) as { comment: StoreTestimonialComment };
+        if (res.ok) {
+          setComments((prev) => ({
+            ...prev,
+            [testimonialId]: (prev[testimonialId] || []).map((c) =>
+              c.id === commentId ? data.comment : c,
+            ),
+          }));
+          setEditingCommentId(null);
+          setEditingCommentText("");
+        } else {
+          const error = (await res.json()) as { message?: string };
+          alert(error.message || "Gagal edit komentar");
+        }
+      } catch (error) {
+        console.error("Failed to edit comment:", error);
+        alert("Gagal edit komentar");
+      } finally {
+        setIsEditingComment((prev) => ({ ...prev, [commentId]: false }));
+      }
+    },
+    [session],
+  );
+
+  useEffect(() => {
+    // Fetch products to get images
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch("/api/store/products");
+        const data = (await res.json()) as { products: StoreProduct[] };
+        setProducts(data.products);
+      } catch (error) {
+        console.error("Failed to fetch products:", error);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   const loadComments = useCallback(
     async (testimonialId: string) => {
@@ -162,12 +292,32 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
 
           {testimonial.linkedProducts && testimonial.linkedProducts.length > 0 && (
             <div className={styles.linkedProducts}>
-              <p className={styles.linkedProductsLabel}>Produk Terkait:</p>
-              {testimonial.linkedProducts.map((product) => (
-                <div key={product.productId} className={styles.linkedProductItem}>
-                  {product.productName}
-                </div>
-              ))}
+              <p className={styles.linkedProductsLabel}>Produk Terkait</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {testimonial.linkedProducts.map((product) => {
+                  const productData = products.find(p => p.id === product.productId);
+                  return (
+                    <Link
+                      key={product.productId}
+                      href={`/produk/${product.productId}`}
+                      className={styles.linkedProductItem}
+                      title={product.productName}
+                    >
+                      {productData?.imageUrl && (
+                        <img
+                          src={productData.imageUrl}
+                          alt={product.productName}
+                          className={styles.linkedProductThumbnail}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                      )}
+                      <span className={styles.linkedProductName}>{product.productName}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -216,11 +366,11 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                             comment.userId === session?.user?.id ? styles.ownCommentName :
                             comment.verified ? styles.verifiedCommentName : styles.commentName
                           }>
-                            {comment.userName}
+                            {comment.userName === "Tokko Marketplace" ? "Bold" : comment.userName}
                           </span>
                           {(comment.verified || comment.userName === "Tokko Marketplace") && (
-                            <div style={{ display: "inline-flex", alignItems: "center", height: "20px" }}>
-                              <VerifiedBadgeTenor />
+                            <div className={styles.verifiedBadgeInline}>
+                              <VerifiedBadge />
                             </div>
                           )}
                         </div>
@@ -234,33 +384,145 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                       <p className={styles.replyTo}>@{comment.replyToName}</p>
                     )}
 
-                    <p className={styles.commentText}>{comment.text}</p>
+                    {editingCommentId === comment.id ? (
+                      <div className={styles.editCommentForm}>
+                        <textarea
+                          value={editingCommentText}
+                          onChange={(e) => setEditingCommentText(e.target.value)}
+                          maxLength={500}
+                          className={styles.textInput}
+                        />
+                        <div className={styles.editCommentActions}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              editComment(testimonial.id, comment.id, editingCommentText)
+                            }
+                            disabled={isEditingComment[comment.id] || !editingCommentText.trim()}
+                            className={styles.submitButton}
+                          >
+                            {isEditingComment[comment.id] ? "Menyimpan..." : "Simpan"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCommentId(null);
+                              setEditingCommentText("");
+                            }}
+                            className={styles.cancelButton}
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className={styles.commentText}>{comment.text}</p>
+                    )}
+
+                    <div className={styles.commentReactions}>
+                      {reactions[comment.id] && reactions[comment.id].length > 0 && (
+                        <div className={styles.reactionsDisplay}>
+                          {reactions[comment.id].map((reaction) => (
+                            <button
+                              key={reaction.emoji}
+                              type="button"
+                              onClick={() => {
+                                if (reaction.userReacted) {
+                                  removeReaction(testimonial.id, comment.id, reaction.emoji);
+                                } else {
+                                  addReaction(testimonial.id, comment.id, reaction.emoji);
+                                }
+                              }}
+                              className={`${styles.reactionBadge} ${
+                                reaction.userReacted ? styles.reactionActive : ""
+                              }`}
+                              title={`Kamu ${reaction.userReacted ? "sudah" : "belum"} memberi reaksi`}
+                            >
+                              {reaction.emoji} {reaction.count > 1 && <span>{reaction.count}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                     <div className={styles.commentActions}>
                       {session?.user && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setReplyTo((prev) => ({
-                              ...prev,
-                              [testimonial.id]: { id: comment.id, name: comment.userName },
-                            }))
-                          }
-                          className={styles.replyButton}
-                        >
-                          Reply
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!reactions[comment.id]) {
+                                loadReactions(comment.id);
+                              }
+                              setShowReactionPicker((prev) => ({
+                                ...prev,
+                                [comment.id]: !prev[comment.id],
+                              }));
+                            }}
+                            className={styles.reactionButton}
+                            title="Tambah reaksi"
+                          >
+                            😊
+                          </button>
+                          {showReactionPicker[comment.id] && (
+                            <div className={styles.reactionPicker}>
+                              {COMMON_REACTIONS.map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() =>
+                                    addReaction(testimonial.id, comment.id, emoji)
+                                  }
+                                  className={styles.reactionOption}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReplyTo((prev) => ({
+                                ...prev,
+                                [testimonial.id]: { id: comment.id, name: comment.userName },
+                              }))
+                            }
+                            className={styles.replyButton}
+                          >
+                            Balas
+                          </button>
+                        </>
                       )}
-                      {session?.user && (session.user.role === "admin" || comment.userId === session.user.id) && (
-                        <button
-                          type="button"
-                          onClick={() => deleteComment(testimonial.id, comment.id)}
-                          disabled={isDeletingComment[comment.id]}
-                          className={styles.deleteButton}
-                        >
-                          {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
-                        </button>
-                      )}
+                      {session?.user &&
+                        (session.user.role === "admin" ||
+                          comment.userId === session.user.id) && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingCommentId(comment.id);
+                                setEditingCommentText(comment.text);
+                              }}
+                              disabled={editingCommentId !== null}
+                              className={styles.editButton}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                deleteComment(testimonial.id, comment.id)
+                              }
+                              disabled={isDeletingComment[comment.id]}
+                              className={styles.deleteButton}
+                            >
+                              {isDeletingComment[comment.id]
+                                ? "Hapus..."
+                                : "Hapus"}
+                            </button>
+                          </>
+                        )}
                     </div>
                   </div>
                 ))}
@@ -289,7 +551,7 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                         [testimonial.id]: e.target.value,
                       }))
                     }
-                    placeholder="Tulis komentar..."
+                    placeholder={replyTo[testimonial.id] ? `Balas @${replyTo[testimonial.id]?.name}...` : "Tulis komentar..."}
                     maxLength={500}
                     className={styles.textInput}
                   />

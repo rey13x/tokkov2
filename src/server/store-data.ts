@@ -1730,6 +1730,7 @@ function mapBookStoryDoc(
     userName: String(data?.userName ?? data?.user_name ?? ""),
     userEmail: String(data?.userEmail ?? data?.user_email ?? ""),
     userAvatarUrl: String(data?.userAvatarUrl ?? data?.user_avatar_url ?? ""),
+    verified: Boolean(data?.verified),
     title: String(data?.title ?? data?.title ?? ""),
     category: String(data?.category ?? data?.category ?? ""),
     story: String(data?.story ?? ""),
@@ -1767,9 +1768,16 @@ function mapBookStoryDoc(
     linkedProducts: (() => {
       try {
         const val = data?.linkedProducts || data?.linked_products;
-        if (typeof val === "string") return JSON.parse(val);
-        if (Array.isArray(val)) return val;
-        return undefined;
+        const items = typeof val === "string" ? JSON.parse(val) : Array.isArray(val) ? val : undefined;
+        if (!Array.isArray(items)) {
+          return undefined;
+        }
+        return items.map((item) => ({
+          productId: String(item.productId ?? item.id ?? ""),
+          productName: String(item.productName ?? item.name ?? ""),
+          productImage: item.productImage ? String(item.productImage) : undefined,
+          productPrice: item.productPrice ? Number(item.productPrice) : undefined,
+        })).filter((item) => item.productId || item.productName);
       } catch {
         return undefined;
       }
@@ -1789,6 +1797,49 @@ function mapBookStoryDoc(
     approvedAt: data?.approvedAt || data?.approved_at ? new Date(Number(data.approvedAt || data.approved_at)).toISOString() : undefined,
     approvedBy: data?.approvedBy || data?.approved_by ? String(data.approvedBy || data.approved_by) : undefined,
   };
+}
+
+async function getAdminStoryEmails() {
+  await ensureDatabase();
+  const emails = new Set<string>(["digitalawanku2@gmail.com"]);
+
+  const adminEmailRows = await run("SELECT lower(email) AS email FROM admin_emails").catch(() => null);
+  for (const row of ((adminEmailRows?.rows ?? []) as Array<Record<string, unknown>>)) {
+    const email = String(row.email ?? "").trim().toLowerCase();
+    if (email) {
+      emails.add(email);
+    }
+  }
+
+  const adminUserRows = await run("SELECT lower(email) AS email FROM users WHERE role = 'admin'").catch(() => null);
+  for (const row of ((adminUserRows?.rows ?? []) as Array<Record<string, unknown>>)) {
+    const email = String(row.email ?? "").trim().toLowerCase();
+    if (email) {
+      emails.add(email);
+    }
+  }
+
+  return emails;
+}
+
+async function withBookStoryVerifiedFlags(stories: BookStory[]) {
+  const adminEmails = await getAdminStoryEmails();
+
+  return stories.map((story) => {
+    const isStoryAdmin = adminEmails.has(story.userEmail.trim().toLowerCase());
+    return {
+      ...story,
+      verified: isStoryAdmin,
+      comments: story.comments.map((comment) => ({
+        ...comment,
+        verified:
+          Boolean(comment.verified) ||
+          adminEmails.has(String(comment.userEmail ?? "").trim().toLowerCase()) ||
+          comment.userId === "dev-admin-hardcoded" ||
+          comment.userName === "Tokko Marketplace",
+      })),
+    };
+  });
 }
 
 export async function createBookStory(input: {
@@ -1822,7 +1873,12 @@ export async function createBookStory(input: {
       photos: JSON.stringify(input.photos || []),
       likedBy: JSON.stringify([]),
       rating: input.rating || null,
-      linkedProducts: JSON.stringify(input.linkedProducts || []),
+      linkedProducts: JSON.stringify(
+        (input.linkedProducts || []).map((product) => ({
+          productId: product.id,
+          productName: product.name,
+        })),
+      ),
       elements: JSON.stringify(input.elements || []),
       status: "approved",
       createdAt,
@@ -1874,7 +1930,10 @@ export async function createBookStory(input: {
       story: storyData.story,
       photos: input.photos || [],
       rating: input.rating,
-      linkedProducts: input.linkedProducts,
+      linkedProducts: (input.linkedProducts || []).map((product) => ({
+        productId: product.id,
+        productName: product.name,
+      })),
       elements: input.elements,
       likedBy: [],
       comments: [],
@@ -1901,9 +1960,10 @@ export async function listPendingBookStories() {
       "SELECT * FROM book_stories WHERE status = 'pending' ORDER BY created_at DESC",
     );
 
-    return ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) =>
+    const stories = ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) =>
       mapBookStoryDoc(String(row.id), row),
     );
+    return withBookStoryVerifiedFlags(stories);
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to read pending book stories from database:", error);
@@ -1918,9 +1978,10 @@ export async function listApprovedBookStories() {
       "SELECT * FROM book_stories WHERE status = 'approved' ORDER BY approved_at DESC",
     );
 
-    return ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) =>
+    const stories = ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) =>
       mapBookStoryDoc(String(row.id), row),
     );
+    return withBookStoryVerifiedFlags(stories);
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to read approved book stories from database:", error);
@@ -2028,18 +2089,7 @@ export async function incrementBookStoryLikes(storyId: string, userId: string) {
       throw new Error("Story not found");
     }
 
-    return mapBookStoryDoc(storyId, {
-      userId: updatedRow.user_id,
-      userName: updatedRow.user_name,
-      userEmail: updatedRow.user_email,
-      story: updatedRow.story,
-      photos: updatedRow.photos,
-      likedBy: updatedRow.liked_by,
-      comments: updatedRow.comments,
-      status: updatedRow.status,
-      createdAt: updatedRow.created_at,
-      approvedAt: updatedRow.approved_at,
-    });
+    return (await withBookStoryVerifiedFlags([mapBookStoryDoc(storyId, updatedRow)]))[0];
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to increment book story likes.", error);
@@ -2089,7 +2139,7 @@ export async function toggleBookStorySave(storyId: string, userId: string) {
       throw new Error("Story not found");
     }
 
-    return mapBookStoryDoc(storyId, updatedRow);
+    return (await withBookStoryVerifiedFlags([mapBookStoryDoc(storyId, updatedRow)]))[0];
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to toggle book story save.", error);
@@ -2127,7 +2177,7 @@ export async function incrementBookStoryShareCount(storyId: string) {
       throw new Error("Story not found");
     }
 
-    return mapBookStoryDoc(storyId, updatedRow);
+    return (await withBookStoryVerifiedFlags([mapBookStoryDoc(storyId, updatedRow)]))[0];
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to increment book story share count.", error);
@@ -2154,7 +2204,7 @@ export async function updateBookStorySaves(storyId: string, savedCount: number) 
       throw new Error("Story not found");
     }
 
-    return mapBookStoryDoc(storyId, updatedRow);
+    return (await withBookStoryVerifiedFlags([mapBookStoryDoc(storyId, updatedRow)]))[0];
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to update book story saves.", error);
@@ -2179,7 +2229,7 @@ export async function updateBookStoryShareCount(storyId: string, shareCount: num
       throw new Error("Story not found");
     }
 
-    return mapBookStoryDoc(storyId, updatedRow);
+    return (await withBookStoryVerifiedFlags([mapBookStoryDoc(storyId, updatedRow)]))[0];
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to update book story share count.", error);
@@ -2231,14 +2281,27 @@ export async function incrementBookStoryViews(storyId: string, userId?: string) 
       throw new Error("Story not found after update");
     }
 
-    return mapBookStoryDoc(storyId, updatedRow);
+    return (await withBookStoryVerifiedFlags([mapBookStoryDoc(storyId, updatedRow)]))[0];
   } catch (error) {
     console.error("Failed to increment views:", error);
     throw new Error("Gagal menambah views");
   }
 }
 
-export async function addBookStoryComment(storyId: string, comment: { id: string; userId: string; userName: string; text: string; createdAt: string }) {
+export async function addBookStoryComment(
+  storyId: string,
+  comment: {
+    id: string;
+    userId: string;
+    userName: string;
+    userEmail?: string;
+    verified?: boolean;
+    text: string;
+    replyToId?: string;
+    replyToName?: string;
+    createdAt: string;
+  },
+) {
   try {
     await ensureDatabase();
     
@@ -2252,7 +2315,7 @@ export async function addBookStoryComment(storyId: string, comment: { id: string
       throw new Error("Story not found");
     }
 
-    let comments: Array<{ id: string; userId: string; userName: string; text: string; createdAt: string }> = [];
+    let comments: BookStory["comments"] = [];
     try {
       const val = row.comments;
       if (typeof val === "string") comments = JSON.parse(val);
@@ -2278,11 +2341,131 @@ export async function addBookStoryComment(storyId: string, comment: { id: string
       throw new Error("Story not found");
     }
 
-    return mapBookStoryDoc(storyId, updatedRow);
+    return (await withBookStoryVerifiedFlags([mapBookStoryDoc(storyId, updatedRow)]))[0];
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to add book story comment.", error);
     throw new Error("Gagal menambah komentar");
+  }
+}
+
+export async function deleteBookStoryComment(storyId: string, commentId: string) {
+  try {
+    await ensureDatabase();
+
+    const result = await run(
+      "SELECT comments FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Story not found");
+    }
+
+    let comments: BookStory["comments"] = [];
+    try {
+      const val = row.comments;
+      if (typeof val === "string") {
+        comments = JSON.parse(val);
+      } else if (Array.isArray(val)) {
+        comments = val as BookStory["comments"];
+      }
+    } catch {
+      comments = [];
+    }
+
+    const nextComments = comments.filter((comment) => comment.id !== commentId);
+    if (nextComments.length === comments.length) {
+      return null;
+    }
+
+    await run(
+      "UPDATE book_stories SET comments = ? WHERE id = ?",
+      [JSON.stringify(nextComments), storyId],
+    );
+
+    const updatedResult = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+
+    const updatedRow = updatedResult.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Story not found");
+    }
+
+    return (await withBookStoryVerifiedFlags([mapBookStoryDoc(storyId, updatedRow)]))[0];
+  } catch (error) {
+    console.error("Failed to delete book story comment:", error);
+    throw new Error("Gagal hapus komentar");
+  }
+}
+
+export async function updateBookStoryUserProfile(
+  userId: string,
+  input: { userName?: string; userEmail?: string; userAvatarUrl?: string },
+) {
+  await ensureDatabase();
+
+  const rows = await run("SELECT id, user_id, comments FROM book_stories").catch(() => null);
+  for (const row of ((rows?.rows ?? []) as Array<Record<string, unknown>>)) {
+    const storyId = String(row.id ?? "");
+    if (!storyId) {
+      continue;
+    }
+
+    const updates: string[] = [];
+    const values: string[] = [];
+    if (String(row.user_id ?? "") === userId) {
+      if (input.userName !== undefined) {
+        updates.push("user_name = ?");
+        values.push(input.userName);
+      }
+      if (input.userEmail !== undefined) {
+        updates.push("user_email = ?");
+        values.push(input.userEmail);
+      }
+      if (input.userAvatarUrl !== undefined) {
+        updates.push("user_avatar_url = ?");
+        values.push(input.userAvatarUrl);
+      }
+    }
+
+    let commentsChanged = false;
+    let comments: BookStory["comments"] = [];
+    try {
+      const rawComments = row.comments;
+      if (typeof rawComments === "string") {
+        comments = JSON.parse(rawComments);
+      } else if (Array.isArray(rawComments)) {
+        comments = rawComments as BookStory["comments"];
+      }
+    } catch {
+      comments = [];
+    }
+
+    const nextComments = comments.map((comment) => {
+      if (comment.userId !== userId) {
+        return comment;
+      }
+
+      commentsChanged = true;
+      return {
+        ...comment,
+        userName: input.userName ?? comment.userName,
+        userEmail: input.userEmail ?? comment.userEmail,
+      };
+    });
+
+    if (commentsChanged) {
+      updates.push("comments = ?");
+      values.push(JSON.stringify(nextComments));
+    }
+
+    if (updates.length > 0) {
+      await run(`UPDATE book_stories SET ${updates.join(", ")} WHERE id = ?`, [...values, storyId]);
+    }
   }
 }
 
@@ -2512,6 +2695,8 @@ export async function addCustomBookStoryComments(storyId: string, comments: Arra
       id: `comment_${Date.now()}_${Math.random()}`,
       userId: "admin",
       userName: c.userName || "Admin",
+      userEmail: "digitalawanku2@gmail.com",
+      verified: true,
       text: c.text,
       createdAt: new Date().toISOString(),
     }));
@@ -3080,6 +3265,42 @@ export async function deleteTestimonialComment(commentId: string): Promise<boole
   }
 }
 
+export async function updateTestimonialComment(commentId: string, text: string): Promise<any> {
+  const firestore = getFirestoreOrNull();
+  if (firestore) {
+    try {
+      const updatedAt = now();
+      await firestore.collection("testimonialComments").doc(commentId).update({
+        text: text.trim(),
+        updatedAt,
+      });
+
+      const doc = await firestore.collection("testimonialComments").doc(commentId).get();
+      return mapTestimonialCommentDoc(commentId, doc.data() as Record<string, unknown>);
+    } catch (error) {
+      console.error("Failed to update testimonial comment in Firestore:", error);
+    }
+  }
+
+  // Fallback to local database
+  try {
+    const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
+    await ensDb();
+    const updatedAt = now();
+    await dbRun(
+      "UPDATE testimonial_comments SET text = ?, updated_at = ? WHERE id = ?",
+      [text.trim(), updatedAt, commentId],
+    );
+
+    const res = await dbRun("SELECT * FROM testimonial_comments WHERE id = ? LIMIT 1", [commentId]);
+    const row = res.rows[0] as Record<string, unknown> | undefined;
+    return row ? mapTestimonialComment(row) : null;
+  } catch (error) {
+    console.error("Failed to update testimonial comment in database:", error);
+    return null;
+  }
+}
+
 export async function updateTestimonialCommentUserName(userId: string, newUserName: string): Promise<boolean> {
   const firestore = getFirestoreOrNull();
   if (firestore) {
@@ -3116,3 +3337,165 @@ export async function updateTestimonialCommentUserName(userId: string, newUserNa
     return false;
   }
 }
+
+// Comment Reactions functions
+
+function mapCommentReaction(row: Record<string, unknown>) {
+  return {
+    id: String(row.id ?? ""),
+    commentId: String(row.comment_id ?? ""),
+    userId: String(row.user_id ?? "").trim() || undefined,
+    emoji: String(row.emoji ?? ""),
+    createdAt: new Date(Number(row.created_at ?? now())).toISOString(),
+  };
+}
+
+export async function addCommentReaction(input: {
+  commentId: string;
+  userId?: string;
+  emoji: string;
+}): Promise<any> {
+  const firestore = getFirestoreOrNull();
+  if (firestore) {
+    try {
+      const id = crypto.randomUUID();
+      const createdAt = now();
+
+      await firestore.collection("commentReactions").doc(id).set({
+        commentId: input.commentId,
+        userId: input.userId ?? null,
+        emoji: input.emoji,
+        createdAt,
+      });
+
+      const doc = await firestore.collection("commentReactions").doc(id).get();
+      return mapCommentReaction({ id, ...doc.data() } as Record<string, unknown>);
+    } catch (error) {
+      console.error("Failed to add comment reaction in Firestore:", error);
+    }
+  }
+
+  // Fallback to local database
+  try {
+    const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
+    const id = crypto.randomUUID();
+    const createdAt = now();
+
+    await ensDb();
+    await dbRun(
+      `INSERT INTO comment_reactions (id, comment_id, user_id, emoji, created_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(comment_id, user_id, emoji) DO NOTHING`,
+      [id, input.commentId, input.userId ?? null, input.emoji, createdAt],
+    );
+
+    const res = await dbRun("SELECT * FROM comment_reactions WHERE id = ? LIMIT 1", [id]);
+    const row = res.rows[0] as Record<string, unknown> | undefined;
+    return row ? mapCommentReaction(row) : null;
+  } catch (error) {
+    console.error("Failed to add comment reaction in database:", error);
+    return null;
+  }
+}
+
+export async function removeCommentReaction(input: {
+  commentId: string;
+  userId?: string;
+  emoji: string;
+}): Promise<boolean> {
+  const firestore = getFirestoreOrNull();
+  if (firestore) {
+    try {
+      const snapshot = await firestore
+        .collection("commentReactions")
+        .where("commentId", "==", input.commentId)
+        .where("userId", "==", input.userId ?? null)
+        .where("emoji", "==", input.emoji)
+        .limit(1)
+        .get();
+
+      if (snapshot.size > 0) {
+        await snapshot.docs[0].ref.delete();
+      }
+      return true;
+    } catch (error) {
+      console.error("Failed to remove comment reaction in Firestore:", error);
+    }
+  }
+
+  // Fallback to local database
+  try {
+    const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
+    await ensDb();
+    await dbRun(
+      `DELETE FROM comment_reactions 
+       WHERE comment_id = ? AND user_id = ? AND emoji = ?`,
+      [input.commentId, input.userId ?? null, input.emoji],
+    );
+    return true;
+  } catch (error) {
+    console.error("Failed to remove comment reaction in database:", error);
+    return false;
+  }
+}
+
+export async function getCommentReactions(commentId: string): Promise<any[]> {
+  const firestore = getFirestoreOrNull();
+  if (firestore) {
+    try {
+      const snapshot = await firestore
+        .collection("commentReactions")
+        .where("commentId", "==", commentId)
+        .orderBy("createdAt", "asc")
+        .get();
+
+      if (snapshot.size > 0) {
+        return snapshot.docs.map((doc: any) =>
+          mapCommentReaction({ id: doc.id, ...doc.data() } as Record<string, unknown>),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to get comment reactions from Firestore:", error);
+    }
+  }
+
+  // Fallback to local database
+  try {
+    const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
+    await ensDb();
+    const res = await dbRun(
+      "SELECT * FROM comment_reactions WHERE comment_id = ? ORDER BY created_at ASC",
+      [commentId],
+    );
+    return (res.rows as Record<string, unknown>[]).map(mapCommentReaction);
+  } catch (error) {
+    console.error("Failed to get comment reactions from database:", error);
+    return [];
+  }
+}
+
+export async function getCommentReactionsSummary(commentId: string, userId?: string): Promise<any> {
+  try {
+    const reactions = await getCommentReactions(commentId);
+    const summary: Record<string, { count: number; userReacted: boolean }> = {};
+
+    for (const reaction of reactions) {
+      if (!summary[reaction.emoji]) {
+        summary[reaction.emoji] = { count: 0, userReacted: false };
+      }
+      summary[reaction.emoji].count += 1;
+      if (userId && reaction.userId === userId) {
+        summary[reaction.emoji].userReacted = true;
+      }
+    }
+
+    return Object.entries(summary).map(([emoji, data]) => ({
+      emoji,
+      ...data,
+    }));
+  } catch (error) {
+    console.error("Failed to get comment reactions summary:", error);
+    return [];
+  }
+}
+

@@ -11,6 +11,7 @@ import {
   resolveStoryReport,
   updateBookStoryLikes,
   addCustomBookStoryComments,
+  deleteBookStoryComment,
   incrementBookStoryViews,
   updateBookStorySaves,
   updateBookStoryShareCount,
@@ -60,6 +61,7 @@ const approveStorySchema = z.object({
     "delete",
     "update-likes",
     "add-comments",
+    "delete-comment",
     "resolve-report",
     "increment-views",
     "update-saves",
@@ -80,6 +82,7 @@ const approveStorySchema = z.object({
       }),
     )
     .optional(),
+  commentId: z.string().optional(),
   // Untuk update writer
   newUserId: z.string().optional(),
   newUserName: z.string().optional(),
@@ -123,6 +126,14 @@ export async function POST(request: Request) {
     if (payload.action === "add-comments" && payload.storyId && payload.comments) {
       const story = await addCustomBookStoryComments(payload.storyId, payload.comments);
       return NextResponse.json({ story, message: "Komentar berhasil ditambahkan" });
+    }
+
+    if (payload.action === "delete-comment" && payload.storyId && payload.commentId) {
+      const story = await deleteBookStoryComment(payload.storyId, payload.commentId);
+      if (!story) {
+        return NextResponse.json({ message: "Komentar tidak ditemukan" }, { status: 404 });
+      }
+      return NextResponse.json({ story, message: "Komentar berhasil dihapus" });
     }
 
     if (payload.action === "resolve-report" && payload.reportId) {

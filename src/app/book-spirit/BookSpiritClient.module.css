@@ -136,6 +136,140 @@
   color: #10131a;
 }
 
+.authorNameRow,
+.commentHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.storyAuthorVerified {
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0;
+  color: #10131a;
+}
+
+.verifiedBadgeWrap,
+.commentBadgeWrap {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.commentAuthor,
+.commentAuthorVerified {
+  font-size: 13px;
+  margin: 0 0 4px;
+}
+
+.commentAuthor {
+  font-weight: 600;
+  color: #10131a;
+}
+
+.commentAuthorVerified {
+  font-weight: 800;
+  color: #10131a;
+}
+
+.replyTarget {
+  margin: 0 0 4px;
+  color: #11151E;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.commentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.commentItem {
+  padding: 0 0 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.commentReply {
+  margin-top: 8px;
+  margin-left: 18px;
+  padding: 8px 0 0 12px;
+  border-left: 2px solid #d7e9ff;
+  border-bottom: none;
+}
+
+.replyList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.commentText {
+  font-size: 13px;
+  color: #333;
+  margin: 0;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.commentActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.commentActions button {
+  border: none;
+  background: transparent;
+  color: #11151E;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.commentActions button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.commentComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.replyingTo {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  border-radius: 999px;
+  background: #11151E;
+  color: #11151E;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+}
+
+.replyingTo button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+}
+
 .storyText {
   font-size: 0.95rem;
   color: #333;
@@ -177,14 +311,14 @@
 
 .storyText blockquote {
   background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border-left: 5px solid #007aff;
+  border-left: 5px solid #11151E;
   padding: 16px 20px;
   margin: 16px 0;
   border-radius: 6px;
   font-style: italic;
   color: #555;
   position: relative;
-  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(17, 21, 30, 0.08);
 }
 
 .storyText blockquote::before {
@@ -193,7 +327,7 @@
   left: 8px;
   top: -10px;
   font-size: 48px;
-  color: #007aff;
+  color: #11151E;
   opacity: 0.2;
   font-weight: 700;
 }
@@ -204,7 +338,7 @@
   right: 8px;
   bottom: -20px;
   font-size: 48px;
-  color: #007aff;
+  color: #11151E;
   opacity: 0.2;
   font-weight: 700;
 }
@@ -263,14 +397,17 @@
 }
 
 .tellStoryButton {
-  background: url('/assets/buttongif.gif') center/cover;
+  background: #11151E;
   color: #ffffff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: none;
+  border-radius: 999px;
+  padding: 12px 24px;
 }
 
 .tellStoryButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(17, 21, 30, 0.3);
+  background: #0a0d14;
 }
 
 .tellStoryButton:active {

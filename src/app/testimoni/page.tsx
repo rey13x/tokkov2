@@ -32,8 +32,19 @@ export default function TestimoniPage() {
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = testimonials.filter((testimonial) => {
     const byRating = activeRating === null || testimonial.rating === activeRating;
-    const text = `${testimonial.name} ${testimonial.roleLabel} ${testimonial.message}`.toLowerCase();
-    const byQuery = normalizedQuery.length === 0 || text.includes(normalizedQuery);
+    // Search by first letter if single character, otherwise full text search
+    let byQuery: boolean;
+    if (normalizedQuery.length === 0) {
+      byQuery = true;
+    } else if (normalizedQuery.length === 1) {
+      // Filter by first letter
+      const text = `${testimonial.name} ${testimonial.roleLabel} ${testimonial.message}`.toLowerCase();
+      byQuery = text.split(' ').some(word => word.startsWith(normalizedQuery));
+    } else {
+      // Full text search
+      const text = `${testimonial.name} ${testimonial.roleLabel} ${testimonial.message}`.toLowerCase();
+      byQuery = text.includes(normalizedQuery);
+    }
     return byRating && byQuery;
   });
 

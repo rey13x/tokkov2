@@ -6,6 +6,7 @@ import {
   addTestimonialComment,
   getTestimonialComments,
   deleteTestimonialComment,
+  updateTestimonialComment,
 } from "@/server/store-data";
 
 const addCommentSchema = z.object({
@@ -160,6 +161,70 @@ export async function DELETE(request: Request, context: { params: Params }) {
     console.error("Error deleting testimonial comment:", error);
     return NextResponse.json(
       { message: "Gagal menghapus komentar." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(request: Request, context: { params: Params }) {
+  try {
+    const { id } = await context.params;
+    const session = await getServerAuthSession();
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { message: "Anda harus login untuk mengedit komentar." },
+        { status: 401 },
+      );
+    }
+
+    const body = await request.json();
+    const { commentId, text } = z.object({ 
+      commentId: z.string(),
+      text: z.string().min(1).max(500),
+    }).parse(body);
+
+    // Verify that the user is admin or owns this comment
+    const user = await findUserById(session.user.id ?? "");
+    const isAdmin = user?.role === "admin" || user?.email?.toLowerCase() === "digitalawanku2@gmail.com";
+    
+    if (!isAdmin) {
+      // If not admin, verify user owns the comment
+      const comments = await getTestimonialComments(id);
+      const comment = comments.find((c: any) => c.id === commentId);
+      
+      if (!comment || comment.userId !== session.user.id) {
+        return NextResponse.json(
+          { message: "Anda tidak punya akses untuk mengedit komentar ini." },
+          { status: 403 },
+        );
+      }
+    }
+
+    const updatedComment = await updateTestimonialComment(commentId, text);
+
+    if (!updatedComment) {
+      return NextResponse.json(
+        { message: "Gagal mengedit komentar." },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ 
+      message: "Komentar berhasil diedit.",
+      comment: updatedComment,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { message: error.issues[0]?.message ?? "Input tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    console.error("Error updating testimonial comment:", error);
+    return NextResponse.json(
+      { message: "Gagal mengedit komentar." },
       { status: 500 },
     );
   }

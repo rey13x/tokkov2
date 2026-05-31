@@ -6,10 +6,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
-import VerifiedBadgeTenor from "@/components/VerifiedBadgeTenor";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
-import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
+import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, CommentReactionSummary, StoreMarqueeItem, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
 
 // ...existing code...
 export default AdminManagementSection;
@@ -21,6 +21,7 @@ type AdminSection =
   | "informations"
   | "testimonials"
   | "testimonialComments"
+  | "testimonialCommentReactions"
   | "marquees"
   | "bookStories"
   | "paymentSettings"
@@ -37,6 +38,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
   { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
+  { id: "testimonialCommentReactions", label: "Reaksi Komentar", desc: "Kelola emoji reactions" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
@@ -159,6 +161,7 @@ function AdminManagementSection() {
     const [informations, setInformations] = useState<StoreInformation[]>([]);
     const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
     const [testimonialComments, setTestimonialComments] = useState<Record<string, StoreTestimonialComment[]>>({});
+    const [testimonialCommentReactions, setTestimonialCommentReactions] = useState<Record<string, Record<string, CommentReactionSummary[]>>>({});
     const [loadedTestimonialIds, setLoadedTestimonialIds] = useState<Set<string>>(new Set());
     const [isDeletingComment, setIsDeletingComment] = useState<Record<string, boolean>>({});
     const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
@@ -211,6 +214,7 @@ function AdminManagementSection() {
     isPrivate: false,
     restrictedViewerIds: [],
   });
+  const [storyCommentSectionLoadTime, setStoryCommentSectionLoadTime] = useState<number>(0);
   const privacyEditorRef = useRef<HTMLDivElement | null>(null);
   const maxOrderCount = useMemo(
     () => Math.max(1, ...series.map((item) => item.totalOrders)),
@@ -723,6 +727,56 @@ function AdminManagementSection() {
     setTestimonialComments(grouped);
   };
 
+  const loadTestimonialCommentReactions = async () => {
+    try {
+      // Fetch all testimonials
+      const testimonialsResponse = await fetch("/api/store/testimonials", { cache: "no-store" });
+      if (!testimonialsResponse.ok) {
+        throw new Error("Gagal ambil testimonial");
+      }
+      const testimonialsData = (await testimonialsResponse.json()) as { testimonials: StoreTestimonial[] };
+      
+      const allTestimonials = testimonialsData.testimonials || [];
+      const reactionsData: Record<string, Record<string, CommentReactionSummary[]>> = {};
+      
+      // For each testimonial, fetch its comments and their reactions
+      for (const testimonial of allTestimonials) {
+        try {
+          const commentsResponse = await fetch(`/api/testimonials/${testimonial.id}/comments`, {
+            cache: "no-store",
+          });
+          if (!commentsResponse.ok) continue;
+          
+          const commentsData = (await commentsResponse.json()) as { comments: StoreTestimonialComment[] };
+          reactionsData[testimonial.id] = {};
+          
+          // For each comment, fetch reactions
+          for (const comment of commentsData.comments || []) {
+            try {
+              const reactionsResponse = await fetch(
+                `/api/testimonials/${testimonial.id}/comments/${comment.id}/reactions`,
+                { cache: "no-store" }
+              );
+              if (reactionsResponse.ok) {
+                const reactionsContent = (await reactionsResponse.json()) as { reactions: CommentReactionSummary[] };
+                reactionsData[testimonial.id][comment.id] = reactionsContent.reactions || [];
+              }
+            } catch (error) {
+              console.error("Error loading reactions:", error);
+              reactionsData[testimonial.id][comment.id] = [];
+            }
+          }
+        } catch (error) {
+          console.error("Error loading comments for testimonial:", error);
+        }
+      }
+      
+      setTestimonialCommentReactions(reactionsData);
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const onDeleteTestimonialComment = async (commentId: string, testimonialId: string) => {
     if (!window.confirm("Yakin hapus komentar ini?")) {
       return;
@@ -848,6 +902,23 @@ function AdminManagementSection() {
 
     return () => window.clearInterval(timer);
   }, [authState]);
+
+  // Track when testimonialComments section is loaded to hide badges for newly added comments
+  useEffect(() => {
+    if (activeSection === "testimonialComments") {
+      setStoryCommentSectionLoadTime(Date.now());
+    }
+  }, [activeSection]);
+
+  // Load testimonial comment reactions when that section is opened
+  useEffect(() => {
+    if (activeSection === "testimonialCommentReactions") {
+      loadTestimonialCommentReactions().catch((error) => {
+        console.error("Failed to load reactions:", error);
+        setError("Gagal memuat reactions");
+      });
+    }
+  }, [activeSection]);
 
   const onLogoutAdmin = async () => {
     // If using next-auth, replace with signOut from 'next-auth/react' if needed
@@ -1319,6 +1390,7 @@ function AdminManagementSection() {
       }
       setMessage("Cerita dihapus!");
       await loadBookStories();
+      await loadApprovedBookStories();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Gagal hapus cerita");
     } finally {
@@ -1366,6 +1438,33 @@ function AdminManagementSection() {
       setError(error instanceof Error ? error.message : "Gagal tambah komentar");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const onDeleteBookStoryComment = async (storyId: string, commentId: string) => {
+    if (!window.confirm("Yakin hapus komentar ini?")) {
+      return;
+    }
+
+    try {
+      setIsDeletingComment((prev) => ({ ...prev, [commentId]: true }));
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId, commentId, action: "delete-comment" }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json()) as { message?: string };
+        throw new Error(data.message || "Gagal hapus komentar");
+      }
+
+      setMessage("Komentar berhasil dihapus.");
+      await loadApprovedBookStories();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal hapus komentar");
+    } finally {
+      setIsDeletingComment((prev) => ({ ...prev, [commentId]: false }));
     }
   };
 
@@ -2498,68 +2597,6 @@ function AdminManagementSection() {
               }
               placeholder="Jumlah komentar"
             />
-            {products.length > 0 ? (
-              <div>
-                <label style={{ display: "block", marginBottom: "8px", fontSize: "0.95rem", fontWeight: "600" }}>
-                  Produk Terkait (Pilih beberapa atau skip):
-                </label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "8px", marginBottom: "12px", maxHeight: "200px", overflowY: "auto", border: "1px solid #ddd", padding: "10px", borderRadius: "6px" }}>
-                  {products.map((product) => (
-                    <label key={product.id} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={testimonialForm.linkedProducts?.some(p => p.productId === product.id) ?? false}
-                        onChange={(event) => {
-                          const isChecked = event.target.checked;
-                          setTestimonialForm((current) => {
-                            const linkedProducts = current.linkedProducts || [];
-                            if (isChecked) {
-                              return {
-                                ...current,
-                                linkedProducts: [...linkedProducts, { productId: product.id, productName: product.name }],
-                              };
-                            } else {
-                              return {
-                                ...current,
-                                linkedProducts: linkedProducts.filter(p => p.productId !== product.id),
-                              };
-                            }
-                          });
-                        }}
-                      />
-                      <span style={{ fontSize: "0.9rem" }}>{product.name}</span>
-                    </label>
-                  ))}
-                </div>
-                {testimonialForm.linkedProducts && testimonialForm.linkedProducts.length > 0 ? (
-                  <div style={{ marginBottom: "12px" }}>
-                    <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "6px" }}>
-                      Produk yang dipilih: {testimonialForm.linkedProducts.length}
-                    </p>
-                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                      {testimonialForm.linkedProducts.map((prod) => (
-                        <span key={prod.productId} style={{ fontSize: "0.8rem", background: "#e8f0ff", border: "1px solid #0066cc", borderRadius: "12px", padding: "4px 10px", display: "flex", alignItems: "center", gap: "6px" }}>
-                          {prod.productName}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTestimonialForm((current) => ({
-                                ...current,
-                                linkedProducts: current.linkedProducts?.filter(p => p.productId !== prod.productId) || [],
-                              }));
-                            }}
-                            style={{ border: "none", background: "none", cursor: "pointer", color: "#0066cc", fontSize: "1.1rem", padding: "0", display: "flex", alignItems: "center" }}
-                            aria-label="Hapus"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
             <div className={styles.formActions}>
               <button type="submit" disabled={isLoading}>
                 {testimonialEditId ? "Simpan Perubahan" : "Tambah Testimoni"}
@@ -2617,58 +2654,45 @@ function AdminManagementSection() {
         <article className={styles.card}>
           <h2>Kelola Komentar Testimoni</h2>
           <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
-            {Object.values(testimonialComments).reduce((sum, comments) => sum + comments.length, 0)} komentar total
+            {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0)} komentar total dari halaman testimoni.
           </p>
 
           <div className={styles.list}>
-            {Object.entries(testimonialComments).map(([testimonialId, comments]) =>
-              comments.length > 0 ? (
-                <div key={testimonialId} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
-                  <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f7ff", borderRadius: "4px", borderLeft: "3px solid #0066cc" }}>
+            {approvedBookStories.map((story) =>
+              story.comments.length > 0 ? (
+                <div key={story.id} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
+                  <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
                     <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
-                      Komentar pada Testimoni (Total: {comments.length})
+                      {story.userName} - {story.comments.length} komentar
                     </p>
                     <span style={{ fontSize: "0.85rem", color: "#666" }}>
-                      ID: {testimonialId}
+                      {story.userEmail} • {new Date(story.createdAt).toLocaleString("id-ID")}
                     </span>
                   </div>
 
-                  {comments.map((comment) => (
+                  {story.comments.map((comment) => (
                     <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "8px" }}>
-                        {comment.userAvatarUrl ? (
-                          <img
-                            src={comment.userAvatarUrl}
-                            alt={comment.userName}
-                            style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-                          />
-                        ) : (
-                          <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#e0e0e0", flexShrink: 0 }} />
-                        )}
-
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                            <span style={{
-                              fontWeight: comment.verified || comment.userName === "Tokko Marketplace" ? 700 : 600,
-                              color: comment.verified || comment.userName === "Tokko Marketplace" ? "#0066cc" : "#333",
-                              fontSize: "0.95rem",
-                            }}>
-                              {comment.userName}
-                            </span>
-                            {(comment.verified || comment.userName === "Tokko Marketplace") && (
-                              <div style={{ display: "inline-flex", alignItems: "center", height: "20px" }}>
-                                <VerifiedBadgeTenor />
-                              </div>
-                            )}
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                        <span style={{
+                          fontWeight: comment.verified || comment.userName === "Tokko Marketplace" ? 800 : 600,
+                          color: "#333",
+                          fontSize: "0.95rem",
+                        }}>
+                          {comment.userName}
+                        </span>
+                        {(comment.verified || comment.userName === "Tokko Marketplace") && 
+                         new Date(comment.createdAt).getTime() < storyCommentSectionLoadTime && (
+                          <div style={{ display: "inline-flex", alignItems: "center", width: "22px", height: "22px", overflow: "hidden" }}>
+                            <VerifiedBadge />
                           </div>
-                          <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>
-                            {new Date(comment.createdAt).toLocaleString("id-ID")}
-                          </span>
-                        </div>
+                        )}
                       </div>
+                      <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>
+                        {new Date(comment.createdAt).toLocaleString("id-ID")}
+                      </span>
 
                       {comment.replyToName && (
-                        <p style={{ margin: "0 0 6px 0", fontSize: "0.85rem", color: "#0066cc", fontWeight: "500" }}>
+                        <p style={{ margin: "6px 0 0", fontSize: "0.85rem", color: "#11151E", fontWeight: "500" }}>
                           @{comment.replyToName}
                         </p>
                       )}
@@ -2680,7 +2704,7 @@ function AdminManagementSection() {
                       <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
                         <button
                           type="button"
-                          onClick={() => onDeleteTestimonialComment(comment.id, testimonialId)}
+                          onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
                           disabled={isDeletingComment[comment.id]}
                           style={{
                             background: "#f44336",
@@ -2702,9 +2726,81 @@ function AdminManagementSection() {
               ) : null
             )}
 
-            {Object.values(testimonialComments).reduce((sum, comments) => sum + comments.length, 0) === 0 ? (
+            {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0) === 0 ? (
               <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Belum ada komentar testimoni.</p>
             ) : null}
+          </div>
+
+          {error ? <p className={styles.errorText}>{error}</p> : null}
+          {message ? <p className={styles.successText}>{message}</p> : null}
+        </article>
+        ) : null}
+
+        {activeSection === "testimonialCommentReactions" ? (
+        <article className={styles.card}>
+          <h2>Kelola Reaksi Komentar Testimoni</h2>
+          <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
+            Lihat emoji reactions dari komentar pada halaman testimoni.
+          </p>
+
+          <div className={styles.list}>
+            {Object.keys(testimonialCommentReactions).length === 0 ? (
+              <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Memuat reactions...</p>
+            ) : (
+              Object.entries(testimonialCommentReactions).map(([testimonialId, commentReactions]) =>
+                Object.keys(commentReactions).length > 0 ? (
+                  <div key={testimonialId} style={{ marginBottom: "20px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
+                    {/* Find testimonial info */}
+                    {testimonials.find(t => t.id === testimonialId) && (
+                      <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
+                        <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
+                          {testimonials.find(t => t.id === testimonialId)?.name}
+                        </p>
+                        <span style={{ fontSize: "0.85rem", color: "#666" }}>
+                          {Object.keys(commentReactions).length} comments
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Comments with reactions */}
+                    {Object.entries(commentReactions).map(([commentId, reactions]) =>
+                      reactions && reactions.length > 0 ? (
+                        <div key={commentId} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                            <div style={{ flex: 1 }}>
+                              <p style={{ margin: "0 0 4px", fontSize: "0.9rem", color: "#333", fontWeight: "500" }}>
+                                Comment ID: {commentId.substring(0, 8)}...
+                              </p>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px" }}>
+                                {reactions.map((reaction) => (
+                                  <div
+                                    key={reaction.emoji}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                      background: "#fff",
+                                      border: "1px solid #ddd",
+                                      borderRadius: "20px",
+                                      padding: "4px 8px",
+                                      fontSize: "0.9rem",
+                                    }}
+                                    title={`${reaction.count} reaksi ${reaction.emoji}`}
+                                  >
+                                    <span style={{ fontSize: "1.2rem" }}>{reaction.emoji}</span>
+                                    <span style={{ fontWeight: "600", color: "#11151E" }}>{reaction.count}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null
+                    )}
+                  </div>
+                ) : null
+              )
+            )}
           </div>
 
           {error ? <p className={styles.errorText}>{error}</p> : null}
@@ -2977,6 +3073,35 @@ function AdminManagementSection() {
                                 Update
                               </button>
                             </label>
+                          </div>
+
+                          <div style={{ marginTop: "16px" }}>
+                            <strong>Komentar Saat Ini:</strong>
+                            {story.comments.length === 0 ? (
+                              <p style={{ marginTop: "8px", color: "#666", fontSize: "0.9rem" }}>Belum ada komentar.</p>
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+                                {story.comments.map((comment) => (
+                                  <div key={comment.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", padding: "8px", background: "#f5f5f5", borderRadius: "4px" }}>
+                                    <div style={{ minWidth: 0 }}>
+                                      <p style={{ margin: 0, fontWeight: 700 }}>{comment.userName}</p>
+                                      {comment.replyToName ? (
+                                        <p style={{ margin: "2px 0 0", color: "#11151E", fontSize: "0.85rem" }}>@{comment.replyToName}</p>
+                                      ) : null}
+                                      <p style={{ margin: "4px 0 0", wordBreak: "break-word" }}>{comment.text}</p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
+                                      disabled={isDeletingComment[comment.id]}
+                                      style={{ padding: "4px 8px", background: "#f44336", color: "white", border: "none", borderRadius: "4px", cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer", fontSize: "12px", flexShrink: 0 }}
+                                    >
+                                      {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
 
                           <div style={{ marginTop: "16px" }}>

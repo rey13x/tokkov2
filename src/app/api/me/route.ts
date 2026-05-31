@@ -11,7 +11,7 @@ import {
   incrementPasswordChangeOtpAttempts,
   updateUserById,
 } from "@/server/db";
-import { updateTestimonialCommentUserName } from "@/server/store-data";
+import { updateBookStoryUserProfile, updateTestimonialCommentUserName } from "@/server/store-data";
 
 const MAX_OTP_ATTEMPTS = 5;
 
@@ -36,6 +36,18 @@ export async function GET() {
 
   // Handle special case for hardcoded admin
   if (session.user.id === "dev-admin-hardcoded") {
+    const adminUser = await findUserByEmail("digitalawanku2@gmail.com").catch(() => null);
+    if (adminUser) {
+      return NextResponse.json({
+        id: adminUser.id,
+        username: adminUser.username,
+        email: adminUser.email,
+        phone: adminUser.phone,
+        avatarUrl: adminUser.avatarUrl,
+        role: "admin",
+      });
+    }
+
     return NextResponse.json({
       id: session.user.id,
       username: session.user.username || "Admin Tokko",
@@ -72,12 +84,15 @@ export async function PATCH(request: Request) {
     const payload = updateSchema.parse(body);
     
     // Handle special case for hardcoded admin
-    let user = await findUserById(session.user.id);
+    let user = session.user.id === "dev-admin-hardcoded"
+      ? await findUserByEmail("digitalawanku2@gmail.com")
+      : await findUserById(session.user.id);
+
     if (!user && session.user.id === "dev-admin-hardcoded") {
       // Create hardcoded admin user in database if not exists
       const { createUser: createUserDb } = await import("@/server/db");
       try {
-        await createUserDb({
+        user = await createUserDb({
           username: "Admin Tokko",
           email: "digitalawanku2@gmail.com",
           phone: "",
@@ -87,8 +102,6 @@ export async function PATCH(request: Request) {
         });
       } catch (error) {
         console.error("Failed to create hardcoded admin user:", error);
-        // Try to find again
-        user = await findUserById("digitalawanku2@gmail.com");
       }
       // Find the user again after creation
       if (!user) {
@@ -184,6 +197,18 @@ export async function PATCH(request: Request) {
     // Update username in all user's testimonial comments if username changed
     if (payload.username.trim() !== user.username) {
       await updateTestimonialCommentUserName(user.id, payload.username.trim());
+    }
+    await updateBookStoryUserProfile(user.id, {
+      userName: updated.username,
+      userEmail: updated.email,
+      userAvatarUrl: updated.avatarUrl,
+    });
+    if (session.user.id !== user.id) {
+      await updateBookStoryUserProfile(session.user.id, {
+        userName: updated.username,
+        userEmail: updated.email,
+        userAvatarUrl: updated.avatarUrl,
+      });
     }
 
     if (wantsPasswordChange) {
