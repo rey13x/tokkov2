@@ -22,6 +22,7 @@ export default function BookSpiritClient() {
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const [replyTo, setReplyTo] = useState<Record<string, { id: string; name: string } | null>>({});
+  const [replyPhotos, setReplyPhotos] = useState<Record<string, string>>({});
   const [loadingActions, setLoadingActions] = useState<Record<string, string>>({}); // "like" | "comment_send" | ""
   const [reportModal, setReportModal] = useState<{ storyId: string; storyTitle: string } | null>(null);
   const [reportReason, setReportReason] = useState("");
@@ -128,6 +129,7 @@ export default function BookSpiritClient() {
           text,
           replyToId: replyTo[storyId]?.id,
           replyToName: replyTo[storyId]?.name,
+          photoUrl: replyPhotos[storyId],
         }),
       });
       if (response.ok) {
@@ -135,12 +137,27 @@ export default function BookSpiritClient() {
         setStories(stories.map(s => s.id === storyId ? data.story : s));
         setCommentText(prev => ({ ...prev, [storyId]: "" }));
         setReplyTo(prev => ({ ...prev, [storyId]: null }));
+        setReplyPhotos(prev => ({ ...prev, [storyId]: "" }));
       }
     } catch (error) {
       console.error("Failed to add comment:", error);
     } finally {
       setLoadingActions(prev => ({ ...prev, [storyId]: "" }));
     }
+  };
+
+  const handleReplyPhotoSelect = async (storyId: string, file: File | null) => {
+    if (!file) {
+      setReplyPhotos(prev => ({ ...prev, [storyId]: "" }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      setReplyPhotos(prev => ({ ...prev, [storyId]: base64 }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleDeleteComment = async (storyId: string, commentId: string) => {
@@ -268,6 +285,19 @@ export default function BookSpiritClient() {
       {comment.replyToName ? (
         <p className={styles.replyTarget}>Membalas @{comment.replyToName}</p>
       ) : null}
+      {comment.photoUrl && (
+        <img
+          src={comment.photoUrl}
+          alt="Comment photo"
+          style={{
+            maxWidth: "100%",
+            maxHeight: "200px",
+            borderRadius: "6px",
+            marginBottom: "8px",
+            objectFit: "cover",
+          }}
+        />
+      )}
       <p className={styles.commentText}>{comment.text}</p>
       {session?.user ? (
         <div className={styles.commentActions}>
@@ -635,6 +665,40 @@ export default function BookSpiritClient() {
                               </button>
                             </div>
                           ) : null}
+                          {replyPhotos[story.id] && (
+                            <div style={{ marginBottom: "8px", position: "relative" }}>
+                              <img
+                                src={replyPhotos[story.id]}
+                                alt="Preview"
+                                style={{
+                                  maxWidth: "100%",
+                                  maxHeight: "150px",
+                                  borderRadius: "6px",
+                                  objectFit: "cover",
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setReplyPhotos(prev => ({ ...prev, [story.id]: "" }))}
+                                style={{
+                                  position: "absolute",
+                                  top: "4px",
+                                  right: "4px",
+                                  background: "rgba(0,0,0,0.7)",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "50%",
+                                  width: "24px",
+                                  height: "24px",
+                                  cursor: "pointer",
+                                  fontSize: "14px",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )}
                           <div style={{ display: "flex", gap: "4px" }}>
                             <input
                               type="text"
@@ -656,6 +720,25 @@ export default function BookSpiritClient() {
                                 opacity: loadingActions[story.id] === "comment_send" ? 0.6 : 1,
                               }}
                             />
+                            <label style={{
+                              padding: "8px 12px",
+                              background: "#f0f0f0",
+                              border: "1px solid #ddd",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              fontSize: "18px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}>
+                              📷
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleReplyPhotoSelect(story.id, e.target.files?.[0] || null)}
+                                style={{ display: "none" }}
+                              />
+                            </label>
                             <button
                               type="button"
                               onClick={() => handleAddComment(story.id)}

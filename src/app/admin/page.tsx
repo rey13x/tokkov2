@@ -2722,177 +2722,206 @@ function AdminManagementSection() {
         <article className={styles.card}>
           <h2>Kelola Komentar Testimoni</h2>
           <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
-            {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0)} komentar total dari halaman testimoni.
+            {Object.values(testimonialComments).flat().length} komentar total dari halaman testimoni.
           </p>
 
           <div className={styles.list}>
-            {approvedBookStories.map((story) =>
-              story.comments.length > 0 ? (
-                <div key={story.id} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
-                  <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
-                    <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
-                      {story.userName} - {story.comments.length} komentar
-                    </p>
-                    <span style={{ fontSize: "0.85rem", color: "#666" }}>
-                      {story.userEmail} • {new Date(story.createdAt).toLocaleString("id-ID")}
-                    </span>
-                  </div>
+            {Object.keys(testimonialComments).length === 0 ? (
+              <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Belum ada komentar testimoni.</p>
+            ) : (
+              Object.entries(testimonialComments).map(([testimonialId, comments]) =>
+                comments.length > 0 ? (
+                  <div key={testimonialId} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
+                    <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
+                      <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
+                        Testimoni - {comments.length} komentar
+                      </p>
+                      <span style={{ fontSize: "0.85rem", color: "#666" }}>
+                        ID: {testimonialId.substring(0, 8)}...
+                      </span>
+                    </div>
 
-                  {story.comments.map((comment) => (
-                    <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
-                        <span style={{
-                          fontWeight: comment.verified || comment.userName === "Tokko Marketplace" ? 800 : 600,
-                          color: "#333",
-                          fontSize: "0.95rem",
-                        }}>
-                          {comment.userName}
+                    {comments.map((comment) => (
+                      <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                          {comment.userAvatarUrl && (
+                            <img
+                              src={comment.userAvatarUrl}
+                              alt={comment.userName}
+                              style={{ width: "24px", height: "24px", borderRadius: "50%", objectFit: "cover" }}
+                            />
+                          )}
+                          <span style={{
+                            fontWeight: comment.verified ? 800 : 600,
+                            color: "#333",
+                            fontSize: "0.95rem",
+                          }}>
+                            {comment.userName}
+                          </span>
+                          {comment.verified && (
+                            <div style={{ display: "inline-flex", alignItems: "center", width: "22px", height: "22px", overflow: "hidden" }}>
+                              <VerifiedBadge />
+                            </div>
+                          )}
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>
+                          {new Date(comment.createdAt).toLocaleString("id-ID")}
                         </span>
-                        {(comment.verified || comment.userName === "Tokko Marketplace") && 
-                         new Date(comment.createdAt).getTime() < storyCommentSectionLoadTime && (
-                          <div style={{ display: "inline-flex", alignItems: "center", width: "22px", height: "22px", overflow: "hidden" }}>
-                            <VerifiedBadge />
+
+                        {comment.replyToName && (
+                          <p style={{ margin: "6px 0 0", fontSize: "0.85rem", color: "#11151E", fontWeight: "500" }}>
+                            @{comment.replyToName}
+                          </p>
+                        )}
+
+                        <p style={{ margin: "6px 0", fontSize: "0.9rem", color: "#444", wordBreak: "break-word" }}>
+                          {comment.text}
+                        </p>
+
+                        <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newVerified = !comment.verified;
+                              toggleTestimonialCommentVerified(comment.id, comment.verified || false);
+                              // Optimistically update the comment
+                              setTestimonialComments(prev => ({
+                                ...prev,
+                                [testimonialId]: comments.map(c => 
+                                  c.id === comment.id ? { ...c, verified: newVerified } : c
+                                )
+                              }));
+                            }}
+                            disabled={updatingCommentVerified[comment.id]}
+                            style={{
+                              background: comment.verified ? "#4CAF50" : "#FFC107",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              padding: "6px 12px",
+                              fontSize: "0.85rem",
+                              cursor: updatingCommentVerified[comment.id] ? "not-allowed" : "pointer",
+                              opacity: updatingCommentVerified[comment.id] ? 0.6 : 1,
+                            }}
+                          >
+                            {updatingCommentVerified[comment.id] ? (comment.verified ? "Hapus..." : "Tambah...") : (comment.verified ? "✓ Verified" : "Tambah Verified")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCommentAuthorId(editingCommentAuthorId === comment.id ? null : comment.id);
+                              setCommentAuthorForm({
+                                userName: comment.userName,
+                                userAvatarUrl: comment.userAvatarUrl || "",
+                              });
+                            }}
+                            style={{
+                              background: "#9C27B0",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              padding: "6px 12px",
+                              fontSize: "0.85rem",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {editingCommentAuthorId === comment.id ? "Batal" : "Ubah Penulis"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteTestimonialComment(comment.id, testimonialId)}
+                            disabled={isDeletingComment[comment.id]}
+                            style={{
+                              background: "#f44336",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              padding: "6px 12px",
+                              fontSize: "0.85rem",
+                              cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer",
+                              opacity: isDeletingComment[comment.id] ? 0.6 : 1,
+                            }}
+                          >
+                            {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
+                          </button>
+                        </div>
+
+                        {editingCommentAuthorId === comment.id && (
+                          <div style={{ marginTop: "12px", padding: "12px", background: "#f9f9f9", borderRadius: "4px", border: "1px solid #ddd" }}>
+                            <h4 style={{ margin: "0 0 12px" }}>Ubah Penulis Komentar</h4>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                              <input
+                                type="text"
+                                placeholder="Nama Penulis"
+                                value={commentAuthorForm.userName}
+                                onChange={(e) => setCommentAuthorForm(prev => ({ ...prev, userName: e.target.value }))}
+                                style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Avatar URL (opsional)"
+                                value={commentAuthorForm.userAvatarUrl}
+                                onChange={(e) => setCommentAuthorForm(prev => ({ ...prev, userAvatarUrl: e.target.value }))}
+                                style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                              />
+                              <div style={{ display: "flex", gap: "8px" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateTestimonialCommentAuthor(comment.id);
+                                    // Optimistically update the comment
+                                    setTestimonialComments(prev => ({
+                                      ...prev,
+                                      [testimonialId]: comments.map(c => 
+                                        c.id === comment.id ? { 
+                                          ...c, 
+                                          userName: commentAuthorForm.userName,
+                                          userAvatarUrl: commentAuthorForm.userAvatarUrl
+                                        } : c
+                                      )
+                                    }));
+                                  }}
+                                  disabled={isLoading}
+                                  style={{
+                                    padding: "8px 16px",
+                                    background: "#2196F3",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    cursor: "pointer",
+                                    flex: 1,
+                                  }}
+                                >
+                                  {isLoading ? "Simpan..." : "Simpan"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingCommentAuthorId(null);
+                                    setCommentAuthorForm({ userName: "", userAvatarUrl: "" });
+                                  }}
+                                  style={{
+                                    padding: "8px 16px",
+                                    background: "#ccc",
+                                    color: "black",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    cursor: "pointer",
+                                    flex: 1,
+                                  }}
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
-                      <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>
-                        {new Date(comment.createdAt).toLocaleString("id-ID")}
-                      </span>
-
-                      {comment.replyToName && (
-                        <p style={{ margin: "6px 0 0", fontSize: "0.85rem", color: "#11151E", fontWeight: "500" }}>
-                          @{comment.replyToName}
-                        </p>
-                      )}
-
-                      <p style={{ margin: "6px 0", fontSize: "0.9rem", color: "#444", wordBreak: "break-word" }}>
-                        {comment.text}
-                      </p>
-
-                      <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
-                        <button
-                          type="button"
-                          onClick={() => toggleTestimonialCommentVerified(comment.id, comment.verified || false)}
-                          disabled={updatingCommentVerified[comment.id]}
-                          style={{
-                            background: comment.verified ? "#4CAF50" : "#FFC107",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            padding: "6px 12px",
-                            fontSize: "0.85rem",
-                            cursor: updatingCommentVerified[comment.id] ? "not-allowed" : "pointer",
-                            opacity: updatingCommentVerified[comment.id] ? 0.6 : 1,
-                          }}
-                        >
-                          {updatingCommentVerified[comment.id] ? (comment.verified ? "Hapus..." : "Tambah...") : (comment.verified ? "✓ Verified" : "Tambah Verified")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingCommentAuthorId(editingCommentAuthorId === comment.id ? null : comment.id);
-                            setCommentAuthorForm({
-                              userName: comment.userName,
-                              userAvatarUrl: comment.userAvatarUrl || "",
-                            });
-                          }}
-                          style={{
-                            background: "#9C27B0",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            padding: "6px 12px",
-                            fontSize: "0.85rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {editingCommentAuthorId === comment.id ? "Batal" : "Ubah Penulis"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
-                          disabled={isDeletingComment[comment.id]}
-                          style={{
-                            background: "#f44336",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            padding: "6px 12px",
-                            fontSize: "0.85rem",
-                            cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer",
-                            opacity: isDeletingComment[comment.id] ? 0.6 : 1,
-                          }}
-                        >
-                          {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
-                        </button>
-                      </div>
-
-                      {editingCommentAuthorId === comment.id && (
-                        <div style={{ marginTop: "12px", padding: "12px", background: "#f9f9f9", borderRadius: "4px", border: "1px solid #ddd" }}>
-                          <h4 style={{ margin: "0 0 12px" }}>Ubah Penulis Komentar</h4>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                            <input
-                              type="text"
-                              placeholder="Nama Penulis"
-                              value={commentAuthorForm.userName}
-                              onChange={(e) => setCommentAuthorForm(prev => ({ ...prev, userName: e.target.value }))}
-                              style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
-                            />
-                            <input
-                              type="text"
-                              placeholder="Avatar URL (opsional)"
-                              value={commentAuthorForm.userAvatarUrl}
-                              onChange={(e) => setCommentAuthorForm(prev => ({ ...prev, userAvatarUrl: e.target.value }))}
-                              style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
-                            />
-                            <div style={{ display: "flex", gap: "8px" }}>
-                              <button
-                                type="button"
-                                onClick={() => updateTestimonialCommentAuthor(comment.id)}
-                                disabled={isLoading}
-                                style={{
-                                  padding: "8px 16px",
-                                  background: "#2196F3",
-                                  color: "white",
-                                  border: "none",
-                                  borderRadius: "4px",
-                                  cursor: "pointer",
-                                  flex: 1,
-                                }}
-                              >
-                                {isLoading ? "Simpan..." : "Simpan"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingCommentAuthorId(null);
-                                  setCommentAuthorForm({ userName: "", userAvatarUrl: "" });
-                                }}
-                                style={{
-                                  padding: "8px 16px",
-                                  background: "#ccc",
-                                  color: "black",
-                                  border: "none",
-                                  borderRadius: "4px",
-                                  cursor: "pointer",
-                                  flex: 1,
-                                }}
-                              >
-                                Batal
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : null
+                    ))}
+                  </div>
+                ) : null
+              )
             )}
-
-            {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0) === 0 ? (
-              <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Belum ada komentar testimoni.</p>
-            ) : null}
           </div>
 
           {error ? <p className={styles.errorText}>{error}</p> : null}

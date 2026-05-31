@@ -150,6 +150,7 @@ export type BookStory = {
     userAvatarUrl?: string;
     verified?: boolean;
     text: string;
+    photoUrl?: string;
     replyToId?: string;
     replyToName?: string;
     createdAt: string;

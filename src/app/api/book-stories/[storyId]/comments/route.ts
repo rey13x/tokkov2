@@ -8,6 +8,7 @@ const addCommentSchema = z.object({
   text: z.string().min(1).max(500),
   replyToId: z.string().optional(),
   replyToName: z.string().optional(),
+  photoUrl: z.string().optional(),
 });
 
 const deleteCommentSchema = z.object({
@@ -53,6 +54,7 @@ export async function POST(
       text: payload.text,
       replyToId: payload.replyToId,
       replyToName: payload.replyToName,
+      photoUrl: payload.photoUrl,
       createdAt: new Date().toISOString(),
     };
 
