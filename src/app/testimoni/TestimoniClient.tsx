@@ -145,7 +145,7 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
     // Fetch products to get images
     const fetchProducts = async () => {
       try {
-        const res = await fetch("/api/store/products");
+        const res = await fetch("/api/store");
         const data = (await res.json()) as { products: StoreProduct[] };
         setProducts(data.products);
       } catch (error) {
