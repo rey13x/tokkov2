@@ -38,8 +38,8 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "orders", label: "Order", desc: "Status pesanan user" },
   { id: "products", label: "Produk", desc: "CRUD produk" },
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
-  { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
-  { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
+  { id: "testimonials", label: "Testimoni", desc: "CRUD testimoni" },
+  { id: "testimonialComments", label: "Komentar Testimoni", desc: "Kelola komentar testimoni" },
   { id: "testimonialCommentReactions", label: "Reaksi Komentar", desc: "Kelola emoji reactions" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
@@ -2858,7 +2858,7 @@ function AdminManagementSection() {
 
         {activeSection === "testimonials" ? (
         <article className={styles.card}>
-          <h2>{testimonialEditId ? "Edit Testimonial" : "CRUD Testimonial + Voice"}</h2>
+          <h2>{testimonialEditId ? "Edit Testimoni" : "CRUD Testimoni + Voice"}</h2>
           <form className={styles.form} onSubmit={onSaveTestimonial}>
             <input
               value={testimonialForm.name}
