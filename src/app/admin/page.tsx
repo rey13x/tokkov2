@@ -125,9 +125,7 @@ const defaultMaintenanceSettingsForm = {
   isEnabled: false,
   message: "Website sedang dalam pemeliharaan. Mohon coba lagi nanti.",
   accessKey: "",
-  openDate: "",
   openTime: "",
-  closeDate: "",
   closeTime: "",
   maintenanceTitle: "Website sedang dalam Pemeliharaan",
   maintenanceSubtitle: "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
@@ -741,9 +739,7 @@ function AdminManagementSection() {
       isEnabled: result.settings.isEnabled || false,
       message: result.settings.message || "",
       accessKey: result.settings.accessKey || "",
-      openDate: result.settings.openDate || "",
       openTime: result.settings.openTime || "",
-      closeDate: result.settings.closeDate || "",
       closeTime: result.settings.closeTime || "",
       maintenanceTitle: result.settings.maintenanceTitle || "Website sedang dalam Pemeliharaan",
       maintenanceSubtitle: result.settings.maintenanceSubtitle || "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
@@ -2414,58 +2410,13 @@ function AdminManagementSection() {
             
             <div style={{ marginTop: "16px", borderTop: "1px solid #e0e0e0", paddingTop: "16px" }}>
               <h3 style={{ fontSize: "0.95rem", marginBottom: "12px", fontWeight: 600 }}>⏰ Jadwal Pemeliharaan (Opsional - Wajib isi Jam)</h3>
+              <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "12px" }}>
+                🌍 Jadwal berdasarkan waktu Jakarta (GMT+7). Website akan otomatis tutup & buka setiap hari.
+              </p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
-                    Tanggal Ditutup
-                  </label>
-                  <input
-                    type="date"
-                    value={maintenanceSettingsForm.closeDate}
-                    onChange={(event) =>
-                      setMaintenanceSettingsForm((current) => ({
-                        ...current,
-                        closeDate: event.target.value,
-                      }))
-                    }
-                    placeholder="YYYY-MM-DD"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
-                    Jam Ditutup
-                  </label>
-                  <input
-                    type="time"
-                    value={maintenanceSettingsForm.closeTime}
-                    onChange={(event) =>
-                      setMaintenanceSettingsForm((current) => ({
-                        ...current,
-                        closeTime: event.target.value,
-                      }))
-                    }
-                    placeholder="HH:MM"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
-                    Tanggal Dibuka
-                  </label>
-                  <input
-                    type="date"
-                    value={maintenanceSettingsForm.openDate}
-                    onChange={(event) =>
-                      setMaintenanceSettingsForm((current) => ({
-                        ...current,
-                        openDate: event.target.value,
-                      }))
-                    }
-                    placeholder="YYYY-MM-DD"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
-                    Jam Dibuka
+                    Jam Dibuka (Open Time)
                   </label>
                   <input
                     type="time"
@@ -2476,12 +2427,28 @@ function AdminManagementSection() {
                         openTime: event.target.value,
                       }))
                     }
-                    placeholder="HH:MM"
+                    placeholder="--:--"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                    Jam Ditutup (Close Time)
+                  </label>
+                  <input
+                    type="time"
+                    value={maintenanceSettingsForm.closeTime}
+                    onChange={(event) =>
+                      setMaintenanceSettingsForm((current) => ({
+                        ...current,
+                        closeTime: event.target.value,
+                      }))
+                    }
+                    placeholder="--:--"
                   />
                 </div>
               </div>
               <small style={{ color: "#999", display: "block", marginTop: "8px" }}>
-                Atur tanggal & jam kapan website akan ditutup dan dibuka. Website akan otomatis tertutup saat jam tercapai.
+                ⏱️ Contoh: Jam Dibuka 09:00, Jam Ditutup 17:00. Website akan otomatis tutup setiap hari jam 17:00 dan buka kembali jam 09:00 (waktu Jakarta).
               </small>
             </div>
 

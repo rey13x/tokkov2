@@ -1613,9 +1613,7 @@ function defaultMaintenanceSettings(): MaintenanceSettings {
     isEnabled: false,
     message: "Website sedang dalam pemeliharaan. Mohon coba lagi nanti.",
     accessKey: "",
-    openDate: "",
     openTime: "",
-    closeDate: "",
     closeTime: "",
     maintenanceTitle: "Website sedang dalam Pemeliharaan",
     maintenanceSubtitle: "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
@@ -1662,9 +1660,7 @@ export async function upsertMaintenanceSettings(input: {
   isEnabled: boolean;
   message: string;
   accessKey: string;
-  openDate?: string;
   openTime?: string;
-  closeDate?: string;
   closeTime?: string;
   maintenanceTitle?: string;
   maintenanceSubtitle?: string;
@@ -1674,9 +1670,7 @@ export async function upsertMaintenanceSettings(input: {
     isEnabled: input.isEnabled,
     message: input.message.trim() || "Website sedang dalam pemeliharaan. Mohon coba lagi nanti.",
     accessKey: input.accessKey.trim() || "",
-    openDate: input.openDate?.trim() || "",
     openTime: input.openTime?.trim() || "",
-    closeDate: input.closeDate?.trim() || "",
     closeTime: input.closeTime?.trim() || "",
     maintenanceTitle: input.maintenanceTitle?.trim() || "Website sedang dalam Pemeliharaan",
     maintenanceSubtitle: input.maintenanceSubtitle?.trim() || "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
