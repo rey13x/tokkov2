@@ -48,13 +48,25 @@
 
 .searchWrap {
   margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
 }
 
 .searchRow {
-  width: min(1100px, 100%);
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.searchInputWrapper {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 48px;
   gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 
 .searchWrap input {
@@ -91,11 +103,13 @@
 }
 
 .categoryRow {
-  margin-top: 14px;
   display: flex;
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 5px;
+  width: 100%;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 .categoryChip {

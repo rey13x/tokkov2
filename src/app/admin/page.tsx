@@ -61,6 +61,7 @@ const defaultProductForm = {
   imageUrl: "/assets/logo.png",
   productType: "jual_beli" as "jual_beli" | "pekerjaan",
   jobApplicationLink: "",
+  buyNowLink: "",
   maxApplicants: 0,
 };
 
@@ -162,6 +163,10 @@ function AdminManagementSection() {
     const [testimonialComments, setTestimonialComments] = useState<Record<string, StoreTestimonialComment[]>>({});
     const [loadedTestimonialIds, setLoadedTestimonialIds] = useState<Set<string>>(new Set());
     const [isDeletingComment, setIsDeletingComment] = useState<Record<string, boolean>>({});
+    const [isGeneratingAIComments, setIsGeneratingAIComments] = useState<Record<string, boolean>>({});
+    const [isGeneratingAIReplies, setIsGeneratingAIReplies] = useState<Record<string, boolean>>({});
+    const [aiCommentCount, setAiCommentCount] = useState<Record<string, number>>({});
+    const [aiReplyCount, setAiReplyCount] = useState<Record<string, number>>({});
     const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
     const [orders, setOrders] = useState<OrderSummary[]>([]);
     const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, string>>({});
@@ -855,6 +860,11 @@ function AdminManagementSection() {
   useEffect(() => {
     if (activeSection === "testimonialComments") {
       setStoryCommentSectionLoadTime(Date.now());
+      // Load actual testimonial comments
+      loadTestimonialComments().catch((err) => {
+        console.error("Failed to load testimonial comments:", err);
+        setError("Gagal memuat komentar testimoni");
+      });
     }
   }, [activeSection]);
 
@@ -885,10 +895,11 @@ function AdminManagementSection() {
         maxApplicants: 0,
       };
     }
-    // For Pekerjaan, ensure maxApplicants is a number
+    // For Pekerjaan, remove buyNowLink and job-related fields
     if (productForm.productType === "pekerjaan") {
       payload = {
         ...payload,
+        buyNowLink: "",
         maxApplicants: typeof payload.maxApplicants === "string" ? 
           parseInt(payload.maxApplicants, 10) : 
           (payload.maxApplicants || 0),
@@ -1259,6 +1270,61 @@ function AdminManagementSection() {
     bumpPreview();
   };
 
+  const onGenerateAIComments = async (testimonialId: string, count: number = 3) => {
+    setIsGeneratingAIComments((prev) => ({ ...prev, [testimonialId]: true }));
+    try {
+      const response = await fetch(`/api/testimonials/${testimonialId}/ai-comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count, tone: "positive" }),
+      });
+
+      const data = (await response.json()) as any;
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal membuat komentar AI");
+      }
+
+      setMessage(`${data.generatedCount} komentar AI berhasil dibuat!`);
+      await loadTestimonials();
+      bumpPreview();
+    } catch (error) {
+      console.error("Error generating AI comments:", error);
+      setError(error instanceof Error ? error.message : "Gagal membuat komentar AI");
+    } finally {
+      setIsGeneratingAIComments((prev) => ({ ...prev, [testimonialId]: false }));
+    }
+  };
+
+  const onGenerateAIReplies = async (testimonialId: string, commentId: string, count: number = 1) => {
+    const key = `${testimonialId}-${commentId}`;
+    setIsGeneratingAIReplies((prev) => ({ ...prev, [key]: true }));
+    try {
+      const response = await fetch(`/api/testimonials/${testimonialId}/ai-replies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId, count }),
+      });
+
+      const data = (await response.json()) as any;
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal membuat balasan AI");
+      }
+
+      setMessage(`${data.generatedCount} balasan AI berhasil dibuat!`);
+      // Reload comments for this testimonial
+      setLoadedTestimonialIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(testimonialId);
+        return newSet;
+      });
+    } catch (error) {
+      console.error("Error generating AI replies:", error);
+      setError(error instanceof Error ? error.message : "Gagal membuat balasan AI");
+    } finally {
+      setIsGeneratingAIReplies((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
   const onDeleteMarquee = async (id: string) => {
     await fetch(`/api/admin/marquees/${id}`, { method: "DELETE" });
     if (marqueeEditId === id) {
@@ -1562,6 +1628,7 @@ function AdminManagementSection() {
       imageUrl: product.imageUrl,
       productType: product.productType || "jual_beli",
       jobApplicationLink: product.jobApplicationLink || "",
+      buyNowLink: product.buyNowLink || "",
       maxApplicants: product.maxApplicants ?? 0,
     });
     setPriceInput(formatRupiahInput(String(product.price)));
@@ -2152,6 +2219,19 @@ function AdminManagementSection() {
                 required
               />
             ) : null}
+            {productForm.productType === "jual_beli" ? (
+              <input
+                type="url"
+                value={productForm.buyNowLink}
+                onChange={(event) =>
+                  setProductForm((current) => ({
+                    ...current,
+                    buyNowLink: event.target.value,
+                  }))
+                }
+                placeholder="Link untuk button Beli Sekarang (opsional)"
+              />
+            ) : null}
             {productForm.productType === "pekerjaan" ? (
               <input
                 type="number"
@@ -2602,6 +2682,44 @@ function AdminManagementSection() {
                   <button type="button" onClick={() => onDeleteTestimonial(testimonial.id)}>
                     Hapus
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const count = aiCommentCount[testimonial.id] || 3;
+                      onGenerateAIComments(testimonial.id, count);
+                    }}
+                    disabled={isGeneratingAIComments[testimonial.id]}
+                    style={{
+                      background: "#04B851",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      padding: "6px 12px",
+                      cursor: isGeneratingAIComments[testimonial.id] ? "not-allowed" : "pointer",
+                      opacity: isGeneratingAIComments[testimonial.id] ? 0.6 : 1,
+                    }}
+                  >
+                    {isGeneratingAIComments[testimonial.id] ? "Membuat..." : "🤖 AI Komentar"}
+                  </button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={aiCommentCount[testimonial.id] || 3}
+                    onChange={(e) =>
+                      setAiCommentCount((prev) => ({
+                        ...prev,
+                        [testimonial.id]: Math.max(1, Math.min(20, parseInt(e.target.value) || 3)),
+                      }))
+                    }
+                    style={{
+                      width: "50px",
+                      padding: "6px",
+                      borderRadius: "4px",
+                      border: "1px solid #ddd",
+                    }}
+                    title="Jumlah komentar AI untuk dibuat"
+                  />
                 </div>
               </div>
             ))}
@@ -2612,82 +2730,212 @@ function AdminManagementSection() {
         {activeSection === "testimonialComments" ? (
         <article className={styles.card}>
           <h2>Kelola Komentar Testimoni</h2>
-          <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
-            {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0)} komentar total dari halaman testimoni.
-          </p>
-
-          <div className={styles.list}>
-            {approvedBookStories.map((story) =>
-              story.comments.length > 0 ? (
-                <div key={story.id} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
-                  <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
-                    <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
-                      {story.userName} - {story.comments.length} komentar
-                    </p>
-                    <span style={{ fontSize: "0.85rem", color: "#666" }}>
-                      {story.userEmail} • {new Date(story.createdAt).toLocaleString("id-ID")}
-                    </span>
-                  </div>
-
-                  {story.comments.map((comment) => (
-                    <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
-                        <span style={{
-                          fontWeight: comment.verified || comment.userName === "Tokko Marketplace" ? 800 : 600,
-                          color: "#333",
-                          fontSize: "0.95rem",
-                        }}>
-                          {comment.userName}
-                        </span>
-                        {(comment.verified || comment.userName === "Tokko Marketplace") && 
-                         new Date(comment.createdAt).getTime() < storyCommentSectionLoadTime && (
-                          <div style={{ display: "inline-flex", alignItems: "center", width: "22px", height: "22px", overflow: "hidden" }}>
-                            <VerifiedBadge />
-                          </div>
-                        )}
-                      </div>
-                      <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>
-                        {new Date(comment.createdAt).toLocaleString("id-ID")}
-                      </span>
-
-                      {comment.replyToName && (
-                        <p style={{ margin: "6px 0 0", fontSize: "0.85rem", color: "#11151E", fontWeight: "500" }}>
-                          @{comment.replyToName}
+          
+          {/* Actual Testimonial Comments */}
+          <div style={{ marginBottom: "32px" }}>
+            <h3 style={{ fontSize: "1.1rem", marginBottom: "12px", marginTop: "24px" }}>Komentar di Halaman Testimoni</h3>
+            <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
+              {Object.values(testimonialComments).reduce((sum, comments) => sum + comments.length, 0)} komentar total
+            </p>
+            
+            <div className={styles.list}>
+              {Object.entries(testimonialComments).map(([testimonialId, comments]) => (
+                <div key={testimonialId} style={{ marginBottom: "24px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
+                  {comments.length > 0 && (
+                    <>
+                      <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #04B851" }}>
+                        <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
+                          Testimoni ID: {testimonialId} - {comments.length} komentar
                         </p>
-                      )}
-
-                      <p style={{ margin: "6px 0", fontSize: "0.9rem", color: "#444", wordBreak: "break-word" }}>
-                        {comment.text}
-                      </p>
-
-                      <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-                        <button
-                          type="button"
-                          onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
-                          disabled={isDeletingComment[comment.id]}
-                          style={{
-                            background: "#f44336",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            padding: "6px 12px",
-                            fontSize: "0.85rem",
-                            cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer",
-                            opacity: isDeletingComment[comment.id] ? 0.6 : 1,
-                          }}
-                        >
-                          {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
-                        </button>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null
-            )}
 
-            {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0) === 0 ? (
-              <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Belum ada komentar testimoni.</p>
-            ) : null}
+                      {comments.map((comment) => (
+                        <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                            <span style={{
+                              fontWeight: comment.verified ? 800 : 600,
+                              color: "#333",
+                              fontSize: "0.95rem",
+                            }}>
+                              {comment.userName}
+                            </span>
+                            {comment.verified && (
+                              <div style={{ display: "inline-flex", alignItems: "center", width: "22px", height: "22px", overflow: "hidden" }}>
+                                <VerifiedBadge />
+                              </div>
+                            )}
+                            {comment.rating && comment.rating > 0 && (
+                              <span style={{ fontSize: "0.85rem", color: "#666" }}>
+                                {"⭐".repeat(comment.rating)}
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>
+                            {new Date(comment.createdAt).toLocaleString("id-ID")}
+                          </span>
+
+                          {comment.replyToName && (
+                            <p style={{ margin: "6px 0 0", fontSize: "0.85rem", color: "#11151E", fontWeight: "500" }}>
+                              @{comment.replyToName}
+                            </p>
+                          )}
+
+                          <p style={{ margin: "6px 0", fontSize: "0.9rem", color: "#444", wordBreak: "break-word" }}>
+                            {comment.text}
+                          </p>
+
+                          <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteTestimonialComment(comment.id, testimonialId)}
+                              disabled={isDeletingComment[comment.id]}
+                              style={{
+                                background: "#f44336",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "6px 12px",
+                                fontSize: "0.85rem",
+                                cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer",
+                                opacity: isDeletingComment[comment.id] ? 0.6 : 1,
+                              }}
+                            >
+                              {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const count = aiReplyCount[`${testimonialId}-${comment.id}`] || 1;
+                                onGenerateAIReplies(testimonialId, comment.id, count);
+                              }}
+                              disabled={isGeneratingAIReplies[`${testimonialId}-${comment.id}`]}
+                              style={{
+                                background: "#04B851",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "6px 12px",
+                                fontSize: "0.85rem",
+                                cursor: isGeneratingAIReplies[`${testimonialId}-${comment.id}`] ? "not-allowed" : "pointer",
+                                opacity: isGeneratingAIReplies[`${testimonialId}-${comment.id}`] ? 0.6 : 1,
+                              }}
+                            >
+                              {isGeneratingAIReplies[`${testimonialId}-${comment.id}`] ? "Balas..." : "🤖 AI Balas"}
+                            </button>
+                            <input
+                              type="number"
+                              min={1}
+                              max={5}
+                              value={aiReplyCount[`${testimonialId}-${comment.id}`] || 1}
+                              onChange={(e) =>
+                                setAiReplyCount((prev) => ({
+                                  ...prev,
+                                  [`${testimonialId}-${comment.id}`]: Math.max(1, Math.min(5, parseInt(e.target.value) || 1)),
+                                }))
+                              }
+                              style={{
+                                width: "40px",
+                                padding: "6px",
+                                borderRadius: "4px",
+                                border: "1px solid #ddd",
+                                fontSize: "0.85rem",
+                              }}
+                              title="Jumlah balasan AI"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              ))}
+
+              {Object.values(testimonialComments).reduce((sum, comments) => sum + comments.length, 0) === 0 ? (
+                <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Belum ada komentar di halaman testimoni.</p>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Book Story Comments */}
+          <div>
+            <h3 style={{ fontSize: "1.1rem", marginBottom: "12px", marginTop: "24px" }}>Komentar Cerita (Book Stories)</h3>
+            <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
+              {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0)} komentar total dari halaman testimoni (cerita).
+            </p>
+
+            <div className={styles.list}>
+              {approvedBookStories.map((story) =>
+                story.comments.length > 0 ? (
+                  <div key={story.id} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
+                    <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
+                      <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
+                        {story.userName} - {story.comments.length} komentar
+                      </p>
+                      <span style={{ fontSize: "0.85rem", color: "#666" }}>
+                        {story.userEmail} • {new Date(story.createdAt).toLocaleString("id-ID")}
+                      </span>
+                    </div>
+
+                    {story.comments.map((comment) => (
+                      <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                          <span style={{
+                            fontWeight: comment.verified || comment.userName === "Tokko Marketplace" ? 800 : 600,
+                            color: "#333",
+                            fontSize: "0.95rem",
+                          }}>
+                            {comment.userName}
+                          </span>
+                          {(comment.verified || comment.userName === "Tokko Marketplace") && 
+                           new Date(comment.createdAt).getTime() < storyCommentSectionLoadTime && (
+                            <div style={{ display: "inline-flex", alignItems: "center", width: "22px", height: "22px", overflow: "hidden" }}>
+                              <VerifiedBadge />
+                            </div>
+                          )}
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>
+                          {new Date(comment.createdAt).toLocaleString("id-ID")}
+                        </span>
+
+                        {comment.replyToName && (
+                          <p style={{ margin: "6px 0 0", fontSize: "0.85rem", color: "#11151E", fontWeight: "500" }}>
+                            @{comment.replyToName}
+                          </p>
+                        )}
+
+                        <p style={{ margin: "6px 0", fontSize: "0.9rem", color: "#444", wordBreak: "break-word" }}>
+                          {comment.text}
+                        </p>
+
+                        <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
+                            disabled={isDeletingComment[comment.id]}
+                            style={{
+                              background: "#f44336",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              padding: "6px 12px",
+                              fontSize: "0.85rem",
+                              cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer",
+                              opacity: isDeletingComment[comment.id] ? 0.6 : 1,
+                            }}
+                          >
+                            {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null
+              )}
+
+              {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0) === 0 ? (
+                <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Belum ada komentar cerita.</p>
+              ) : null}
+            </div>
           </div>
 
           {error ? <p className={styles.errorText}>{error}</p> : null}

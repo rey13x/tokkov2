@@ -1,4 +1,4 @@
-export type ProductType = "jual_beli" | "pekerjaan";
+export type ProductType = "jual_beli" | "pekerjaan" | "lms";
 
 export type StoreProduct = {
   id: string;
@@ -20,6 +20,48 @@ export type StoreProduct = {
   paymentMethod?: "static_qris" | "dynamic_qris"; // static = static QR image, dynamic = API-based QRIS
   paymentFileUrl?: string; // URL to download after payment for dynamic QRIS
   paymentQrisImageUrl?: string; // Static QR code image URL for static QRIS
+  // LMS fields (lms product_type only)
+  accessKey?: string; // Access key for course entry (case-sensitive)
+  rewardFileUrl?: string; // Certificate/reward file URL
+};
+
+// LMS Course Structures
+export type LMSChapter = {
+  id: string;
+  productId: string;
+  title: string;
+  sortOrder: number;
+  createdAt: string;
+};
+
+export type LMSLesson = {
+  id: string;
+  chapterId: string;
+  productId: string; // denormalized for queries
+  title: string;
+  videoUrl: string; // URL from Vimeo/YouTube/S3
+  sortOrder: number;
+  createdAt: string;
+};
+
+export type UserCourseProgress = {
+  id: string;
+  userId: string;
+  lessonId: string;
+  productId: string; // denormalized for queries
+  status: "locked" | "unlocked" | "completed";
+  lastWatchedSecond: number; // last watched position in seconds
+  hasAccessKey: boolean; // whether user has entered correct access key
+  updatedAt: string;
+};
+
+export type UserCourseAccess = {
+  id: string;
+  userId: string;
+  productId: string;
+  hasAccessKey: boolean; // whether user has entered correct access key
+  accessGrantedAt: string;
+  updatedAt: string;
 };
 
 export type MaintenanceSettings = {
@@ -77,6 +119,7 @@ export type StoreTestimonialComment = {
   userName: string;
   userAvatarUrl?: string;
   verified?: boolean;
+  rating?: number;
   text: string;
   replyToId?: string;
   replyToName?: string;

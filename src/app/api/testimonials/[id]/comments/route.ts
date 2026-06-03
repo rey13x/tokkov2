@@ -7,6 +7,8 @@ import {
   getTestimonialComments,
   deleteTestimonialComment,
   updateTestimonialComment,
+  updateTestimonialCommentRating,
+  updateTestimonialCommentVerified,
 } from "@/server/store-data";
 
 const addCommentSchema = z.object({
@@ -179,17 +181,19 @@ export async function PATCH(request: Request, context: { params: Params }) {
     }
 
     const body = await request.json();
-    const { commentId, text } = z.object({ 
+    const { commentId, text, rating, verified } = z.object({ 
       commentId: z.string(),
-      text: z.string().min(1).max(500),
+      text: z.string().min(1).max(500).optional(),
+      rating: z.number().min(0).max(5).optional(),
+      verified: z.boolean().optional(),
     }).parse(body);
 
     // Verify that the user is admin or owns this comment
     const user = await findUserById(session.user.id ?? "");
     const isAdmin = user?.role === "admin" || user?.email?.toLowerCase() === "digitalawanku2@gmail.com";
     
-    if (!isAdmin) {
-      // If not admin, verify user owns the comment
+    if (!isAdmin && (text || rating)) {
+      // If not admin and trying to edit text/rating, verify user owns the comment
       const comments = await getTestimonialComments(id);
       const comment = comments.find((c: any) => c.id === commentId);
       
@@ -201,7 +205,30 @@ export async function PATCH(request: Request, context: { params: Params }) {
       }
     }
 
-    const updatedComment = await updateTestimonialComment(commentId, text);
+    // Only admins can toggle verified
+    if (verified !== undefined && !isAdmin) {
+      return NextResponse.json(
+        { message: "Anda tidak punya akses untuk mengubah verified status." },
+        { status: 403 },
+      );
+    }
+
+    let updatedComment = null;
+
+    // Update text if provided
+    if (text !== undefined) {
+      updatedComment = await updateTestimonialComment(commentId, text);
+    }
+
+    // Update rating if provided
+    if (rating !== undefined) {
+      updatedComment = await updateTestimonialCommentRating(commentId, rating);
+    }
+
+    // Update verified if provided (admin only)
+    if (verified !== undefined) {
+      updatedComment = await updateTestimonialCommentVerified(commentId, verified);
+    }
 
     if (!updatedComment) {
       return NextResponse.json(

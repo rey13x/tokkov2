@@ -567,6 +567,11 @@ export async function ensureDatabase() {
         `ALTER TABLE testimonial_comments ADD COLUMN reply_to_name TEXT`,
       ).catch(() => {});
 
+      // Add rating column if it doesn't exist (migration for existing databases)
+      await run(
+        `ALTER TABLE testimonial_comments ADD COLUMN rating INTEGER NOT NULL DEFAULT 0`,
+      ).catch(() => {});
+
       await run(
         `CREATE TABLE IF NOT EXISTS marquees (
           id TEXT PRIMARY KEY,

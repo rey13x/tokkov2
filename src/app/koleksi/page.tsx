@@ -108,55 +108,56 @@ export default function KoleksiPage() {
 
         <div className={styles.searchWrap}>
           <div className={styles.searchRow}>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Cari Layanan..."
-            />
-            {session?.user ? (
-              <button
-                type="button"
-                onClick={() => router.push("/profil")}
-                className={styles.gifBox}
-                style={{ cursor: "pointer", border: "none", background: "none", padding: 0 }}
-                title="Lihat profil"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={session.user.image || "/assets/logo.png"}
-                  alt="Profil"
-                  style={{
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                  }}
-                />
-              </button>
-            ) : (
-              <div className={styles.gifBox} aria-hidden="true">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="https://media.giphy.com/media/13HgwGsXF0aiGY/giphy.gif"
-                  alt=""
-                />
-              </div>
-            )}
+            <div className={styles.searchInputWrapper}>
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Cari Layanan..."
+              />
+              {session?.user ? (
+                <button
+                  type="button"
+                  onClick={() => router.push("/profil")}
+                  className={styles.gifBox}
+                  style={{ cursor: "pointer", border: "none", background: "none", padding: 0 }}
+                  title="Lihat profil"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={session.user.image || "/assets/logo.png"}
+                    alt="Profil"
+                    style={{
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                    }}
+                  />
+                </button>
+              ) : (
+                <div className={styles.gifBox} aria-hidden="true">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="https://media.giphy.com/media/13HgwGsXF0aiGY/giphy.gif"
+                    alt=""
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-
-        <div className={styles.categoryRow}>
-          {categories.map((category) => (
-            <button
-              key={category}
-              type="button"
-              onClick={() => setActiveCategory(category)}
-              className={`${styles.categoryChip} ${
-                activeCategory === category ? styles.categoryChipActive : ""
-              }`}
-            >
-              {category}
-            </button>
-          ))}
+          <div className={styles.categoryRow}>
+            {categories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setActiveCategory(category)}
+                className={`${styles.categoryChip} ${
+                  activeCategory === category ? styles.categoryChipActive : ""
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 

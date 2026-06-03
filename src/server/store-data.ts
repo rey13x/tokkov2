@@ -3255,6 +3255,7 @@ function mapTestimonialCommentDoc(
     userName: String(data?.userName ?? ""),
     userAvatarUrl: String(data?.userAvatarUrl ?? ""),
     verified: Boolean(data?.verified),
+    rating: Math.max(0, Math.min(5, Number(data?.rating ?? 0))),
     text: String(data?.text ?? ""),
     replyToId: String(data?.replyToId ?? "").trim() || undefined,
     replyToName: String(data?.replyToName ?? "").trim() || undefined,
@@ -3270,6 +3271,7 @@ function mapTestimonialComment(row: Record<string, unknown>): any {
     userName: String(row.user_name ?? ""),
     userAvatarUrl: String(row.user_avatar_url ?? ""),
     verified: Number(row.verified ?? 0) === 1,
+    rating: Math.max(0, Math.min(5, Number(row.rating ?? 0))),
     text: String(row.text ?? ""),
     replyToId: String(row.reply_to_id ?? "").trim() || undefined,
     replyToName: String(row.reply_to_name ?? "").trim() || undefined,
@@ -3283,6 +3285,7 @@ export async function addTestimonialComment(input: {
   userName: string;
   userAvatarUrl?: string;
   verified?: boolean;
+  rating?: number;
   text: string;
   replyToId?: string;
   replyToName?: string;
@@ -3292,6 +3295,7 @@ export async function addTestimonialComment(input: {
     try {
       const id = crypto.randomUUID();
       const createdAt = now();
+      const rating = Math.max(0, Math.min(5, input.rating ?? 0));
 
       await firestore.collection("testimonialComments").doc(id).set({
         testimonialId: input.testimonialId,
@@ -3299,6 +3303,7 @@ export async function addTestimonialComment(input: {
         userName: input.userName,
         userAvatarUrl: input.userAvatarUrl ?? "",
         verified: input.verified ? true : false,
+        rating,
         text: input.text.trim(),
         replyToId: input.replyToId ?? null,
         replyToName: input.replyToName ?? null,
@@ -3318,12 +3323,13 @@ export async function addTestimonialComment(input: {
     const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
     const id = crypto.randomUUID();
     const createdAt = now();
+    const rating = Math.max(0, Math.min(5, input.rating ?? 0));
 
     await ensDb();
     await dbRun(
       `INSERT INTO testimonial_comments
-        (id, testimonial_id, user_id, user_name, user_avatar_url, verified, text, reply_to_id, reply_to_name, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, testimonial_id, user_id, user_name, user_avatar_url, verified, rating, text, reply_to_id, reply_to_name, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         input.testimonialId,
@@ -3331,6 +3337,7 @@ export async function addTestimonialComment(input: {
         input.userName,
         input.userAvatarUrl ?? "",
         input.verified ? 1 : 0,
+        rating,
         input.text.trim(),
         input.replyToId ?? null,
         input.replyToName ?? null,
@@ -3438,6 +3445,46 @@ export async function updateTestimonialComment(commentId: string, text: string):
     return row ? mapTestimonialComment(row) : null;
   } catch (error) {
     console.error("Failed to update testimonial comment in database:", error);
+    return null;
+  }
+}
+
+export async function updateTestimonialCommentRating(
+  commentId: string,
+  rating: number,
+): Promise<any> {
+  const rating_val = Math.max(0, Math.min(5, rating));
+  const firestore = getFirestoreOrNull();
+  if (firestore) {
+    try {
+      const updatedAt = now();
+      await firestore.collection("testimonialComments").doc(commentId).update({
+        rating: rating_val,
+        updatedAt,
+      });
+
+      const doc = await firestore.collection("testimonialComments").doc(commentId).get();
+      return mapTestimonialCommentDoc(commentId, doc.data() as Record<string, unknown>);
+    } catch (error) {
+      console.error("Failed to update testimonial comment rating in Firestore:", error);
+    }
+  }
+
+  // Fallback to local database
+  try {
+    const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
+    await ensDb();
+    const updatedAt = now();
+    await dbRun(
+      "UPDATE testimonial_comments SET rating = ?, updated_at = ? WHERE id = ?",
+      [rating_val, updatedAt, commentId],
+    );
+
+    const res = await dbRun("SELECT * FROM testimonial_comments WHERE id = ? LIMIT 1", [commentId]);
+    const row = res.rows[0] as Record<string, unknown> | undefined;
+    return row ? mapTestimonialComment(row) : null;
+  } catch (error) {
+    console.error("Failed to update testimonial comment rating in database:", error);
     return null;
   }
 }

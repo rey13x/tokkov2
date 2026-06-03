@@ -27,6 +27,10 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState<string>("");
   const [isEditingComment, setIsEditingComment] = useState<Record<string, boolean>>({});
+  const [editingRatingId, setEditingRatingId] = useState<string | null>(null);
+  const [editingRating, setEditingRating] = useState<number>(0);
+  const [isUpdatingRating, setIsUpdatingRating] = useState<Record<string, boolean>>({});
+  const [isUpdatingVerified, setIsUpdatingVerified] = useState<Record<string, boolean>>({});
   const [showReactionPicker, setShowReactionPicker] = useState<Record<string, boolean>>({});
   const [isLoadingReactions, setIsLoadingReactions] = useState<Record<string, boolean>>({});
   const [products, setProducts] = useState<StoreProduct[]>([]);
@@ -240,6 +244,76 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
     [session],
   );
 
+  const updateCommentRating = useCallback(
+    async (testimonialId: string, commentId: string, rating: number) => {
+      if (!session?.user) return;
+
+      setIsUpdatingRating((prev) => ({ ...prev, [commentId]: true }));
+      try {
+        const res = await fetch(`/api/testimonials/${testimonialId}/comments`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ commentId, rating }),
+        });
+
+        const data = (await res.json()) as { comment: StoreTestimonialComment };
+        if (res.ok) {
+          setComments((prev) => ({
+            ...prev,
+            [testimonialId]: (prev[testimonialId] || []).map((c) =>
+              c.id === commentId ? data.comment : c,
+            ),
+          }));
+          setEditingRatingId(null);
+          setEditingRating(0);
+        } else {
+          const error = (await res.json()) as { message?: string };
+          alert(error.message || "Gagal update rating komentar");
+        }
+      } catch (error) {
+        console.error("Failed to update rating:", error);
+        alert("Gagal update rating komentar");
+      } finally {
+        setIsUpdatingRating((prev) => ({ ...prev, [commentId]: false }));
+      }
+    },
+    [session],
+  );
+
+  const toggleCommentVerified = useCallback(
+    async (testimonialId: string, commentId: string, currentVerified: boolean) => {
+      if (!session?.user || session.user.role !== "admin") return;
+
+      setIsUpdatingVerified((prev) => ({ ...prev, [commentId]: true }));
+      try {
+        const res = await fetch(`/api/testimonials/${testimonialId}/comments`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ commentId, verified: !currentVerified }),
+        });
+
+        const data = (await res.json()) as { comment: StoreTestimonialComment };
+        if (res.ok) {
+          setComments((prev) => ({
+            ...prev,
+            [testimonialId]: (prev[testimonialId] || []).map((c) =>
+              c.id === commentId ? data.comment : c,
+            ),
+          }));
+        } else {
+          const error = (await res.json()) as { message?: string };
+          alert(error.message || "Gagal mengubah verified status");
+        }
+      } catch (error) {
+        console.error("Failed to toggle verified:", error);
+        alert("Gagal mengubah verified status");
+      } finally {
+        setIsUpdatingVerified((prev) => ({ ...prev, [commentId]: false }));
+      }
+    },
+    [session],
+  );
+
   const toggleComments = (testimonialId: string) => {
     if (comments[testimonialId]) {
       setComments((prev) => {
@@ -373,6 +447,32 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                               <VerifiedBadge />
                             </div>
                           )}
+                          {session?.user?.role === "admin" && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleCommentVerified(testimonial.id, comment.id, comment.verified ?? false)
+                              }
+                              disabled={isUpdatingVerified[comment.id]}
+                              title={comment.verified ? "Hapus verified badge" : "Tambah verified badge"}
+                              style={{
+                                background: "none",
+                                border: "1px solid #999",
+                                borderRadius: "4px",
+                                padding: "2px 6px",
+                                fontSize: "0.65rem",
+                                cursor: isUpdatingVerified[comment.id] ? "not-allowed" : "pointer",
+                                color: "#666",
+                                opacity: isUpdatingVerified[comment.id] ? 0.6 : 1,
+                              }}
+                            >
+                              {isUpdatingVerified[comment.id]
+                                ? "..."
+                                : comment.verified
+                                ? "✓ Hapus Badge"
+                                : "+ Badge"}
+                            </button>
+                          )}
                         </div>
                         <span className={styles.commentDate}>
                           {new Date(comment.createdAt).toLocaleDateString("id-ID")}
@@ -383,6 +483,92 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                     {comment.replyToName && (
                       <p className={styles.replyTo}>@{comment.replyToName}</p>
                     )}
+
+                    {/* Comment Rating */}
+                    <div style={{ marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      {editingRatingId === comment.id ? (
+                        <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setEditingRating(star)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                fontSize: "20px",
+                                opacity: star <= editingRating ? 1 : 0.4,
+                              }}
+                            >
+                              ⭐
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateCommentRating(testimonial.id, comment.id, editingRating);
+                            }}
+                            disabled={isUpdatingRating[comment.id]}
+                            style={{
+                              background: "#04B851",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              padding: "4px 8px",
+                              fontSize: "0.75rem",
+                              cursor: isUpdatingRating[comment.id] ? "not-allowed" : "pointer",
+                              opacity: isUpdatingRating[comment.id] ? 0.6 : 1,
+                            }}
+                          >
+                            {isUpdatingRating[comment.id] ? "..." : "OK"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingRatingId(null);
+                              setEditingRating(0);
+                            }}
+                            style={{
+                              background: "#ccc",
+                              border: "none",
+                              borderRadius: "4px",
+                              padding: "4px 8px",
+                              fontSize: "0.75rem",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ fontSize: "14px" }}>
+                            {comment.rating && comment.rating > 0 ? "⭐".repeat(comment.rating) : "Tanpa rating"}
+                          </span>
+                          {session?.user && (session.user.role === "admin" || comment.userId === session.user.id) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingRatingId(comment.id);
+                                setEditingRating(comment.rating ?? 0);
+                              }}
+                              style={{
+                                background: "none",
+                                border: "1px solid #ccc",
+                                borderRadius: "4px",
+                                padding: "2px 6px",
+                                fontSize: "0.75rem",
+                                cursor: "pointer",
+                                color: "#666",
+                              }}
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {editingCommentId === comment.id ? (
                       <div className={styles.editCommentForm}>
