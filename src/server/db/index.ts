@@ -124,6 +124,8 @@ function mapProduct(row: Record<string, unknown>): StoreProduct {
     isActive: Number(row.is_active) === 1,
     productType: (String(row.product_type ?? "jual_beli") as "jual_beli" | "pekerjaan"),
     jobApplicationLink: String(row.job_application_link ?? ""),
+    ...(row.buy_now_link ? { buyNowLink: String(row.buy_now_link) } : {}),
+    ...(row.max_applicants ? { maxApplicants: Number(row.max_applicants) } : {}),
   };
 }
 
