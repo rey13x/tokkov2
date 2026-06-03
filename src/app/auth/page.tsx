@@ -51,17 +51,17 @@ function triggerBrowserSavePassword(email: string, password: string) {
   form.method = "POST";
   form.action = "javascript:void(0);";
 
-  const emailInput = document.createElement("input");
+  const emailInput = document.createElement("input") as HTMLInputElement;
   emailInput.type = "email";
   emailInput.name = "email";
   emailInput.value = email;
-  emailInput.autoComplete = "email";
+  (emailInput as any).autocomplete = "email";
 
-  const passwordInput = document.createElement("input");
+  const passwordInput = document.createElement("input") as HTMLInputElement;
   passwordInput.type = "password";
   passwordInput.name = "password";
   passwordInput.value = password;
-  passwordInput.autoComplete = "current-password";
+  (passwordInput as any).autocomplete = "current-password";
 
   const submitBtn = document.createElement("button");
   submitBtn.type = "submit";
