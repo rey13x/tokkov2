@@ -243,6 +243,9 @@ function AdminManagementSection() {
     userAvatarUrl: "",
   });
   const [updatingBookStoryCommentVerified, setUpdatingBookStoryCommentVerified] = useState<Record<string, boolean>>({});
+  const [buzzerCommentCount, setBuzzerCommentCount] = useState("5");
+  const [selectedBuzzerStoryId, setSelectedBuzzerStoryId] = useState<string>("");
+  const [isBuzzerLoading, setIsBuzzerLoading] = useState(false);
   const privacyEditorRef = useRef<HTMLDivElement | null>(null);
   const maxOrderCount = useMemo(
     () => Math.max(1, ...series.map((item) => item.totalOrders)),
@@ -1032,6 +1035,7 @@ function AdminManagementSection() {
       const response = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
       const result = (await response.json()) as { message?: string };
@@ -1811,6 +1815,90 @@ function AdminManagementSection() {
       setError(error instanceof Error ? error.message : "Gagal atur penonton");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const generateBuzzerComments = (count: number) => {
+    const adjectives = ["Sangat", "Sangat banget", "Benar-benar", "Amat"];
+    const qualities = ["bagus", "memuaskan", "sesuai harapan", "menarik", "berkualitas", "luar biasa"];
+    const phrases = [
+      "Produk ini sangat memuaskan!",
+      "Saya sangat terkesan dengan kualitasnya",
+      "Rekomendasi banget untuk yang lain",
+      "Sesuai ekspektasi saya",
+      "Pelayanan terbaik!",
+      "Tidak mengecewakan",
+      "Akan beli lagi",
+      "Teman-teman harus coba ini",
+      "Harga sesuai kualitas",
+      "Cepat dan terpercaya",
+      "Mantap banget produknya",
+      "Puas dengan pembelian ini",
+      "Layanan responsif dan profesional",
+      "Kemasan rapi dan aman",
+      "Produk original dan bergaransi",
+      "Proses pengiriman cepat",
+      "Komunikasi dengan penjual lancar",
+      "Tidak ada cacat sama sekali",
+      "Sesuai dengan foto di katalog",
+      "Uang saya terbayar dengan baik",
+    ];
+
+    const randomRating = () => Math.floor(Math.random() * 2) + 4; // 4 or 5 stars
+    const randomPhrase = () => phrases[Math.floor(Math.random() * phrases.length)];
+    const randomUserName = () => `Tokker ${Math.floor(Math.random() * 10000)}`;
+
+    const comments = [];
+    for (let i = 0; i < count; i++) {
+      comments.push({
+        userName: randomUserName(),
+        text: randomPhrase(),
+      });
+    }
+    return comments;
+  };
+
+  const onBuzzerClick = async () => {
+    if (!selectedBuzzerStoryId) {
+      setError("Pilih cerita terlebih dahulu");
+      return;
+    }
+
+    const count = parseInt(buzzerCommentCount, 10);
+    if (isNaN(count) || count < 1 || count > 100) {
+      setError("Jumlah komentar harus antara 1-100");
+      return;
+    }
+
+    try {
+      setIsBuzzerLoading(true);
+      setError("");
+      setMessage("");
+
+      const comments = generateBuzzerComments(count);
+      const response = await fetch("/api/admin/book-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storyId: selectedBuzzerStoryId,
+          action: "add-comments",
+          comments,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal tambah komentar");
+      }
+
+      setMessage(`${count} komentar berhasil ditambahkan!`);
+      setBuzzerCommentCount("5");
+      setSelectedBuzzerStoryId("");
+      await loadApprovedBookStories();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal tambah komentar");
+    } finally {
+      setIsBuzzerLoading(false);
     }
   };
 
@@ -2939,6 +3027,72 @@ function AdminManagementSection() {
           <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
             {approvedBookStories.reduce((total, story) => total + (story.comments?.length || 0), 0)} komentar total dari cerita book spirit.
           </p>
+
+          {/* Buzzer Feature */}
+          <div style={{ marginBottom: "24px", padding: "16px", background: "#f5f5f5", borderRadius: "8px", border: "2px solid #11151E" }}>
+            <h3 style={{ margin: "0 0 12px", fontSize: "1rem" }}>🚀 Buzzer - Auto Tambah Komentar</h3>
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div style={{ flex: "1", minWidth: "200px" }}>
+                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.9rem", fontWeight: "600" }}>
+                  Pilih Cerita:
+                </label>
+                <select
+                  value={selectedBuzzerStoryId}
+                  onChange={(e) => setSelectedBuzzerStoryId(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  <option value="">-- Pilih Cerita --</option>
+                  {approvedBookStories.map((story) => (
+                    <option key={story.id} value={story.id}>
+                      {story.title} ({story.comments?.length || 0} komentar)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ minWidth: "150px" }}>
+                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.9rem", fontWeight: "600" }}>
+                  Jumlah Komentar:
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={buzzerCommentCount}
+                  onChange={(e) => setBuzzerCommentCount(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                    fontSize: "0.9rem",
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={onBuzzerClick}
+                disabled={isBuzzerLoading}
+                style={{
+                  padding: "8px 16px",
+                  background: "#04B851",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: isBuzzerLoading ? "not-allowed" : "pointer",
+                  fontWeight: "600",
+                  opacity: isBuzzerLoading ? 0.6 : 1,
+                }}
+              >
+                {isBuzzerLoading ? "Menambah..." : "🚀 Buzzer"}
+              </button>
+            </div>
+          </div>
 
           <div className={styles.list}>
             {approvedBookStories.length === 0 || approvedBookStories.every(story => !story.comments || story.comments.length === 0) ? (

@@ -2595,6 +2595,7 @@ export async function updateBookStoryUserProfile(
         ...comment,
         userName: input.userName ?? comment.userName,
         userEmail: input.userEmail ?? comment.userEmail,
+        userAvatarUrl: input.userAvatarUrl ?? comment.userAvatarUrl,
       };
     });
 
@@ -3441,25 +3442,38 @@ export async function updateTestimonialComment(commentId: string, text: string):
   }
 }
 
-export async function updateTestimonialCommentUserName(userId: string, newUserName: string): Promise<boolean> {
+export async function updateTestimonialUserProfile(
+  userId: string,
+  input: { userName?: string; userAvatarUrl?: string },
+): Promise<boolean> {
   const firestore = getFirestoreOrNull();
   if (firestore) {
     try {
-      const snapshot = await firestore
-        .collection("testimonialComments")
-        .where("userId", "==", userId)
-        .get();
+      const [commentsSnapshot, testimonialsSnapshot] = await Promise.all([
+        firestore.collection("testimonialComments").where("userId", "==", userId).get(),
+        firestore.collection("testimonials").where("userId", "==", userId).get(),
+      ]);
 
-      if (snapshot.size > 0) {
+      if (commentsSnapshot.size > 0 || testimonialsSnapshot.size > 0) {
         const batch = firestore.batch();
-        snapshot.docs.forEach((doc: any) => {
-          batch.update(doc.ref, { userName: newUserName });
+        commentsSnapshot.docs.forEach((doc: any) => {
+          batch.update(doc.ref, {
+            ...(input.userName !== undefined ? { userName: input.userName } : {}),
+            ...(input.userAvatarUrl !== undefined ? { userAvatarUrl: input.userAvatarUrl } : {}),
+          });
+        });
+        testimonialsSnapshot.docs.forEach((doc: any) => {
+          batch.update(doc.ref, {
+            ...(input.userName !== undefined ? { name: input.userName } : {}),
+            ...(input.userAvatarUrl !== undefined ? { userAvatarUrl: input.userAvatarUrl } : {}),
+            updatedAt: now(),
+          });
         });
         await batch.commit();
       }
       return true;
     } catch (error) {
-      console.error("Failed to update testimonial comment usernames in Firestore:", error);
+      console.error("Failed to update testimonial user profile in Firestore:", error);
     }
   }
 
@@ -3467,15 +3481,50 @@ export async function updateTestimonialCommentUserName(userId: string, newUserNa
   try {
     const { ensureDatabase: ensDb, run: dbRun } = await import("./db");
     await ensDb();
-    await dbRun(
-      "UPDATE testimonial_comments SET user_name = ?, updated_at = ? WHERE user_id = ?",
-      [newUserName, now(), userId],
-    );
+    const commentSets: string[] = [];
+    const commentValues: (string | number)[] = [];
+    if (input.userName !== undefined) {
+      commentSets.push("user_name = ?");
+      commentValues.push(input.userName);
+    }
+    if (input.userAvatarUrl !== undefined) {
+      commentSets.push("user_avatar_url = ?");
+      commentValues.push(input.userAvatarUrl);
+    }
+    if (commentSets.length > 0) {
+      const nowValue = now();
+      await dbRun(
+        `UPDATE testimonial_comments SET ${commentSets.join(", ")}, updated_at = ? WHERE user_id = ?`,
+        [...commentValues, nowValue, userId] as (string | number | null)[]
+      );
+    }
+
+    const testimonialSets: string[] = [];
+    const testimonialValues: (string | number)[] = [];
+    if (input.userName !== undefined) {
+      testimonialSets.push("name = ?");
+      testimonialValues.push(input.userName);
+    }
+    if (input.userAvatarUrl !== undefined) {
+      testimonialSets.push("user_avatar_url = ?");
+      testimonialValues.push(input.userAvatarUrl);
+    }
+    if (testimonialSets.length > 0) {
+      const nowValue = now();
+      await dbRun(
+        `UPDATE testimonials SET ${testimonialSets.join(", ")}, updated_at = ? WHERE user_id = ?`,
+        [...testimonialValues, nowValue, userId] as (string | number | null)[]
+      );
+    }
     return true;
   } catch (error) {
-    console.error("Failed to update testimonial comment usernames in database:", error);
+    console.error("Failed to update testimonial user profile in database:", error);
     return false;
   }
+}
+
+export async function updateTestimonialCommentUserName(userId: string, newUserName: string): Promise<boolean> {
+  return updateTestimonialUserProfile(userId, { userName: newUserName });
 }
 
 export async function updateTestimonialCommentAuthor(
@@ -3716,4 +3765,3 @@ export async function getCommentReactionsSummary(commentId: string, userId?: str
     return [];
   }
 }
-

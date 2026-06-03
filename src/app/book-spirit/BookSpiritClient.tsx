@@ -7,7 +7,6 @@ import { AiOutlineLike, AiFillLike } from "react-icons/ai";
 import { FaRegComment } from "react-icons/fa";
 import { MdOutlineShare, MdPhotoCamera } from "react-icons/md";
 import { MdFlagCircle } from "react-icons/md";
-import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import type { BookStory } from "@/types/store";
 import StorySubmissionModal from "./StorySubmissionModal";
@@ -29,6 +28,7 @@ export default function BookSpiritClient() {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [activeRating, setActiveRating] = useState<number | null>(null);
   const [activeProductId, setActiveProductId] = useState<string | null>(null);
+  const [maintenanceGuideStep, setMaintenanceGuideStep] = useState<0 | 1 | 2>(0);
 
   useEffect(() => {
     const loadStories = async () => {
@@ -46,6 +46,20 @@ export default function BookSpiritClient() {
     };
 
     loadStories();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("maintenanceGuide") === "1") {
+      setMaintenanceGuideStep(1);
+      window.setTimeout(() => {
+        document.querySelector<HTMLElement>("[data-maintenance-guide='write-testimoni']")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 250);
+    }
   }, []);
 
   // Extract unique products from all stories
@@ -76,6 +90,9 @@ export default function BookSpiritClient() {
       router.push("/auth");
     } else {
       setShowModal(true);
+      if (maintenanceGuideStep === 1) {
+        setMaintenanceGuideStep(2);
+      }
     }
   };
 
@@ -449,6 +466,7 @@ export default function BookSpiritClient() {
               type="button"
               className={styles.tellStoryButton}
               onClick={handleTellStory}
+              data-maintenance-guide="write-testimoni"
               style={{ marginTop: "24px" }}
             >
               Isi Testimoni
@@ -766,6 +784,7 @@ export default function BookSpiritClient() {
                   type="button"
                   className={styles.tellStoryButton}
                   onClick={handleTellStory}
+                  data-maintenance-guide="write-testimoni"
                 >
                   Isi Testimoni
                 </button>
@@ -868,7 +887,64 @@ export default function BookSpiritClient() {
         onClose={() => setShowModal(false)}
         onSubmitted={handleStorySubmitted}
       />
-      <MaintenanceModal />
+      {maintenanceGuideStep > 0 ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 900,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: maintenanceGuideStep === 1 ? "50%" : "50%",
+              bottom: maintenanceGuideStep === 1 ? "110px" : "28px",
+              transform: "translateX(-50%)",
+              width: "min(360px, calc(100vw - 32px))",
+              background: "rgba(10, 13, 20, 0.94)",
+              color: "white",
+              borderRadius: "18px",
+              padding: "16px 18px",
+              boxShadow: "0 18px 44px rgba(0,0,0,0.32)",
+              animation: "maintenanceGuideFloat 1.25s ease-in-out infinite",
+              pointerEvents: "auto",
+            }}
+          >
+            <strong style={{ display: "block", fontSize: "15px", marginBottom: "6px" }}>
+              {maintenanceGuideStep === 1 ? "Klik Isi Testimoni" : "Tulis pesan kamu"}
+            </strong>
+            <p style={{ margin: 0, fontSize: "13px", lineHeight: 1.45 }}>
+              {maintenanceGuideStep === 1
+                ? "Tekan tombol Isi Testimoni untuk mulai mengobrol dengan kami."
+                : "Ketik: berikan penilaian terakhir kamu atau mengobrol dengan kami."}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                if (maintenanceGuideStep === 1) {
+                  handleTellStory();
+                  return;
+                }
+                setMaintenanceGuideStep(0);
+              }}
+              style={{
+                marginTop: "12px",
+                border: 0,
+                borderRadius: "999px",
+                background: "#ffffff",
+                color: "#11151e",
+                padding: "8px 14px",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              {maintenanceGuideStep === 1 ? "Buka" : "Selesai"}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -8,7 +8,7 @@ import type {
 
 export async function fetchStoreData() {
   const response = await fetch("/api/store", {
-    next: { revalidate: 5 },
+    cache: "no-store",
   });
   if (!response.ok) {
     throw new Error("Failed to fetch store");

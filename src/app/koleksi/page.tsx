@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FiChevronRight } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
-import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { formatRupiah } from "@/data/products";
 import { addToCart } from "@/lib/cart";
+import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
@@ -16,6 +16,7 @@ import styles from "./page.module.css";
 export default function KoleksiPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const { isMaintenanceEnabled } = useMaintenanceMode();
   const initialCategory =
     typeof window === "undefined"
       ? "Semua"
@@ -47,6 +48,11 @@ export default function KoleksiPage() {
   const onAddToCart = (e: React.MouseEvent, product: StoreProduct) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (isMaintenanceEnabled) {
+      reopenMaintenanceNotice();
+      return;
+    }
 
     if (product.productType === "pekerjaan") {
       // For jobs, navigate to product detail page instead
@@ -186,7 +192,6 @@ export default function KoleksiPage() {
       ) : (
         <p className={styles.emptyState}>Produk tidak ditemukan untuk filter ini.</p>
       )}
-      <MaintenanceModal />
     </main>
   );
 }

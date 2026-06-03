@@ -11,7 +11,7 @@ import {
   incrementPasswordChangeOtpAttempts,
   updateUserById,
 } from "@/server/db";
-import { updateBookStoryUserProfile, updateTestimonialCommentUserName } from "@/server/store-data";
+import { updateBookStoryUserProfile, updateTestimonialUserProfile } from "@/server/store-data";
 
 const MAX_OTP_ATTEMPTS = 5;
 
@@ -194,10 +194,10 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: "Gagal update profil." }, { status: 500 });
     }
 
-    // Update username in all user's testimonial comments if username changed
-    if (payload.username.trim() !== user.username) {
-      await updateTestimonialCommentUserName(user.id, payload.username.trim());
-    }
+    await updateTestimonialUserProfile(user.id, {
+      userName: updated.username,
+      userAvatarUrl: updated.avatarUrl,
+    });
     await updateBookStoryUserProfile(user.id, {
       userName: updated.username,
       userEmail: updated.email,

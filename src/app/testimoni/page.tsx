@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FiChevronRight } from "react-icons/fi";
-import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreTestimonial } from "@/types/store";
 import TestimoniClient from "./TestimoniClient";
@@ -129,7 +128,6 @@ export default function TestimoniPage() {
         )}
       </section>
 
-      <MaintenanceModal />
     </main>
   );
 }

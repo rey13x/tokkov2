@@ -10,6 +10,7 @@ import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import { readCart, removeFromCart, updateCartQuantity } from "@/lib/cart";
+import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
 import {
   ONBOARDING_STAGE,
   ONBOARDING_TUTORIAL_ORDER_ID,
@@ -58,6 +59,7 @@ function getInitialCartLines(): CartLine[] {
 export default function CartPage() {
   const router = useRouter();
   const { status, data: session } = useSession();
+  const { isMaintenanceEnabled } = useMaintenanceMode();
   const [cartLines, setCartLines] = useState<CartLine[]>(getInitialCartLines);
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [isStoreLoading, setIsStoreLoading] = useState(true);
@@ -295,6 +297,11 @@ export default function CartPage() {
   const onCheckout = async () => {
     setError("");
     setSuccess("");
+
+    if (isMaintenanceEnabled) {
+      reopenMaintenanceNotice();
+      return;
+    }
 
     const selected = detailedItems.filter((item) => item.selected);
     if (selected.length === 0) {

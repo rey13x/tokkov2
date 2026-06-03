@@ -50,6 +50,7 @@ export async function POST(
       userId: session.user.id,
       userName: session.user.username || session.user.name || "Anonymous",
       userEmail: session.user.email || user?.email || "",
+      userAvatarUrl: session.user.image || user?.avatarUrl || "",
       verified,
       text: payload.text,
       replyToId: payload.replyToId,

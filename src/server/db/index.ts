@@ -453,6 +453,8 @@ export async function ensureDatabase() {
           is_active INTEGER NOT NULL DEFAULT 1,
           product_type TEXT NOT NULL DEFAULT 'jual_beli',
           job_application_link TEXT NOT NULL DEFAULT '',
+          max_applicants INTEGER NOT NULL DEFAULT 0,
+          buy_now_link TEXT NOT NULL DEFAULT '',
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
@@ -465,6 +467,12 @@ export async function ensureDatabase() {
       ).catch(() => {});
       await run(
         "ALTER TABLE products ADD COLUMN job_application_link TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE products ADD COLUMN max_applicants INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE products ADD COLUMN buy_now_link TEXT NOT NULL DEFAULT ''",
       ).catch(() => {});
 
       await run(
@@ -1253,6 +1261,8 @@ export async function createProduct(input: {
   imageUrl: string;
   productType?: string;
   jobApplicationLink?: string;
+  maxApplicants?: number;
+  buyNowLink?: string;
 }) {
   await ensureDatabase();
   const id = randomId();
@@ -1275,11 +1285,13 @@ export async function createProduct(input: {
   const mediaUrl = resolveMediaUrl(input.imageUrl);
   const productType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
   const jobLink = productType === "pekerjaan" ? (input.jobApplicationLink?.trim() ?? "") : "";
+  const maxApplicants = productType === "pekerjaan" ? (input.maxApplicants ?? 0) : 0;
+  const buyNowLink = productType === "jual_beli" ? (input.buyNowLink?.trim() ?? "") : "";
 
   await run(
     `INSERT INTO products
-      (id, slug, name, category, short_description, description, duration, price, image_url, is_active, product_type, job_application_link, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+      (id, slug, name, category, short_description, description, duration, price, image_url, is_active, product_type, job_application_link, max_applicants, buy_now_link, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       slug,
@@ -1292,6 +1304,8 @@ export async function createProduct(input: {
       mediaUrl,
       productType,
       jobLink,
+      maxApplicants,
+      buyNowLink,
       now(),
       now(),
     ],
@@ -1312,6 +1326,8 @@ export async function updateProduct(
     isActive: boolean;
     productType: string;
     jobApplicationLink: string;
+    maxApplicants: number;
+    buyNowLink: string;
   }>,
 ) {
   await ensureDatabase();
@@ -1327,15 +1343,24 @@ export async function updateProduct(
     nextName !== current.name
       ? `${slugify(nextName)}-${Math.floor(Math.random() * 900 + 100)}`
       : current.slug;
-  const nextProductType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
+  const nextProductType =
+    input.productType === "pekerjaan"
+      ? "pekerjaan"
+      : input.productType === "jual_beli"
+        ? "jual_beli"
+        : current.productType;
   const nextJobLink =
     nextProductType === "pekerjaan"
       ? (input.jobApplicationLink ?? current.jobApplicationLink ?? "").trim()
       : "";
+  const nextMaxApplicants =
+    nextProductType === "pekerjaan" ? input.maxApplicants ?? current.maxApplicants ?? 0 : 0;
+  const nextBuyNowLink =
+    nextProductType === "jual_beli" ? (input.buyNowLink ?? current.buyNowLink ?? "").trim() : "";
 
   await run(
     `UPDATE products
-     SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, is_active = ?, product_type = ?, job_application_link = ?, updated_at = ?
+     SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, is_active = ?, product_type = ?, job_application_link = ?, max_applicants = ?, buy_now_link = ?, updated_at = ?
      WHERE id = ?`,
     [
       nextSlug,
@@ -1349,6 +1374,8 @@ export async function updateProduct(
       input.isActive === undefined ? Number(current.isActive) : Number(input.isActive),
       nextProductType,
       nextJobLink,
+      nextMaxApplicants,
+      nextBuyNowLink,
       now(),
       id,
     ],

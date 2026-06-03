@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
 import { createUser, findUserByEmail, updateUserById } from "@/server/db";
 import { getFirebaseStorageBucket } from "@/server/firebase-admin";
-import { updateBookStoryUserProfile } from "@/server/store-data";
+import { updateBookStoryUserProfile, updateTestimonialUserProfile } from "@/server/store-data";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
@@ -114,10 +114,18 @@ export async function POST(request: Request) {
       userEmail: updated.email,
       userAvatarUrl: updated.avatarUrl,
     }).catch(() => {});
+    await updateTestimonialUserProfile(updated.id, {
+      userName: updated.username,
+      userAvatarUrl: updated.avatarUrl,
+    }).catch(() => {});
     if (session.user.id !== updated.id) {
       await updateBookStoryUserProfile(session.user.id, {
         userName: updated.username,
         userEmail: updated.email,
+        userAvatarUrl: updated.avatarUrl,
+      }).catch(() => {});
+      await updateTestimonialUserProfile(session.user.id, {
+        userName: updated.username,
         userAvatarUrl: updated.avatarUrl,
       }).catch(() => {});
     }

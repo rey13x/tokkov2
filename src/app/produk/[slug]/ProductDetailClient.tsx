@@ -9,9 +9,9 @@ import { gsap } from "gsap";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
-import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { formatRupiah } from "@/data/products";
 import { addToCart } from "@/lib/cart";
+import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
 import {
   ONBOARDING_STAGE,
   advanceOnboarding,
@@ -35,6 +35,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const lastApplyTimeRef = useRef(0); // Rate limiting
   const router = useRouter();
   const { status } = useSession();
+  const { isMaintenanceEnabled } = useMaintenanceMode();
 
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -178,6 +179,11 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   }, [status, product.slug, product.id, router]);
 
   const onAddToCart = () => {
+    if (isMaintenanceEnabled) {
+      reopenMaintenanceNotice();
+      return;
+    }
+
     // If this is a jual_beli product with buyNowLink, redirect to the link instead
     if (product.productType === "jual_beli" && product.buyNowLink) {
       window.location.href = product.buyNowLink;
@@ -532,7 +538,6 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           )}
         </div>
       </section>
-      <MaintenanceModal />
     </main>
   );
 }

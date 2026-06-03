@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Sora, Space_Mono } from "next/font/google";
 import PageTransition from "@/components/layout/PageTransition";
 import SiteFooter from "@/components/layout/SiteFooter";
+import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { AuthSessionProvider } from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import "./globals.css";
@@ -38,6 +39,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthSessionProvider>
             <PageTransition>{children}</PageTransition>
+            <MaintenanceModal />
             <SiteFooter />
           </AuthSessionProvider>
         </ThemeProvider>
