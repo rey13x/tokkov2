@@ -95,7 +95,7 @@ export default function MaintenanceModal() {
             <div ref={logoRef} data-logo-circle className={styles.logCircle}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/assets/logov2.png"
+                src="/assets/maintenancelogo.jpg"
                 alt="Maintenance"
                 className={styles.logoImage}
               />

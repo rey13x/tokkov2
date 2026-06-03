@@ -20,12 +20,12 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tokk'o",
-  description: "Tokk'o",
+  title: "Tokko Marketplace",
+  description: "Tokko Marketplace",
   icons: {
-    icon: "/assets/logo.png",
-    shortcut: "/assets/logo.png",
-    apple: "/assets/logo.png",
+    icon: "/assets/maintenancelogo.jpg",
+    shortcut: "/assets/maintenancelogo.jpg",
+    apple: "/assets/maintenancelogo.jpg",
   },
 };
 

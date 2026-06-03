@@ -118,7 +118,7 @@ export async function POST(request: Request) {
         type: "pengumuman",
         title: "Update Fitur Baru Book Spirit",
         body: "Kami dengan bangga mengumumkan peluncuran fitur Book Spirit untuk berbagi cerita dan pengalaman Anda bersama komunitas Tokko.",
-        imageUrl: "/assets/Logo.png",
+        imageUrl: "/assets/logov2.png",
         pollOptions: [],
         pollVotes: {},
       },

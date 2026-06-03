@@ -8,13 +8,15 @@
   position: sticky;
   top: 0;
   z-index: 35;
-  background: transparent;
-  backdrop-filter: none;
+  background: rgba(255, 255, 255, 0);
+  backdrop-filter: blur(0px);
   padding-bottom: 8px;
-  transition: box-shadow 0.3s ease;
+  transition: background 0.3s ease, backdrop-filter 0.3s ease, box-shadow 0.3s ease;
 }
 
 .stickyTopScrolled {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
   box-shadow: 0 4px 12px rgba(14, 18, 30, 0.08);
 }
 
@@ -122,4 +124,20 @@
 
 .content {
   margin-top: 20px;
+}
+
+/* Dark mode support */
+:global(.dark-mode) .page {
+  background: #2a2a2a;
+}
+
+:global(.dark-mode) .categoryChip {
+  background: linear-gradient(135deg, rgba(100, 100, 100, 0.3) 0%, rgba(80, 80, 80, 0.25) 25%, rgba(60, 60, 60, 0.2) 50%, rgba(70, 70, 70, 0.25) 75%, rgba(90, 90, 90, 0.3) 100%);
+  color: #ffffff;
+  border-color: rgba(100, 100, 100, 0.3);
+}
+
+:global(.dark-mode) .categoryChipActive {
+  background: linear-gradient(135deg, rgba(100, 150, 255, 0.35) 0%, rgba(80, 130, 255, 0.28) 25%, rgba(60, 110, 255, 0.25) 50%, rgba(70, 120, 255, 0.28) 75%, rgba(90, 140, 255, 0.35) 100%);
+  color: #ffffff;
 }

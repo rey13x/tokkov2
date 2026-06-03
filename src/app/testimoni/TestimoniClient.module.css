@@ -554,3 +554,46 @@
 .reactionActive:hover {
   background: rgba(17, 21, 30, 0.15);
 }
+
+/* Dark mode support */
+:global(.dark-mode) .card {
+  background: #3a3a3a;
+  border-color: #4a4a4a;
+}
+
+:global(.dark-mode) .card .name {
+  color: #ffffff;
+}
+
+:global(.dark-mode) .card .message {
+  color: #e0e0e0;
+}
+
+:global(.dark-mode) .card .rating {
+  color: #b8b8b8;
+}
+
+:global(.dark-mode) .card .role {
+  color: #888888;
+}
+
+:global(.dark-mode) .linkedProducts {
+  background: #404040;
+  border-color: #4a4a4a;
+}
+
+:global(.dark-mode) .linkedProducts .linkedProductsLabel {
+  color: #e0e0e0;
+}
+
+:global(.dark-mode) .comment {
+  background: #404040;
+}
+
+:global(.dark-mode) .comment .commentText {
+  color: #e0e0e0;
+}
+
+:global(.dark-mode) .comment .commentName {
+  color: #ffffff;
+}

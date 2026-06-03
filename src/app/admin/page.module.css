@@ -959,3 +959,61 @@
     padding-top: 50px;
   }
 }
+
+/* Dark mode support */
+:global(.dark-mode) .page {
+  background: #2a2a2a;
+}
+
+:global(.dark-mode) .card {
+  background: #3a3a3a;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+}
+
+:global(.dark-mode) .card h2,
+:global(.dark-mode) .card h3 {
+  color: #ffffff;
+}
+
+:global(.dark-mode) .card p {
+  color: #e0e0e0;
+}
+
+:global(.dark-mode) .sidebarCard {
+  background: #3a3a3a;
+}
+
+:global(.dark-mode) .sidebarTitle {
+  color: #b8b8b8;
+}
+
+:global(.dark-mode) .sidebarButton {
+  background: #404040;
+  border-color: #4a4a4a;
+}
+
+:global(.dark-mode) .sidebarButton strong {
+  color: #ffffff;
+}
+
+:global(.dark-mode) .sidebarButton span {
+  color: #888888;
+}
+
+:global(.dark-mode) .sidebarButtonActive {
+  background: #555555;
+  border-color: #555555;
+}
+
+:global(.dark-mode) input,
+:global(.dark-mode) textarea,
+:global(.dark-mode) select {
+  background: #404040;
+  color: #ffffff;
+  border-color: #4a4a4a;
+}
+
+:global(.dark-mode) input::placeholder,
+:global(.dark-mode) textarea::placeholder {
+  color: #888888;
+}

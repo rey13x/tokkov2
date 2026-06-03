@@ -14,12 +14,15 @@
 }
 
 :root.dark-mode {
-  --bg-primary: #272727;
+  --bg-primary: #2a2a2a;
   --text-color: #ffffff;
-  --text-color-soft: #cccccc;
-  --surface: #1a1a1a;
-  --chip: #404040;
+  --text-color-soft: #b8b8b8;
+  --surface: #3a3a3a;
+  --chip: #444444;
   --chip-active: #555555;
+  --ink: #e0e0e0;
+  --ink-soft: #a0a0a0;
+  --white: #ffffff;
 }
 
 * {
@@ -75,4 +78,26 @@ select {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* Dark mode specific styles */
+:root.dark-mode input,
+:root.dark-mode textarea,
+:root.dark-mode select {
+  background-color: #3a3a3a;
+  color: #ffffff;
+  border-color: #4a4a4a;
+}
+
+:root.dark-mode input::placeholder,
+:root.dark-mode textarea::placeholder {
+  color: #888888;
+}
+
+:root.dark-mode button {
+  color: inherit;
+}
+
+:root.dark-mode a {
+  color: #e0e0e0;
 }

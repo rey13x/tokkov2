@@ -8,13 +8,15 @@
   position: sticky;
   top: 0;
   z-index: 35;
-  background: transparent;
-  backdrop-filter: none;
+  background: rgba(255, 255, 255, 0);
+  backdrop-filter: blur(0px);
   padding-bottom: 8px;
-  transition: box-shadow 0.3s ease;
+  transition: background 0.3s ease, backdrop-filter 0.3s ease, box-shadow 0.3s ease;
 }
 
 .stickyTopScrolled {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
   box-shadow: 0 4px 12px rgba(14, 18, 30, 0.08);
 }
 
@@ -260,4 +262,21 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
+}
+
+/* Dark mode support */
+:global(.dark-mode) .productCard {
+  background: #3a3a3a;
+}
+
+:global(.dark-mode) .floatingMeta {
+  background: rgba(58, 58, 58, 0.95);
+}
+
+:global(.dark-mode) .floatingMeta p {
+  color: #ffffff;
+}
+
+:global(.dark-mode) .floatingMeta span {
+  color: #b8b8b8;
 }
