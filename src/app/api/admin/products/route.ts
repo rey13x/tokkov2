@@ -25,6 +25,7 @@ const productSchema = baseSchema.and(
       productType: z.literal("jual_beli"),
       jobApplicationLink: z.string().optional().or(z.literal("")),
       maxApplicants: z.number().optional().or(z.literal(0)),
+      buyNowLink: z.string().url("Link harus berupa URL yang valid").optional().or(z.literal("")),
     }),
     z.object({
       productType: z.literal("pekerjaan"),

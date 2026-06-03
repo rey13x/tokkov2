@@ -15,6 +15,7 @@ export type StoreProduct = {
   jobApplicationLink?: string;
   maxApplicants?: number;
   applicantCount?: number;
+  buyNowLink?: string; // Link untuk "Beli Sekarang" button redirect (jual_beli only)
   // Payment/QRIS settings
   paymentMethod?: "static_qris" | "dynamic_qris"; // static = static QR image, dynamic = API-based QRIS
   paymentFileUrl?: string; // URL to download after payment for dynamic QRIS

@@ -190,6 +190,7 @@ function mapProductDoc(
     jobApplicationLink: String(data?.jobApplicationLink ?? ""),
     maxApplicants: Number(data?.maxApplicants ?? 0) || undefined,
     applicantCount: Number(data?.applicantCount ?? 0) || undefined,
+    buyNowLink: String(data?.buyNowLink ?? ""),
   };
 }
 
@@ -440,6 +441,7 @@ export async function createProduct(input: {
   productType?: string;
   jobApplicationLink?: string;
   maxApplicants?: number;
+  buyNowLink?: string;
 }) {
   const firestore = getFirestoreOrNull();
   if (!firestore) {
@@ -454,6 +456,7 @@ export async function createProduct(input: {
     const productType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
     const jobLink = productType === "pekerjaan" ? (input.jobApplicationLink?.trim() ?? "") : "";
     const maxApplicants = productType === "pekerjaan" ? (input.maxApplicants ?? 0) : 0;
+    const buyNowLink = productType === "jual_beli" ? (input.buyNowLink?.trim() ?? "") : "";
 
     await firestore.collection("products").doc(id).set({
       slug,
@@ -469,6 +472,7 @@ export async function createProduct(input: {
       productType,
       jobApplicationLink: jobLink,
       maxApplicants,
+      buyNowLink,
       applicantCount: 0,
       createdAt,
       updatedAt: createdAt,
@@ -496,6 +500,7 @@ export async function updateProduct(
     productType: string;
     jobApplicationLink: string;
     maxApplicants: number;
+    buyNowLink: string;
   }>,
 ) {
   const firestore = getFirestoreOrNull();
@@ -524,24 +529,35 @@ export async function updateProduct(
 
     let nextJobLink: string | undefined;
     let nextMaxApplicants: number | undefined;
+    let nextBuyNowLink: string | undefined;
 
     if (nextProductType === "pekerjaan") {
-      nextJobLink = (input.jobApplicationLink ?? String(currentData.jobApplicationLink ?? "")).trim();
+      nextJobLink = input.jobApplicationLink !== undefined
+        ? input.jobApplicationLink.trim()
+        : (typeof currentData.jobApplicationLink === "string" ? currentData.jobApplicationLink : "").trim();
       nextMaxApplicants =
         input.maxApplicants !== undefined
           ? input.maxApplicants
           : typeof currentData.maxApplicants === "number"
           ? currentData.maxApplicants
           : undefined;
+      nextBuyNowLink = "";
     } else if (nextProductType === "jual_beli") {
       nextJobLink = "";
       nextMaxApplicants = 0;
+      nextBuyNowLink = input.buyNowLink !== undefined
+        ? input.buyNowLink.trim()
+        : (typeof currentData.buyNowLink === "string" ? currentData.buyNowLink : "").trim();
     } else {
       nextJobLink =
         input.jobApplicationLink !== undefined
           ? input.jobApplicationLink.trim()
           : undefined;
       nextMaxApplicants = input.maxApplicants;
+      nextBuyNowLink =
+        input.buyNowLink !== undefined
+          ? input.buyNowLink.trim()
+          : undefined;
     }
 
     if (input.name && input.name !== currentData.name) {
@@ -560,9 +576,11 @@ export async function updateProduct(
       ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
       ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
       ...(nextProductType !== undefined ? { productType: nextProductType } : {}),
-      ...(nextProductType === "jual_beli" ? { jobApplicationLink: "", maxApplicants: 0 } : {}),
+      ...(nextProductType === "jual_beli" ? { jobApplicationLink: "", maxApplicants: 0, buyNowLink: nextBuyNowLink } : {}),
+      ...(nextProductType === "pekerjaan" ? { buyNowLink: "" } : {}),
       ...(nextJobLink !== undefined ? { jobApplicationLink: nextJobLink } : {}),
       ...(nextMaxApplicants !== undefined ? { maxApplicants: nextMaxApplicants } : {}),
+      ...(nextProductType !== "jual_beli" && nextProductType !== "pekerjaan" && nextBuyNowLink !== undefined ? { buyNowLink: nextBuyNowLink } : {}),
       slug: nextSlug,
       slugLower: nextSlug.toLowerCase(),
       updatedAt: now(),

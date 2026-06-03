@@ -178,6 +178,12 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   }, [status, product.slug, product.id, router]);
 
   const onAddToCart = () => {
+    // If this is a jual_beli product with buyNowLink, redirect to the link instead
+    if (product.productType === "jual_beli" && product.buyNowLink) {
+      window.location.href = product.buyNowLink;
+      return;
+    }
+
     if (product.productType === "pekerjaan") {
       onApplyForJob();
       return;
@@ -447,7 +453,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <button
                   type="button"
-                  className={styles.orderButton}
+                  className={`${styles.orderButton}${product.buyNowLink ? ` ${styles.orderButtonWithLink}` : ''}`}
                   onClick={onAddToCart}
                   disabled={status === "loading"}
                   data-onboarding="product-add-to-cart"

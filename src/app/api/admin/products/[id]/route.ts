@@ -15,7 +15,8 @@ const updateSchema = z.object({
   isActive: z.boolean().optional(),
   productType: z.enum(["jual_beli", "pekerjaan"]).optional(),
   jobApplicationLink: z.union([z.string().url(), z.literal("")]).optional(),
-  maxApplicants: z.number().int().min(1).optional(),
+  maxApplicants: z.number().int().min(0).optional(),
+  buyNowLink: z.union([z.string().url("Link harus berupa URL yang valid"), z.literal("")]).optional(),
 });
 
 type Params = Promise<{ id: string }>;

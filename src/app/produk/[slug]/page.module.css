@@ -133,11 +133,24 @@
   color: #ffffff;
   font-size: 0.95rem;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.orderButton:hover:not(:disabled) {
+  background: #1a2030;
 }
 
 .orderButton:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.orderButtonWithLink {
+  background: #04B851;
+}
+
+.orderButtonWithLink:hover:not(:disabled) {
+  background: #039944;
 }
 
 .cartIconButton {

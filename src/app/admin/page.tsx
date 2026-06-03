@@ -28,6 +28,7 @@ type AdminSection =
   | "paymentSettings"
   | "privacyPolicy"
   | "maintenanceSettings"
+  | "heroBackgrounds"
   | "admins"
   | "users"
   | "preview";
@@ -42,6 +43,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "testimonialCommentReactions", label: "Reaksi Komentar", desc: "Kelola emoji reactions" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
+  { id: "heroBackgrounds", label: "Hero Background", desc: "Atur foto halaman utama" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
     id: "privacyPolicy",
@@ -65,6 +67,7 @@ const defaultProductForm = {
   productType: "jual_beli" as "jual_beli" | "pekerjaan",
   jobApplicationLink: "",
   maxApplicants: 0,
+  buyNowLink: "",
 };
 
 const defaultInfoForm = {
@@ -91,6 +94,14 @@ const defaultTestimonialForm = {
 const defaultMarqueeForm = {
   label: "",
   imageUrl: "/assets/logo.png",
+  sortOrder: 0,
+};
+
+const defaultHeroBackgroundForm = {
+  id: "",
+  label: "",
+  url: "",
+  duration: 8000,
   sortOrder: 0,
 };
 
@@ -185,6 +196,10 @@ function AdminManagementSection() {
   const [testimonialEditId, setTestimonialEditId] = useState<string | null>(null);
   const [marqueeForm, setMarqueeForm] = useState(defaultMarqueeForm);
   const [marqueeEditId, setMarqueeEditId] = useState<string | null>(null);
+  const [heroBackgrounds, setHeroBackgrounds] = useState<Array<{ id: string; label: string; url: string; duration: number; sortOrder: number }>>([]);
+  const [heroBackgroundForm, setHeroBackgroundForm] = useState(defaultHeroBackgroundForm);
+  const [heroBackgroundEditId, setHeroBackgroundEditId] = useState<string | null>(null);
+  const [isUploadingHeroBackgroundImage, setIsUploadingHeroBackgroundImage] = useState(false);
   const [privacyPolicyForm, setPrivacyPolicyForm] = useState(defaultPrivacyPolicyForm);
   const [paymentSettingsForm, setPaymentSettingsForm] = useState(defaultPaymentSettingsForm);
   const [maintenanceSettingsForm, setMaintenanceSettingsForm] = useState(defaultMaintenanceSettingsForm);
@@ -363,6 +378,11 @@ function AdminManagementSection() {
     setMarqueeForm(defaultMarqueeForm);
   };
 
+  const resetHeroBackgroundForm = () => {
+    setHeroBackgroundEditId(null);
+    setHeroBackgroundForm(defaultHeroBackgroundForm);
+  };
+
   useEffect(() => {
     if (!privacyEditorRef.current) {
       return;
@@ -534,6 +554,30 @@ function AdminManagementSection() {
     }
   };
 
+  const onSelectHeroBackgroundImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsUploadingHeroBackgroundImage(true);
+    try {
+      const uploaded = await uploadMedia(file, "hero-backgrounds");
+      setHeroBackgroundForm((current) => ({
+        ...current,
+        url: uploaded,
+      }));
+      setMessage("Foto hero background berhasil diupload.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload foto hero background gagal.");
+    } finally {
+      setIsUploadingHeroBackgroundImage(false);
+      event.target.value = "";
+    }
+  };
+
   const onSelectPrivacyBanner = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -616,6 +660,15 @@ function AdminManagementSection() {
     }
     const result = (await response.json()) as { marquees: StoreMarqueeItem[] };
     setMarquees(result.marquees);
+  };
+
+  const loadHeroBackgrounds = async () => {
+    const response = await fetch("/api/admin/hero-backgrounds", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil hero backgrounds");
+    }
+    const result = (await response.json()) as { backgrounds: Array<{ id: string; label: string; url: string; duration: number; sortOrder: number }> };
+    setHeroBackgrounds(result.backgrounds);
   };
 
   const loadBookStories = async () => {
@@ -887,6 +940,7 @@ function AdminManagementSection() {
           loadTestimonials(),
           loadTestimonialComments(),
           loadMarquees(),
+          loadHeroBackgrounds(),
           loadBookStories(),
           loadApprovedBookStories(),
           loadStoryReports(),
@@ -952,21 +1006,23 @@ function AdminManagementSection() {
       price: Number(productForm.price),
     };
 
-    // For Jual Beli, remove job-related fields
+    // For Jual Beli, remove job-related fields and ensure buyNowLink is included
     if (productForm.productType === "jual_beli") {
       payload = {
         ...payload,
         jobApplicationLink: "",
         maxApplicants: 0,
+        buyNowLink: productForm.buyNowLink?.trim() || "",
       };
     }
-    // For Pekerjaan, ensure maxApplicants is a number
+    // For Pekerjaan, ensure maxApplicants is a number and clear buyNowLink
     if (productForm.productType === "pekerjaan") {
       payload = {
         ...payload,
         maxApplicants: typeof payload.maxApplicants === "string" ? 
           parseInt(payload.maxApplicants, 10) : 
           (payload.maxApplicants || 0),
+        buyNowLink: "",
       };
     }
 
@@ -1093,6 +1149,45 @@ function AdminManagementSection() {
       bumpPreview();
     } catch {
       setError("Gagal simpan logo marquee.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onSaveHeroBackground = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setIsLoading(true);
+
+    if (!heroBackgroundForm.id.trim()) {
+      setError("ID background tidak boleh kosong.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const endpoint = heroBackgroundEditId ? `/api/admin/hero-backgrounds` : "/api/admin/hero-backgrounds";
+      const method = heroBackgroundEditId ? "PUT" : "POST";
+      const payload = heroBackgroundForm;
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        setError(result.message ?? "Gagal simpan hero background.");
+        return;
+      }
+
+      setMessage(heroBackgroundEditId ? "Hero background berhasil diperbarui." : "Hero background berhasil ditambahkan.");
+      resetHeroBackgroundForm();
+      await loadHeroBackgrounds();
+      bumpPreview();
+    } catch {
+      setError("Gagal simpan hero background.");
     } finally {
       setIsLoading(false);
     }
@@ -1341,6 +1436,28 @@ function AdminManagementSection() {
     }
     await loadMarquees();
     bumpPreview();
+  };
+
+  const onDeleteHeroBackground = async (id: string) => {
+    const confirmed = window.confirm("Yakin ingin menghapus hero background ini?");
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/admin/hero-backgrounds?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!response.ok) {
+        const result = await response.json();
+        setError(result.message ?? "Gagal hapus hero background.");
+        return;
+      }
+      setMessage("Hero background berhasil dihapus.");
+      if (heroBackgroundEditId === id) {
+        resetHeroBackgroundForm();
+      }
+      await loadHeroBackgrounds();
+      bumpPreview();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal hapus hero background.");
+    }
   };
 
   const onApproveBookStory = async (storyId: string) => {
@@ -1764,6 +1881,7 @@ function AdminManagementSection() {
       productType: product.productType || "jual_beli",
       jobApplicationLink: product.jobApplicationLink || "",
       maxApplicants: product.maxApplicants ?? 0,
+      buyNowLink: product.buyNowLink || "",
     });
     setPriceInput(formatRupiahInput(String(product.price)));
   };
@@ -1804,6 +1922,18 @@ function AdminManagementSection() {
       label: marquee.label,
       imageUrl: marquee.imageUrl || "/assets/logo.png",
       sortOrder: (typeof marquee.sortOrder === "number" ? marquee.sortOrder : 0),
+    });
+  };
+
+  const onEditHeroBackground = (bg: { id: string; label: string; url: string; duration: number; sortOrder: number }) => {
+    setActiveSection("heroBackgrounds");
+    setHeroBackgroundEditId(bg.id);
+    setHeroBackgroundForm({
+      id: bg.id,
+      label: bg.label,
+      url: bg.url || "/assets/backgroundv2.png",
+      duration: bg.duration || 8000,
+      sortOrder: bg.sortOrder || 0,
     });
   };
 
@@ -2347,6 +2477,19 @@ function AdminManagementSection() {
                   }))
                 }
                 placeholder="Jumlah maksimal pelamar (kosongkan untuk unlimited)"
+              />
+            ) : null}
+            {productForm.productType === "jual_beli" ? (
+              <input
+                type="url"
+                value={productForm.buyNowLink || ""}
+                onChange={(event) =>
+                  setProductForm((current) => ({
+                    ...current,
+                    buyNowLink: event.target.value,
+                  }))
+                }
+                placeholder="Link beli sekarang (opsional - kosongkan untuk checkout normal)"
               />
             ) : null}
             <input
@@ -3159,6 +3302,138 @@ function AdminManagementSection() {
               </div>
             ))}
             {marquees.length === 0 ? <p>Belum ada logo marquee.</p> : null}
+          </div>
+        </article>
+        ) : null}
+
+        {activeSection === "heroBackgrounds" ? (
+        <article className={styles.card}>
+          <h2>{heroBackgroundEditId ? "Edit Hero Background" : "CRUD Hero Background"}</h2>
+          <form className={styles.form} onSubmit={onSaveHeroBackground}>
+            <input
+              value={heroBackgroundForm.id}
+              onChange={(event) =>
+                setHeroBackgroundForm((current) => ({
+                  ...current,
+                  id: event.target.value.toLowerCase().replace(/\s+/g, "-"),
+                }))
+              }
+              placeholder="ID (contoh: bg-utama, bg-promo)"
+              required
+              disabled={heroBackgroundEditId !== null}
+            />
+            <input
+              value={heroBackgroundForm.label}
+              onChange={(event) =>
+                setHeroBackgroundForm((current) => ({
+                  ...current,
+                  label: event.target.value,
+                }))
+              }
+              placeholder="Label/Nama background"
+              required
+            />
+            <input
+              type="number"
+              min={1000}
+              max={60000}
+              step={1000}
+              value={heroBackgroundForm.duration}
+              onChange={(event) =>
+                setHeroBackgroundForm((current) => ({
+                  ...current,
+                  duration: Number(event.target.value || 8000),
+                }))
+              }
+              placeholder="Durasi tampil (ms)"
+            />
+            <input
+              type="number"
+              min={0}
+              value={heroBackgroundForm.sortOrder}
+              onChange={(event) =>
+                setHeroBackgroundForm((current) => ({
+                  ...current,
+                  sortOrder: Number(event.target.value || 0),
+                }))
+              }
+              placeholder="Urutan tampil"
+            />
+            <input value={heroBackgroundForm.url} readOnly placeholder="URL foto hero background otomatis" />
+            {isFileUploadEnabled ? (
+              <label className={styles.fileField}>
+                Upload Foto Hero Background
+                <input type="file" accept="image/*,video/*" onChange={onSelectHeroBackgroundImage} />
+                <small>
+                  {isUploadingHeroBackgroundImage ? "Uploading..." : "Pilih foto dari device"}
+                </small>
+              </label>
+            ) : null}
+            <div className={styles.previewCard}>
+              <FlexibleMedia
+                src={heroBackgroundForm.url}
+                alt={heroBackgroundForm.label || "Preview hero background"}
+                width={200}
+                height={120}
+                className={styles.previewImage}
+                unoptimized
+              />
+              <div>
+                <p><strong>{heroBackgroundForm.label || "Preview label"}</strong></p>
+                <p style={{ fontSize: "12px", color: "#666" }}>ID: {heroBackgroundForm.id || "-"}</p>
+                <p style={{ fontSize: "12px", color: "#666" }}>Durasi: {heroBackgroundForm.duration}ms</p>
+              </div>
+            </div>
+            <div className={styles.formActions}>
+              <button type="submit" disabled={isLoading}>
+                {heroBackgroundEditId ? "Simpan Perubahan" : "Tambah Background"}
+              </button>
+              {heroBackgroundEditId ? (
+                <button type="button" className={styles.secondaryButton} onClick={resetHeroBackgroundForm}>
+                  Batal Edit
+                </button>
+              ) : null}
+            </div>
+          </form>
+
+          <div className={styles.list}>
+            {heroBackgrounds.map((bg) => (
+              <div key={bg.id} className={styles.listItem}>
+                <div className={styles.listPreview}>
+                  <FlexibleMedia
+                    src={bg.url}
+                    alt={bg.label}
+                    width={72}
+                    height={56}
+                    className={styles.previewImage}
+                    unoptimized
+                  />
+                  <div>
+                    <p><strong>{bg.label}</strong></p>
+                    <span>ID: {bg.id}</span>
+                    <span>Durasi: {bg.duration}ms</span>
+                  </div>
+                </div>
+                <div className={styles.rowActions}>
+                  <button
+                    type="button"
+                    onClick={() => onEditHeroBackground(bg)}
+                    disabled={isLoading}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteHeroBackground(bg.id)}
+                    disabled={isLoading}
+                    style={{ background: "#f44336", color: "white" }}
+                  >
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            ))}
+            {heroBackgrounds.length === 0 ? <p>Belum ada hero background.</p> : null}
           </div>
         </article>
         ) : null}
