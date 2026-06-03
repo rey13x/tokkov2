@@ -520,18 +520,24 @@ export async function updateProduct(
     let nextSlug = String(currentData.slug ?? "");
     const nextMediaUrl =
       input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
+    
+    // Determine the product type (use input if provided, otherwise use current)
+    const currentProductType = String(currentData?.productType ?? "jual_beli") as "jual_beli" | "pekerjaan";
     const nextProductType =
       input.productType === "pekerjaan"
         ? "pekerjaan"
         : input.productType === "jual_beli"
         ? "jual_beli"
         : undefined;
+    
+    // Use current product type as fallback if not changing it
+    const effectiveProductType = nextProductType ?? currentProductType;
 
     let nextJobLink: string | undefined;
     let nextMaxApplicants: number | undefined;
     let nextBuyNowLink: string | undefined;
 
-    if (nextProductType === "pekerjaan") {
+    if (effectiveProductType === "pekerjaan") {
       nextJobLink = input.jobApplicationLink !== undefined
         ? input.jobApplicationLink.trim()
         : (typeof currentData.jobApplicationLink === "string" ? currentData.jobApplicationLink : "").trim();
@@ -542,7 +548,7 @@ export async function updateProduct(
           ? currentData.maxApplicants
           : undefined;
       nextBuyNowLink = "";
-    } else if (nextProductType === "jual_beli") {
+    } else if (effectiveProductType === "jual_beli") {
       nextJobLink = "";
       nextMaxApplicants = 0;
       nextBuyNowLink = input.buyNowLink !== undefined
@@ -576,11 +582,10 @@ export async function updateProduct(
       ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
       ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
       ...(nextProductType !== undefined ? { productType: nextProductType } : {}),
-      ...(nextProductType === "jual_beli" ? { jobApplicationLink: "", maxApplicants: 0, buyNowLink: nextBuyNowLink } : {}),
-      ...(nextProductType === "pekerjaan" ? { buyNowLink: "" } : {}),
+      ...(effectiveProductType === "jual_beli" ? { jobApplicationLink: "", maxApplicants: 0, buyNowLink: nextBuyNowLink } : {}),
+      ...(effectiveProductType === "pekerjaan" ? { buyNowLink: "", jobApplicationLink: nextJobLink ?? "", maxApplicants: nextMaxApplicants ?? 0 } : {}),
       ...(nextJobLink !== undefined ? { jobApplicationLink: nextJobLink } : {}),
       ...(nextMaxApplicants !== undefined ? { maxApplicants: nextMaxApplicants } : {}),
-      ...(nextProductType !== "jual_beli" && nextProductType !== "pekerjaan" && nextBuyNowLink !== undefined ? { buyNowLink: nextBuyNowLink } : {}),
       slug: nextSlug,
       slugLower: nextSlug.toLowerCase(),
       updatedAt: now(),
