@@ -53,13 +53,20 @@
 .searchWrap input {
   width: 100%;
   height: 48px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
   padding: 0 15px;
-  background: #ffffff;
-  box-shadow: 0 8px 20px rgba(14, 18, 30, 0.08);
+  background: linear-gradient(135deg, rgba(200, 220, 255, 0.2) 0%, rgba(150, 180, 255, 0.15) 25%, rgba(100, 150, 255, 0.12) 50%, rgba(80, 130, 255, 0.15) 75%, rgba(120, 170, 255, 0.2) 100%);
+  backdrop-filter: blur(50px) brightness(1.15) saturate(150%);
+  -webkit-backdrop-filter: blur(50px) brightness(1.15) saturate(150%);
+  box-shadow: 0 8px 20px rgba(14, 18, 30, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.1);
   outline: none;
   font-size: 0.9rem;
+  color: #111423;
+}
+
+.searchWrap input::placeholder {
+  color: rgba(107, 115, 135, 0.7);
 }
 
 .gifBox {
@@ -85,9 +92,11 @@
 }
 
 .categoryChip {
-  border: 1px solid #171b25;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
-  background: transparent;
+  background: linear-gradient(135deg, rgba(200, 220, 255, 0.15) 0%, rgba(150, 180, 255, 0.1) 25%, rgba(100, 150, 255, 0.08) 50%, rgba(80, 130, 255, 0.1) 75%, rgba(120, 170, 255, 0.15) 100%);
+  backdrop-filter: blur(40px) brightness(1.1);
+  -webkit-backdrop-filter: blur(40px) brightness(1.1);
   min-height: 34px;
   padding: 0 12px;
   white-space: nowrap;
@@ -95,12 +104,15 @@
   font-size: 0.9rem;
   font-weight: 500;
   transition: all 0.2s ease;
+  color: #111423;
 }
 
 .categoryChipActive {
-  background: #11151f;
-  color: #ffffff;
-  border-color: #11151f;
+  background: linear-gradient(135deg, rgba(200, 220, 255, 0.35) 0%, rgba(150, 180, 255, 0.28) 25%, rgba(100, 150, 255, 0.25) 50%, rgba(80, 130, 255, 0.28) 75%, rgba(120, 170, 255, 0.35) 100%);
+  color: #111423;
+  border-color: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(50px) brightness(1.2) saturate(180%);
+  -webkit-backdrop-filter: blur(50px) brightness(1.2) saturate(180%);
 }
 
 .content {
