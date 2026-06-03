@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { FiChevronRight } from "react-icons/fi";
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreTestimonial } from "@/types/store";
 import TestimoniClient from "./TestimoniClient";

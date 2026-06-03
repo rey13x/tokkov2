@@ -36,6 +36,8 @@ export async function PUT(request: Request) {
       openTime: String(body.openTime || ""),
       closeDate: String(body.closeDate || ""),
       closeTime: String(body.closeTime || ""),
+      maintenanceTitle: String(body.maintenanceTitle || "Website sedang dalam Pemeliharaan"),
+      maintenanceSubtitle: String(body.maintenanceSubtitle || "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami"),
     });
 
     return NextResponse.json({ settings });

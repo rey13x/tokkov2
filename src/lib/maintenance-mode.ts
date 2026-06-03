@@ -10,6 +10,8 @@ export type MaintenanceSettings = {
   openTime?: string;
   closeDate?: string;
   closeTime?: string;
+  maintenanceTitle?: string;
+  maintenanceSubtitle?: string;
   updatedAt: string;
 };
 
@@ -20,21 +22,38 @@ export const MAINTENANCE_REOPEN_EVENT = "tokko:maintenance-reopen";
 function isMaintenanceScheduleActive(settings: MaintenanceSettings): boolean {
   if (!settings.isEnabled) return false;
 
-  // If no schedule is set, use the isEnabled flag
-  if (!settings.closeDate || !settings.closeTime) return true;
+  // If no schedule is set, maintenance is active (only limited by enabled flag)
+  if (!settings.closeTime) return true;
 
   try {
-    // Parse close date and time
-    const [year, month, day] = settings.closeDate.split("-").map(Number);
-    const [hour, minute] = settings.closeTime.split(":").map(Number);
-    
-    const closeDateTime = new Date(year, month - 1, day, hour, minute);
     const now = new Date();
 
-    // Check if current time is before close date/time
-    return now < closeDateTime;
-  } catch {
-    return true;
+    // Parse close date and time (required)
+    const closeDate = settings.closeDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const [closeYear, closeMonth, closeDay] = closeDate.split("-").map(Number);
+    const [closeHour, closeMinute] = settings.closeTime.split(":").map(Number);
+    const closeDateTime = new Date(closeYear, closeMonth - 1, closeDay, closeHour, closeMinute);
+
+    // Check if we haven't reached close time yet
+    const beforeClose = now < closeDateTime;
+
+    // If open time is set, check if we've passed it
+    if (settings.openTime) {
+      const openDate = settings.openDate || closeDate;
+      const [openYear, openMonth, openDay] = openDate.split("-").map(Number);
+      const [openHour, openMinute] = settings.openTime.split(":").map(Number);
+      const openDateTime = new Date(openYear, openMonth - 1, openDay, openHour, openMinute);
+      const afterOpen = now >= openDateTime;
+      
+      // Maintenance is active if: we're after open AND before close
+      return afterOpen && beforeClose;
+    }
+
+    // If only close time is set, maintenance is active until that time
+    return beforeClose;
+  } catch (error) {
+    console.error("Error parsing maintenance schedule:", error);
+    return settings.isEnabled; // Fall back to enabled flag
   }
 }
 

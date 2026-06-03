@@ -1,105 +1,158 @@
-.overlay {
+/* Full screen maintenance page */
+.fullscreen {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  display: grid;
-  place-items: center;
-  background: #f4f5f8;
-  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f4f5f8 0%, #efeff1 100%);
+  overflow: hidden;
+  pointer-events: auto;
 }
 
-.modal {
-  width: min(92vw, 430px);
-  text-align: center;
-  color: #272b35;
+/* Non-clickable overlay */
+.nonClickableOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  z-index: 1;
 }
 
-.logo {
-  width: min(62vw, 280px);
+/* Content container - on top of overlay */
+.contentContainer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  pointer-events: none;
+}
+
+/* Circular logo */
+.logCircle {
+  width: min(280px, 40vw);
   aspect-ratio: 1;
   border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 24px 48px rgba(17, 21, 30, 0.2);
+  flex-shrink: 0;
+}
+
+.logoImage {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
-  margin: 0 auto 36px;
 }
 
-.title {
-  font-size: clamp(1.55rem, 4vw, 2rem);
+/* Text content section */
+.textContent {
+  text-align: center;
+  color: #272b35;
+  max-width: 600px;
+  padding: 0 24px;
+}
+
+.mainTitle {
+  font-size: clamp(1.8rem, 5vw, 2.5rem);
   line-height: 1.2;
   font-weight: 800;
-  margin: 0 0 14px;
-  color: #242832;
+  margin: 0 0 16px;
+  color: #11151e;
 }
 
-.message {
-  font-size: 1rem;
-  line-height: 1.5;
-  margin: 0 auto 10px;
+.subtitle {
+  font-size: clamp(0.95rem, 2.5vw, 1.1rem);
+  line-height: 1.6;
+  margin: 0 0 8px;
   color: #4c5260;
+  font-weight: 400;
 }
 
 .brand {
-  font-weight: 800;
-  margin: 0 0 28px;
-  color: #252a35;
+  font-weight: 700;
+  margin: 0 0 32px;
+  color: #11151e;
+  font-size: 1rem;
 }
 
-.primaryButton {
+/* Paham button */
+.pahamButton {
   border: 0;
   border-radius: 999px;
   background: #11151e;
   color: #ffffff;
-  padding: 14px 38px;
-  min-width: 148px;
-  min-height: 48px;
+  padding: 16px 48px;
+  min-width: 160px;
+  min-height: 52px;
   font-size: 1rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 12px 24px rgba(17, 21, 30, 0.18);
+  box-shadow: 0 12px 24px rgba(17, 21, 30, 0.2);
+  transition: all 0.3s ease;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10;
 }
 
-.notice {
-  position: fixed;
-  left: 18px;
-  bottom: 82px;
-  z-index: 80;
-  border: 0;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #11151e;
-  box-shadow: 0 16px 36px rgba(17, 21, 30, 0.18);
-  padding: 12px 16px;
-  text-align: left;
-  cursor: pointer;
-  display: grid;
-  gap: 2px;
-  max-width: min(310px, calc(100vw - 36px));
+.pahamButton:hover {
+  background: #1a1f2e;
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(17, 21, 30, 0.3);
 }
 
-.notice strong {
-  font-size: 0.96rem;
-  line-height: 1.15;
+.pahamButton:active {
+  transform: translateY(0);
 }
 
-.notice span {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #4d5565;
-}
-
-@media (max-width: 640px) {
-  .overlay {
-    align-items: start;
-    padding-top: 74px;
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .fullscreen {
+    padding: 24px;
   }
 
-  .logo {
-    margin-bottom: 30px;
+  .contentContainer {
+    gap: 20px;
   }
 
-  .notice {
-    left: 14px;
-    right: 14px;
-    bottom: 74px;
+  .logCircle {
+    width: min(240px, 50vw);
+  }
+
+  .mainTitle {
+    font-size: clamp(1.6rem, 5vw, 2.2rem);
+  }
+
+  .subtitle {
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
+  }
+
+  .pahamButton {
+    padding: 14px 40px;
+    min-width: 140px;
+    min-height: 48px;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .logCircle {
+    width: min(200px, 55vw);
+  }
+
+  .mainTitle {
+    font-size: 1.4rem;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+  }
+
+  .pahamButton {
+    padding: 12px 32px;
+    font-size: 0.9rem;
   }
 }

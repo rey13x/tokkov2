@@ -5,6 +5,7 @@ import SiteFooter from "@/components/layout/SiteFooter";
 import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { AuthSessionProvider } from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import LiquidGlassProvider from "@/components/providers/LiquidGlassProvider";
 import "./globals.css";
 
 const sora = Sora({
@@ -38,9 +39,11 @@ export default function RootLayout({
       <body className={`${sora.variable} ${spaceMono.variable}`}>
         <ThemeProvider>
           <AuthSessionProvider>
-            <PageTransition>{children}</PageTransition>
-            <MaintenanceModal />
-            <SiteFooter />
+            <LiquidGlassProvider>
+              <PageTransition>{children}</PageTransition>
+              <MaintenanceModal />
+              <SiteFooter />
+            </LiquidGlassProvider>
           </AuthSessionProvider>
         </ThemeProvider>
       </body>

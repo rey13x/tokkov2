@@ -129,6 +129,8 @@ const defaultMaintenanceSettingsForm = {
   openTime: "",
   closeDate: "",
   closeTime: "",
+  maintenanceTitle: "Website sedang dalam Pemeliharaan",
+  maintenanceSubtitle: "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
 };
 
 function formatRupiahInput(value: string) {
@@ -743,6 +745,8 @@ function AdminManagementSection() {
       openTime: result.settings.openTime || "",
       closeDate: result.settings.closeDate || "",
       closeTime: result.settings.closeTime || "",
+      maintenanceTitle: result.settings.maintenanceTitle || "Website sedang dalam Pemeliharaan",
+      maintenanceSubtitle: result.settings.maintenanceSubtitle || "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
     });
   };
 
@@ -2375,9 +2379,41 @@ function AdminManagementSection() {
             <small style={{ color: "#666", marginTop: "-4px" }}>
               Jika diisi, user perlu memasukkan kunci ini untuk mengakses website saat mode pemeliharaan aktif
             </small>
+
+            <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e0e0e0" }}>
+              <h3 style={{ fontSize: "0.95rem", marginBottom: "12px", fontWeight: 600 }}>📝 Teks Halaman Pemeliharaan</h3>
+              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                Judul Utama
+              </label>
+              <input
+                type="text"
+                value={maintenanceSettingsForm.maintenanceTitle || ""}
+                onChange={(event) =>
+                  setMaintenanceSettingsForm((current) => ({
+                    ...current,
+                    maintenanceTitle: event.target.value,
+                  }))
+                }
+                placeholder="Website sedang dalam Pemeliharaan"
+              />
+              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500, marginTop: "8px" }}>
+                Teks Deskripsi (dibawah judul)
+              </label>
+              <textarea
+                value={maintenanceSettingsForm.maintenanceSubtitle || ""}
+                onChange={(event) =>
+                  setMaintenanceSettingsForm((current) => ({
+                    ...current,
+                    maintenanceSubtitle: event.target.value,
+                  }))
+                }
+                placeholder="Hi! Tokkers Website sedang dalam Pemeliharaan..."
+                style={{ minHeight: "80px" }}
+              />
+            </div>
             
             <div style={{ marginTop: "16px", borderTop: "1px solid #e0e0e0", paddingTop: "16px" }}>
-              <h3 style={{ fontSize: "0.95rem", marginBottom: "12px", fontWeight: 600 }}>⏰ Jadwal Pemeliharaan (Opsional)</h3>
+              <h3 style={{ fontSize: "0.95rem", marginBottom: "12px", fontWeight: 600 }}>⏰ Jadwal Pemeliharaan (Opsional - Wajib isi Jam)</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>

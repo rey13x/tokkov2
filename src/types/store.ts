@@ -31,6 +31,8 @@ export type MaintenanceSettings = {
   openTime?: string;
   closeDate?: string;
   closeTime?: string;
+  maintenanceTitle?: string;
+  maintenanceSubtitle?: string;
   updatedAt: string;
 };
 

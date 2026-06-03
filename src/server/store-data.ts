@@ -1617,6 +1617,8 @@ function defaultMaintenanceSettings(): MaintenanceSettings {
     openTime: "",
     closeDate: "",
     closeTime: "",
+    maintenanceTitle: "Website sedang dalam Pemeliharaan",
+    maintenanceSubtitle: "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
     updatedAt: new Date(now()).toISOString(),
   };
 }
@@ -1664,6 +1666,8 @@ export async function upsertMaintenanceSettings(input: {
   openTime?: string;
   closeDate?: string;
   closeTime?: string;
+  maintenanceTitle?: string;
+  maintenanceSubtitle?: string;
 }) {
   const next: MaintenanceSettings = {
     id: "main",
@@ -1674,6 +1678,8 @@ export async function upsertMaintenanceSettings(input: {
     openTime: input.openTime?.trim() || "",
     closeDate: input.closeDate?.trim() || "",
     closeTime: input.closeTime?.trim() || "",
+    maintenanceTitle: input.maintenanceTitle?.trim() || "Website sedang dalam Pemeliharaan",
+    maintenanceSubtitle: input.maintenanceSubtitle?.trim() || "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
     updatedAt: new Date(now()).toISOString(),
   };
 
