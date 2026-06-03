@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -60,6 +60,7 @@ export default function CartPage() {
   const router = useRouter();
   const { status, data: session } = useSession();
   const { isMaintenanceEnabled } = useMaintenanceMode();
+  const filterRef = useRef<HTMLDivElement | null>(null);
   const [cartLines, setCartLines] = useState<CartLine[]>(getInitialCartLines);
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [isStoreLoading, setIsStoreLoading] = useState(true);
@@ -74,6 +75,7 @@ export default function CartPage() {
   const [success, setSuccess] = useState("");
   const [isCartTutorialRunning, setIsCartTutorialRunning] = useState(false);
   const [cartTutorialStage, setCartTutorialStage] = useState<OnboardingStage | null>(null);
+  const [hasScrolled, setHasScrolled] = useState(false);
   // Static QRIS state
   const [staticQRData, setStaticQRData] = useState<{
     qrImageUrl: string;
@@ -217,6 +219,16 @@ export default function CartPage() {
 
     return () => window.clearTimeout(timer);
   }, [isStoreLoading, detailedItems.length]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      setHasScrolled(scrollTop > 10);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const categories = useMemo(() => {
     const set = new Set(detailedItems.map((item) => item.product.category));
@@ -543,7 +555,10 @@ export default function CartPage() {
       {isClient && !isStoreLoading && detailedItems.length > 0 ? (
         <section className={styles.cartLayout}>
           <div className={styles.itemsPanel}>
-            <div className={styles.filterWrap}>
+            <div 
+              ref={filterRef}
+              className={`${styles.filterWrap} ${hasScrolled ? styles.filterWrapScrolled : ""}`}
+            >
               <div className={styles.searchWrap}>
                 <input
                   type="search"

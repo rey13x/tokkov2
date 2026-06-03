@@ -85,6 +85,17 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: box-shadow 0.3s ease;
+}
+
+.filterWrapScrolled {
+  box-shadow: 0 4px 12px rgba(14, 18, 30, 0.08);
 }
 
 .searchWrap input {

@@ -11,6 +11,11 @@
   background: transparent;
   backdrop-filter: none;
   padding-bottom: 8px;
+  transition: box-shadow 0.3s ease;
+}
+
+.stickyTopScrolled {
+  box-shadow: 0 4px 12px rgba(14, 18, 30, 0.08);
 }
 
 .header {

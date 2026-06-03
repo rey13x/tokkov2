@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -12,14 +12,26 @@ import styles from "./page.module.css";
 export default function TestimoniPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const stickyRef = useRef<HTMLElement | null>(null);
   const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
   const [activeRating, setActiveRating] = useState<number | null>(null);
   const [query, setQuery] = useState("");
+  const [hasScrolled, setHasScrolled] = useState(false);
 
   useEffect(() => {
     fetchStoreData()
       .then((data) => setTestimonials(data.testimonials))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      setHasScrolled(scrollTop > 10);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const ratings = useMemo(() => {
@@ -48,7 +60,10 @@ export default function TestimoniPage() {
 
   return (
     <main className={styles.page}>
-      <section className={styles.stickyTop}>
+      <section 
+        ref={stickyRef}
+        className={`${styles.stickyTop} ${hasScrolled ? styles.stickyTopScrolled : ""}`}
+      >
         <header className={styles.header}>
           <h1>Testimoni</h1>
           <Link href="/" className={styles.backLink}>

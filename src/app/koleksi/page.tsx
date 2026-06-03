@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -17,6 +17,8 @@ export default function KoleksiPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const { isMaintenanceEnabled } = useMaintenanceMode();
+  const stickyRef = useRef<HTMLElement | null>(null);
+  const [hasScrolled, setHasScrolled] = useState(false);
   const initialCategory =
     typeof window === "undefined"
       ? "Semua"
@@ -30,6 +32,16 @@ export default function KoleksiPage() {
     fetchStoreData()
       .then((data) => setProducts(data.products))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      setHasScrolled(scrollTop > 10);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const categories = useMemo(() => {
@@ -83,7 +95,10 @@ export default function KoleksiPage() {
 
   return (
     <main className={styles.page}>
-      <section className={styles.stickyTop}>
+      <section 
+        ref={stickyRef}
+        className={`${styles.stickyTop} ${hasScrolled ? styles.stickyTopScrolled : ""}`}
+      >
         <header className={styles.header}>
           <h1>Layanan</h1>
           <Link href="/" className={styles.backLink}>

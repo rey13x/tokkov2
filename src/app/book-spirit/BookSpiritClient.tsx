@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { AiOutlineLike, AiFillLike } from "react-icons/ai";
@@ -15,6 +15,7 @@ import styles from "./BookSpiritClient.module.css";
 export default function BookSpiritClient() {
   const router = useRouter();
   const { data: session } = useSession();
+  const stickyRef = useRef<HTMLElement | null>(null);
   const [stories, setStories] = useState<BookStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -29,6 +30,7 @@ export default function BookSpiritClient() {
   const [activeRating, setActiveRating] = useState<number | null>(null);
   const [activeProductId, setActiveProductId] = useState<string | null>(null);
   const [maintenanceGuideStep, setMaintenanceGuideStep] = useState<0 | 1 | 2>(0);
+  const [hasScrolled, setHasScrolled] = useState(false);
 
   useEffect(() => {
     const loadStories = async () => {
@@ -60,6 +62,16 @@ export default function BookSpiritClient() {
           ?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 250);
     }
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      setHasScrolled(scrollTop > 10);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   // Extract unique products from all stories
@@ -360,7 +372,10 @@ export default function BookSpiritClient() {
 
   return (
     <main className={styles.page}>
-      <section className={styles.stickyTop}>
+      <section 
+        ref={stickyRef}
+        className={`${styles.stickyTop} ${hasScrolled ? styles.stickyTopScrolled : ""}`}
+      >
         <header className={styles.header}>
           <h1>Testimoni</h1>
           <button
