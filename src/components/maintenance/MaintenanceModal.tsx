@@ -54,19 +54,8 @@ export default function MaintenanceModal() {
         }
       );
 
-      // Auto close after 8 seconds
-      const closeTimeout = setTimeout(() => {
-        gsap.to("[data-maintenance-overlay]", {
-          opacity: 0,
-          duration: 0.5,
-          ease: "power2.inOut",
-          onComplete: () => {
-            acknowledgeMaintenance();
-          },
-        });
-      }, 8000);
-
-      return () => clearTimeout(closeTimeout);
+      // Don't auto close - wait for user to click Paham button
+      return () => {};
     }, modalRef);
 
     return () => ctx.revert();

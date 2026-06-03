@@ -50,7 +50,7 @@
 }
 
 .description {
-  color: #5562cc;
+  color: #11151e;
   font-size: 0.96rem;
 }
 
@@ -58,10 +58,11 @@
   margin-top: 18px;
   border-radius: 999px;
   padding: 4px;
-  background: #eceef3;
+  background: transparent;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
+  border: 1px solid rgba(17, 21, 30, 0.1);
 }
 
 .modeSwitchSingle {
