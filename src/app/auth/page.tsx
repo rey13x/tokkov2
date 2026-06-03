@@ -44,6 +44,42 @@ function getAuthErrorMessage(code: string | null) {
   }
 }
 
+function triggerBrowserSavePassword(email: string, password: string) {
+  // Create a hidden form to trigger browser's save password dialog
+  const form = document.createElement("form");
+  form.style.display = "none";
+  form.method = "POST";
+  form.action = "javascript:void(0);";
+
+  const emailInput = document.createElement("input");
+  emailInput.type = "email";
+  emailInput.name = "email";
+  emailInput.value = email;
+  emailInput.autoComplete = "email";
+
+  const passwordInput = document.createElement("input");
+  passwordInput.type = "password";
+  passwordInput.name = "password";
+  passwordInput.value = password;
+  passwordInput.autoComplete = "current-password";
+
+  const submitBtn = document.createElement("button");
+  submitBtn.type = "submit";
+
+  form.appendChild(emailInput);
+  form.appendChild(passwordInput);
+  form.appendChild(submitBtn);
+  document.body.appendChild(form);
+
+  // Submit the form to trigger browser's save password dialog
+  form.submit();
+
+  // Clean up after a short delay
+  setTimeout(() => {
+    document.body.removeChild(form);
+  }, 100);
+}
+
 export default function AuthPage() {
   const router = useRouter();
   const { status } = useSession();
@@ -243,6 +279,9 @@ export default function AuthPage() {
           setIdentifier(signupEmail.trim());
           return;
         }
+
+        // Trigger browser's save password dialog
+        triggerBrowserSavePassword(signupEmail, signupPassword);
 
         const target = await resolveRedirectAfterAuth();
         router.replace(target);
@@ -451,6 +490,17 @@ export default function AuthPage() {
                 </button>
               </div>
             </label>
+            <p className={styles.helperText}>
+              Lupa password? Konfirmasi ke{" "}
+              <a
+                href="https://wa.me/6281319865384?text=Halo%20min%20mau%20reset%20password.."
+                target="_blank"
+                rel="noreferrer"
+                style={{ textDecoration: "underline", color: "inherit" }}
+              >
+                admin
+              </a>
+            </p>
             {error ? <p className={styles.errorText}>{error}</p> : null}
             {success ? <p className={styles.successText}>{success}</p> : null}
             <button type="submit" className={styles.submitButton} disabled={isSubmitting}>

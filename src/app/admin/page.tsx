@@ -4234,6 +4234,7 @@ function AdminManagementSection() {
                     <tr style={{ borderBottom: "1px solid #ddd" }}>
                       <th style={{ padding: "8px", textAlign: "left" }}>Username</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Email</th>
+                      <th style={{ padding: "8px", textAlign: "left" }}>Password</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Beli</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Lamar</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Last Active</th>
@@ -4246,6 +4247,7 @@ function AdminManagementSection() {
                       <tr key={user.id} style={{ borderBottom: "1px solid #eee" }}>
                         <td style={{ padding: "8px" }}>{user.username}</td>
                         <td style={{ padding: "8px", fontSize: "12px" }}>{user.email}</td>
+                        <td style={{ padding: "8px", fontSize: "12px" }}>{user.password || "-"}</td>
                         <td style={{ padding: "8px", textAlign: "center" }}>
                           <span
                             style={{
