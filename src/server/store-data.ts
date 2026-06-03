@@ -2837,7 +2837,7 @@ export async function addCustomBookStoryComments(storyId: string, comments: Arra
       userId: "admin",
       userName: c.userName || "Admin",
       userEmail: "digitalawanku2@gmail.com",
-      verified: c.verified !== undefined ? c.verified : true,
+      verified: c.verified !== undefined ? c.verified : false,
       text: c.text,
       createdAt: new Date().toISOString(),
     }));

@@ -3843,7 +3843,7 @@ function AdminManagementSection() {
                             <button
                               type="button"
                               onClick={() => {
-                                const newComments = [...(storyCommentsForm[story.id] || []), { userName: "", text: "", verified: true }];
+                                const newComments = [...(storyCommentsForm[story.id] || []), { userName: "", text: "", verified: false }];
                                 setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
                               }}
                               style={{ marginTop: "8px", padding: "6px 12px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
