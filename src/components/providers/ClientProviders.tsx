@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import LiquidGlassBackground from '@/components/ui/LiquidGlassBackground';
 
 export default function ClientProviders({
   children,
@@ -8,6 +9,7 @@ export default function ClientProviders({
   children: React.ReactNode;
 }) {
   return <>
+    <LiquidGlassBackground />
     {children}
   </>;
 }

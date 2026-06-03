@@ -695,9 +695,11 @@
   z-index: 50;
   min-width: 140px;
   height: 52px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
-  background: #0d1220;
+  background: linear-gradient(135deg, rgba(200, 220, 255, 0.15) 0%, rgba(150, 180, 255, 0.1) 25%, rgba(100, 150, 255, 0.08) 50%, rgba(80, 130, 255, 0.1) 75%, rgba(120, 170, 255, 0.15) 100%);
+  backdrop-filter: blur(40px) brightness(1.1);
+  -webkit-backdrop-filter: blur(40px) brightness(1.1);
   color: #ffffff;
   display: inline-flex;
   align-items: center;
