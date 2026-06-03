@@ -863,7 +863,7 @@
   background: linear-gradient(135deg, rgba(200, 220, 255, 0.2) 0%, rgba(150, 180, 255, 0.15) 25%, rgba(100, 150, 255, 0.12) 50%, rgba(80, 130, 255, 0.15) 75%, rgba(120, 170, 255, 0.2) 100%);
   backdrop-filter: blur(50px) brightness(1.15) saturate(150%);
   -webkit-backdrop-filter: blur(50px) brightness(1.15) saturate(150%);
-  color: #111423;
+  color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
