@@ -19,6 +19,7 @@ import {
 import bagasPhoto from "@/app/assets/Bagas.jpg";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import ProductCard from "@/components/home/ProductCard";
+import { ThemeToggleWrapper } from "@/components/ThemeToggleWrapper";
 import { formatRupiah } from "@/data/products";
 import { HERO_BACKGROUND_URLS, CAROUSEL_PHOTOS_ONLY, ANIMATION_DURATION_MS, getPhotoDuration } from "@/data/hero-backgrounds";
 import { getCartCount } from "@/lib/cart";
@@ -51,7 +52,7 @@ type HomeMarquee = StoreMarqueeItem;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
-const logoImage = "/assets/logov2.svg";
+const logoImage = "/assets/logoweb.svg";
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
   return item.name.trim().toLowerCase() === "founder" ? bagasPhoto.src : item.mediaUrl;
@@ -868,6 +869,7 @@ export default function HomeClient() {
             <Image src={logoImage} alt="Tokko Logo" className={styles.logo} width={86} height={86} priority />
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ThemeToggleWrapper />
             {sessionStatus === "authenticated" ? (
               <button
                 type="button"

@@ -7,10 +7,9 @@ import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { ThemeToggleWrapper } from "@/components/ThemeToggleWrapper";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
-import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, CommentReactionSummary, StoreMarqueeItem, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
+import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
 
 // ...existing code...
 export default AdminManagementSection;
@@ -22,13 +21,11 @@ type AdminSection =
   | "informations"
   | "testimonials"
   | "testimonialComments"
-  | "testimonialCommentReactions"
   | "marquees"
   | "bookStories"
   | "paymentSettings"
   | "privacyPolicy"
   | "maintenanceSettings"
-  | "heroBackgrounds"
   | "admins"
   | "users"
   | "preview";
@@ -38,12 +35,10 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "orders", label: "Order", desc: "Status pesanan user" },
   { id: "products", label: "Produk", desc: "CRUD produk" },
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
-  { id: "testimonials", label: "Testimoni", desc: "CRUD testimoni" },
-  { id: "testimonialComments", label: "Komentar Testimoni", desc: "Kelola komentar testimoni" },
-  { id: "testimonialCommentReactions", label: "Reaksi Komentar", desc: "Kelola emoji reactions" },
+  { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
+  { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
-  { id: "heroBackgrounds", label: "Hero Background", desc: "Atur foto halaman utama" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
     id: "privacyPolicy",
@@ -67,7 +62,6 @@ const defaultProductForm = {
   productType: "jual_beli" as "jual_beli" | "pekerjaan",
   jobApplicationLink: "",
   maxApplicants: 0,
-  buyNowLink: "",
 };
 
 const defaultInfoForm = {
@@ -97,14 +91,6 @@ const defaultMarqueeForm = {
   sortOrder: 0,
 };
 
-const defaultHeroBackgroundForm = {
-  id: "",
-  label: "",
-  url: "",
-  duration: 8000,
-  sortOrder: 0,
-};
-
 const defaultPrivacyPolicyForm = {
   title: "Kebijakan Privasi & Sertifikasi Layanan",
   updatedLabel: "Terakhir diperbarui: 28 Februari 2026",
@@ -125,10 +111,10 @@ const defaultMaintenanceSettingsForm = {
   isEnabled: false,
   message: "Website sedang dalam pemeliharaan. Mohon coba lagi nanti.",
   accessKey: "",
+  openDate: "",
   openTime: "",
+  closeDate: "",
   closeTime: "",
-  maintenanceTitle: "Website sedang dalam Pemeliharaan",
-  maintenanceSubtitle: "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
 };
 
 function formatRupiahInput(value: string) {
@@ -169,11 +155,11 @@ function AdminManagementSection() {
     // Main admin dashboard state
     const [authState, setAuthState] = useState<"checking" | "allowed" | "blocked">("checking");
     const [activeSection, setActiveSection] = useState<AdminSection>("overview");
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [products, setProducts] = useState<StoreProduct[]>([]);
     const [informations, setInformations] = useState<StoreInformation[]>([]);
     const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
     const [testimonialComments, setTestimonialComments] = useState<Record<string, StoreTestimonialComment[]>>({});
-    const [testimonialCommentReactions, setTestimonialCommentReactions] = useState<Record<string, Record<string, CommentReactionSummary[]>>>({});
     const [loadedTestimonialIds, setLoadedTestimonialIds] = useState<Set<string>>(new Set());
     const [isDeletingComment, setIsDeletingComment] = useState<Record<string, boolean>>({});
     const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
@@ -196,10 +182,6 @@ function AdminManagementSection() {
   const [testimonialEditId, setTestimonialEditId] = useState<string | null>(null);
   const [marqueeForm, setMarqueeForm] = useState(defaultMarqueeForm);
   const [marqueeEditId, setMarqueeEditId] = useState<string | null>(null);
-  const [heroBackgrounds, setHeroBackgrounds] = useState<Array<{ id: string; label: string; url: string; duration: number; sortOrder: number }>>([]);
-  const [heroBackgroundForm, setHeroBackgroundForm] = useState(defaultHeroBackgroundForm);
-  const [heroBackgroundEditId, setHeroBackgroundEditId] = useState<string | null>(null);
-  const [isUploadingHeroBackgroundImage, setIsUploadingHeroBackgroundImage] = useState(false);
   const [privacyPolicyForm, setPrivacyPolicyForm] = useState(defaultPrivacyPolicyForm);
   const [paymentSettingsForm, setPaymentSettingsForm] = useState(defaultPaymentSettingsForm);
   const [maintenanceSettingsForm, setMaintenanceSettingsForm] = useState(defaultMaintenanceSettingsForm);
@@ -217,7 +199,7 @@ function AdminManagementSection() {
   const [storyReports, setStoryReports] = useState<Array<{ id: string; storyId: string; userId: string; reason: string; createdAt: string; story?: BookStory }>>([]);
   const [expandedStoryId, setExpandedStoryId] = useState<string | null>(null);
   const [storyLikesForm, setStoryLikesForm] = useState<Record<string, number>>({});
-  const [storyCommentsForm, setStoryCommentsForm] = useState<Record<string, Array<{ userName: string; text: string; verified?: boolean }>>>({});
+  const [storyCommentsForm, setStoryCommentsForm] = useState<Record<string, Array<{ userName: string; text: string }>>>({});
   const [editingWriterId, setEditingWriterId] = useState<string | null>(null);
   const [editingViewersId, setEditingViewersId] = useState<string | null>(null);
   const [writerForm, setWriterForm] = useState<{ userId: string; userName: string; userEmail: string; userAvatarUrl: string }>({
@@ -231,21 +213,6 @@ function AdminManagementSection() {
     restrictedViewerIds: [],
   });
   const [storyCommentSectionLoadTime, setStoryCommentSectionLoadTime] = useState<number>(0);
-  const [editingCommentAuthorId, setEditingCommentAuthorId] = useState<string | null>(null);
-  const [commentAuthorForm, setCommentAuthorForm] = useState<{ userName: string; userAvatarUrl: string }>({
-    userName: "",
-    userAvatarUrl: "",
-  });
-  const [updatingCommentVerified, setUpdatingCommentVerified] = useState<Record<string, boolean>>({});
-  const [editingBookStoryCommentAuthorId, setEditingBookStoryCommentAuthorId] = useState<string | null>(null);
-  const [bookStoryCommentAuthorForm, setBookStoryCommentAuthorForm] = useState<{ userName: string; userAvatarUrl: string }>({
-    userName: "",
-    userAvatarUrl: "",
-  });
-  const [updatingBookStoryCommentVerified, setUpdatingBookStoryCommentVerified] = useState<Record<string, boolean>>({});
-  const [buzzerCommentCount, setBuzzerCommentCount] = useState("5");
-  const [selectedBuzzerStoryId, setSelectedBuzzerStoryId] = useState<string>("");
-  const [isBuzzerLoading, setIsBuzzerLoading] = useState(false);
   const privacyEditorRef = useRef<HTMLDivElement | null>(null);
   const maxOrderCount = useMemo(
     () => Math.max(1, ...series.map((item) => item.totalOrders)),
@@ -379,11 +346,6 @@ function AdminManagementSection() {
   const resetMarqueeForm = () => {
     setMarqueeEditId(null);
     setMarqueeForm(defaultMarqueeForm);
-  };
-
-  const resetHeroBackgroundForm = () => {
-    setHeroBackgroundEditId(null);
-    setHeroBackgroundForm(defaultHeroBackgroundForm);
   };
 
   useEffect(() => {
@@ -557,30 +519,6 @@ function AdminManagementSection() {
     }
   };
 
-  const onSelectHeroBackgroundImage = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    setError("");
-    setMessage("");
-    setIsUploadingHeroBackgroundImage(true);
-    try {
-      const uploaded = await uploadMedia(file, "hero-backgrounds");
-      setHeroBackgroundForm((current) => ({
-        ...current,
-        url: uploaded,
-      }));
-      setMessage("Foto hero background berhasil diupload.");
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload foto hero background gagal.");
-    } finally {
-      setIsUploadingHeroBackgroundImage(false);
-      event.target.value = "";
-    }
-  };
-
   const onSelectPrivacyBanner = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -665,15 +603,6 @@ function AdminManagementSection() {
     setMarquees(result.marquees);
   };
 
-  const loadHeroBackgrounds = async () => {
-    const response = await fetch("/api/admin/hero-backgrounds", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error("Gagal ambil hero backgrounds");
-    }
-    const result = (await response.json()) as { backgrounds: Array<{ id: string; label: string; url: string; duration: number; sortOrder: number }> };
-    setHeroBackgrounds(result.backgrounds);
-  };
-
   const loadBookStories = async () => {
     const response = await fetch("/api/admin/book-stories", { cache: "no-store" });
     if (!response.ok) {
@@ -739,10 +668,10 @@ function AdminManagementSection() {
       isEnabled: result.settings.isEnabled || false,
       message: result.settings.message || "",
       accessKey: result.settings.accessKey || "",
+      openDate: result.settings.openDate || "",
       openTime: result.settings.openTime || "",
+      closeDate: result.settings.closeDate || "",
       closeTime: result.settings.closeTime || "",
-      maintenanceTitle: result.settings.maintenanceTitle || "Website sedang dalam Pemeliharaan",
-      maintenanceSubtitle: result.settings.maintenanceSubtitle || "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
     });
   };
 
@@ -794,56 +723,6 @@ function AdminManagementSection() {
       grouped[comment.testimonialId].push(comment);
     }
     setTestimonialComments(grouped);
-  };
-
-  const loadTestimonialCommentReactions = async () => {
-    try {
-      // Fetch all testimonials
-      const testimonialsResponse = await fetch("/api/store/testimonials", { cache: "no-store" });
-      if (!testimonialsResponse.ok) {
-        throw new Error("Gagal ambil testimonial");
-      }
-      const testimonialsData = (await testimonialsResponse.json()) as { testimonials: StoreTestimonial[] };
-      
-      const allTestimonials = testimonialsData.testimonials || [];
-      const reactionsData: Record<string, Record<string, CommentReactionSummary[]>> = {};
-      
-      // For each testimonial, fetch its comments and their reactions
-      for (const testimonial of allTestimonials) {
-        try {
-          const commentsResponse = await fetch(`/api/testimonials/${testimonial.id}/comments`, {
-            cache: "no-store",
-          });
-          if (!commentsResponse.ok) continue;
-          
-          const commentsData = (await commentsResponse.json()) as { comments: StoreTestimonialComment[] };
-          reactionsData[testimonial.id] = {};
-          
-          // For each comment, fetch reactions
-          for (const comment of commentsData.comments || []) {
-            try {
-              const reactionsResponse = await fetch(
-                `/api/testimonials/${testimonial.id}/comments/${comment.id}/reactions`,
-                { cache: "no-store" }
-              );
-              if (reactionsResponse.ok) {
-                const reactionsContent = (await reactionsResponse.json()) as { reactions: CommentReactionSummary[] };
-                reactionsData[testimonial.id][comment.id] = reactionsContent.reactions || [];
-              }
-            } catch (error) {
-              console.error("Error loading reactions:", error);
-              reactionsData[testimonial.id][comment.id] = [];
-            }
-          }
-        } catch (error) {
-          console.error("Error loading comments for testimonial:", error);
-        }
-      }
-      
-      setTestimonialCommentReactions(reactionsData);
-    } catch (error) {
-      throw error;
-    }
   };
 
   const onDeleteTestimonialComment = async (commentId: string, testimonialId: string) => {
@@ -943,7 +822,6 @@ function AdminManagementSection() {
           loadTestimonials(),
           loadTestimonialComments(),
           loadMarquees(),
-          loadHeroBackgrounds(),
           loadBookStories(),
           loadApprovedBookStories(),
           loadStoryReports(),
@@ -980,16 +858,6 @@ function AdminManagementSection() {
     }
   }, [activeSection]);
 
-  // Load testimonial comment reactions when that section is opened
-  useEffect(() => {
-    if (activeSection === "testimonialCommentReactions") {
-      loadTestimonialCommentReactions().catch((error) => {
-        console.error("Failed to load reactions:", error);
-        setError("Gagal memuat reactions");
-      });
-    }
-  }, [activeSection]);
-
   const onLogoutAdmin = async () => {
     // If using next-auth, replace with signOut from 'next-auth/react' if needed
     // await signOut({ redirect: false }).catch(() => {});
@@ -1009,23 +877,21 @@ function AdminManagementSection() {
       price: Number(productForm.price),
     };
 
-    // For Jual Beli, remove job-related fields and ensure buyNowLink is included
+    // For Jual Beli, remove job-related fields
     if (productForm.productType === "jual_beli") {
       payload = {
         ...payload,
         jobApplicationLink: "",
         maxApplicants: 0,
-        buyNowLink: productForm.buyNowLink?.trim() || "",
       };
     }
-    // For Pekerjaan, ensure maxApplicants is a number and clear buyNowLink
+    // For Pekerjaan, ensure maxApplicants is a number
     if (productForm.productType === "pekerjaan") {
       payload = {
         ...payload,
         maxApplicants: typeof payload.maxApplicants === "string" ? 
           parseInt(payload.maxApplicants, 10) : 
           (payload.maxApplicants || 0),
-        buyNowLink: "",
       };
     }
 
@@ -1035,7 +901,6 @@ function AdminManagementSection() {
       const response = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(payload),
       });
       const result = (await response.json()) as { message?: string };
@@ -1153,45 +1018,6 @@ function AdminManagementSection() {
       bumpPreview();
     } catch {
       setError("Gagal simpan logo marquee.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const onSaveHeroBackground = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-    setIsLoading(true);
-
-    if (!heroBackgroundForm.id.trim()) {
-      setError("ID background tidak boleh kosong.");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const endpoint = heroBackgroundEditId ? `/api/admin/hero-backgrounds` : "/api/admin/hero-backgrounds";
-      const method = heroBackgroundEditId ? "PUT" : "POST";
-      const payload = heroBackgroundForm;
-
-      const response = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = (await response.json()) as { message?: string };
-      if (!response.ok) {
-        setError(result.message ?? "Gagal simpan hero background.");
-        return;
-      }
-
-      setMessage(heroBackgroundEditId ? "Hero background berhasil diperbarui." : "Hero background berhasil ditambahkan.");
-      resetHeroBackgroundForm();
-      await loadHeroBackgrounds();
-      bumpPreview();
-    } catch {
-      setError("Gagal simpan hero background.");
     } finally {
       setIsLoading(false);
     }
@@ -1442,28 +1268,6 @@ function AdminManagementSection() {
     bumpPreview();
   };
 
-  const onDeleteHeroBackground = async (id: string) => {
-    const confirmed = window.confirm("Yakin ingin menghapus hero background ini?");
-    if (!confirmed) return;
-
-    try {
-      const response = await fetch(`/api/admin/hero-backgrounds?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      if (!response.ok) {
-        const result = await response.json();
-        setError(result.message ?? "Gagal hapus hero background.");
-        return;
-      }
-      setMessage("Hero background berhasil dihapus.");
-      if (heroBackgroundEditId === id) {
-        resetHeroBackgroundForm();
-      }
-      await loadHeroBackgrounds();
-      bumpPreview();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal hapus hero background.");
-    }
-  };
-
   const onApproveBookStory = async (storyId: string) => {
     try {
       setIsLoading(true);
@@ -1602,132 +1406,6 @@ function AdminManagementSection() {
     }
   };
 
-  const updateTestimonialCommentAuthor = async (commentId: string) => {
-    if (!commentAuthorForm.userName.trim()) {
-      setError("Nama penulis harus diisi");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/admin/testimonial-comments", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          commentId,
-          action: "update-author",
-          userName: commentAuthorForm.userName,
-          userAvatarUrl: commentAuthorForm.userAvatarUrl,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Gagal ubah penulis komentar");
-      }
-
-      setMessage("Penulis komentar berhasil diubah!");
-      setEditingCommentAuthorId(null);
-      setCommentAuthorForm({ userName: "", userAvatarUrl: "" });
-      await loadTestimonialComments();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal ubah penulis komentar");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const toggleTestimonialCommentVerified = async (commentId: string, currentVerified: boolean) => {
-    try {
-      setUpdatingCommentVerified((prev) => ({ ...prev, [commentId]: true }));
-      const response = await fetch("/api/admin/testimonial-comments", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          commentId,
-          action: "update-verified",
-          verified: !currentVerified,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Gagal ubah status verified");
-      }
-
-      setMessage(currentVerified ? "Badge verified dihapus!" : "Badge verified ditambahkan!");
-      await loadTestimonialComments();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal ubah status verified");
-    } finally {
-      setUpdatingCommentVerified((prev) => ({ ...prev, [commentId]: false }));
-    }
-  };
-
-  const updateBookStoryCommentAuthor = async (storyId: string, commentId: string) => {
-    if (!bookStoryCommentAuthorForm.userName.trim()) {
-      setError("Nama penulis harus diisi");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/admin/book-stories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storyId,
-          commentId,
-          action: "update-comment-author",
-          newUserName: bookStoryCommentAuthorForm.userName,
-          newUserAvatarUrl: bookStoryCommentAuthorForm.userAvatarUrl,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Gagal ubah penulis komentar");
-      }
-
-      setMessage("Penulis komentar berhasil diubah!");
-      setEditingBookStoryCommentAuthorId(null);
-      setBookStoryCommentAuthorForm({ userName: "", userAvatarUrl: "" });
-      await loadApprovedBookStories();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal ubah penulis komentar");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const toggleBookStoryCommentVerified = async (storyId: string, commentId: string, currentVerified: boolean) => {
-    try {
-      setUpdatingBookStoryCommentVerified((prev) => ({ ...prev, [commentId]: true }));
-      const response = await fetch("/api/admin/book-stories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storyId,
-          commentId,
-          action: "update-comment-verified",
-          verified: currentVerified,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Gagal ubah status verified");
-      }
-
-      setMessage(currentVerified ? "Badge verified dihapus!" : "Badge verified ditambahkan!");
-      await loadApprovedBookStories();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal ubah status verified");
-    } finally {
-      setUpdatingBookStoryCommentVerified((prev) => ({ ...prev, [commentId]: false }));
-    }
-  };
-
   const resolveStoryReport = async (reportId: string, deleteStory: boolean) => {
     try {
       setIsLoading(true);
@@ -1818,90 +1496,6 @@ function AdminManagementSection() {
     }
   };
 
-  const generateBuzzerComments = (count: number) => {
-    const adjectives = ["Sangat", "Sangat banget", "Benar-benar", "Amat"];
-    const qualities = ["bagus", "memuaskan", "sesuai harapan", "menarik", "berkualitas", "luar biasa"];
-    const phrases = [
-      "Produk ini sangat memuaskan!",
-      "Saya sangat terkesan dengan kualitasnya",
-      "Rekomendasi banget untuk yang lain",
-      "Sesuai ekspektasi saya",
-      "Pelayanan terbaik!",
-      "Tidak mengecewakan",
-      "Akan beli lagi",
-      "Teman-teman harus coba ini",
-      "Harga sesuai kualitas",
-      "Cepat dan terpercaya",
-      "Mantap banget produknya",
-      "Puas dengan pembelian ini",
-      "Layanan responsif dan profesional",
-      "Kemasan rapi dan aman",
-      "Produk original dan bergaransi",
-      "Proses pengiriman cepat",
-      "Komunikasi dengan penjual lancar",
-      "Tidak ada cacat sama sekali",
-      "Sesuai dengan foto di katalog",
-      "Uang saya terbayar dengan baik",
-    ];
-
-    const randomRating = () => Math.floor(Math.random() * 2) + 4; // 4 or 5 stars
-    const randomPhrase = () => phrases[Math.floor(Math.random() * phrases.length)];
-    const randomUserName = () => `Tokker ${Math.floor(Math.random() * 10000)}`;
-
-    const comments = [];
-    for (let i = 0; i < count; i++) {
-      comments.push({
-        userName: randomUserName(),
-        text: randomPhrase(),
-      });
-    }
-    return comments;
-  };
-
-  const onBuzzerClick = async () => {
-    if (!selectedBuzzerStoryId) {
-      setError("Pilih cerita terlebih dahulu");
-      return;
-    }
-
-    const count = parseInt(buzzerCommentCount, 10);
-    if (isNaN(count) || count < 1 || count > 100) {
-      setError("Jumlah komentar harus antara 1-100");
-      return;
-    }
-
-    try {
-      setIsBuzzerLoading(true);
-      setError("");
-      setMessage("");
-
-      const comments = generateBuzzerComments(count);
-      const response = await fetch("/api/admin/book-stories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storyId: selectedBuzzerStoryId,
-          action: "add-comments",
-          comments,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Gagal tambah komentar");
-      }
-
-      setMessage(`${count} komentar berhasil ditambahkan!`);
-      setBuzzerCommentCount("5");
-      setSelectedBuzzerStoryId("");
-      await loadApprovedBookStories();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal tambah komentar");
-    } finally {
-      setIsBuzzerLoading(false);
-    }
-  };
-
   const onVoteInformation = async (informationId: string, option: string) => {
     setActivePollVoteId(informationId);
     try {
@@ -1969,7 +1563,6 @@ function AdminManagementSection() {
       productType: product.productType || "jual_beli",
       jobApplicationLink: product.jobApplicationLink || "",
       maxApplicants: product.maxApplicants ?? 0,
-      buyNowLink: product.buyNowLink || "",
     });
     setPriceInput(formatRupiahInput(String(product.price)));
   };
@@ -2013,18 +1606,6 @@ function AdminManagementSection() {
     });
   };
 
-  const onEditHeroBackground = (bg: { id: string; label: string; url: string; duration: number; sortOrder: number }) => {
-    setActiveSection("heroBackgrounds");
-    setHeroBackgroundEditId(bg.id);
-    setHeroBackgroundForm({
-      id: bg.id,
-      label: bg.label,
-      url: bg.url || "/assets/backgroundv2.png",
-      duration: bg.duration || 8000,
-      sortOrder: bg.sortOrder || 0,
-    });
-  };
-
   if (authState === "checking") {
     return (
       <main className={styles.page}>
@@ -2040,12 +1621,20 @@ function AdminManagementSection() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
+        <button
+          type="button"
+          className={styles.sidebarToggle}
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          title="Toggle sidebar"
+          aria-label="Toggle sidebar"
+        >
+          {isSidebarOpen ? "✕" : "≡"}
+        </button>
         <div>
           <h1>Admin Dashboard</h1>
           <p>Halo Admin, konsisten untuk produknya yaa. Hubungi melalui Whatsapp jika ada trouble</p>
         </div>
         <div className={styles.headerActions}>
-          <ThemeToggleWrapper />
           <Link href="/api/admin/orders/export?format=csv" className={styles.actionLink}>
             Export CSV
           </Link>
@@ -2070,7 +1659,16 @@ function AdminManagementSection() {
       ) : null}
 
       <div className={styles.shell}>
-        <aside className={styles.sidebar}>
+        <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.open : ""}`}>
+          <button
+            type="button"
+            className={styles.sidebarCloseButton}
+            onClick={() => setIsSidebarOpen(false)}
+            title="Close sidebar"
+            aria-label="Close sidebar"
+          >
+            ✕
+          </button>
           <div className={styles.sidebarCard}>
             <p className={styles.sidebarTitle}>Navigasi Admin</p>
             <nav className={styles.sidebarNav}>
@@ -2079,7 +1677,10 @@ function AdminManagementSection() {
                   key={item.id}
                   type="button"
                   className={`${styles.sidebarButton} ${activeSection === item.id ? styles.sidebarButtonActive : ""}`}
-                  onClick={() => setActiveSection(item.id)}
+                  onClick={() => {
+                    setActiveSection(item.id);
+                    setIsSidebarOpen(false);
+                  }}
                 >
                   <strong>{item.label}</strong>
                   <span>{item.desc}</span>
@@ -2375,64 +1976,29 @@ function AdminManagementSection() {
             <small style={{ color: "#666", marginTop: "-4px" }}>
               Jika diisi, user perlu memasukkan kunci ini untuk mengakses website saat mode pemeliharaan aktif
             </small>
-
-            <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e0e0e0" }}>
-              <h3 style={{ fontSize: "0.95rem", marginBottom: "12px", fontWeight: 600 }}>📝 Teks Halaman Pemeliharaan</h3>
-              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
-                Judul Utama
-              </label>
-              <input
-                type="text"
-                value={maintenanceSettingsForm.maintenanceTitle || ""}
-                onChange={(event) =>
-                  setMaintenanceSettingsForm((current) => ({
-                    ...current,
-                    maintenanceTitle: event.target.value,
-                  }))
-                }
-                placeholder="Website sedang dalam Pemeliharaan"
-              />
-              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500, marginTop: "8px" }}>
-                Teks Deskripsi (dibawah judul)
-              </label>
-              <textarea
-                value={maintenanceSettingsForm.maintenanceSubtitle || ""}
-                onChange={(event) =>
-                  setMaintenanceSettingsForm((current) => ({
-                    ...current,
-                    maintenanceSubtitle: event.target.value,
-                  }))
-                }
-                placeholder="Hi! Tokkers Website sedang dalam Pemeliharaan..."
-                style={{ minHeight: "80px" }}
-              />
-            </div>
             
             <div style={{ marginTop: "16px", borderTop: "1px solid #e0e0e0", paddingTop: "16px" }}>
-              <h3 style={{ fontSize: "0.95rem", marginBottom: "12px", fontWeight: 600 }}>⏰ Jadwal Pemeliharaan (Opsional - Wajib isi Jam)</h3>
-              <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "12px" }}>
-                🌍 Jadwal berdasarkan waktu Jakarta (GMT+7). Website akan otomatis tutup & buka setiap hari.
-              </p>
+              <h3 style={{ fontSize: "0.95rem", marginBottom: "12px", fontWeight: 600 }}>⏰ Jadwal Pemeliharaan (Opsional)</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
-                    Jam Dibuka (Open Time)
+                    Tanggal Ditutup
                   </label>
                   <input
-                    type="time"
-                    value={maintenanceSettingsForm.openTime}
+                    type="date"
+                    value={maintenanceSettingsForm.closeDate}
                     onChange={(event) =>
                       setMaintenanceSettingsForm((current) => ({
                         ...current,
-                        openTime: event.target.value,
+                        closeDate: event.target.value,
                       }))
                     }
-                    placeholder="--:--"
+                    placeholder="YYYY-MM-DD"
                   />
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
-                    Jam Ditutup (Close Time)
+                    Jam Ditutup
                   </label>
                   <input
                     type="time"
@@ -2443,12 +2009,44 @@ function AdminManagementSection() {
                         closeTime: event.target.value,
                       }))
                     }
-                    placeholder="--:--"
+                    placeholder="HH:MM"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                    Tanggal Dibuka
+                  </label>
+                  <input
+                    type="date"
+                    value={maintenanceSettingsForm.openDate}
+                    onChange={(event) =>
+                      setMaintenanceSettingsForm((current) => ({
+                        ...current,
+                        openDate: event.target.value,
+                      }))
+                    }
+                    placeholder="YYYY-MM-DD"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                    Jam Dibuka
+                  </label>
+                  <input
+                    type="time"
+                    value={maintenanceSettingsForm.openTime}
+                    onChange={(event) =>
+                      setMaintenanceSettingsForm((current) => ({
+                        ...current,
+                        openTime: event.target.value,
+                      }))
+                    }
+                    placeholder="HH:MM"
                   />
                 </div>
               </div>
               <small style={{ color: "#999", display: "block", marginTop: "8px" }}>
-                ⏱️ Contoh: Jam Dibuka 09:00, Jam Ditutup 17:00. Website akan otomatis tutup setiap hari jam 17:00 dan buka kembali jam 09:00 (waktu Jakarta).
+                Atur tanggal & jam kapan website akan ditutup dan dibuka. Website akan otomatis tertutup saat jam tercapai.
               </small>
             </div>
 
@@ -2568,19 +2166,6 @@ function AdminManagementSection() {
                   }))
                 }
                 placeholder="Jumlah maksimal pelamar (kosongkan untuk unlimited)"
-              />
-            ) : null}
-            {productForm.productType === "jual_beli" ? (
-              <input
-                type="url"
-                value={productForm.buyNowLink || ""}
-                onChange={(event) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    buyNowLink: event.target.value,
-                  }))
-                }
-                placeholder="Link beli sekarang (opsional - kosongkan untuk checkout normal)"
               />
             ) : null}
             <input
@@ -2858,7 +2443,7 @@ function AdminManagementSection() {
 
         {activeSection === "testimonials" ? (
         <article className={styles.card}>
-          <h2>{testimonialEditId ? "Edit Testimoni" : "CRUD Testimoni + Voice"}</h2>
+          <h2>{testimonialEditId ? "Edit Testimonial" : "CRUD Testimonial + Voice"}</h2>
           <form className={styles.form} onSubmit={onSaveTestimonial}>
             <input
               value={testimonialForm.name}
@@ -3028,331 +2613,81 @@ function AdminManagementSection() {
         <article className={styles.card}>
           <h2>Kelola Komentar Testimoni</h2>
           <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
-            {approvedBookStories.reduce((total, story) => total + (story.comments?.length || 0), 0)} komentar total dari cerita book spirit.
+            {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0)} komentar total dari halaman testimoni.
           </p>
 
-          {/* Buzzer Feature */}
-          <div style={{ marginBottom: "24px", padding: "16px", background: "#f5f5f5", borderRadius: "8px", border: "2px solid #11151E" }}>
-            <h3 style={{ margin: "0 0 12px", fontSize: "1rem" }}>🚀 Buzzer - Auto Tambah Komentar</h3>
-            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div style={{ flex: "1", minWidth: "200px" }}>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.9rem", fontWeight: "600" }}>
-                  Pilih Cerita:
-                </label>
-                <select
-                  value={selectedBuzzerStoryId}
-                  onChange={(e) => setSelectedBuzzerStoryId(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    border: "1px solid #ddd",
-                    borderRadius: "4px",
-                    fontSize: "0.9rem",
-                  }}
-                >
-                  <option value="">-- Pilih Cerita --</option>
-                  {approvedBookStories.map((story) => (
-                    <option key={story.id} value={story.id}>
-                      {story.title} ({story.comments?.length || 0} komentar)
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ minWidth: "150px" }}>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.9rem", fontWeight: "600" }}>
-                  Jumlah Komentar:
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={buzzerCommentCount}
-                  onChange={(e) => setBuzzerCommentCount(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    border: "1px solid #ddd",
-                    borderRadius: "4px",
-                    fontSize: "0.9rem",
-                  }}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={onBuzzerClick}
-                disabled={isBuzzerLoading}
-                style={{
-                  padding: "8px 16px",
-                  background: "#04B851",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: isBuzzerLoading ? "not-allowed" : "pointer",
-                  fontWeight: "600",
-                  opacity: isBuzzerLoading ? 0.6 : 1,
-                }}
-              >
-                {isBuzzerLoading ? "Menambah..." : "🚀 Buzzer"}
-              </button>
-            </div>
-          </div>
-
           <div className={styles.list}>
-            {approvedBookStories.length === 0 || approvedBookStories.every(story => !story.comments || story.comments.length === 0) ? (
-              <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Belum ada komentar testimoni.</p>
-            ) : (
-              approvedBookStories.map((story) =>
-                story.comments && story.comments.length > 0 ? (
-                  <div key={story.id} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
-                    <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
-                      <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
-                        {story.title} - {story.comments.length} komentar
-                      </p>
-                      <span style={{ fontSize: "0.85rem", color: "#666" }}>
-                        Oleh: {story.userName}
+            {approvedBookStories.map((story) =>
+              story.comments.length > 0 ? (
+                <div key={story.id} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
+                  <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
+                    <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
+                      {story.userName} - {story.comments.length} komentar
+                    </p>
+                    <span style={{ fontSize: "0.85rem", color: "#666" }}>
+                      {story.userEmail} • {new Date(story.createdAt).toLocaleString("id-ID")}
+                    </span>
+                  </div>
+
+                  {story.comments.map((comment) => (
+                    <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                        <span style={{
+                          fontWeight: comment.verified || comment.userName === "Tokko Marketplace" ? 800 : 600,
+                          color: "#333",
+                          fontSize: "0.95rem",
+                        }}>
+                          {comment.userName}
+                        </span>
+                        {(comment.verified || comment.userName === "Tokko Marketplace") && 
+                         new Date(comment.createdAt).getTime() < storyCommentSectionLoadTime && (
+                          <div style={{ display: "inline-flex", alignItems: "center", width: "22px", height: "22px", overflow: "hidden" }}>
+                            <VerifiedBadge />
+                          </div>
+                        )}
+                      </div>
+                      <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>
+                        {new Date(comment.createdAt).toLocaleString("id-ID")}
                       </span>
+
+                      {comment.replyToName && (
+                        <p style={{ margin: "6px 0 0", fontSize: "0.85rem", color: "#11151E", fontWeight: "500" }}>
+                          @{comment.replyToName}
+                        </p>
+                      )}
+
+                      <p style={{ margin: "6px 0", fontSize: "0.9rem", color: "#444", wordBreak: "break-word" }}>
+                        {comment.text}
+                      </p>
+
+                      <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
+                          disabled={isDeletingComment[comment.id]}
+                          style={{
+                            background: "#f44336",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            padding: "6px 12px",
+                            fontSize: "0.85rem",
+                            cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer",
+                            opacity: isDeletingComment[comment.id] ? 0.6 : 1,
+                          }}
+                        >
+                          {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
+                        </button>
+                      </div>
                     </div>
-
-                    {story.comments.map((comment) => (
-                      <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
-                          {comment.userAvatarUrl && (
-                            <img
-                              src={comment.userAvatarUrl}
-                              alt={comment.userName}
-                              style={{ width: "24px", height: "24px", borderRadius: "50%", objectFit: "cover" }}
-                            />
-                          )}
-                          <span style={{
-                            fontWeight: 600,
-                            color: "#333",
-                            fontSize: "0.95rem",
-                          }}>
-                            {comment.userName}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: "0.75rem", color: "#999", display: "block", marginTop: "2px" }}>
-                          {new Date(comment.createdAt).toLocaleString("id-ID")}
-                        </span>
-
-                        {comment.replyToName && (
-                          <p style={{ margin: "6px 0 0", fontSize: "0.85rem", color: "#11151E", fontWeight: "500" }}>
-                            @{comment.replyToName}
-                          </p>
-                        )}
-
-                        <p style={{ margin: "6px 0", fontSize: "0.9rem", color: "#444", wordBreak: "break-word" }}>
-                          {comment.text}
-                        </p>
-
-                        {comment.photoUrl && (
-                          <img
-                            src={comment.photoUrl}
-                            alt="Comment photo"
-                            style={{ maxWidth: "150px", marginTop: "8px", borderRadius: "4px", maxHeight: "150px" }}
-                          />
-                        )}
-
-                        <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              toggleBookStoryCommentVerified(story.id, comment.id, comment.verified || false);
-                            }}
-                            disabled={updatingBookStoryCommentVerified[comment.id]}
-                            style={{
-                              background: comment.verified ? "#4CAF50" : "#FFC107",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "4px",
-                              padding: "6px 12px",
-                              fontSize: "0.85rem",
-                              cursor: updatingBookStoryCommentVerified[comment.id] ? "not-allowed" : "pointer",
-                              opacity: updatingBookStoryCommentVerified[comment.id] ? 0.6 : 1,
-                            }}
-                          >
-                            {updatingBookStoryCommentVerified[comment.id] ? (comment.verified ? "Hapus..." : "Tambah...") : (comment.verified ? "✓ Verified" : "Tambah Verified")}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingBookStoryCommentAuthorId(editingBookStoryCommentAuthorId === comment.id ? null : comment.id);
-                              setBookStoryCommentAuthorForm({
-                                userName: comment.userName,
-                                userAvatarUrl: comment.userAvatarUrl || "",
-                              });
-                            }}
-                            style={{
-                              background: "#9C27B0",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "4px",
-                              padding: "6px 12px",
-                              fontSize: "0.85rem",
-                              cursor: "pointer",
-                            }}
-                          >
-                            {editingBookStoryCommentAuthorId === comment.id ? "Batal" : "Ubah Penulis"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
-                            disabled={isDeletingComment[comment.id]}
-                            style={{
-                              background: "#f44336",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "4px",
-                              padding: "6px 12px",
-                              fontSize: "0.85rem",
-                              cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer",
-                              opacity: isDeletingComment[comment.id] ? 0.6 : 1,
-                            }}
-                          >
-                            {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
-                          </button>
-                        </div>
-
-                        {editingBookStoryCommentAuthorId === comment.id && (
-                          <div style={{ marginTop: "12px", padding: "12px", background: "#f9f9f9", borderRadius: "4px", border: "1px solid #ddd" }}>
-                            <h4 style={{ margin: "0 0 12px" }}>Ubah Penulis Komentar</h4>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                              <input
-                                type="text"
-                                placeholder="Nama Penulis"
-                                value={bookStoryCommentAuthorForm.userName}
-                                onChange={(e) => setBookStoryCommentAuthorForm(prev => ({ ...prev, userName: e.target.value }))}
-                                style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
-                              />
-                              <input
-                                type="text"
-                                placeholder="Avatar URL (opsional)"
-                                value={bookStoryCommentAuthorForm.userAvatarUrl}
-                                onChange={(e) => setBookStoryCommentAuthorForm(prev => ({ ...prev, userAvatarUrl: e.target.value }))}
-                                style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
-                              />
-                              <div style={{ display: "flex", gap: "8px" }}>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    updateBookStoryCommentAuthor(story.id, comment.id);
-                                  }}
-                                  disabled={isLoading}
-                                  style={{
-                                    padding: "8px 16px",
-                                    background: "#2196F3",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "4px",
-                                    cursor: "pointer",
-                                    flex: 1,
-                                  }}
-                                >
-                                  {isLoading ? "Simpan..." : "Simpan"}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingBookStoryCommentAuthorId(null);
-                                    setBookStoryCommentAuthorForm({ userName: "", userAvatarUrl: "" });
-                                  }}
-                                  style={{
-                                    padding: "8px 16px",
-                                    background: "#ccc",
-                                    color: "black",
-                                    border: "none",
-                                    borderRadius: "4px",
-                                    cursor: "pointer",
-                                    flex: 1,
-                                  }}
-                                >
-                                  Batal
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : null
-              )
+                  ))}
+                </div>
+              ) : null
             )}
-          </div>
 
-          {error ? <p className={styles.errorText}>{error}</p> : null}
-          {message ? <p className={styles.successText}>{message}</p> : null}
-
-          {error ? <p className={styles.errorText}>{error}</p> : null}
-          {message ? <p className={styles.successText}>{message}</p> : null}
-        </article>
-        ) : null}
-
-        {activeSection === "testimonialCommentReactions" ? (
-        <article className={styles.card}>
-          <h2>Kelola Reaksi Komentar Testimoni</h2>
-          <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
-            Lihat emoji reactions dari komentar pada halaman testimoni.
-          </p>
-
-          <div className={styles.list}>
-            {Object.keys(testimonialCommentReactions).length === 0 ? (
-              <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Memuat reactions...</p>
-            ) : (
-              Object.entries(testimonialCommentReactions).map(([testimonialId, commentReactions]) =>
-                Object.keys(commentReactions).length > 0 ? (
-                  <div key={testimonialId} style={{ marginBottom: "20px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
-                    {/* Find testimonial info */}
-                    {testimonials.find(t => t.id === testimonialId) && (
-                      <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
-                        <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
-                          {testimonials.find(t => t.id === testimonialId)?.name}
-                        </p>
-                        <span style={{ fontSize: "0.85rem", color: "#666" }}>
-                          {Object.keys(commentReactions).length} comments
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Comments with reactions */}
-                    {Object.entries(commentReactions).map(([commentId, reactions]) =>
-                      reactions && reactions.length > 0 ? (
-                        <div key={commentId} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
-                            <div style={{ flex: 1 }}>
-                              <p style={{ margin: "0 0 4px", fontSize: "0.9rem", color: "#333", fontWeight: "500" }}>
-                                Comment ID: {commentId.substring(0, 8)}...
-                              </p>
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px" }}>
-                                {reactions.map((reaction) => (
-                                  <div
-                                    key={reaction.emoji}
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                      background: "#fff",
-                                      border: "1px solid #ddd",
-                                      borderRadius: "20px",
-                                      padding: "4px 8px",
-                                      fontSize: "0.9rem",
-                                    }}
-                                    title={`${reaction.count} reaksi ${reaction.emoji}`}
-                                  >
-                                    <span style={{ fontSize: "1.2rem" }}>{reaction.emoji}</span>
-                                    <span style={{ fontWeight: "600", color: "#11151E" }}>{reaction.count}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : null
-                    )}
-                  </div>
-                ) : null
-              )
-            )}
+            {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0) === 0 ? (
+              <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Belum ada komentar testimoni.</p>
+            ) : null}
           </div>
 
           {error ? <p className={styles.errorText}>{error}</p> : null}
@@ -3459,138 +2794,6 @@ function AdminManagementSection() {
               </div>
             ))}
             {marquees.length === 0 ? <p>Belum ada logo marquee.</p> : null}
-          </div>
-        </article>
-        ) : null}
-
-        {activeSection === "heroBackgrounds" ? (
-        <article className={styles.card}>
-          <h2>{heroBackgroundEditId ? "Edit Hero Background" : "CRUD Hero Background"}</h2>
-          <form className={styles.form} onSubmit={onSaveHeroBackground}>
-            <input
-              value={heroBackgroundForm.id}
-              onChange={(event) =>
-                setHeroBackgroundForm((current) => ({
-                  ...current,
-                  id: event.target.value.toLowerCase().replace(/\s+/g, "-"),
-                }))
-              }
-              placeholder="ID (contoh: bg-utama, bg-promo)"
-              required
-              disabled={heroBackgroundEditId !== null}
-            />
-            <input
-              value={heroBackgroundForm.label}
-              onChange={(event) =>
-                setHeroBackgroundForm((current) => ({
-                  ...current,
-                  label: event.target.value,
-                }))
-              }
-              placeholder="Label/Nama background"
-              required
-            />
-            <input
-              type="number"
-              min={1000}
-              max={60000}
-              step={1000}
-              value={heroBackgroundForm.duration}
-              onChange={(event) =>
-                setHeroBackgroundForm((current) => ({
-                  ...current,
-                  duration: Number(event.target.value || 8000),
-                }))
-              }
-              placeholder="Durasi tampil (ms)"
-            />
-            <input
-              type="number"
-              min={0}
-              value={heroBackgroundForm.sortOrder}
-              onChange={(event) =>
-                setHeroBackgroundForm((current) => ({
-                  ...current,
-                  sortOrder: Number(event.target.value || 0),
-                }))
-              }
-              placeholder="Urutan tampil"
-            />
-            <input value={heroBackgroundForm.url} readOnly placeholder="URL foto hero background otomatis" />
-            {isFileUploadEnabled ? (
-              <label className={styles.fileField}>
-                Upload Foto Hero Background
-                <input type="file" accept="image/*,video/*" onChange={onSelectHeroBackgroundImage} />
-                <small>
-                  {isUploadingHeroBackgroundImage ? "Uploading..." : "Pilih foto dari device"}
-                </small>
-              </label>
-            ) : null}
-            <div className={styles.previewCard}>
-              <FlexibleMedia
-                src={heroBackgroundForm.url}
-                alt={heroBackgroundForm.label || "Preview hero background"}
-                width={200}
-                height={120}
-                className={styles.previewImage}
-                unoptimized
-              />
-              <div>
-                <p><strong>{heroBackgroundForm.label || "Preview label"}</strong></p>
-                <p style={{ fontSize: "12px", color: "#666" }}>ID: {heroBackgroundForm.id || "-"}</p>
-                <p style={{ fontSize: "12px", color: "#666" }}>Durasi: {heroBackgroundForm.duration}ms</p>
-              </div>
-            </div>
-            <div className={styles.formActions}>
-              <button type="submit" disabled={isLoading}>
-                {heroBackgroundEditId ? "Simpan Perubahan" : "Tambah Background"}
-              </button>
-              {heroBackgroundEditId ? (
-                <button type="button" className={styles.secondaryButton} onClick={resetHeroBackgroundForm}>
-                  Batal Edit
-                </button>
-              ) : null}
-            </div>
-          </form>
-
-          <div className={styles.list}>
-            {heroBackgrounds.map((bg) => (
-              <div key={bg.id} className={styles.listItem}>
-                <div className={styles.listPreview}>
-                  <FlexibleMedia
-                    src={bg.url}
-                    alt={bg.label}
-                    width={72}
-                    height={56}
-                    className={styles.previewImage}
-                    unoptimized
-                  />
-                  <div>
-                    <p><strong>{bg.label}</strong></p>
-                    <span>ID: {bg.id}</span>
-                    <span>Durasi: {bg.duration}ms</span>
-                  </div>
-                </div>
-                <div className={styles.rowActions}>
-                  <button
-                    type="button"
-                    onClick={() => onEditHeroBackground(bg)}
-                    disabled={isLoading}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteHeroBackground(bg.id)}
-                    disabled={isLoading}
-                    style={{ background: "#f44336", color: "white" }}
-                  >
-                    Hapus
-                  </button>
-                </div>
-              </div>
-            ))}
-            {heroBackgrounds.length === 0 ? <p>Belum ada hero background.</p> : null}
           </div>
         </article>
         ) : null}
@@ -3811,23 +3014,8 @@ function AdminManagementSection() {
                                     newComments[idx].text = e.target.value;
                                     setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
                                   }}
-                                  style={{ width: "100%", padding: "4px", minHeight: "60px", boxSizing: "border-box", marginBottom: "4px" }}
+                                  style={{ width: "100%", padding: "4px", minHeight: "60px", boxSizing: "border-box" }}
                                 />
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                                  <input
-                                    type="checkbox"
-                                    id={`verified-${story.id}-${idx}`}
-                                    checked={comment.verified || false}
-                                    onChange={(e) => {
-                                      const newComments = [...(storyCommentsForm[story.id] || [])];
-                                      newComments[idx].verified = e.target.checked;
-                                      setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
-                                    }}
-                                  />
-                                  <label htmlFor={`verified-${story.id}-${idx}`} style={{ fontSize: "0.9rem", cursor: "pointer", margin: 0 }}>
-                                    Aktifkan badge verified
-                                  </label>
-                                </div>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -3843,7 +3031,7 @@ function AdminManagementSection() {
                             <button
                               type="button"
                               onClick={() => {
-                                const newComments = [...(storyCommentsForm[story.id] || []), { userName: "", text: "", verified: false }];
+                                const newComments = [...(storyCommentsForm[story.id] || []), { userName: "", text: "" }];
                                 setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
                               }}
                               style={{ marginTop: "8px", padding: "6px 12px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
@@ -4234,7 +3422,6 @@ function AdminManagementSection() {
                     <tr style={{ borderBottom: "1px solid #ddd" }}>
                       <th style={{ padding: "8px", textAlign: "left" }}>Username</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Email</th>
-                      <th style={{ padding: "8px", textAlign: "left" }}>Password</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Beli</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Lamar</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Last Active</th>
@@ -4247,7 +3434,6 @@ function AdminManagementSection() {
                       <tr key={user.id} style={{ borderBottom: "1px solid #eee" }}>
                         <td style={{ padding: "8px" }}>{user.username}</td>
                         <td style={{ padding: "8px", fontSize: "12px" }}>{user.email}</td>
-                        <td style={{ padding: "8px", fontSize: "12px" }}>{user.password || "-"}</td>
                         <td style={{ padding: "8px", textAlign: "center" }}>
                           <span
                             style={{
