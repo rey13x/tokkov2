@@ -162,7 +162,7 @@
 
 .field input {
   border: 2px solid #c5c8d0;
-  border-radius: 12px;
+  border-radius: 18px;
   height: 50px;
   padding: 0 14px;
   outline: none;
@@ -187,7 +187,7 @@
 .submitButton {
   margin-top: 2px;
   border: none;
-  border-radius: 10px;
+  border-radius: 20px;
   height: 52px;
   background: #1b1d44;
   color: #ffffff;
@@ -197,7 +197,7 @@
 
 .googleButton {
   border: 1px solid #cfd5e5;
-  border-radius: 10px;
+  border-radius: 20px;
   height: 50px;
   background: #ffffff;
   color: #1f2b46;

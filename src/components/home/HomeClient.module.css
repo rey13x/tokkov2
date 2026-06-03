@@ -248,7 +248,7 @@
 .productCard {
   display: block;
   position: relative;
-  border-radius: 14px;
+  border-radius: 18px;
   overflow: hidden;
   background: #dfe3eb;
 }
@@ -357,7 +357,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 4;
-  border-radius: 8px;
+  border-radius: 20px;
   overflow: hidden;
   background: #dce1ec;
 }
@@ -399,7 +399,7 @@
 .pollOptionButton {
   position: relative;
   border: 1px solid #d7dce9;
-  border-radius: 12px;
+  border-radius: 20px;
   background: #f6f8fd;
   min-height: 42px;
   padding: 8px 10px;
@@ -450,7 +450,7 @@
 .orderGuideBox {
   margin-top: 16px;
   border: 1px solid #d7dce8;
-  border-radius: 16px;
+  border-radius: 20px;
   background: #ffffff;
   padding: 14px;
   display: grid;

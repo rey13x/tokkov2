@@ -20,7 +20,7 @@
 }
 
 .logo {
-  border-radius: 10px;
+  border-radius: 18px;
 }
 
 .brandWrap h1 {
@@ -46,7 +46,7 @@
 
 .summaryCard {
   border: 1px solid #d8dce5;
-  border-radius: 14px;
+  border-radius: 18px;
   background: #ffffff;
   padding: 14px;
   display: grid;
@@ -88,7 +88,7 @@
 
 .orderCard {
   border: 1px solid #d8dce5;
-  border-radius: 12px;
+  border-radius: 20px;
   background: #ffffff;
   padding: 12px;
   display: flex;
@@ -169,7 +169,7 @@
   width: 100%;
   min-height: 72px;
   border: 1px solid #d7deeb;
-  border-radius: 10px;
+  border-radius: 18px;
   padding: 8px 10px;
   resize: vertical;
   font-size: 0.78rem;
@@ -183,7 +183,7 @@
 
 .cancelRequestButton {
   border: 1px solid #1451c8;
-  border-radius: 10px;
+  border-radius: 18px;
   min-height: 38px;
   background: #ecf2ff;
   color: #1f4cb9;
@@ -199,7 +199,7 @@
 .receiptIconButton {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: 18px;
   border: 1px solid #121828;
   background: #ffffff;
   color: #121828;
@@ -212,7 +212,7 @@
 .payIconButton {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: 18px;
   border: 1px solid #2152c4;
   background: #ecf2ff;
   color: #1d4ec0;
@@ -235,7 +235,7 @@
 .cancelTransactionButton {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: 18px;
   border: 1px solid #d32f2f;
   background: #ffebee;
   color: #d32f2f;
@@ -279,7 +279,7 @@
 
 .popupCard {
   width: min(360px, 100%);
-  border-radius: 16px;
+  border-radius: 20px;
   background: #ffffff;
   padding: 14px;
   display: grid;
@@ -300,7 +300,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 12px;
+  border-radius: 20px;
   overflow: hidden;
   background: #eef2fb;
 }
@@ -318,7 +318,7 @@
 
 .popupCloseButton {
   border: none;
-  border-radius: 10px;
+  border-radius: 18px;
   height: 42px;
   background: #121828;
   color: #ffffff;
@@ -330,7 +330,7 @@
   color: #5f6780;
   font-size: 0.9rem;
   border: 1px dashed #d8dce5;
-  border-radius: 12px;
+  border-radius: 20px;
   padding: 16px;
   text-align: center;
 }
