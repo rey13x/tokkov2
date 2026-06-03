@@ -26,14 +26,12 @@
   box-sizing: border-box;
   padding: 0;
   margin: 0;
-  cursor: none !important;
 }
 
 html,
 body {
   max-width: 100vw;
   overflow-x: clip;
-  cursor: none !important;
 }
 
 html {
@@ -48,7 +46,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.3s ease, color 0.3s ease;
-  cursor: none !important;
 }
 
 .route-transition-shell {
