@@ -37,6 +37,26 @@ export default function ProfilePage() {
     }
   }, [router, status]);
 
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError("");
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Auto-dismiss success message after 3 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
   useEffect(() => {
     if (status !== "authenticated") {
       return;
@@ -430,8 +450,64 @@ export default function ProfilePage() {
               <p className={styles.disabledInfo}>Fitur ganti password via email OTP dimatikan.</p>
             )}
 
-            {error ? <p className={styles.error}>{error}</p> : null}
-            {message ? <p className={styles.success}>{message}</p> : null}
+            {error ? (
+              <div
+                className={styles.error}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "12px",
+                }}
+              >
+                <span>{error}</span>
+                <button
+                  type="button"
+                  onClick={() => setError("")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "inherit",
+                    cursor: "pointer",
+                    fontSize: "20px",
+                    padding: "0",
+                    lineHeight: "1",
+                  }}
+                  title="Tutup notif"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : null}
+            {message ? (
+              <div
+                className={styles.success}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "12px",
+                }}
+              >
+                <span>{message}</span>
+                <button
+                  type="button"
+                  onClick={() => setMessage("")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "inherit",
+                    cursor: "pointer",
+                    fontSize: "20px",
+                    padding: "0",
+                    lineHeight: "1",
+                  }}
+                  title="Tutup notif"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : null}
 
             <button type="submit" className={styles.submitButton} disabled={isSaving}>
               {isSaving ? "Menyimpan..." : "Perbarui"}

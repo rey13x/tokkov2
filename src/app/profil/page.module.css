@@ -195,11 +195,34 @@
 .error {
   color: #b3223b;
   font-size: 0.83rem;
+  background: #ffe8ed;
+  border: 1px solid #ffbcc8;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 8px 0;
+  animation: slideIn 0.3s ease-out;
 }
 
 .success {
   color: #214ebd;
   font-size: 0.83rem;
+  background: #e8f0ff;
+  border: 1px solid #b8d4ff;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 8px 0;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .warningText {
