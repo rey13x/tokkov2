@@ -19,9 +19,13 @@ export interface CreateQRPayload {
 export interface QRCodeResponse {
   depositId: string;
   qrString: string;
+  qrImage: string;
   amount: number;
+  totalAmount: number;
+  uniqueCode: number;
   expiresIn: number; // seconds
   createdAt: string;
+  expiredAt?: string;
 }
 
 export interface PaymentVerificationResponse {
@@ -29,6 +33,7 @@ export interface PaymentVerificationResponse {
   amount?: number;
   paidAmount?: number;
   createdAt?: string;
+  whatsappLink?: string; // Link untuk WhatsApp notification
 }
 
 /**
@@ -88,16 +93,20 @@ export async function createDynamicQRCode(
 
     const data = await response.json();
 
-    if (!data.data || !data.data.qr_string) {
+    if (!data.data || (!data.data.qrImage && !data.data.qr_string)) {
       throw new Error("Invalid response from Rama Shop API");
     }
 
     return {
       depositId: data.data.depositId,
-      qrString: data.data.qr_string,
+      qrString: data.data.qrString || data.data.qr_string,
+      qrImage: data.data.qrImage,
       amount: data.data.amount,
+      totalAmount: data.data.totalAmount,
+      uniqueCode: data.data.uniqueCode,
       expiresIn: QR_CODE_VALIDITY_SECONDS,
       createdAt: new Date().toISOString(),
+      expiredAt: data.data.expiredAt,
     };
   } catch (error) {
     console.error("Error creating QRIS QR Code:", error);
@@ -176,6 +185,9 @@ export async function saveOrder(
     tax: number;
     total: number;
     qrString: string;
+    qrImage: string;
+    totalAmount: number;
+    uniqueCode: number;
     customerEmail: string;
     customerPhone: string;
   },
@@ -213,6 +225,7 @@ export async function updateOrderStatus(
   transactionData?: {
     depositId?: string;
     paidAmount?: number;
+    paymentNotes?: string;
   },
 ) {
   try {
@@ -231,6 +244,9 @@ export async function updateOrderStatus(
       if (transactionData) {
         updatePayload.depositId = transactionData.depositId;
         updatePayload.paidAmount = transactionData.paidAmount;
+        if (transactionData.paymentNotes) {
+          updatePayload.paymentNotes = transactionData.paymentNotes;
+        }
       }
     }
 
@@ -260,4 +276,57 @@ export async function getOrderById(orderId: string) {
     console.error("Error fetching order:", error);
     throw error;
   }
+}
+
+/**
+ * Generate payment notes for transaction
+ */
+export function generatePaymentNotes(payload: {
+  depositId: string;
+  amount: number;
+  method: string;
+  timestamp: string;
+}): string {
+  const date = new Date(payload.timestamp).toLocaleString("id-ID", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  return (
+    `Pembayaran via ${payload.method.toUpperCase()} | ` +
+    `Invoice: ${payload.depositId} | ` +
+    `Nominal: Rp ${payload.amount.toLocaleString("id-ID")} | ` +
+    `Waktu: ${date}`
+  );
+}
+
+/**
+ * Generate WhatsApp link for paid order
+ */
+export async function generateOrderWhatsAppLink(orderId: string, customerPhone: string) {
+  const order = await getOrderById(orderId);
+  if (!order) {
+    throw new Error(`Order ${orderId} not found`);
+  }
+
+  if (order.status !== "paid") {
+    throw new Error(`Order ${orderId} has not been paid yet`);
+  }
+
+  const { getWhatsAppNotificationLink } = await import("./notifications");
+
+  return getWhatsAppNotificationLink({
+    phoneNumber: customerPhone,
+    orderId: order.id,
+    items: order.items,
+    subtotal: order.subtotal,
+    tax: order.tax,
+    total: order.total,
+    depositId: order.depositId,
+    paidAmount: order.paidAmount,
+  });
 }

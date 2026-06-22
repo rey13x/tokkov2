@@ -173,6 +173,17 @@ function AdminManagementSection() {
     const [isTogglingVerifiedBadge, setIsTogglingVerifiedBadge] = useState<Record<string, boolean>>({});
     const [replyModalOpen, setReplyModalOpen] = useState<string | null>(null);
     const [replyForm, setReplyForm] = useState<{ text: string }>({ text: "" });
+    const [manualCommentForm, setManualCommentForm] = useState<{ testimonialId: string; userName: string; text: string; rating: number; verified: boolean }>({
+      testimonialId: "",
+      userName: "",
+      text: "",
+      rating: 5,
+      verified: false,
+    });
+    const [isAddingManualComment, setIsAddingManualComment] = useState(false);
+    const [selectedSourceTestimonialId, setSelectedSourceTestimonialId] = useState<string>("");
+    const [selectedCommentsToCopy, setSelectedCommentsToCopy] = useState<Set<string>>(new Set());
+    const [targetTestimonialId, setTargetTestimonialId] = useState<string>("");
     const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
     const [orders, setOrders] = useState<OrderSummary[]>([]);
     const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, string>>({});
@@ -899,6 +910,109 @@ function AdminManagementSection() {
       setError(err instanceof Error ? err.message : "Gagal tambah reply");
     } finally {
       setIsUpdatingComment((prev) => ({ ...prev, [parentCommentId]: false }));
+    }
+  };
+
+  const onAddManualComment = async () => {
+    if (!manualCommentForm.testimonialId.trim()) {
+      setError("Pilih testimoni terlebih dahulu.");
+      return;
+    }
+    if (!manualCommentForm.userName.trim()) {
+      setError("Nama penulis harus diisi.");
+      return;
+    }
+    if (!manualCommentForm.text.trim()) {
+      setError("Teks komentar harus diisi.");
+      return;
+    }
+
+    setIsAddingManualComment(true);
+    try {
+      const response = await fetch("/api/testimonials/" + manualCommentForm.testimonialId + "/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userName: manualCommentForm.userName,
+          text: manualCommentForm.text,
+          rating: manualCommentForm.rating,
+          verified: manualCommentForm.verified,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal tambah komentar");
+      }
+
+      const data = (await response.json()) as { comment: StoreTestimonialComment };
+      
+      // Add comment to state
+      setTestimonialComments((prev) => ({
+        ...prev,
+        [manualCommentForm.testimonialId]: [...(prev[manualCommentForm.testimonialId] || []), data.comment],
+      }));
+
+      setManualCommentForm({ testimonialId: "", userName: "", text: "", rating: 5, verified: false });
+      setMessage("Komentar berhasil ditambahkan.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal tambah komentar");
+    } finally {
+      setIsAddingManualComment(false);
+    }
+  };
+
+  // Helper function to count AI replies for a comment
+  const countAIReplies = (commentId: string, testimonialId: string): number => {
+    const comments = testimonialComments[testimonialId] || [];
+    return comments.filter((c) => c.replyToId === commentId && c.userName === "Tokko Support").length;
+  };
+
+  // Function to copy selected comments from source to target testimonial
+  const onCopyCommentsToTestimonial = async () => {
+    if (!selectedSourceTestimonialId || !targetTestimonialId || selectedCommentsToCopy.size === 0) {
+      setError("Pilih testimoni sumber, target, dan minimal 1 komentar.");
+      return;
+    }
+
+    setIsAddingManualComment(true);
+    try {
+      const sourceComments = testimonialComments[selectedSourceTestimonialId] || [];
+      const selectedIds = Array.from(selectedCommentsToCopy);
+      const commentsToAdd = sourceComments.filter((c) => selectedIds.includes(c.id));
+
+      for (const comment of commentsToAdd) {
+        const response = await fetch("/api/testimonials/" + targetTestimonialId + "/comments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userName: comment.userName,
+            text: comment.text,
+            rating: comment.rating || 0,
+            verified: comment.verified || false,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Gagal salin komentar");
+        }
+
+        const data = (await response.json()) as { comment: StoreTestimonialComment };
+        
+        // Add comment to state
+        setTestimonialComments((prev) => ({
+          ...prev,
+          [targetTestimonialId]: [...(prev[targetTestimonialId] || []), data.comment],
+        }));
+      }
+
+      setMessage(`${commentsToAdd.length} komentar berhasil disalin.`);
+      setSelectedCommentsToCopy(new Set());
+      setSelectedSourceTestimonialId("");
+      setTargetTestimonialId("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal salin komentar");
+    } finally {
+      setIsAddingManualComment(false);
     }
   };
 
@@ -2961,12 +3075,287 @@ function AdminManagementSection() {
                     fontWeight: "600",
                   }}
                 >
-                  {isGeneratingAIComments[selectedAITestimonialId] ? "Generating..." : "🤖 Generate AI Comments"}
+                  {isGeneratingAIComments[selectedAITestimonialId] ? "Generating..." : "Generate AI Comments"}
                 </button>
               </div>
               <p style={{ fontSize: "0.8rem", color: "#666", margin: "8px 0 0" }}>
                 Pilih testimoni lalu klik tombol di atas untuk generate komentar AI secara otomatis
               </p>
+            </div>
+            
+            {/* Add Manual Comment Form */}
+            <div style={{ marginBottom: "20px", padding: "12px", background: "#f5f5f5", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+              <h3 style={{ margin: "0 0 12px", fontSize: "1rem" }}>Tambah Komentar Langsung</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "#666", marginBottom: "4px" }}>Pilih Testimoni</label>
+                  <select
+                    value={manualCommentForm.testimonialId}
+                    onChange={(e) =>
+                      setManualCommentForm((prev) => ({
+                        ...prev,
+                        testimonialId: e.target.value,
+                      }))
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #ddd",
+                      fontSize: "0.9rem",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <option value="">-- Pilih Testimoni --</option>
+                    {Object.keys(testimonialComments).map((id) => (
+                      <option key={id} value={id}>
+                        Testimoni {id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "#666", marginBottom: "4px" }}>Nama Penulis</label>
+                  <input
+                    type="text"
+                    value={manualCommentForm.userName}
+                    onChange={(e) =>
+                      setManualCommentForm((prev) => ({
+                        ...prev,
+                        userName: e.target.value,
+                      }))
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #ddd",
+                      fontSize: "0.9rem",
+                      boxSizing: "border-box",
+                    }}
+                    placeholder="Nama penulis komentar..."
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "#666", marginBottom: "4px" }}>Teks Komentar</label>
+                  <textarea
+                    value={manualCommentForm.text}
+                    onChange={(e) =>
+                      setManualCommentForm((prev) => ({
+                        ...prev,
+                        text: e.target.value,
+                      }))
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #ddd",
+                      fontSize: "0.9rem",
+                      minHeight: "80px",
+                      fontFamily: "inherit",
+                      boxSizing: "border-box",
+                    }}
+                    placeholder="Tulis komentar..."
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.85rem", color: "#666", marginBottom: "4px" }}>Rating</label>
+                    <select
+                      value={manualCommentForm.rating}
+                      onChange={(e) =>
+                        setManualCommentForm((prev) => ({
+                          ...prev,
+                          rating: parseInt(e.target.value),
+                        }))
+                      }
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        border: "1px solid #ddd",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      <option value={1}>1 ⭐</option>
+                      <option value={2}>2 ⭐</option>
+                      <option value={3}>3 ⭐</option>
+                      <option value={4}>4 ⭐</option>
+                      <option value={5}>5 ⭐</option>
+                    </select>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <input
+                        type="checkbox"
+                        checked={manualCommentForm.verified}
+                        onChange={(e) =>
+                          setManualCommentForm((prev) => ({
+                            ...prev,
+                            verified: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span style={{ fontSize: "0.85rem", color: "#666" }}>Verified</span>
+                    </label>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={onAddManualComment}
+                    disabled={isAddingManualComment}
+                    style={{
+                      background: "#04B851",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "8px 16px",
+                      fontSize: "0.9rem",
+                      cursor: isAddingManualComment ? "not-allowed" : "pointer",
+                      opacity: isAddingManualComment ? 0.6 : 1,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {isAddingManualComment ? "Menambah..." : "Tambah Komentar"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Copy Existing Comments Section */}
+            <div style={{ marginBottom: "20px", padding: "12px", background: "#e8f5e9", borderRadius: "6px", border: "1px solid #c8e6c9" }}>
+              <h3 style={{ margin: "0 0 12px", fontSize: "1rem" }}>Salin Komentar yang Sudah Disetujui</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "#666", marginBottom: "4px" }}>Testimoni Sumber (pilih untuk lihat komentar)</label>
+                  <select
+                    value={selectedSourceTestimonialId}
+                    onChange={(e) => {
+                      setSelectedSourceTestimonialId(e.target.value);
+                      setSelectedCommentsToCopy(new Set());
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #ddd",
+                      fontSize: "0.9rem",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <option value="">-- Pilih Testimoni Sumber --</option>
+                    {Object.keys(testimonialComments).filter((id) => id !== targetTestimonialId).map((id) => (
+                      <option key={id} value={id}>
+                        Testimoni {id} ({testimonialComments[id]?.length || 0} komentar)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Show comments from selected source testimonial */}
+                {selectedSourceTestimonialId && (
+                  <div style={{ maxHeight: "300px", overflowY: "auto", padding: "8px", background: "white", borderRadius: "4px", border: "1px solid #c8e6c9" }}>
+                    <p style={{ fontSize: "0.8rem", color: "#666", margin: "0 0 8px" }}>Pilih komentar untuk disalin:</p>
+                    {(testimonialComments[selectedSourceTestimonialId] || [])
+                      .filter((c) => c.verified && !c.replyToId) // Only show verified comments that are not replies
+                      .map((comment) => (
+                        <div key={comment.id} style={{ marginBottom: "8px", padding: "8px", background: "#f9f9f9", borderRadius: "4px", border: "1px solid #e0e0e0" }}>
+                          <label style={{ display: "flex", gap: "8px", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedCommentsToCopy.has(comment.id)}
+                              onChange={(e) => {
+                                const newSelected = new Set(selectedCommentsToCopy);
+                                if (e.target.checked) {
+                                  newSelected.add(comment.id);
+                                } else {
+                                  newSelected.delete(comment.id);
+                                }
+                                setSelectedCommentsToCopy(newSelected);
+                              }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <p style={{ margin: "0 0 4px", fontSize: "0.85rem", fontWeight: "500" }}>
+                                {comment.userName} {comment.rating ? `(${"⭐".repeat(comment.rating)})` : ""}
+                              </p>
+                              <p style={{ margin: "0", fontSize: "0.8rem", color: "#666", wordBreak: "break-word" }}>
+                                {comment.text.substring(0, 100)}...
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+                      ))}
+                    {(testimonialComments[selectedSourceTestimonialId] || []).filter((c) => c.verified && !c.replyToId).length === 0 && (
+                      <p style={{ fontSize: "0.8rem", color: "#999", margin: "8px 0" }}>Tidak ada komentar yang disetujui.</p>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "#666", marginBottom: "4px" }}>Testimoni Target (tujuan penyalinan)</label>
+                  <select
+                    value={targetTestimonialId}
+                    onChange={(e) => setTargetTestimonialId(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #ddd",
+                      fontSize: "0.9rem",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <option value="">-- Pilih Testimoni Target --</option>
+                    {Object.keys(testimonialComments).filter((id) => id !== selectedSourceTestimonialId).map((id) => (
+                      <option key={id} value={id}>
+                        Testimoni {id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={onCopyCommentsToTestimonial}
+                    disabled={isAddingManualComment || !selectedSourceTestimonialId || !targetTestimonialId || selectedCommentsToCopy.size === 0}
+                    style={{
+                      background: "#2196F3",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "8px 16px",
+                      fontSize: "0.9rem",
+                      cursor: isAddingManualComment || !selectedSourceTestimonialId || !targetTestimonialId || selectedCommentsToCopy.size === 0 ? "not-allowed" : "pointer",
+                      opacity: isAddingManualComment || !selectedSourceTestimonialId || !targetTestimonialId || selectedCommentsToCopy.size === 0 ? 0.6 : 1,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {isAddingManualComment ? "Menyalin..." : `Salin ${selectedCommentsToCopy.size} Komentar`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSourceTestimonialId("");
+                      setTargetTestimonialId("");
+                      setSelectedCommentsToCopy(new Set());
+                    }}
+                    style={{
+                      background: "#999",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "8px 16px",
+                      fontSize: "0.9rem",
+                      cursor: "pointer",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Bersihkan
+                  </button>
+                </div>
+              </div>
             </div>
             
             <div className={styles.list}>
@@ -3049,7 +3438,7 @@ function AdminManagementSection() {
                                 cursor: "pointer",
                               }}
                             >
-                              ✏️ Edit
+                              Edit
                             </button>
                             <button
                               type="button"
@@ -3069,7 +3458,7 @@ function AdminManagementSection() {
                               {isTogglingVerifiedBadge[comment.id] ? (
                                 "Mengubah..."
                               ) : (
-                                <span>{comment.verified ? "✓ Verified" : "☐ Non-Verified"}</span>
+                                <span>{comment.verified ? "Verified" : "Non-Verified"}</span>
                               )}
                             </button>
                             <button
@@ -3088,7 +3477,7 @@ function AdminManagementSection() {
                                 cursor: "pointer",
                               }}
                             >
-                              💬 Balas
+                              Balas
                             </button>
                             <button
                               type="button"
@@ -3108,7 +3497,7 @@ function AdminManagementSection() {
                                 opacity: isGeneratingAIReplies[`${testimonialId}-${comment.id}`] ? 0.6 : 1,
                               }}
                             >
-                              {isGeneratingAIReplies[`${testimonialId}-${comment.id}`] ? "Balas..." : "🤖 AI Balas"}
+                              {isGeneratingAIReplies[`${testimonialId}-${comment.id}`] ? "Balas..." : "AI Balas"}
                             </button>
                             <input
                               type="number"
@@ -3130,6 +3519,9 @@ function AdminManagementSection() {
                               }}
                               title="Jumlah balasan AI"
                             />
+                            <span style={{ fontSize: "0.8rem", color: "#666", padding: "6px 8px", background: "#f0f0f0", borderRadius: "4px" }}>
+                              AI Balas: {countAIReplies(comment.id, testimonialId)}
+                            </span>
                           </div>
 
                           {/* Edit Form Modal */}

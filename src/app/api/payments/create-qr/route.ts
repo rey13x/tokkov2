@@ -53,6 +53,9 @@ export async function POST(request: NextRequest) {
       tax,
       total,
       qrString: qrResponse.qrString,
+      qrImage: qrResponse.qrImage,
+      totalAmount: qrResponse.totalAmount,
+      uniqueCode: qrResponse.uniqueCode,
       customerEmail,
       customerPhone,
     });
@@ -62,9 +65,13 @@ export async function POST(request: NextRequest) {
       orderId,
       depositId: qrResponse.depositId,
       qrCode: qrResponse.qrString,
+      qrImage: qrResponse.qrImage,
       amount: qrResponse.amount,
+      totalAmount: qrResponse.totalAmount,
+      uniqueCode: qrResponse.uniqueCode,
       expiresIn: QR_CODE_VALIDITY_SECONDS,
       createdAt: qrResponse.createdAt,
+      expiredAt: qrResponse.expiredAt,
     });
   } catch (error) {
     console.error("Error creating QR code:", error);

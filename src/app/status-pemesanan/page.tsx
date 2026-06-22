@@ -959,15 +959,34 @@ export default function StatusPemesananPage() {
             <h2>QRIS Pembayaran</h2>
             <p className={styles.popupMeta}>Order: {activePaymentOrder.id}</p>
             <div className={styles.popupQrWrap}>
-              <Image
-                src="/assets/qris.jpg"
-                alt="QRIS Pembayaran"
-                fill
-                className={styles.popupQrImage}
-                sizes="260px"
-                priority
-              />
+              {activePaymentOrder.qrImage ? (
+                <Image
+                  src={activePaymentOrder.qrImage}
+                  alt="QRIS Pembayaran"
+                  fill
+                  className={styles.popupQrImage}
+                  sizes="260px"
+                  priority
+                  onError={() => {
+                    console.error("Failed to load QR image");
+                  }}
+                />
+              ) : (
+                <Image
+                  src="/assets/qris.jpg"
+                  alt="QRIS Pembayaran"
+                  fill
+                  className={styles.popupQrImage}
+                  sizes="260px"
+                  priority
+                />
+              )}
             </div>
+            {activePaymentOrder.totalAmount && (
+              <p className={styles.popupMeta}>
+                Jumlah bayar: Rp {activePaymentOrder.totalAmount.toLocaleString("id-ID")}
+              </p>
+            )}
             <p className={styles.popupHelp}>
               Scan QRIS lalu simpan bukti transfer. Status order kamu akan tetap dipantau admin.
             </p>

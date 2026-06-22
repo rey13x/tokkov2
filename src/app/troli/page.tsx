@@ -362,6 +362,7 @@ export default function CartPage() {
       const orderResult = (await orderResponse.json()) as {
         message?: string;
         orderId?: string;
+        total?: number;
         createdAt?: string;
       };
 
@@ -371,16 +372,48 @@ export default function CartPage() {
       }
 
       const orderId = orderResult.orderId ?? "";
+      const total = orderResult.total ?? 0;
 
-      // Step 2: Remove items from cart
+      // Step 2: Generate dynamic QRIS QR code
+      try {
+        const qrResponse = await fetch("/api/payments/create-qr", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            orderId,
+            items: selected.map((item) => ({
+              productId: item.product.id,
+              productName: item.product.name,
+              quantity: item.quantity,
+              price: item.product.price,
+            })),
+            subtotal: selected.reduce((acc, item) => acc + item.product.price * item.quantity, 0),
+            tax: total - selected.reduce((acc, item) => acc + item.product.price * item.quantity, 0),
+            total,
+            customerName: session?.user?.username || session?.user?.name || "User",
+            customerEmail: session?.user?.email ?? "",
+            customerPhone: session?.user?.phone ?? "",
+          }),
+        });
+
+        if (!qrResponse.ok) {
+          console.warn("Failed to generate dynamic QRIS, using fallback");
+        }
+      } catch (qrError) {
+        console.warn("Error generating dynamic QRIS:", qrError);
+      }
+
+      // Step 3: Remove items from cart
       for (const item of selected) {
         removeFromCart(item.slug);
       }
 
       setCartLines((current) => current.filter((item) => !item.selected));
 
-      // Step 3: Show success and redirect to status page
-      setSuccess("Pesanan berhasil dibuat! Silakan lakukan pembayaran dengan QRIS statis.");
+      // Step 4: Show success and redirect to status page
+      setSuccess("Pesanan berhasil dibuat! Silakan lakukan pembayaran dengan QRIS.");
       window.setTimeout(() => {
         router.push(`/status-pemesanan?highlight=${orderId}`);
       }, 1500);

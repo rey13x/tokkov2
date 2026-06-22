@@ -148,3 +148,79 @@ export async function sendTelegramActivityNotification(payload: {
 
   await sendTelegramMessage(lines.join("\n"));
 }
+
+/**
+ * Generate WhatsApp message text with order details
+ */
+export function generateWhatsAppMessage(payload: {
+  orderId: string;
+  items: Array<{ productName: string; quantity: number; unitPrice: number }>;
+  subtotal: number;
+  tax: number;
+  total: number;
+  depositId: string;
+  paidAmount?: number;
+}): string {
+  const itemsList = payload.items
+    .map((item, idx) => `${idx + 1}. ${item.productName} x${item.quantity} - Rp ${item.unitPrice.toLocaleString("id-ID")}`)
+    .join("%0A");
+
+  const message = 
+    `*✅ PEMBAYARAN BERHASIL*%0A%0A` +
+    `🛍️ *Order ID:* ${payload.orderId}%0A` +
+    `💳 *Invoice:* ${payload.depositId}%0A%0A` +
+    `*Produk yang Dibeli:*%0A${itemsList}%0A%0A` +
+    `*Detail Pembayaran:*%0A` +
+    `Subtotal: Rp ${payload.subtotal.toLocaleString("id-ID")}%0A` +
+    `Pajak: Rp ${payload.tax.toLocaleString("id-ID")}%0A` +
+    `💰 *Total: Rp ${payload.total.toLocaleString("id-ID")}*%0A` +
+    `Terbayar: Rp ${(payload.paidAmount || payload.total).toLocaleString("id-ID")}%0A%0A` +
+    `Terima kasih telah berbelanja! 🙏`;
+
+  return message;
+}
+
+/**
+ * Generate WhatsApp link with message
+ */
+export function generateWhatsAppLink(phoneNumber: string, message: string): string {
+  // Ensure phone number format (remove +, 0, or any non-digits, then add 62)
+  let cleanPhone = phoneNumber.replace(/\D/g, "");
+  if (cleanPhone.startsWith("62")) {
+    // Already has 62
+  } else if (cleanPhone.startsWith("0")) {
+    // Replace 0 with 62
+    cleanPhone = "62" + cleanPhone.substring(1);
+  } else {
+    // Add 62
+    cleanPhone = "62" + cleanPhone;
+  }
+
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Send WhatsApp notification via wa.me link (returns link for client to open)
+ */
+export function getWhatsAppNotificationLink(payload: {
+  phoneNumber: string;
+  orderId: string;
+  items: Array<{ productName: string; quantity: number; unitPrice: number }>;
+  subtotal: number;
+  tax: number;
+  total: number;
+  depositId: string;
+  paidAmount?: number;
+}): string {
+  const message = generateWhatsAppMessage({
+    orderId: payload.orderId,
+    items: payload.items,
+    subtotal: payload.subtotal,
+    tax: payload.tax,
+    total: payload.total,
+    depositId: payload.depositId,
+    paidAmount: payload.paidAmount,
+  });
+
+  return generateWhatsAppLink(payload.phoneNumber, message);
+}

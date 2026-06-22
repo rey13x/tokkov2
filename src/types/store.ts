@@ -240,6 +240,10 @@ export type OrderSummary = {
   // Payment/QRIS fields
   paymentMethod?: "static_qris" | "dynamic_qris";
   qrCode?: string; // QRIS string for QR code generation
+  qrImage?: string; // QRIS image URL from payment gateway
+  totalAmount?: number; // Total amount including unique code
+  uniqueCode?: number; // Unique code for payment verification
+  depositId?: string; // Deposit ID from payment gateway
   qrReference?: string; // Reference ID from payment gateway
   transactionId?: string; // Transaction ID after payment
   paidAt?: string; // Payment timestamp

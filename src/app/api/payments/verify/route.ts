@@ -5,6 +5,8 @@ import {
   verifyPaymentStatus,
   updateOrderStatus,
   getOrderById,
+  generateOrderWhatsAppLink,
+  generatePaymentNotes,
 } from "@/server/payment";
 
 export async function POST(request: NextRequest) {
@@ -27,16 +29,16 @@ export async function POST(request: NextRequest) {
 
     // Get order details to find depositId if not provided
     let actualDepositId = depositId;
-    if (!actualDepositId) {
-      const order = await getOrderById(orderId);
-      if (!order) {
-        return NextResponse.json(
-          { error: "Order not found" },
-          { status: 404 },
-        );
-      }
-      actualDepositId = order.depositId;
+    let order = await getOrderById(orderId);
+    
+    if (!order) {
+      return NextResponse.json(
+        { error: "Order not found" },
+        { status: 404 },
+      );
     }
+    
+    actualDepositId = actualDepositId || order.depositId;
 
     if (!actualDepositId) {
       return NextResponse.json(
@@ -50,26 +52,49 @@ export async function POST(request: NextRequest) {
 
     // Update order status in database
     if (paymentStatus.status === "success") {
+      // Generate payment notes
+      const paymentNotes = generatePaymentNotes({
+        depositId: actualDepositId,
+        amount: paymentStatus.paidAmount || paymentStatus.amount || order.total,
+        method: "qris",
+        timestamp: new Date().toISOString(),
+      });
+
       await updateOrderStatus(
         orderId,
         "paid",
         {
           depositId: actualDepositId,
           paidAmount: paymentStatus.paidAmount,
+          paymentNotes,
         },
       );
+      
+      // Generate WhatsApp notification link after successful payment
+      let whatsappLink = "";
+      try {
+        if (order.customerPhone) {
+          whatsappLink = await generateOrderWhatsAppLink(orderId, order.customerPhone);
+        }
+      } catch (error) {
+        console.error("[PAYMENT] Error generating WhatsApp link:", error);
+        // Continue even if WhatsApp link generation fails
+      }
+      
+      paymentStatus.whatsappLink = whatsappLink;
     } else if (paymentStatus.status === "expired") {
       await updateOrderStatus(orderId, "expired");
     }
 
     // Get updated order details
-    const order = await getOrderById(orderId);
+    order = await getOrderById(orderId);
 
     return NextResponse.json({
       success: true,
       status: paymentStatus.status,
       depositId: actualDepositId,
       order,
+      whatsappLink: paymentStatus.whatsappLink,
     });
   } catch (error) {
     console.error("Error verifying payment:", error);

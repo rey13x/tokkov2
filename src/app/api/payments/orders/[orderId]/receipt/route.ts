@@ -89,6 +89,39 @@ function generateReceiptHtml(
     )
     .join("");
 
+  const paymentDetailsHtml = order.status === "paid" ? `
+    <div style="background-color: #f0f8ff; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0066cc;">
+      <h3 style="margin-top: 0; color: #0066cc;">📋 Detail Pembayaran</h3>
+      <table style="width: 100%; font-size: 13px;">
+        <tr>
+          <td style="padding: 6px 0;"><strong>No. Invoice:</strong></td>
+          <td style="padding: 6px 0; text-align: right; font-family: monospace;">${order.depositId || "-"}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0;"><strong>Metode Pembayaran:</strong></td>
+          <td style="padding: 6px 0; text-align: right;">QRIS Dynamic</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0;"><strong>Status Pembayaran:</strong></td>
+          <td style="padding: 6px 0; text-align: right;"><span style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;">✓ Terbayar</span></td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0;"><strong>Tanggal Pembayaran:</strong></td>
+          <td style="padding: 6px 0; text-align: right;">${order.paidAt ? formatDate(order.paidAt) : "-"}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0;"><strong>Jumlah Terbayar:</strong></td>
+          <td style="padding: 6px 0; text-align: right; font-weight: bold; color: #28a745;">${formatRupiah(order.paidAmount || order.total || 0)}</td>
+        </tr>
+        ${order.paymentNotes ? `
+        <tr style="border-top: 1px solid #ccc; padding-top: 8px; margin-top: 8px;">
+          <td colspan="2" style="padding: 8px 0;"><strong>Catatan:</strong><br/><p style="margin: 5px 0; font-size: 12px; color: #666;">${order.paymentNotes}</p></td>
+        </tr>
+        ` : ""}
+      </table>
+    </div>
+  ` : "";
+
   return `
 <!DOCTYPE html>
 <html lang="id">
@@ -245,8 +278,8 @@ function generateReceiptHtml(
                 <p>${formatDate(order.createdAt)}</p>
             </div>
             <div class="info-group">
-                <label>Tanggal Pembayaran:</label>
-                <p>${order.paidAt ? formatDate(order.paidAt) : "-"}</p>
+                <label>No. HP:</label>
+                <p>${order.customerPhone || order.userPhone || "-"}</p>
             </div>
         </div>
 
@@ -278,6 +311,8 @@ function generateReceiptHtml(
                 <span>${formatRupiah(order.total || 0)}</span>
             </div>
         </div>
+
+        ${paymentDetailsHtml}
 
         <div class="status ${order.status}">
             ${order.status === "paid" ? "✓ Pembayaran Berhasil" : "Menunggu Pembayaran"}
