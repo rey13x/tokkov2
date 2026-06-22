@@ -218,6 +218,7 @@ function AdminManagementSection() {
     restrictedViewerIds: [],
   });
   const [storyCommentSectionLoadTime, setStoryCommentSectionLoadTime] = useState<number>(0);
+  const [selectedAITestimonialId, setSelectedAITestimonialId] = useState<string>("");
   const privacyEditorRef = useRef<HTMLDivElement | null>(null);
   const maxOrderCount = useMemo(
     () => Math.max(1, ...series.map((item) => item.totalOrders)),
@@ -1282,10 +1283,13 @@ function AdminManagementSection() {
   const onGenerateAIComments = async (testimonialId: string, count: number = 3) => {
     setIsGeneratingAIComments((prev) => ({ ...prev, [testimonialId]: true }));
     try {
-      const response = await fetch(`/api/testimonials/${testimonialId}/ai-comments`, {
+      const response = await fetch("/api/admin/ai-testimonial-comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ count, tone: "positive" }),
+        body: JSON.stringify({ 
+          testimonialId,
+          count,
+        }),
       });
 
       const data = (await response.json()) as any;
@@ -1293,8 +1297,14 @@ function AdminManagementSection() {
         throw new Error(data.message || "Gagal membuat komentar AI");
       }
 
-      setMessage(`${data.generatedCount} komentar AI berhasil dibuat!`);
-      await loadTestimonials();
+      setMessage(`${data.count} komentar AI berhasil dibuat!`);
+      // Reload comments for this testimonial
+      setLoadedTestimonialIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(testimonialId);
+        return newSet;
+      });
+      await loadTestimonialComments();
       bumpPreview();
     } catch (error) {
       console.error("Error generating AI comments:", error);
@@ -1308,10 +1318,14 @@ function AdminManagementSection() {
     const key = `${testimonialId}-${commentId}`;
     setIsGeneratingAIReplies((prev) => ({ ...prev, [key]: true }));
     try {
-      const response = await fetch(`/api/testimonials/${testimonialId}/ai-replies`, {
+      const response = await fetch("/api/admin/ai-testimonial-replies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ commentId, count }),
+        body: JSON.stringify({ 
+          testimonialId,
+          commentId, 
+          count 
+        }),
       });
 
       const data = (await response.json()) as any;
@@ -1319,13 +1333,14 @@ function AdminManagementSection() {
         throw new Error(data.message || "Gagal membuat balasan AI");
       }
 
-      setMessage(`${data.generatedCount} balasan AI berhasil dibuat!`);
+      setMessage(`${data.count} balasan AI berhasil dibuat!`);
       // Reload comments for this testimonial
       setLoadedTestimonialIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(testimonialId);
         return newSet;
       });
+      await loadTestimonialComments();
     } catch (error) {
       console.error("Error generating AI replies:", error);
       setError(error instanceof Error ? error.message : "Gagal membuat balasan AI");
@@ -2746,6 +2761,75 @@ function AdminManagementSection() {
             <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
               {Object.values(testimonialComments).reduce((sum, comments) => sum + comments.length, 0)} komentar total
             </p>
+
+            {/* AI Comment Generation Section */}
+            <div style={{ marginBottom: "20px", padding: "12px", background: "#f5f5f5", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+                <select
+                  value={selectedAITestimonialId}
+                  onChange={(e) => setSelectedAITestimonialId(e.target.value)}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #ddd",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  <option value="">Pilih Testimoni untuk AI</option>
+                  {Object.keys(testimonialComments).map((id) => (
+                    <option key={id} value={id}>
+                      Testimoni {id} ({testimonialComments[id]?.length || 0} komentar)
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  defaultValue={5}
+                  onChange={(e) =>
+                    setAiCommentCount((prev) => ({
+                      ...prev,
+                      _input: Math.max(1, Math.min(50, parseInt(e.target.value) || 5)),
+                    }))
+                  }
+                  style={{
+                    width: "60px",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #ddd",
+                    fontSize: "0.9rem",
+                  }}
+                  title="Jumlah komentar AI (1-50)"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (selectedAITestimonialId) {
+                      const count = aiCommentCount._input || 5;
+                      await onGenerateAIComments(selectedAITestimonialId, count);
+                    }
+                  }}
+                  disabled={!selectedAITestimonialId || isGeneratingAIComments[selectedAITestimonialId]}
+                  style={{
+                    background: "#04B851",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "8px 16px",
+                    fontSize: "0.9rem",
+                    cursor: !selectedAITestimonialId || isGeneratingAIComments[selectedAITestimonialId] ? "not-allowed" : "pointer",
+                    opacity: !selectedAITestimonialId || isGeneratingAIComments[selectedAITestimonialId] ? 0.6 : 1,
+                    fontWeight: "600",
+                  }}
+                >
+                  {isGeneratingAIComments[selectedAITestimonialId] ? "Generating..." : "🤖 Generate AI Comments"}
+                </button>
+              </div>
+              <p style={{ fontSize: "0.8rem", color: "#666", margin: "8px 0 0" }}>
+                Pilih testimoni lalu klik tombol di atas untuk generate komentar AI secara otomatis
+              </p>
+            </div>
             
             <div className={styles.list}>
               {Object.entries(testimonialComments).map(([testimonialId, comments]) => (
