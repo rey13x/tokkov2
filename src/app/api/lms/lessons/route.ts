@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
-import { v4 as uuidv4 } from "crypto";
+import { randomUUID } from "crypto";
 import type { LMSLesson } from "@/types/store";
 
 export async function POST(req: NextRequest) {
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       nextSortOrder = lessonsSnapshot.docs[0].data().sortOrder + 1;
     }
 
-    const lessonId = uuidv4();
+    const lessonId = randomUUID();
     const lesson: LMSLesson = {
       id: lessonId,
       chapterId,

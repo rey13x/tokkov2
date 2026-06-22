@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
-import { v4 as uuidv4 } from "crypto";
+import { randomUUID } from "crypto";
 import type { LMSChapter } from "@/types/store";
 
 export async function POST(req: NextRequest) {
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       nextSortOrder = chaptersSnapshot.docs[0].data().sortOrder + 1;
     }
 
-    const chapterId = uuidv4();
+    const chapterId = randomUUID();
     const chapter: LMSChapter = {
       id: chapterId,
       productId,
