@@ -167,6 +167,12 @@ function AdminManagementSection() {
     const [isGeneratingAIReplies, setIsGeneratingAIReplies] = useState<Record<string, boolean>>({});
     const [aiCommentCount, setAiCommentCount] = useState<Record<string, number>>({});
     const [aiReplyCount, setAiReplyCount] = useState<Record<string, number>>({});
+    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+    const [editCommentForm, setEditCommentForm] = useState<{ userName: string; text: string }>({ userName: "", text: "" });
+    const [isUpdatingComment, setIsUpdatingComment] = useState<Record<string, boolean>>({});
+    const [isTogglingVerifiedBadge, setIsTogglingVerifiedBadge] = useState<Record<string, boolean>>({});
+    const [replyModalOpen, setReplyModalOpen] = useState<string | null>(null);
+    const [replyForm, setReplyForm] = useState<{ text: string }>({ text: "" });
     const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
     const [orders, setOrders] = useState<OrderSummary[]>([]);
     const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, string>>({});
@@ -761,6 +767,138 @@ function AdminManagementSection() {
       setError(err instanceof Error ? err.message : "Gagal hapus komentar");
     } finally {
       setIsDeletingComment((prev) => ({ ...prev, [commentId]: false }));
+    }
+  };
+
+  const onToggleVerifiedBadge = async (commentId: string, testimonialId: string, currentVerified: boolean) => {
+    setIsTogglingVerifiedBadge((prev) => ({ ...prev, [commentId]: true }));
+    try {
+      const response = await fetch("/api/admin/testimonial-comments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commentId,
+          action: "update-verified",
+          verified: !currentVerified,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json()) as { message?: string };
+        setError(data.message || "Gagal update verified badge");
+        return;
+      }
+
+      // Update comment in state
+      setTestimonialComments((prev) => ({
+        ...prev,
+        [testimonialId]: (prev[testimonialId] || []).map((c) =>
+          c.id === commentId ? { ...c, verified: !currentVerified } : c
+        ),
+      }));
+
+      setMessage(`Badge verified ${!currentVerified ? "ditambahkan" : "dihapus"}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal update verified badge");
+    } finally {
+      setIsTogglingVerifiedBadge((prev) => ({ ...prev, [commentId]: false }));
+    }
+  };
+
+  const onEditTestimonialComment = async (commentId: string, testimonialId: string) => {
+    if (!editCommentForm.userName.trim() || !editCommentForm.text.trim()) {
+      setError("Nama penulis dan teks komentar harus diisi.");
+      return;
+    }
+
+    setIsUpdatingComment((prev) => ({ ...prev, [commentId]: true }));
+    try {
+      // Update author
+      const authorResponse = await fetch("/api/admin/testimonial-comments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commentId,
+          action: "update-author",
+          userName: editCommentForm.userName,
+        }),
+      });
+
+      if (!authorResponse.ok) {
+        throw new Error("Gagal update nama penulis");
+      }
+
+      // Update text
+      const textResponse = await fetch("/api/admin/testimonial-comments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commentId,
+          action: "update-text",
+          text: editCommentForm.text,
+        }),
+      });
+
+      if (!textResponse.ok) {
+        throw new Error("Gagal update teks komentar");
+      }
+
+      // Update comment in state
+      setTestimonialComments((prev) => ({
+        ...prev,
+        [testimonialId]: (prev[testimonialId] || []).map((c) =>
+          c.id === commentId ? { ...c, userName: editCommentForm.userName, text: editCommentForm.text } : c
+        ),
+      }));
+
+      setEditingCommentId(null);
+      setEditCommentForm({ userName: "", text: "" });
+      setMessage("Komentar berhasil diubah.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal ubah komentar");
+    } finally {
+      setIsUpdatingComment((prev) => ({ ...prev, [commentId]: false }));
+    }
+  };
+
+  const onAddManualReply = async (testimonialId: string, parentCommentId: string, parentCommentAuthor: string) => {
+    if (!replyForm.text.trim()) {
+      setError("Teks reply harus diisi.");
+      return;
+    }
+
+    setIsUpdatingComment((prev) => ({ ...prev, [parentCommentId]: true }));
+    try {
+      const response = await fetch("/api/testimonials/" + testimonialId + "/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: replyForm.text,
+          rating: 0,
+          replyToId: parentCommentId,
+          replyToName: parentCommentAuthor,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal tambah reply");
+      }
+
+      const data = (await response.json()) as { comment: StoreTestimonialComment };
+      
+      // Add reply to state
+      setTestimonialComments((prev) => ({
+        ...prev,
+        [testimonialId]: [...(prev[testimonialId] || []), data.comment],
+      }));
+
+      setReplyModalOpen(null);
+      setReplyForm({ text: "" });
+      setMessage("Reply berhasil ditambahkan.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal tambah reply");
+    } finally {
+      setIsUpdatingComment((prev) => ({ ...prev, [parentCommentId]: false }));
     }
   };
 
@@ -2898,6 +3036,63 @@ function AdminManagementSection() {
                             <button
                               type="button"
                               onClick={() => {
+                                setEditingCommentId(comment.id);
+                                setEditCommentForm({ userName: comment.userName, text: comment.text });
+                              }}
+                              style={{
+                                background: "#2196F3",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "6px 12px",
+                                fontSize: "0.85rem",
+                                cursor: "pointer",
+                              }}
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onToggleVerifiedBadge(comment.id, testimonialId, comment.verified || false)}
+                              disabled={isTogglingVerifiedBadge[comment.id]}
+                              style={{
+                                background: comment.verified ? "#FF9800" : "#9E9E9E",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "6px 12px",
+                                fontSize: "0.85rem",
+                                cursor: isTogglingVerifiedBadge[comment.id] ? "not-allowed" : "pointer",
+                                opacity: isTogglingVerifiedBadge[comment.id] ? 0.6 : 1,
+                              }}
+                            >
+                              {isTogglingVerifiedBadge[comment.id] ? (
+                                "Mengubah..."
+                              ) : (
+                                <span>{comment.verified ? "✓ Verified" : "☐ Non-Verified"}</span>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReplyModalOpen(comment.id);
+                                setReplyForm({ text: "" });
+                              }}
+                              style={{
+                                background: "#9C27B0",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "6px 12px",
+                                fontSize: "0.85rem",
+                                cursor: "pointer",
+                              }}
+                            >
+                              💬 Balas
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
                                 const count = aiReplyCount[`${testimonialId}-${comment.id}`] || 1;
                                 onGenerateAIReplies(testimonialId, comment.id, count);
                               }}
@@ -2936,6 +3131,148 @@ function AdminManagementSection() {
                               title="Jumlah balasan AI"
                             />
                           </div>
+
+                          {/* Edit Form Modal */}
+                          {editingCommentId === comment.id && (
+                            <div style={{ marginTop: "12px", padding: "12px", background: "#e3f2fd", borderRadius: "6px", border: "1px solid #90caf9" }}>
+                              <h4 style={{ margin: "0 0 8px", fontSize: "0.9rem", color: "#1976d2" }}>Edit Komentar</h4>
+                              <div style={{ marginBottom: "8px" }}>
+                                <label style={{ display: "block", fontSize: "0.8rem", color: "#666", marginBottom: "4px" }}>Nama Penulis</label>
+                                <input
+                                  type="text"
+                                  value={editCommentForm.userName}
+                                  onChange={(e) => setEditCommentForm((prev) => ({ ...prev, userName: e.target.value }))}
+                                  style={{
+                                    width: "100%",
+                                    padding: "8px",
+                                    borderRadius: "4px",
+                                    border: "1px solid #ccc",
+                                    fontSize: "0.85rem",
+                                    boxSizing: "border-box",
+                                  }}
+                                  placeholder="Nama penulis..."
+                                />
+                              </div>
+                              <div style={{ marginBottom: "8px" }}>
+                                <label style={{ display: "block", fontSize: "0.8rem", color: "#666", marginBottom: "4px" }}>Teks Komentar</label>
+                                <textarea
+                                  value={editCommentForm.text}
+                                  onChange={(e) => setEditCommentForm((prev) => ({ ...prev, text: e.target.value }))}
+                                  style={{
+                                    width: "100%",
+                                    padding: "8px",
+                                    borderRadius: "4px",
+                                    border: "1px solid #ccc",
+                                    fontSize: "0.85rem",
+                                    minHeight: "80px",
+                                    fontFamily: "inherit",
+                                    boxSizing: "border-box",
+                                  }}
+                                  placeholder="Teks komentar..."
+                                />
+                              </div>
+                              <div style={{ display: "flex", gap: "8px" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => onEditTestimonialComment(comment.id, testimonialId)}
+                                  disabled={isUpdatingComment[comment.id]}
+                                  style={{
+                                    background: "#1976d2",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    padding: "6px 12px",
+                                    fontSize: "0.85rem",
+                                    cursor: isUpdatingComment[comment.id] ? "not-allowed" : "pointer",
+                                    opacity: isUpdatingComment[comment.id] ? 0.6 : 1,
+                                  }}
+                                >
+                                  {isUpdatingComment[comment.id] ? "Simpan..." : "Simpan"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingCommentId(null);
+                                    setEditCommentForm({ userName: "", text: "" });
+                                  }}
+                                  style={{
+                                    background: "#999",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    padding: "6px 12px",
+                                    fontSize: "0.85rem",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Reply Modal */}
+                          {replyModalOpen === comment.id && (
+                            <div style={{ marginTop: "12px", padding: "12px", background: "#f3e5f5", borderRadius: "6px", border: "1px solid #ce93d8" }}>
+                              <h4 style={{ margin: "0 0 8px", fontSize: "0.9rem", color: "#7b1fa2" }}>Balas Komentar</h4>
+                              <p style={{ margin: "0 0 8px", fontSize: "0.8rem", color: "#666" }}>Balas ke: <strong>@{comment.userName}</strong></p>
+                              <div style={{ marginBottom: "8px" }}>
+                                <label style={{ display: "block", fontSize: "0.8rem", color: "#666", marginBottom: "4px" }}>Teks Reply</label>
+                                <textarea
+                                  value={replyForm.text}
+                                  onChange={(e) => setReplyForm({ text: e.target.value })}
+                                  style={{
+                                    width: "100%",
+                                    padding: "8px",
+                                    borderRadius: "4px",
+                                    border: "1px solid #ccc",
+                                    fontSize: "0.85rem",
+                                    minHeight: "80px",
+                                    fontFamily: "inherit",
+                                    boxSizing: "border-box",
+                                  }}
+                                  placeholder="Tulis reply..."
+                                />
+                              </div>
+                              <div style={{ display: "flex", gap: "8px" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => onAddManualReply(testimonialId, comment.id, comment.userName)}
+                                  disabled={isUpdatingComment[comment.id]}
+                                  style={{
+                                    background: "#7b1fa2",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    padding: "6px 12px",
+                                    fontSize: "0.85rem",
+                                    cursor: isUpdatingComment[comment.id] ? "not-allowed" : "pointer",
+                                    opacity: isUpdatingComment[comment.id] ? 0.6 : 1,
+                                  }}
+                                >
+                                  {isUpdatingComment[comment.id] ? "Kirim..." : "Kirim"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReplyModalOpen(null);
+                                    setReplyForm({ text: "" });
+                                  }}
+                                  style={{
+                                    background: "#999",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    padding: "6px 12px",
+                                    fontSize: "0.85rem",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </>

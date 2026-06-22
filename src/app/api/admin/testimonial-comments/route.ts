@@ -7,6 +7,7 @@ import {
   getTestimonialComments,
   updateTestimonialCommentAuthor,
   updateTestimonialCommentVerified,
+  updateTestimonialComment,
 } from "@/server/store-data";
 
 export async function GET() {
@@ -86,12 +87,13 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    const { commentId, action, userName, userAvatarUrl, verified } = z.object({
+    const { commentId, action, userName, userAvatarUrl, verified, text } = z.object({
       commentId: z.string(),
-      action: z.enum(["update-author", "update-verified"]),
+      action: z.enum(["update-author", "update-verified", "update-text"]),
       userName: z.string().optional(),
       userAvatarUrl: z.string().optional(),
       verified: z.boolean().optional(),
+      text: z.string().optional(),
     }).parse(body);
 
     if (action === "update-author") {
@@ -118,6 +120,19 @@ export async function PATCH(request: Request) {
       const comment = await updateTestimonialCommentVerified(commentId, verified);
       return NextResponse.json({
         message: "Status verified komentar berhasil diubah.",
+        comment,
+      });
+    } else if (action === "update-text") {
+      if (!text) {
+        return NextResponse.json(
+          { message: "Teks komentar harus diisi." },
+          { status: 400 },
+        );
+      }
+
+      const comment = await updateTestimonialComment(commentId, text);
+      return NextResponse.json({
+        message: "Teks komentar berhasil diubah.",
         comment,
       });
     }
