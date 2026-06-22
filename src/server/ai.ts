@@ -1,8 +1,21 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai: OpenAI | null = null;
+
+/**
+ * Get or create OpenAI client lazily
+ */
+function getOpenAIClient(): OpenAI | null {
+  if (!process.env.OPENAI_API_KEY) {
+    return null;
+  }
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 // Positive comment phrases for variety
 const COMMENT_TEMPLATES = [
@@ -70,7 +83,12 @@ ${testimonialContext.rating ? `Rating context: ${testimonialContext.rating} star
 Format: Return ONLY a JSON array of strings, nothing else.
 Example: ["comment 1", "comment 2", "comment 3"]`;
 
-    const response = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    if (!client) {
+      return generateTemplateComments(count);
+    }
+
+    const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
@@ -135,7 +153,12 @@ The replies should be from the service provider/seller perspective.
 Format: Return ONLY a JSON array of strings, nothing else.
 Example: ["reply 1", "reply 2"]`;
 
-    const response = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    if (!client) {
+      return generateTemplateReplies(count);
+    }
+
+    const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
