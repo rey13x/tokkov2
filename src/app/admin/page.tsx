@@ -59,7 +59,7 @@ const defaultProductForm = {
   duration: "",
   price: 0,
   imageUrl: "/assets/logo.png",
-  productType: "jual_beli" as "jual_beli" | "pekerjaan",
+  productType: "jual_beli" as "jual_beli" | "pekerjaan" | "lms",
   jobApplicationLink: "",
   buyNowLink: "",
   maxApplicants: 0,
@@ -903,6 +903,15 @@ function AdminManagementSection() {
         maxApplicants: typeof payload.maxApplicants === "string" ? 
           parseInt(payload.maxApplicants, 10) : 
           (payload.maxApplicants || 0),
+      };
+    }
+    // For LMS, remove job and buyNow related fields
+    if (productForm.productType === "lms") {
+      payload = {
+        ...payload,
+        jobApplicationLink: "",
+        buyNowLink: "",
+        maxApplicants: 0,
       };
     }
 
