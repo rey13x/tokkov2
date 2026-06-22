@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerAuthSession } from "@/server/auth";
 import { findUserById } from "@/server/db";
-import { addTestimonialComment, getTestimonials } from "@/server/store-data";
+import { addTestimonialComment, listTestimonials } from "@/server/store-data";
 
 const generateCommentsSchema = z.object({
   count: z.number().min(1).max(20).default(3),
@@ -44,7 +44,7 @@ export async function POST(request: Request, context: { params: Params }) {
     const { count, tone, topics } = generateCommentsSchema.parse(body);
 
     // Verify testimonial exists
-    const testimonials = await getTestimonials();
+    const testimonials = await listTestimonials();
     const testimonial = testimonials.find((t: any) => t.id === id);
 
     if (!testimonial) {
