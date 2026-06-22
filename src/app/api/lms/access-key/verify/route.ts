@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth/next";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
-import { v4 as uuidv4 } from "crypto";
 import type { UserCourseAccess } from "@/types/store";
 import { listProducts } from "@/server/db";
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create or update user course access record
-    const accessId = uuidv4();
+    const accessId = randomUUID();
     const courseAccess: UserCourseAccess = {
       id: accessId,
       userId: session.user.id || session.user.email,
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
           .get();
 
         if (existingProgress.empty) {
-          const progressId = uuidv4();
+          const progressId = randomUUID();
           await db.collection("userCourseProgress").doc(progressId).set({
             id: progressId,
             userId: session.user.id || session.user.email,
