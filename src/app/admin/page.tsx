@@ -182,6 +182,19 @@ function AdminManagementSection() {
       verified: false,
     });
     const [isAddingManualComment, setIsAddingManualComment] = useState(false);
+    const [selectedStoryId, setSelectedStoryId] = useState<string>("");
+    const [manualStoryCommentForm, setManualStoryCommentForm] = useState<{ storyId: string; userName: string; text: string; verified: boolean }>({
+      storyId: "",
+      userName: "",
+      text: "",
+      verified: false,
+    });
+    const [isAddingStoryComment, setIsAddingStoryComment] = useState(false);
+    const [isDeletingStoryComment, setIsDeletingStoryComment] = useState<Record<string, boolean>>({});
+    const [isTogglingStoryCommentVerified, setIsTogglingStoryCommentVerified] = useState<Record<string, boolean>>({});
+    const [editingStoryCommentId, setEditingStoryCommentId] = useState<string | null>(null);
+    const [editStoryCommentForm, setEditStoryCommentForm] = useState<{ userName: string; text: string }>({ userName: "", text: "" });
+    const [isUpdatingStoryComment, setIsUpdatingStoryComment] = useState<Record<string, boolean>>({});
     const [selectedSourceTestimonialId, setSelectedSourceTestimonialId] = useState<string>("");
     const [selectedCommentsToCopy, setSelectedCommentsToCopy] = useState<Set<string>>(new Set());
     const [targetTestimonialId, setTargetTestimonialId] = useState<string>("");
@@ -1016,6 +1029,135 @@ function AdminManagementSection() {
       setError(err instanceof Error ? err.message : "Gagal salin komentar");
     } finally {
       setIsAddingManualComment(false);
+    }
+  };
+
+  // Book Story Comments Handlers
+  const onAddStoryComment = async () => {
+    if (!manualStoryCommentForm.storyId.trim()) {
+      setError("Pilih cerita terlebih dahulu.");
+      return;
+    }
+    if (!manualStoryCommentForm.userName.trim()) {
+      setError("Nama penulis harus diisi.");
+      return;
+    }
+    if (!manualStoryCommentForm.text.trim()) {
+      setError("Teks komentar harus diisi.");
+      return;
+    }
+
+    setIsAddingStoryComment(true);
+    try {
+      const response = await fetch(`/api/book-stories/${manualStoryCommentForm.storyId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userName: manualStoryCommentForm.userName,
+          text: manualStoryCommentForm.text,
+          verified: manualStoryCommentForm.verified,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal tambah komentar");
+      }
+
+      // Refresh approved stories to update comments
+      await loadApprovedBookStories();
+      setManualStoryCommentForm({ storyId: "", userName: "", text: "", verified: false });
+      setMessage("Komentar berhasil ditambahkan.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal tambah komentar");
+    } finally {
+      setIsAddingStoryComment(false);
+    }
+  };
+
+  const onDeleteStoryComment = async (storyId: string, commentId: string) => {
+    if (!window.confirm("Yakin hapus komentar ini?")) {
+      return;
+    }
+
+    setIsDeletingStoryComment((prev) => ({ ...prev, [commentId]: true }));
+    try {
+      const response = await fetch(`/api/book-stories/${storyId}/comments`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal hapus komentar");
+      }
+
+      // Refresh approved stories
+      await loadApprovedBookStories();
+      setMessage("Komentar berhasil dihapus.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal hapus komentar");
+    } finally {
+      setIsDeletingStoryComment((prev) => ({ ...prev, [commentId]: false }));
+    }
+  };
+
+  const onToggleStoryCommentVerified = async (storyId: string, commentId: string, currentVerified: boolean) => {
+    setIsTogglingStoryCommentVerified((prev) => ({ ...prev, [commentId]: true }));
+    try {
+      const response = await fetch(`/api/book-stories/${storyId}/comments`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commentId,
+          verified: !currentVerified,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal update verified badge");
+      }
+
+      // Refresh approved stories
+      await loadApprovedBookStories();
+      setMessage(`Badge verified ${!currentVerified ? "ditambahkan" : "dihapus"}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal update verified badge");
+    } finally {
+      setIsTogglingStoryCommentVerified((prev) => ({ ...prev, [commentId]: false }));
+    }
+  };
+
+  const onEditStoryComment = async (storyId: string, commentId: string) => {
+    if (!editStoryCommentForm.userName.trim() || !editStoryCommentForm.text.trim()) {
+      setError("Nama penulis dan teks komentar harus diisi.");
+      return;
+    }
+
+    setIsUpdatingStoryComment((prev) => ({ ...prev, [commentId]: true }));
+    try {
+      const response = await fetch(`/api/book-stories/${storyId}/comments`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commentId,
+          userName: editStoryCommentForm.userName,
+          text: editStoryCommentForm.text,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal update komentar");
+      }
+
+      // Refresh approved stories
+      await loadApprovedBookStories();
+      setEditingStoryCommentId(null);
+      setEditStoryCommentForm({ userName: "", text: "" });
+      setMessage("Komentar berhasil diubah.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal ubah komentar");
+    } finally {
+      setIsUpdatingStoryComment((prev) => ({ ...prev, [commentId]: false }));
     }
   };
 
@@ -3748,19 +3890,97 @@ function AdminManagementSection() {
           <div>
             <h3 style={{ fontSize: "1.1rem", marginBottom: "12px", marginTop: "24px" }}>Komentar Cerita (Book Stories)</h3>
             <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "16px" }}>
-              {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0)} komentar total dari halaman testimoni (cerita).
+              {approvedBookStories.reduce((sum, story) => sum + (story.comments?.length || 0), 0)} komentar total dari cerita.
             </p>
 
+            {/* Add Manual Comment to Story */}
+            <div style={{ marginBottom: "20px", padding: "12px", background: "#f5f5f5", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+              <h4 style={{ margin: "0 0 12px", fontSize: "0.95rem", color: "#333" }}>Tambah Komentar Manual ke Cerita</h4>
+              <div style={{ display: "flex", gap: "12px", flexDirection: "column" }}>
+                <select
+                  value={manualStoryCommentForm.storyId}
+                  onChange={(e) => setManualStoryCommentForm((prev) => ({ ...prev, storyId: e.target.value }))}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #ddd",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  <option value="">Pilih Cerita</option>
+                  {approvedBookStories.map((story) => (
+                    <option key={story.id} value={story.id}>
+                      {story.title} ({story.comments?.length || 0} komentar) - {story.userName}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  placeholder="Nama Penulis"
+                  value={manualStoryCommentForm.userName}
+                  onChange={(e) => setManualStoryCommentForm((prev) => ({ ...prev, userName: e.target.value }))}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #ddd",
+                    fontSize: "0.9rem",
+                  }}
+                />
+                <textarea
+                  placeholder="Teks Komentar"
+                  value={manualStoryCommentForm.text}
+                  onChange={(e) => setManualStoryCommentForm((prev) => ({ ...prev, text: e.target.value }))}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #ddd",
+                    fontSize: "0.9rem",
+                    minHeight: "80px",
+                    fontFamily: "inherit",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.9rem", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={manualStoryCommentForm.verified}
+                    onChange={(e) => setManualStoryCommentForm((prev) => ({ ...prev, verified: e.target.checked }))}
+                    style={{ cursor: "pointer" }}
+                  />
+                  Verified Badge
+                </label>
+                <button
+                  type="button"
+                  onClick={onAddStoryComment}
+                  disabled={isAddingStoryComment}
+                  style={{
+                    background: "#04B851",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "8px 16px",
+                    fontSize: "0.9rem",
+                    cursor: isAddingStoryComment ? "not-allowed" : "pointer",
+                    opacity: isAddingStoryComment ? 0.6 : 1,
+                    fontWeight: "600",
+                  }}
+                >
+                  {isAddingStoryComment ? "Menambah..." : "Tambah Komentar"}
+                </button>
+              </div>
+            </div>
+
+            {/* Story Comments List */}
             <div className={styles.list}>
               {approvedBookStories.map((story) =>
-                story.comments.length > 0 ? (
-                  <div key={story.id} style={{ marginBottom: "16px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
+                story.comments && story.comments.length > 0 ? (
+                  <div key={story.id} style={{ marginBottom: "24px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
                     <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
                       <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
-                        {story.userName} - {story.comments.length} komentar
+                        📖 {story.title} - {story.comments.length} komentar
                       </p>
                       <span style={{ fontSize: "0.85rem", color: "#666" }}>
-                        {story.userEmail} • {new Date(story.createdAt).toLocaleString("id-ID")}
+                        Oleh: {story.userName} ({story.userEmail}) • {new Date(story.createdAt).toLocaleString("id-ID")}
                       </span>
                     </div>
 
@@ -3768,14 +3988,13 @@ function AdminManagementSection() {
                       <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
                           <span style={{
-                            fontWeight: comment.verified || comment.userName === "Tokko Marketplace" ? 800 : 600,
+                            fontWeight: comment.verified ? 800 : 600,
                             color: "#333",
                             fontSize: "0.95rem",
                           }}>
                             {comment.userName}
                           </span>
-                          {(comment.verified || comment.userName === "Tokko Marketplace") && 
-                           new Date(comment.createdAt).getTime() < storyCommentSectionLoadTime && (
+                          {comment.verified && (
                             <div style={{ display: "inline-flex", alignItems: "center", width: "22px", height: "22px", overflow: "hidden" }}>
                               <VerifiedBadge />
                             </div>
@@ -3785,21 +4004,15 @@ function AdminManagementSection() {
                           {new Date(comment.createdAt).toLocaleString("id-ID")}
                         </span>
 
-                        {comment.replyToName && (
-                          <p style={{ margin: "6px 0 0", fontSize: "0.85rem", color: "#11151E", fontWeight: "500" }}>
-                            @{comment.replyToName}
-                          </p>
-                        )}
-
                         <p style={{ margin: "6px 0", fontSize: "0.9rem", color: "#444", wordBreak: "break-word" }}>
                           {comment.text}
                         </p>
 
-                        <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                        <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
                           <button
                             type="button"
-                            onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
-                            disabled={isDeletingComment[comment.id]}
+                            onClick={() => onDeleteStoryComment(story.id, comment.id)}
+                            disabled={isDeletingStoryComment[comment.id]}
                             style={{
                               background: "#f44336",
                               color: "white",
@@ -3807,20 +4020,136 @@ function AdminManagementSection() {
                               borderRadius: "4px",
                               padding: "6px 12px",
                               fontSize: "0.85rem",
-                              cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer",
-                              opacity: isDeletingComment[comment.id] ? 0.6 : 1,
+                              cursor: isDeletingStoryComment[comment.id] ? "not-allowed" : "pointer",
+                              opacity: isDeletingStoryComment[comment.id] ? 0.6 : 1,
                             }}
                           >
-                            {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
+                            {isDeletingStoryComment[comment.id] ? "Hapus..." : "Hapus"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingStoryCommentId(comment.id);
+                              setEditStoryCommentForm({ userName: comment.userName, text: comment.text });
+                            }}
+                            style={{
+                              background: "#2196F3",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              padding: "6px 12px",
+                              fontSize: "0.85rem",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onToggleStoryCommentVerified(story.id, comment.id, comment.verified || false)}
+                            disabled={isTogglingStoryCommentVerified[comment.id]}
+                            style={{
+                              background: comment.verified ? "#FF9800" : "#9E9E9E",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              padding: "6px 12px",
+                              fontSize: "0.85rem",
+                              cursor: isTogglingStoryCommentVerified[comment.id] ? "not-allowed" : "pointer",
+                              opacity: isTogglingStoryCommentVerified[comment.id] ? 0.6 : 1,
+                            }}
+                          >
+                            {isTogglingStoryCommentVerified[comment.id] ? (
+                              "Mengubah..."
+                            ) : (
+                              <span>{comment.verified ? "Verified" : "Non-Verified"}</span>
+                            )}
                           </button>
                         </div>
+
+                        {/* Edit Form Modal */}
+                        {editingStoryCommentId === comment.id && (
+                          <div style={{ marginTop: "12px", padding: "12px", background: "#e3f2fd", borderRadius: "6px", border: "1px solid #90caf9" }}>
+                            <h4 style={{ margin: "0 0 8px", fontSize: "0.9rem", color: "#1976d2" }}>Edit Komentar</h4>
+                            <div style={{ marginBottom: "8px" }}>
+                              <label style={{ display: "block", fontSize: "0.8rem", color: "#666", marginBottom: "4px" }}>Nama Penulis</label>
+                              <input
+                                type="text"
+                                value={editStoryCommentForm.userName}
+                                onChange={(e) => setEditStoryCommentForm((prev) => ({ ...prev, userName: e.target.value }))}
+                                style={{
+                                  width: "100%",
+                                  padding: "8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #bbb",
+                                  fontSize: "0.85rem",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                            </div>
+                            <div style={{ marginBottom: "8px" }}>
+                              <label style={{ display: "block", fontSize: "0.8rem", color: "#666", marginBottom: "4px" }}>Teks Komentar</label>
+                              <textarea
+                                value={editStoryCommentForm.text}
+                                onChange={(e) => setEditStoryCommentForm((prev) => ({ ...prev, text: e.target.value }))}
+                                style={{
+                                  width: "100%",
+                                  padding: "8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #bbb",
+                                  fontSize: "0.85rem",
+                                  minHeight: "80px",
+                                  fontFamily: "inherit",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                            </div>
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              <button
+                                type="button"
+                                onClick={() => onEditStoryComment(story.id, comment.id)}
+                                disabled={isUpdatingStoryComment[comment.id]}
+                                style={{
+                                  background: "#1976d2",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "4px",
+                                  padding: "6px 12px",
+                                  fontSize: "0.85rem",
+                                  cursor: isUpdatingStoryComment[comment.id] ? "not-allowed" : "pointer",
+                                  opacity: isUpdatingStoryComment[comment.id] ? 0.6 : 1,
+                                }}
+                              >
+                                {isUpdatingStoryComment[comment.id] ? "Simpan..." : "Simpan"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingStoryCommentId(null);
+                                  setEditStoryCommentForm({ userName: "", text: "" });
+                                }}
+                                style={{
+                                  background: "#999",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "4px",
+                                  padding: "6px 12px",
+                                  fontSize: "0.85rem",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 ) : null
               )}
 
-              {approvedBookStories.reduce((sum, story) => sum + story.comments.length, 0) === 0 ? (
+              {approvedBookStories.reduce((sum, story) => sum + (story.comments?.length || 0), 0) === 0 ? (
                 <p style={{ color: "#999", textAlign: "center", padding: "24px" }}>Belum ada komentar cerita.</p>
               ) : null}
             </div>

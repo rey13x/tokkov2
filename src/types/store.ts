@@ -69,7 +69,7 @@ export type MaintenanceSettings = {
   isEnabled: boolean;
   message: string;
   accessKey: string;
-  maintenanceMode: \"instant\" | \"schedule\"; // instant = tutup sekarang, schedule = pakai jam
+  maintenanceMode: "instant" | "schedule"; // instant = tutup sekarang, schedule = pakai jam
   openTime: string; // HH:MM format, Jakarta timezone
   closeTime: string; // HH:MM format, Jakarta timezone
   maintenanceTitle?: string;

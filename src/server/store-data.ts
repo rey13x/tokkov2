@@ -2440,6 +2440,65 @@ export async function deleteBookStoryComment(storyId: string, commentId: string)
   }
 }
 
+export async function updateBookStoryComment(
+  storyId: string,
+  commentId: string,
+  text: string,
+  userName: string,
+) {
+  try {
+    await ensureDatabase();
+
+    const result = await run(
+      "SELECT comments FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error("Story not found");
+    }
+
+    let comments: BookStory["comments"] = [];
+    try {
+      const val = row.comments;
+      if (typeof val === "string") {
+        comments = JSON.parse(val);
+      } else if (Array.isArray(val)) {
+        comments = val as BookStory["comments"];
+      }
+    } catch {
+      comments = [];
+    }
+
+    const updatedComments = comments.map((comment) =>
+      comment.id === commentId
+        ? { ...comment, text, userName }
+        : comment
+    );
+
+    await run(
+      "UPDATE book_stories SET comments = ? WHERE id = ?",
+      [JSON.stringify(updatedComments), storyId],
+    );
+
+    const updatedResult = await run(
+      "SELECT * FROM book_stories WHERE id = ? LIMIT 1",
+      [storyId],
+    );
+
+    const updatedRow = updatedResult.rows?.[0] as Record<string, unknown> | undefined;
+    if (!updatedRow) {
+      throw new Error("Story not found");
+    }
+
+    return (await withBookStoryVerifiedFlags([mapBookStoryDoc(storyId, updatedRow)]))[0];
+  } catch (error) {
+    console.error("Failed to update book story comment:", error);
+    throw new Error("Gagal ubah komentar");
+  }
+}
+
 export async function updateBookStoryCommentAuthor(
   storyId: string,
   commentId: string,
