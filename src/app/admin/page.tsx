@@ -183,13 +183,10 @@ function AdminManagementSection() {
     });
     const [isAddingManualComment, setIsAddingManualComment] = useState(false);
     const [selectedStoryId, setSelectedStoryId] = useState<string>("");
-    const [manualStoryCommentForm, setManualStoryCommentForm] = useState<{ storyId: string; userName: string; text: string; verified: boolean }>({
-      storyId: "",
-      userName: "",
-      text: "",
-      verified: false,
-    });
-    const [isAddingStoryComment, setIsAddingStoryComment] = useState(false);
+    const [selectedSourceTestimonialForStory, setSelectedSourceTestimonialForStory] = useState<string>("");
+    const [selectedCommentsToCopyToStory, setSelectedCommentsToCopyToStory] = useState<Set<string>>(new Set());
+    const [targetStoryIdForCopy, setTargetStoryIdForCopy] = useState<string>("");
+    const [isCopyingCommentsToStory, setIsCopyingCommentsToStory] = useState(false);
     const [isDeletingStoryComment, setIsDeletingStoryComment] = useState<Record<string, boolean>>({});
     const [isTogglingStoryCommentVerified, setIsTogglingStoryCommentVerified] = useState<Record<string, boolean>>({});
     const [editingStoryCommentId, setEditingStoryCommentId] = useState<string | null>(null);
@@ -1033,47 +1030,6 @@ function AdminManagementSection() {
   };
 
   // Book Story Comments Handlers
-  const onAddStoryComment = async () => {
-    if (!manualStoryCommentForm.storyId.trim()) {
-      setError("Pilih cerita terlebih dahulu.");
-      return;
-    }
-    if (!manualStoryCommentForm.userName.trim()) {
-      setError("Nama penulis harus diisi.");
-      return;
-    }
-    if (!manualStoryCommentForm.text.trim()) {
-      setError("Teks komentar harus diisi.");
-      return;
-    }
-
-    setIsAddingStoryComment(true);
-    try {
-      const response = await fetch(`/api/book-stories/${manualStoryCommentForm.storyId}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userName: manualStoryCommentForm.userName,
-          text: manualStoryCommentForm.text,
-          verified: manualStoryCommentForm.verified,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Gagal tambah komentar");
-      }
-
-      // Refresh approved stories to update comments
-      await loadApprovedBookStories();
-      setManualStoryCommentForm({ storyId: "", userName: "", text: "", verified: false });
-      setMessage("Komentar berhasil ditambahkan.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal tambah komentar");
-    } finally {
-      setIsAddingStoryComment(false);
-    }
-  };
-
   const onDeleteStoryComment = async (storyId: string, commentId: string) => {
     if (!window.confirm("Yakin hapus komentar ini?")) {
       return;
@@ -1158,6 +1114,47 @@ function AdminManagementSection() {
       setError(err instanceof Error ? err.message : "Gagal ubah komentar");
     } finally {
       setIsUpdatingStoryComment((prev) => ({ ...prev, [commentId]: false }));
+    }
+  };
+
+  const onCopyCommentsToBookStory = async () => {
+    if (!selectedSourceTestimonialForStory || !targetStoryIdForCopy || selectedCommentsToCopyToStory.size === 0) {
+      setError("Pilih testimoni sumber, cerita target, dan minimal 1 komentar.");
+      return;
+    }
+
+    setIsCopyingCommentsToStory(true);
+    try {
+      const sourceComments = testimonialComments[selectedSourceTestimonialForStory] || [];
+      const selectedIds = Array.from(selectedCommentsToCopyToStory);
+      const commentsToAdd = sourceComments.filter((c) => selectedIds.includes(c.id));
+
+      for (const comment of commentsToAdd) {
+        const response = await fetch(`/api/book-stories/${targetStoryIdForCopy}/comments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: comment.text,
+            userName: comment.userName,
+            verified: comment.verified || false,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Gagal salin komentar");
+        }
+      }
+
+      // Refresh approved stories
+      await loadApprovedBookStories();
+      setMessage(`${commentsToAdd.length} komentar berhasil disalin ke cerita.`);
+      setSelectedCommentsToCopyToStory(new Set());
+      setSelectedSourceTestimonialForStory("");
+      setTargetStoryIdForCopy("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal salin komentar");
+    } finally {
+      setIsCopyingCommentsToStory(false);
     }
   };
 
@@ -3893,80 +3890,138 @@ function AdminManagementSection() {
               {approvedBookStories.reduce((sum, story) => sum + (story.comments?.length || 0), 0)} komentar total dari cerita.
             </p>
 
-            {/* Add Manual Comment to Story */}
-            <div style={{ marginBottom: "20px", padding: "12px", background: "#f5f5f5", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
-              <h4 style={{ margin: "0 0 12px", fontSize: "0.95rem", color: "#333" }}>Tambah Komentar Manual ke Cerita</h4>
+            {/* Copy Testimonial Comments to Book Story Section */}
+            <div style={{ marginBottom: "20px", padding: "12px", background: "#e8f5e9", borderRadius: "6px", border: "1px solid #c8e6c9" }}>
+              <h4 style={{ margin: "0 0 12px", fontSize: "0.95rem", color: "#333" }}>Salin Komentar Testimoni ke Cerita</h4>
               <div style={{ display: "flex", gap: "12px", flexDirection: "column" }}>
-                <select
-                  value={manualStoryCommentForm.storyId}
-                  onChange={(e) => setManualStoryCommentForm((prev) => ({ ...prev, storyId: e.target.value }))}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid #ddd",
-                    fontSize: "0.9rem",
-                  }}
-                >
-                  <option value="">Pilih Cerita</option>
-                  {approvedBookStories.map((story) => (
-                    <option key={story.id} value={story.id}>
-                      {story.title} ({story.comments?.length || 0} komentar) - {story.userName}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  placeholder="Nama Penulis"
-                  value={manualStoryCommentForm.userName}
-                  onChange={(e) => setManualStoryCommentForm((prev) => ({ ...prev, userName: e.target.value }))}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid #ddd",
-                    fontSize: "0.9rem",
-                  }}
-                />
-                <textarea
-                  placeholder="Teks Komentar"
-                  value={manualStoryCommentForm.text}
-                  onChange={(e) => setManualStoryCommentForm((prev) => ({ ...prev, text: e.target.value }))}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid #ddd",
-                    fontSize: "0.9rem",
-                    minHeight: "80px",
-                    fontFamily: "inherit",
-                    boxSizing: "border-box",
-                  }}
-                />
-                <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.9rem", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={manualStoryCommentForm.verified}
-                    onChange={(e) => setManualStoryCommentForm((prev) => ({ ...prev, verified: e.target.checked }))}
-                    style={{ cursor: "pointer" }}
-                  />
-                  Verified Badge
-                </label>
-                <button
-                  type="button"
-                  onClick={onAddStoryComment}
-                  disabled={isAddingStoryComment}
-                  style={{
-                    background: "#04B851",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    padding: "8px 16px",
-                    fontSize: "0.9rem",
-                    cursor: isAddingStoryComment ? "not-allowed" : "pointer",
-                    opacity: isAddingStoryComment ? 0.6 : 1,
-                    fontWeight: "600",
-                  }}
-                >
-                  {isAddingStoryComment ? "Menambah..." : "Tambah Komentar"}
-                </button>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "#666", marginBottom: "4px" }}>Testimoni Sumber (pilih untuk lihat komentar)</label>
+                  <select
+                    value={selectedSourceTestimonialForStory}
+                    onChange={(e) => {
+                      setSelectedSourceTestimonialForStory(e.target.value);
+                      setSelectedCommentsToCopyToStory(new Set());
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #ddd",
+                      fontSize: "0.9rem",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <option value="">-- Pilih Testimoni Sumber --</option>
+                    {Object.keys(testimonialComments).map((id) => (
+                      <option key={id} value={id}>
+                        Testimoni {id} ({testimonialComments[id]?.length || 0} komentar)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Show comments from selected source testimonial */}
+                {selectedSourceTestimonialForStory && (
+                  <div style={{ maxHeight: "300px", overflowY: "auto", padding: "8px", background: "white", borderRadius: "4px", border: "1px solid #c8e6c9" }}>
+                    <p style={{ fontSize: "0.8rem", color: "#666", margin: "0 0 8px" }}>Pilih komentar untuk disalin:</p>
+                    {(testimonialComments[selectedSourceTestimonialForStory] || [])
+                      .filter((c) => !c.replyToId)
+                      .map((comment) => (
+                        <div key={comment.id} style={{ marginBottom: "8px", padding: "8px", background: "#f9f9f9", borderRadius: "4px", border: "1px solid #e0e0e0" }}>
+                          <label style={{ display: "flex", gap: "8px", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedCommentsToCopyToStory.has(comment.id)}
+                              onChange={(e) => {
+                                const newSelected = new Set(selectedCommentsToCopyToStory);
+                                if (e.target.checked) {
+                                  newSelected.add(comment.id);
+                                } else {
+                                  newSelected.delete(comment.id);
+                                }
+                                setSelectedCommentsToCopyToStory(newSelected);
+                              }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <p style={{ margin: "0 0 4px", fontSize: "0.85rem", fontWeight: "500" }}>
+                                {comment.userName} {comment.verified && <VerifiedBadge />}
+                              </p>
+                              <p style={{ margin: "0", fontSize: "0.8rem", color: "#666", wordBreak: "break-word" }}>
+                                {comment.text.substring(0, 100)}...
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+                      ))}
+                    {(testimonialComments[selectedSourceTestimonialForStory] || []).filter((c) => !c.replyToId).length === 0 && (
+                      <p style={{ fontSize: "0.8rem", color: "#999", margin: "8px 0" }}>Tidak ada komentar.</p>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "#666", marginBottom: "4px" }}>Cerita Target (tujuan penyalinan)</label>
+                  <select
+                    value={targetStoryIdForCopy}
+                    onChange={(e) => setTargetStoryIdForCopy(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #ddd",
+                      fontSize: "0.9rem",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <option value="">-- Pilih Cerita Target --</option>
+                    {approvedBookStories.map((story) => (
+                      <option key={story.id} value={story.id}>
+                        {story.title} - {story.userName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={onCopyCommentsToBookStory}
+                    disabled={isCopyingCommentsToStory || !selectedSourceTestimonialForStory || !targetStoryIdForCopy || selectedCommentsToCopyToStory.size === 0}
+                    style={{
+                      background: "#2196F3",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "8px 16px",
+                      fontSize: "0.9rem",
+                      cursor: isCopyingCommentsToStory || !selectedSourceTestimonialForStory || !targetStoryIdForCopy || selectedCommentsToCopyToStory.size === 0 ? "not-allowed" : "pointer",
+                      opacity: isCopyingCommentsToStory || !selectedSourceTestimonialForStory || !targetStoryIdForCopy || selectedCommentsToCopyToStory.size === 0 ? 0.6 : 1,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {isCopyingCommentsToStory ? "Menyalin..." : `Salin ${selectedCommentsToCopyToStory.size} Komentar ke Cerita`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSourceTestimonialForStory("");
+                      setTargetStoryIdForCopy("");
+                      setSelectedCommentsToCopyToStory(new Set());
+                    }}
+                    style={{
+                      background: "#999",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "8px 16px",
+                      fontSize: "0.9rem",
+                      cursor: "pointer",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Bersihkan
+                  </button>
+                </div>
               </div>
             </div>
 
