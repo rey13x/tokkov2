@@ -6,10 +6,9 @@ export type MaintenanceSettings = {
   isEnabled: boolean;
   message: string;
   accessKey: string;
-  openTime?: string; // HH:MM format, Jakarta timezone
-  closeTime?: string; // HH:MM format, Jakarta timezone
-  openDate?: string; // Deprecated - kept for backward compatibility
-  closeDate?: string; // Deprecated - kept for backward compatibility
+  maintenanceMode: "instant" | "schedule"; // instant = tutup sekarang, schedule = pakai jam
+  openTime: string; // HH:MM format, Jakarta timezone
+  closeTime: string; // HH:MM format, Jakarta timezone
   maintenanceTitle?: string;
   maintenanceSubtitle?: string;
   updatedAt: string;
@@ -29,6 +28,10 @@ function getJakartaTime(): Date {
 function isMaintenanceScheduleActive(settings: MaintenanceSettings): boolean {
   if (!settings.isEnabled) return false;
 
+  // If mode is instant, maintenance is active
+  if (settings.maintenanceMode === "instant") return true;
+
+  // For schedule mode, check if current time is within operating hours
   // If no schedule is set, maintenance is NOT active (website is open)
   if (!settings.openTime || !settings.closeTime) return false;
 

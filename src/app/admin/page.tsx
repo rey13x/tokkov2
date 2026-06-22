@@ -112,10 +112,11 @@ const defaultMaintenanceSettingsForm = {
   isEnabled: false,
   message: "Website sedang dalam pemeliharaan. Mohon coba lagi nanti.",
   accessKey: "",
-  openDate: "",
-  openTime: "",
-  closeDate: "",
-  closeTime: "",
+  maintenanceMode: "schedule" as "instant" | "schedule", // instant = langsung tutup, schedule = pakai jam
+  openTime: "09:00", // Jakarta timezone (GMT+7)
+  closeTime: "18:00", // Jakarta timezone (GMT+7)
+  maintenanceTitle: "",
+  maintenanceSubtitle: "",
 };
 
 function formatRupiahInput(value: string) {
@@ -207,6 +208,7 @@ function AdminManagementSection() {
   const [privacyPolicyForm, setPrivacyPolicyForm] = useState(defaultPrivacyPolicyForm);
   const [paymentSettingsForm, setPaymentSettingsForm] = useState(defaultPaymentSettingsForm);
   const [maintenanceSettingsForm, setMaintenanceSettingsForm] = useState(defaultMaintenanceSettingsForm);
+  const [maintenanceInstantAction, setMaintenanceInstantAction] = useState<"close" | "open" | null>(null);
   const [previewVersion, setPreviewVersion] = useState(0);
   const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
   const [isUploadingInfoImage, setIsUploadingInfoImage] = useState(false);
@@ -691,10 +693,11 @@ function AdminManagementSection() {
       isEnabled: result.settings.isEnabled || false,
       message: result.settings.message || "",
       accessKey: result.settings.accessKey || "",
-      openDate: result.settings.openDate || "",
-      openTime: result.settings.openTime || "",
-      closeDate: result.settings.closeDate || "",
-      closeTime: result.settings.closeTime || "",
+      maintenanceMode: result.settings.maintenanceMode || "schedule",
+      openTime: result.settings.openTime || "09:00",
+      closeTime: result.settings.closeTime || "18:00",
+      maintenanceTitle: result.settings.maintenanceTitle || "",
+      maintenanceSubtitle: result.settings.maintenanceSubtitle || "",
     });
   };
 
@@ -1399,7 +1402,10 @@ function AdminManagementSection() {
       const response = await fetch("/api/admin/maintenance-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(maintenanceSettingsForm),
+        body: JSON.stringify({
+          ...maintenanceSettingsForm,
+          instantAction: maintenanceInstantAction, // Send instant action if any
+        }),
       });
       const result = (await response.json()) as { message?: string; settings?: any };
       if (!response.ok) {
@@ -1407,6 +1413,7 @@ function AdminManagementSection() {
         return;
       }
       setMessage("Pengaturan pemeliharaan berhasil disimpan.");
+      setMaintenanceInstantAction(null);
       await loadMaintenanceSettings().catch(() => {});
       bumpPreview();
     } catch {
@@ -2281,6 +2288,7 @@ function AdminManagementSection() {
         <article className={styles.card}>
           <h2>Pengaturan Pemeliharaan Website</h2>
           <form className={styles.form} onSubmit={onSaveMaintenanceSettings}>
+            {/* Main toggle */}
             <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <input
                 type="checkbox"
@@ -2292,8 +2300,40 @@ function AdminManagementSection() {
                   }))
                 }
               />
-              <span>Aktifkan Mode Pemeliharaan (Website Tertutup)</span>
+              <span>🔒 Aktifkan Mode Pemeliharaan</span>
             </label>
+
+            {/* Mode selection */}
+            <div style={{ marginTop: "12px", padding: "12px", backgroundColor: "#f9f9f9", borderRadius: "6px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                <input
+                  type="radio"
+                  checked={maintenanceSettingsForm.maintenanceMode === "instant"}
+                  onChange={() =>
+                    setMaintenanceSettingsForm((current) => ({
+                      ...current,
+                      maintenanceMode: "instant",
+                    }))
+                  }
+                />
+                <span>⚡ Tutup Sekarang (Langsung)</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  type="radio"
+                  checked={maintenanceSettingsForm.maintenanceMode === "schedule"}
+                  onChange={() =>
+                    setMaintenanceSettingsForm((current) => ({
+                      ...current,
+                      maintenanceMode: "schedule",
+                    }))
+                  }
+                />
+                <span>📅 Jadwal (Buka-Tutup per hari)</span>
+              </label>
+            </div>
+
+            {/* Message */}
             <textarea
               value={maintenanceSettingsForm.message}
               onChange={(event) =>
@@ -2303,8 +2343,34 @@ function AdminManagementSection() {
                 }))
               }
               placeholder="Pesan pemeliharaan yang akan ditampilkan ke user"
-              required
+              style={{ marginTop: "12px" }}
             />
+
+            {/* Title & Subtitle */}
+            <input
+              type="text"
+              value={maintenanceSettingsForm.maintenanceTitle || ""}
+              onChange={(event) =>
+                setMaintenanceSettingsForm((current) => ({
+                  ...current,
+                  maintenanceTitle: event.target.value,
+                }))
+              }
+              placeholder="Judul Pemeliharaan (opsional)"
+            />
+            <input
+              type="text"
+              value={maintenanceSettingsForm.maintenanceSubtitle || ""}
+              onChange={(event) =>
+                setMaintenanceSettingsForm((current) => ({
+                  ...current,
+                  maintenanceSubtitle: event.target.value,
+                }))
+              }
+              placeholder="Subtitle Pemeliharaan (opsional)"
+            />
+
+            {/* Access Key */}
             <input
               type="text"
               value={maintenanceSettingsForm.accessKey}
@@ -2317,87 +2383,87 @@ function AdminManagementSection() {
               placeholder="Kunci akses (kosongkan jika tidak dibutuhkan)"
             />
             <small style={{ color: "#666", marginTop: "-4px" }}>
-              Jika diisi, user perlu memasukkan kunci ini untuk mengakses website saat mode pemeliharaan aktif
+              Jika diisi, user perlu memasukkan kunci ini untuk mengakses website
             </small>
-            
-            <div style={{ marginTop: "16px", borderTop: "1px solid #e0e0e0", paddingTop: "16px" }}>
-              <h3 style={{ fontSize: "0.95rem", marginBottom: "12px", fontWeight: 600 }}>⏰ Jadwal Pemeliharaan (Opsional)</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
-                    Tanggal Ditutup
-                  </label>
-                  <input
-                    type="date"
-                    value={maintenanceSettingsForm.closeDate}
-                    onChange={(event) =>
-                      setMaintenanceSettingsForm((current) => ({
-                        ...current,
-                        closeDate: event.target.value,
-                      }))
-                    }
-                    placeholder="YYYY-MM-DD"
-                  />
+
+            {/* Schedule section - only show if schedule mode is selected */}
+            {maintenanceSettingsForm.maintenanceMode === "schedule" && (
+              <div style={{ marginTop: "16px", borderTop: "1px solid #e0e0e0", paddingTop: "16px" }}>
+                <h3 style={{ fontSize: "0.95rem", marginBottom: "12px", fontWeight: 600 }}>📋 Jadwal Harian (Zona Jakarta/GMT+7)</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                      Jam Buka (Opening Time)
+                    </label>
+                    <input
+                      type="time"
+                      value={maintenanceSettingsForm.openTime}
+                      onChange={(event) =>
+                        setMaintenanceSettingsForm((current) => ({
+                          ...current,
+                          openTime: event.target.value,
+                        }))
+                      }
+                      placeholder="09:00"
+                    />
+                    <small style={{ fontSize: "0.75rem", color: "#999" }}>Contoh: 09:00</small>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                      Jam Tutup (Closing Time)
+                    </label>
+                    <input
+                      type="time"
+                      value={maintenanceSettingsForm.closeTime}
+                      onChange={(event) =>
+                        setMaintenanceSettingsForm((current) => ({
+                          ...current,
+                          closeTime: event.target.value,
+                        }))
+                      }
+                      placeholder="18:00"
+                    />
+                    <small style={{ fontSize: "0.75rem", color: "#999" }}>Contoh: 18:00</small>
+                  </div>
                 </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
-                    Jam Ditutup
-                  </label>
-                  <input
-                    type="time"
-                    value={maintenanceSettingsForm.closeTime}
-                    onChange={(event) =>
-                      setMaintenanceSettingsForm((current) => ({
-                        ...current,
-                        closeTime: event.target.value,
-                      }))
-                    }
-                    placeholder="HH:MM"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
-                    Tanggal Dibuka
-                  </label>
-                  <input
-                    type="date"
-                    value={maintenanceSettingsForm.openDate}
-                    onChange={(event) =>
-                      setMaintenanceSettingsForm((current) => ({
-                        ...current,
-                        openDate: event.target.value,
-                      }))
-                    }
-                    placeholder="YYYY-MM-DD"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
-                    Jam Dibuka
-                  </label>
-                  <input
-                    type="time"
-                    value={maintenanceSettingsForm.openTime}
-                    onChange={(event) =>
-                      setMaintenanceSettingsForm((current) => ({
-                        ...current,
-                        openTime: event.target.value,
-                      }))
-                    }
-                    placeholder="HH:MM"
-                  />
-                </div>
+                <small style={{ color: "#999", display: "block", marginTop: "8px" }}>
+                  Website akan otomatis tertutup di luar jam yang ditentukan. Gunakan format 24-jam.
+                </small>
               </div>
-              <small style={{ color: "#999", display: "block", marginTop: "8px" }}>
-                Atur tanggal & jam kapan website akan ditutup dan dibuka. Website akan otomatis tertutup saat jam tercapai.
-              </small>
-            </div>
+            )}
+
+            {/* Instant mode info */}
+            {maintenanceSettingsForm.maintenanceMode === "instant" && (
+              <div style={{ marginTop: "12px", padding: "12px", backgroundColor: "#fff3cd", borderRadius: "6px", borderLeft: "4px solid #ffc107" }}>
+                <small style={{ color: "#856404" }}>
+                  ⚠️ Mode langsung: Website akan segera tertutup. Matikan checkbox di atas untuk membuka kembali.
+                </small>
+              </div>
+            )}
 
             {error ? <p className={styles.errorText}>{error}</p> : null}
             {message ? <p className={styles.successText}>{message}</p> : null}
-            <button type="submit" disabled={isLoading}>
-              {isLoading ? "Menyimpan..." : "Simpan Pengaturan"}
-            </button>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "16px" }}>
+              <button type="submit" disabled={isLoading}>
+                {isLoading ? "Menyimpan..." : "💾 Simpan Pengaturan"}
+              </button>
+              {maintenanceSettingsForm.isEnabled && maintenanceSettingsForm.maintenanceMode === "instant" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMaintenanceSettingsForm((current) => ({
+                      ...current,
+                      isEnabled: false,
+                    }));
+                    setMaintenanceInstantAction(null);
+                  }}
+                  style={{ backgroundColor: "#28a745" }}
+                >
+                  🟢 Buka Website Sekarang
+                </button>
+              )}
+            </div>
           </form>
         </article>
         ) : null}

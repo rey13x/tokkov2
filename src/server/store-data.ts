@@ -1625,8 +1625,9 @@ function defaultMaintenanceSettings(): MaintenanceSettings {
     isEnabled: false,
     message: "Website sedang dalam pemeliharaan. Mohon coba lagi nanti.",
     accessKey: "",
-    openTime: "",
-    closeTime: "",
+    maintenanceMode: "schedule",
+    openTime: "09:00",
+    closeTime: "18:00",
     maintenanceTitle: "Website sedang dalam Pemeliharaan",
     maintenanceSubtitle: "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
     updatedAt: new Date(now()).toISOString(),
@@ -1672,6 +1673,7 @@ export async function upsertMaintenanceSettings(input: {
   isEnabled: boolean;
   message: string;
   accessKey: string;
+  maintenanceMode?: "instant" | "schedule";
   openTime?: string;
   closeTime?: string;
   maintenanceTitle?: string;
@@ -1682,8 +1684,9 @@ export async function upsertMaintenanceSettings(input: {
     isEnabled: input.isEnabled,
     message: input.message.trim() || "Website sedang dalam pemeliharaan. Mohon coba lagi nanti.",
     accessKey: input.accessKey.trim() || "",
-    openTime: input.openTime?.trim() || "",
-    closeTime: input.closeTime?.trim() || "",
+    maintenanceMode: input.maintenanceMode || "schedule",
+    openTime: input.openTime?.trim() || "09:00",
+    closeTime: input.closeTime?.trim() || "18:00",
     maintenanceTitle: input.maintenanceTitle?.trim() || "Website sedang dalam Pemeliharaan",
     maintenanceSubtitle: input.maintenanceSubtitle?.trim() || "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami",
     updatedAt: new Date(now()).toISOString(),

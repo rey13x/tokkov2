@@ -32,8 +32,9 @@ export async function PUT(request: Request) {
       isEnabled: Boolean(body.isEnabled),
       message: String(body.message || ""),
       accessKey: String(body.accessKey || ""),
-      openTime: String(body.openTime || ""),
-      closeTime: String(body.closeTime || ""),
+      maintenanceMode: (body.maintenanceMode === \"instant\" || body.maintenanceMode === \"schedule\") ? body.maintenanceMode : \"schedule\",
+      openTime: String(body.openTime || \"09:00\"),
+      closeTime: String(body.closeTime || \"18:00\"),
       maintenanceTitle: String(body.maintenanceTitle || "Website sedang dalam Pemeliharaan"),
       maintenanceSubtitle: String(body.maintenanceSubtitle || "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami"),
     });
