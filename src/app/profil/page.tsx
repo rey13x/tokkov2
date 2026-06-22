@@ -104,46 +104,48 @@ export default function ProfilePage() {
       const result = (await response.json()) as { message?: string; avatarUrl?: string };
       if (!response.ok || !result.avatarUrl) {
         setError(result.message ?? "Gagal upload foto profil.");
+        setIsUploadingAvatar(false);
+        event.target.value = "";
         return;
       }
 
-      setAvatarUrl(result.avatarUrl);
-      setMessage(result.message ?? "Foto profil berhasil diperbarui.");
+      // Store in localStorage
       try {
         window.localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, result.avatarUrl);
       } catch {}
       
-      // Update session with new avatar (wait for it to complete)
+      // Update state with new avatar
+      setAvatarUrl(result.avatarUrl);
+      
+      // Update session with explicit error handling
       try {
-        const updateResult = await update({ avatarUrl: result.avatarUrl, image: result.avatarUrl });
-        if (updateResult) {
-          // Session updated successfully
-          console.log("Session updated with new avatar:", updateResult);
-        }
-      } catch (updateError) {
-        console.error("Failed to update session:", updateError);
+        await update({ avatarUrl: result.avatarUrl, image: result.avatarUrl });
+      } catch (updateErr) {
+        console.error("Session update failed:", updateErr);
+        // Continue anyway as the avatar was saved to database
       }
       
-      // Fetch fresh user data to ensure consistency (with no-cache)
+      // Fetch fresh user data to ensure everything is synced
       try {
         const freshResponse = await fetch("/api/me", { 
           cache: "no-store",
           headers: { "pragma": "no-cache", "cache-control": "no-cache" }
         });
         if (freshResponse.ok) {
-          const freshData = (await freshResponse.json()) as { avatarUrl?: string; username?: string };
+          const freshData = (await freshResponse.json()) as { avatarUrl?: string };
           if (freshData.avatarUrl) {
             setAvatarUrl(freshData.avatarUrl);
           }
-          if (freshData.username) {
-            setName(freshData.username);
-          }
         }
-      } catch (freshError) {
-        console.error("Failed to fetch fresh user data:", freshError);
+      } catch (fetchErr) {
+        console.error("Failed to fetch fresh avatar data:", fetchErr);
       }
-    } catch {
-      setError("Gagal upload foto profil.");
+      
+      // Only show success message after everything is done
+      setMessage("Foto profil berhasil diperbarui.");
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Gagal upload foto profil.";
+      setError(errorMsg);
     } finally {
       setIsUploadingAvatar(false);
       event.target.value = "";

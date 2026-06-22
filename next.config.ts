@@ -4,9 +4,6 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Disable React Compiler untuk dev yang lebih cepat
   reactCompiler: false,
-  turbopack: {
-    root: process.cwd(),
-  },
   experimental: {
     // Enable faster full page generation
     optimizePackageImports: ["react", "react-dom"],

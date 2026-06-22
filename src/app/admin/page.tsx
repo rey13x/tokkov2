@@ -202,6 +202,9 @@ function AdminManagementSection() {
     const [latestOrders, setLatestOrders] = useState<Array<{ id: string; userName: string; total: number; createdAt: string }>>([]);
     const [users, setUsers] = useState<any[]>([]); // Replace any with user type if available
     const [session, setSession] = useState<any>(null); // Replace any with session type if available
+    const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
+    const [resetPasswordUserName, setResetPasswordUserName] = useState<string>("");
+    const [isResettingPassword, setIsResettingPassword] = useState(false);
     const [productEditId, setProductEditId] = useState<string | null>(null);
     const [priceInput, setPriceInput] = useState<string>("");
   const [adminEmails, setAdminEmails] = useState<Array<{ id: string; email: string; createdAt: number }>>([]);
@@ -1189,6 +1192,39 @@ function AdminManagementSection() {
       setError(err instanceof Error ? err.message : "Gagal menghapus user");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const onResetUserPassword = async () => {
+    if (!resetPasswordUserId) {
+      return;
+    }
+
+    if (!window.confirm(`Yakin ingin reset password user ${resetPasswordUserName}? User perlu set password baru saat login.`)) {
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      const response = await fetch("/api/admin/users/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: resetPasswordUserId }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal reset password");
+      }
+
+      const result = await response.json() as { message?: string };
+      setMessage(result.message ?? "Password berhasil direset.");
+      setResetPasswordUserId(null);
+      setResetPasswordUserName("");
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal reset password");
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -5000,6 +5036,18 @@ function AdminManagementSection() {
                         <td style={{ padding: "8px", textAlign: "center" }}>
                           <button
                             type="button"
+                            className={styles.secondaryButton}
+                            onClick={() => {
+                              setResetPasswordUserId(user.id);
+                              setResetPasswordUserName(user.username);
+                            }}
+                            disabled={isResettingPassword}
+                            style={{ fontSize: "12px", padding: "4px 8px", marginRight: "4px" }}
+                          >
+                            Reset Pass
+                          </button>
+                          <button
+                            type="button"
                             className={styles.deleteButton}
                             onClick={() => onDeleteUser(user.id)}
                             disabled={isLoading}
@@ -5015,6 +5063,66 @@ function AdminManagementSection() {
               )}
             </div>
           </article>
+        ) : null}
+
+        {resetPasswordUserId ? (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
+            }}
+            onClick={() => {
+              setResetPasswordUserId(null);
+              setResetPasswordUserName("");
+            }}
+          >
+            <article
+              className={styles.card}
+              style={{ maxWidth: "400px", width: "90%" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.cardHead}>
+                <h2>Reset Password</h2>
+              </div>
+              <div style={{ padding: "20px" }}>
+                <p style={{ marginBottom: "16px", color: "#666" }}>
+                  Yakin ingin mereset password user <strong>{resetPasswordUserName}</strong>?
+                </p>
+                <p style={{ marginBottom: "20px", fontSize: "14px", color: "#999" }}>
+                  User perlu set password baru saat login berikutnya.
+                </p>
+                <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => {
+                      setResetPasswordUserId(null);
+                      setResetPasswordUserName("");
+                    }}
+                    disabled={isResettingPassword}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    onClick={onResetUserPassword}
+                    disabled={isResettingPassword}
+                  >
+                    {isResettingPassword ? "Resetting..." : "Ya, Reset Password"}
+                  </button>
+                </div>
+              </div>
+            </article>
+          </div>
         ) : null}
 
         {activeSection === "preview" ? (
