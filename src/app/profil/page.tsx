@@ -9,6 +9,10 @@ import WaitLoading from "@/components/ui/WaitLoading";
 import styles from "./page.module.css";
 
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
+const MAX_AVATAR_SIZE_MB = 5;
+const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+const ALLOWED_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -112,6 +116,24 @@ export default function ProfilePage() {
 
     setError("");
     setMessage("");
+
+    // Validate file type FIRST (before checking size)
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setError(`Format file tidak didukung. Gunakan: PNG, JPG, GIF, atau WEBP.`);
+      event.target.value = "";
+      return;
+    }
+
+    // Validate file size
+    if (file.size > MAX_AVATAR_SIZE_BYTES) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      setError(
+        `Foto terlalu besar (${sizeMB}MB). Maksimal ${MAX_AVATAR_SIZE_MB}MB. Coba compress atau pilih foto lain.`
+      );
+      event.target.value = "";
+      return;
+    }
+
     setIsUploadingAvatar(true);
 
     try {
@@ -348,11 +370,11 @@ export default function ProfilePage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif"
+                  accept=".png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp"
                   onChange={onSelectAvatarFile}
                   className={styles.hiddenInput}
                 />
-                <small className={styles.avatarHint}>Support PNG, JPG, GIF (maks 5MB)</small>
+                <small className={styles.avatarHint}>PNG, JPG, GIF, WEBP · Maks 5MB</small>
               </>
             ) : (
               <small className={styles.avatarHint}>Mode database-only: upload avatar dimatikan.</small>
