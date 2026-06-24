@@ -9,16 +9,21 @@ import WaitLoading from "@/components/ui/WaitLoading";
 import styles from "./page.module.css";
 
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
-const MAX_AVATAR_SIZE_MB = 2;
-const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
-const ALLOWED_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+
+// Pre-made profile photos from assets
+const PRESET_PROFILE_PHOTOS = [
+  { id: "profile1", url: "/assets/profile1.jpg", label: "Profile 1" },
+  { id: "profile2", url: "/assets/profile2.jpg", label: "Profile 2" },
+  { id: "profile3", url: "/assets/profile3.jpg", label: "Profile 3" },
+  { id: "profile4", url: "/assets/profile4.jpg", label: "Profile 4" },
+  { id: "profile5", url: "/assets/profile5.jpg", label: "Profile 5" },
+  { id: "profile6", url: "/assets/profile6.jpg", label: "Profile 6" },
+  { id: "profile7", url: "/assets/profile7.jpg", label: "Profile 7" },
+];
 
 export default function ProfilePage() {
   const router = useRouter();
   const { data: session, status, update } = useSession();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const isFileUploadEnabled = false;
   const canUseEmailOtp = process.env.NEXT_PUBLIC_EMAIL_OTP_ENABLED === "true";
 
   const [name, setName] = useState("");
@@ -36,54 +41,12 @@ export default function ProfilePage() {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedProfileImage, setSelectedProfileImage] = useState("");
-  const [profilePhotos, setProfilePhotos] = useState<Array<{ id: string; url: string; createdAt: string }>>([]);
-  const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/auth?redirect=/profil");
     }
   }, [router, status]);
-
-  // Fetch profile photos from admin
-  useEffect(() => {
-    const fetchProfilePhotos = async () => {
-      try {
-        setIsLoadingPhotos(true);
-        const response = await fetch("/api/admin/profile-photos");
-        if (response.ok) {
-          const data = await response.json();
-          setProfilePhotos(data.photos || []);
-        }
-      } catch (err) {
-        console.error("Failed to fetch profile photos:", err);
-      } finally {
-        setIsLoadingPhotos(false);
-      }
-    };
-
-    fetchProfilePhotos();
-  }, []);
-
-  // Auto-dismiss error after 5 seconds
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => {
-        setError("");
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
-
-  // Auto-dismiss success message after 3 seconds
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => {
-        setMessage("");
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -132,91 +95,25 @@ export default function ProfilePage() {
     }
   }, [session?.user?.image, avatarUrl]);
 
-  const onSelectAvatarFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError("");
+      }, 5000);
+      return () => clearTimeout(timer);
     }
+  }, [error]);
 
-    setError("");
-    setMessage("");
-
-    // Validate file type FIRST (before checking size)
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setError(`Format file tidak didukung. Gunakan: PNG, JPG, GIF, atau WEBP.`);
-      event.target.value = "";
-      return;
+  // Auto-dismiss success message after 3 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage("");
+      }, 3000);
+      return () => clearTimeout(timer);
     }
-
-    // Validate file size
-    if (file.size > MAX_AVATAR_SIZE_BYTES) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      setError(
-        `Foto terlalu besar (${sizeMB}MB). Maksimal ${MAX_AVATAR_SIZE_MB}MB. Coba compress atau pilih foto lain.`
-      );
-      event.target.value = "";
-      return;
-    }
-
-    setIsUploadingAvatar(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await fetch("/api/me/avatar", {
-        method: "POST",
-        body: formData,
-      });
-      const result = (await response.json()) as { message?: string; avatarUrl?: string };
-      if (!response.ok || !result.avatarUrl) {
-        setError(result.message ?? "Gagal upload foto profil.");
-        setIsUploadingAvatar(false);
-        event.target.value = "";
-        return;
-      }
-
-      // Store in localStorage
-      try {
-        window.localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, result.avatarUrl);
-      } catch {}
-      
-      // Update state with new avatar
-      setAvatarUrl(result.avatarUrl);
-      
-      // Update session with explicit error handling
-      try {
-        await update({ avatarUrl: result.avatarUrl, image: result.avatarUrl });
-      } catch (updateErr) {
-        console.error("Session update failed:", updateErr);
-        // Continue anyway as the avatar was saved to database
-      }
-      
-      // Fetch fresh user data to ensure everything is synced
-      try {
-        const freshResponse = await fetch("/api/me", { 
-          cache: "no-store",
-          headers: { "pragma": "no-cache", "cache-control": "no-cache" }
-        });
-        if (freshResponse.ok) {
-          const freshData = (await freshResponse.json()) as { avatarUrl?: string };
-          if (freshData.avatarUrl) {
-            setAvatarUrl(freshData.avatarUrl);
-          }
-        }
-      } catch (fetchErr) {
-        console.error("Failed to fetch fresh avatar data:", fetchErr);
-      }
-      
-      // Only show success message after everything is done
-      setMessage("Foto profil berhasil diperbarui.");
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Gagal upload foto profil.";
-      setError(errorMsg);
-    } finally {
-      setIsUploadingAvatar(false);
-      event.target.value = "";
-    }
-  };
+  }, [message]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -447,9 +344,9 @@ export default function ProfilePage() {
               type="button"
               className={styles.choosePhotoButton}
               onClick={() => setShowProfileModal(true)}
-              disabled={isUploadingAvatar || isLoadingPhotos}
+              disabled={isUploadingAvatar}
             >
-              Pilih Foto
+              Pilih foto Profil
             </button>
 
             {session?.user?.role === "admin" ? (
@@ -625,31 +522,25 @@ export default function ProfilePage() {
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>Pilih Foto Profil</h2>
             <div className={styles.profileImageGrid}>
-              {isLoadingPhotos ? (
-                <p className={styles.loadingText}>Memuat foto profil...</p>
-              ) : profilePhotos.length === 0 ? (
-                <p className={styles.emptyText}>Belum ada foto profil tersedia. Hubungi admin untuk menambahkan foto.</p>
-              ) : (
-                profilePhotos.map((photo) => (
-                  <button
-                    key={photo.id}
-                    type="button"
-                    className={`${styles.profileImageOption} ${
-                      selectedProfileImage === photo.url ? styles.profileImageSelected : ""
-                    }`}
-                    onClick={async () => {
-                      setSelectedProfileImage(photo.url);
-                      // Auto-save immediately when user clicks a photo
-                      await onConfirmProfileImage(photo.url);
-                    }}
-                    disabled={isUploadingAvatar}
-                    title={`Pilih foto ini`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photo.url} alt="Opsi foto profil" />
-                  </button>
-                ))
-              )}
+              {PRESET_PROFILE_PHOTOS.map((photo) => (
+                <button
+                  key={photo.id}
+                  type="button"
+                  className={`${styles.profileImageOption} ${
+                    selectedProfileImage === photo.url ? styles.profileImageSelected : ""
+                  }`}
+                  onClick={async () => {
+                    setSelectedProfileImage(photo.url);
+                    // Auto-save immediately when user clicks a photo
+                    await onConfirmProfileImage(photo.url);
+                  }}
+                  disabled={isUploadingAvatar}
+                  title={`Pilih ${photo.label}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photo.url} alt={photo.label} />
+                </button>
+              ))}
             </div>
             <div className={styles.modalButtons}>
               <button

@@ -378,6 +378,7 @@
 }
 
 .profileImageSelected img {
+  transform: scale(0.92);
   opacity: 0.9;
 }
 

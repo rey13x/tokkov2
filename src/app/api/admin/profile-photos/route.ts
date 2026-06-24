@@ -42,9 +42,28 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const formData = await request.formData();
-    const urlInput = formData.get("url");
-    const fileInput = formData.get("file");
+    let urlInput = "";
+    let fileInput: File | null = null;
+    const contentType = request.headers.get("content-type") || "";
+
+    // Handle both JSON and FormData content types
+    if (contentType.includes("application/json")) {
+      // Parse as JSON
+      const body = await request.json();
+      urlInput = body.url || "";
+    } else if (contentType.includes("multipart/form-data")) {
+      // Parse as FormData
+      const formData = await request.formData();
+      const urlField = formData.get("url");
+      const fileField = formData.get("file");
+      
+      if (typeof urlField === "string") {
+        urlInput = urlField;
+      }
+      if (fileField instanceof File) {
+        fileInput = fileField;
+      }
+    }
 
     let photoUrl = "";
 
