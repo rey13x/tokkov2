@@ -542,7 +542,7 @@ export default function HomeClient() {
           setActiveStoryIndex(index);
         }
       },
-      { root: container, threshold: [0.6, 0.8] },
+      { root: container, threshold: [0.65, 0.85] },
     );
 
     cards.forEach((card) => observer.observe(card));
@@ -1090,20 +1090,36 @@ export default function HomeClient() {
               />
             ))}
             <div className={styles.storyFeedNav}>
-              <button type="button" className={styles.storyFeedNavButton} onClick={() => {
-                const nextIndex = Math.max(0, activeStoryIndex - 1);
-                const container = storyFeedRef.current;
-                const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
-                target?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }} aria-label="Scroll ke atas">
+              <button
+                type="button"
+                className={styles.storyFeedNavButton}
+                onClick={() => {
+                  const nextIndex = Math.max(0, activeStoryIndex - 1);
+                  const container = storyFeedRef.current;
+                  const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
+                  if (target) {
+                    target.scrollIntoView({ behavior: "smooth", block: "start" });
+                    setActiveStoryIndex(nextIndex);
+                  }
+                }}
+                aria-label="Scroll ke atas"
+              >
                 <FiChevronUp />
               </button>
-              <button type="button" className={styles.storyFeedNavButton} onClick={() => {
-                const nextIndex = Math.min(storyReels.length - 1, activeStoryIndex + 1);
-                const container = storyFeedRef.current;
-                const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
-                target?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }} aria-label="Scroll ke bawah">
+              <button
+                type="button"
+                className={styles.storyFeedNavButton}
+                onClick={() => {
+                  const nextIndex = Math.min(storyReels.length - 1, activeStoryIndex + 1);
+                  const container = storyFeedRef.current;
+                  const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
+                  if (target) {
+                    target.scrollIntoView({ behavior: "smooth", block: "start" });
+                    setActiveStoryIndex(nextIndex);
+                  }
+                }}
+                aria-label="Scroll ke bawah"
+              >
                 <FiChevronDown />
               </button>
             </div>
