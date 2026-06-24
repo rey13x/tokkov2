@@ -1,0 +1,95 @@
+/**
+ * Premium Marquee Component
+ * Creates seamless infinite scroll with smooth animations
+ * Optimized for performance with GPU acceleration
+ * Supports hover pause, touch pause, and manual drag
+ */
+
+.marqueeContainer {
+  --marquee-gap: 16px;
+  width: 100%;
+  overflow: hidden;
+  touch-action: auto;
+}
+
+/**
+ * Viewport - clipping boundary for marquee
+ */
+.marqueeViewport {
+  overflow: hidden;
+  width: 100%;
+  /* Critical for smooth scrolling */
+  -webkit-overflow-scrolling: touch;
+}
+
+/**
+ * Track - contains all marquee items
+ * Uses GPU-accelerated transform
+ */
+.marqueeTrack {
+  display: flex;
+  align-items: center;
+  gap: var(--marquee-gap);
+  width: 100%;
+  /* GPU acceleration - essential for smooth 60fps animation */
+  will-change: transform;
+  /* Prevent layout shift during animation */
+  backface-visibility: hidden;
+  perspective: 1000px;
+  /* Smooth antialiasing */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/**
+ * Individual marquee items
+ */
+.marqueeSlide {
+  flex: 0 0 auto;
+  min-width: 0;
+  /* Prevent text selection during animation */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  /* GPU acceleration for each item */
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+}
+
+/**
+ * Mobile optimizations
+ */
+@media (max-width: 768px) {
+  .marqueeContainer {
+    /* Ensure smooth scrolling on mobile */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Reduce motion on low-end devices if needed */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .marqueeViewport {
+    /* Touch scrolling optimization */
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  .marqueeTrack {
+    /* Optimize for lower-end mobile devices */
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/**
+ * Respect user's motion preferences
+ */
+@media (prefers-reduced-motion: reduce) {
+  .marqueeTrack {
+    animation: none;
+    opacity: 1;
+  }
+
+  .marqueeSlide {
+    transform: none;
+  }
+}

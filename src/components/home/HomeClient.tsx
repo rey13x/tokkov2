@@ -19,7 +19,7 @@ import {
 import bagasPhoto from "@/app/assets/Bagas.jpg";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import ProductCard from "@/components/home/ProductCard";
-import SeamlessMarquee from "@/components/home/SeamlessMarquee";
+import PremiumMarquee from "@/components/home/PremiumMarquee";
 import { formatRupiah } from "@/data/products";
 import { HERO_BACKGROUND_URLS, CAROUSEL_PHOTOS_ONLY, ANIMATION_DURATION_MS, getPhotoDuration } from "@/data/hero-backgrounds";
 import { getCartCount } from "@/lib/cart";
@@ -829,9 +829,9 @@ export default function HomeClient() {
           <h2>Informasi</h2>
         </div>
         {shouldAutoSlideInformations ? (
-          <SeamlessMarquee<HomeInformation>
+          <PremiumMarquee<HomeInformation>
             items={informations}
-            speed={32}
+            speed={18}
             gap={12}
             className={styles.infoCarousel}
             itemClassName={styles.infoCard}
@@ -868,12 +868,14 @@ export default function HomeClient() {
           <h2>Bekerja sama dengan</h2>
         </div>
         {testimonials.length > 0 ? (
-          <SeamlessMarquee<HomeTestimonial>
+          <PremiumMarquee<HomeTestimonial>
             items={testimonials}
-            speed={35}
+            speed={12}
             gap={16}
             className={styles.partnerCarousel}
             itemClassName={styles.partnerCard}
+            pauseOnHover={true}
+            pauseOnTouch={true}
             renderItem={(item) => (
               <>
                 <div className={styles.partnerTop}>
@@ -895,9 +897,9 @@ export default function HomeClient() {
         ) : null}
 
         {activeMarquees.length > 0 ? (
-          <SeamlessMarquee<HomeMarquee>
+          <PremiumMarquee<HomeMarquee>
             items={activeMarquees}
-            speed={40}
+            speed={20}
             gap={22}
             className={styles.logoMarquee}
             itemClassName={styles.logoGlyph}
