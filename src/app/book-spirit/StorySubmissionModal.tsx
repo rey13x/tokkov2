@@ -16,7 +16,8 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<string[]>([]); // Now stores URLs, not base64
+  const [uploadingPhotoCount, setUploadingPhotoCount] = useState(0);
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
   const [rating, setRating] = useState(0); // 0-5, 0 means disabled
   const [linkedProducts, setLinkedProducts] = useState<Array<{id: string; name: string}>>([]);
@@ -79,19 +80,59 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
     const files = e.currentTarget.files;
     if (!files) return;
 
-    for (const file of Array.from(files)) {
+    const filesToUpload = Array.from(files);
+    
+    // Validate before uploading
+    for (const file of filesToUpload) {
+      // Check file type
       if (!file.type.startsWith("image/")) {
-        setMessage("Hanya file gambar yang diperbolehkan");
+        setMessage("Hanya file gambar (PNG, JPG, GIF, WEBP) yang diperbolehkan");
         continue;
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string;
-        setPhotos((prev) => [...prev, base64]);
-      };
-      reader.readAsDataURL(file);
+      // Check file size: max 2MB per image
+      const maxSize = 2 * 1024 * 1024;
+      if (file.size > maxSize) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        setMessage(
+          `Foto "${file.name}" terlalu besar (${sizeMB}MB). Maksimal 2MB per foto.`
+        );
+        continue;
+      }
+
+      // Upload to server
+      try {
+        setUploadingPhotoCount((prev) => prev + 1);
+        
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/story-media/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = (await response.json()) as {
+          url?: string;
+          message?: string;
+        };
+
+        if (!response.ok || !data.url) {
+          setMessage(data.message || "Gagal upload foto");
+        } else {
+          // Add URL to photos list (ensure it's a string)
+          setPhotos((prev) => [...prev, data.url!]);
+        }
+      } catch (error) {
+        console.error("Error uploading photo:", error);
+        setMessage("Gagal upload foto. Coba lagi nanti.");
+      } finally {
+        setUploadingPhotoCount((prev) => prev - 1);
+      }
     }
+
+    // Reset input
+    e.currentTarget.value = "";
   };
 
   const removePhoto = (index: number) => {
@@ -162,6 +203,12 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
       return;
     }
 
+    // Wait for any pending uploads to complete
+    if (uploadingPhotoCount > 0) {
+      setMessage("Tunggu sebentar, foto masih sedang diunggah...");
+      return;
+    }
+
     setIsSubmitting(true);
     setMessage("");
     setSuccess(false);
@@ -172,7 +219,7 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           story: cleanHTML,
-          photos,
+          photos, // Now contains URLs, not base64
           rating: rating > 0 ? rating : undefined,
           linkedProducts: linkedProducts.length > 0 ? linkedProducts : undefined,
         }),
@@ -300,9 +347,15 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingPhotoCount > 0 || isSubmitting}
             className={styles.toolbarBtn}
+            style={{
+              opacity: uploadingPhotoCount > 0 || isSubmitting ? 0.6 : 1,
+              cursor: uploadingPhotoCount > 0 || isSubmitting ? "not-allowed" : "pointer",
+            }}
           >
-            <FiCamera aria-hidden="true" style={{ marginRight: "6px", verticalAlign: "middle" }} /> Tambah Foto
+            <FiCamera aria-hidden="true" style={{ marginRight: "6px", verticalAlign: "middle" }} />
+            {uploadingPhotoCount > 0 ? `Uploading ${uploadingPhotoCount}...` : "Tambah Foto"}
           </button>
         </div>
 

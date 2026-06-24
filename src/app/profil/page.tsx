@@ -9,7 +9,7 @@ import WaitLoading from "@/components/ui/WaitLoading";
 import styles from "./page.module.css";
 
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
-const MAX_AVATAR_SIZE_MB = 5;
+const MAX_AVATAR_SIZE_MB = 2;
 const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 const ALLOWED_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];

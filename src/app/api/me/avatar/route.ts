@@ -5,8 +5,8 @@ import { getFirebaseStorageBucket } from "@/server/firebase-admin";
 import { updateBookStoryUserProfile, updateTestimonialUserProfile } from "@/server/store-data";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
-const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
-const MAX_INLINE_AVATAR_SIZE_BYTES = 2 * 1024 * 1024;
+const MAX_AVATAR_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
+const MAX_INLINE_AVATAR_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 
 function sanitizeFileName(name: string) {
   return name

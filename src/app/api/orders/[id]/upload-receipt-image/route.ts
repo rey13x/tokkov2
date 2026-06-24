@@ -47,8 +47,9 @@ export async function POST(request: Request, context: { params: Params }) {
     }
 
     // Validate file size (max 5MB)
-    if (imageFile.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ message: "Ukuran gambar terlalu besar (max 5MB)." }, { status: 400 });
+    // Validate file size (max 2MB)
+    if (imageFile.size > 2 * 1024 * 1024) {
+      return NextResponse.json({ message: "Ukuran gambar terlalu besar (max 2MB)." }, { status: 400 });
     }
 
     // Read file buffer
@@ -64,10 +65,11 @@ export async function POST(request: Request, context: { params: Params }) {
       try {
         storage = getStorage();
       } catch {
-        // Firebase not initialized, create data URL instead
-        const base64 = Buffer.from(buffer).toString("base64");
-        const dataUrl = `data:${imageFile.type};base64,${base64}`;
-        return NextResponse.json({ imageUrl: dataUrl });
+        // Firebase not initialized - must fail, don't return base64
+        return NextResponse.json(
+          { message: "Upload service tidak tersedia. Hubungi administrator." },
+          { status: 503 }
+        );
       }
 
       // Create a unique filename
@@ -93,11 +95,11 @@ export async function POST(request: Request, context: { params: Params }) {
       return NextResponse.json({ imageUrl: url });
     } catch (storageError) {
       console.error("Firebase Storage error:", storageError);
-
-      // Fallback: return data URL
-      const base64 = Buffer.from(buffer).toString("base64");
-      const dataUrl = `data:${imageFile.type};base64,${base64}`;
-      return NextResponse.json({ imageUrl: dataUrl });
+      // Don't fallback to base64 - fail properly
+      return NextResponse.json(
+        { message: "Gagal mengunggah struk. Pastikan file berukuran kurang dari 2MB." },
+        { status: 500 }
+      );
     }
   } catch (error) {
     console.error("POST /api/orders/[id]/upload-receipt-image failed:", error);
