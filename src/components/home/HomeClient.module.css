@@ -170,6 +170,8 @@
 .section {
   padding: 0 clamp(14px, 4vw, 56px);
   margin-top: 28px;
+  margin-bottom: 0;
+  background: transparent;
 }
 
 .storeLoadingBadge {
