@@ -31,9 +31,6 @@ export default function PremiumMarquee<T extends { id: string }>({
   const positionRef = useRef<number>(0);
   const contentWidthRef = useRef<number>(0);
   const pauseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dragStartXRef = useRef<number>(0);
-  const dragStartPositionRef = useRef<number>(0);
-  const isDraggingRef = useRef<boolean>(false);
 
   const [isAnimating, setIsAnimating] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
@@ -187,73 +184,86 @@ export default function PremiumMarquee<T extends { id: string }>({
     const track = trackRef.current;
     if (!container || !track) return;
 
+    let isMouseDown = false;
+    let dragStartX = 0;
+    let dragStartPosition = 0;
+    let lastDragX = 0;
+
     const onMouseDown = (e: MouseEvent) => {
-      isDraggingRef.current = true;
-      dragStartXRef.current = e.clientX;
-      dragStartPositionRef.current = positionRef.current;
+      isMouseDown = true;
+      dragStartX = e.clientX;
+      dragStartPosition = positionRef.current;
+      lastDragX = e.clientX;
       setIsPaused(true);
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!isDraggingRef.current) return;
+      if (!isMouseDown) return;
       
-      const deltaX = e.clientX - dragStartXRef.current;
-      positionRef.current = dragStartPositionRef.current + deltaX;
+      const deltaX = e.clientX - dragStartX;
+      positionRef.current = dragStartPosition + deltaX;
       
       // Apply transform
       track.style.transform = `translate3d(${positionRef.current}px, 0, 0)`;
+      lastTimeRef.current = Date.now();
     };
 
     const onMouseUp = () => {
-      if (!isDraggingRef.current) return;
-      isDraggingRef.current = false;
+      if (!isMouseDown) return;
+      isMouseDown = false;
       lastTimeRef.current = Date.now();
       
-      // Resume animation after 1 second
+      // Resume animation after 800ms
       if (pauseTimeoutRef.current) {
         clearTimeout(pauseTimeoutRef.current);
       }
       pauseTimeoutRef.current = setTimeout(() => {
         setIsPaused(false);
-      }, 1000);
+      }, 800);
     };
 
+    let isTouchDown = false;
+    let touchStartX = 0;
+    let touchStartPosition = 0;
+
     const onTouchStart = (e: TouchEvent) => {
-      isDraggingRef.current = true;
-      dragStartXRef.current = e.touches[0].clientX;
-      dragStartPositionRef.current = positionRef.current;
+      isTouchDown = true;
+      touchStartX = e.touches[0].clientX;
+      touchStartPosition = positionRef.current;
+      setIsPaused(true);
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (!isDraggingRef.current) return;
+      if (!isTouchDown) return;
       
-      const deltaX = e.touches[0].clientX - dragStartXRef.current;
-      positionRef.current = dragStartPositionRef.current + deltaX;
+      const deltaX = e.touches[0].clientX - touchStartX;
+      positionRef.current = touchStartPosition + deltaX;
       
       // Apply transform
       track.style.transform = `translate3d(${positionRef.current}px, 0, 0)`;
+      lastTimeRef.current = Date.now();
     };
 
     const onTouchEnd = () => {
-      if (!isDraggingRef.current) return;
-      isDraggingRef.current = false;
+      if (!isTouchDown) return;
+      isTouchDown = false;
       lastTimeRef.current = Date.now();
       
-      // Resume animation after 1 second
+      // Resume animation after 800ms
       if (pauseTimeoutRef.current) {
         clearTimeout(pauseTimeoutRef.current);
       }
       pauseTimeoutRef.current = setTimeout(() => {
         setIsPaused(false);
-      }, 1000);
+      }, 800);
     };
 
     container.addEventListener("mousedown", onMouseDown);
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
-    container.addEventListener("touchstart", onTouchStart);
-    container.addEventListener("touchmove", onTouchMove);
-    container.addEventListener("touchend", onTouchEnd);
+    container.addEventListener("touchstart", onTouchStart, { passive: true });
+    container.addEventListener("touchmove", onTouchMove, { passive: true });
+    container.addEventListener("touchend", onTouchEnd, { passive: true });
 
     return () => {
       container.removeEventListener("mousedown", onMouseDown);

@@ -875,7 +875,7 @@ export default function HomeClient() {
             className={styles.partnerCarousel}
             itemClassName={styles.partnerCard}
             pauseOnHover={false}
-            pauseOnTouch={true}
+            pauseOnTouch={false}
             renderItem={(item) => (
               <>
                 <div className={styles.partnerTop}>
