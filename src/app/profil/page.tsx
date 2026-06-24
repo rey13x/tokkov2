@@ -13,15 +13,6 @@ const MAX_AVATAR_SIZE_MB = 2;
 const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 const ALLOWED_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
-const PROFILE_IMAGES = [
-  "/assets/profile1.jpg",
-  "/assets/profile2.jpg",
-  "/assets/profile3.jpg",
-  "/assets/profile4.jpg",
-  "/assets/profile5.jpg",
-  "/assets/profile6.jpg",
-  "/assets/profile7.jpg",
-];
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -45,12 +36,34 @@ export default function ProfilePage() {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedProfileImage, setSelectedProfileImage] = useState("");
+  const [profilePhotos, setProfilePhotos] = useState<Array<{ id: string; url: string; createdAt: string }>>([]);
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/auth?redirect=/profil");
     }
   }, [router, status]);
+
+  // Fetch profile photos from admin
+  useEffect(() => {
+    const fetchProfilePhotos = async () => {
+      try {
+        setIsLoadingPhotos(true);
+        const response = await fetch("/api/admin/profile-photos");
+        if (response.ok) {
+          const data = await response.json();
+          setProfilePhotos(data.photos || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile photos:", err);
+      } finally {
+        setIsLoadingPhotos(false);
+      }
+    };
+
+    fetchProfilePhotos();
+  }, []);
 
   // Auto-dismiss error after 5 seconds
   useEffect(() => {
@@ -330,12 +343,14 @@ export default function ProfilePage() {
     await signOut({ callbackUrl: "/" });
   };
 
-  const onSelectProfileImage = async (imageUrl: string) => {
+  const onSelectProfileImage = (imageUrl: string) => {
     setSelectedProfileImage(imageUrl);
   };
 
-  const onConfirmProfileImage = async () => {
-    if (!selectedProfileImage) {
+  const onConfirmProfileImage = async (imageUrl?: string) => {
+    const urlToSave = imageUrl || selectedProfileImage;
+    
+    if (!urlToSave) {
       return;
     }
 
@@ -344,22 +359,37 @@ export default function ProfilePage() {
     setIsUploadingAvatar(true);
 
     try {
-      // Update avatar with selected profile image
-      setAvatarUrl(selectedProfileImage);
+      // Call API to update avatar with selected profile photo
+      const response = await fetch("/api/me/select-profile-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photoUrl: urlToSave }),
+      });
+
+      const result = (await response.json()) as { message?: string; avatarUrl?: string };
+      
+      if (!response.ok || !result.avatarUrl) {
+        setError(result.message ?? "Gagal memperbarui foto profil.");
+        setIsUploadingAvatar(false);
+        return;
+      }
+
+      // Update avatar locally
+      setAvatarUrl(result.avatarUrl);
 
       // Store in localStorage
       try {
-        window.localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, selectedProfileImage);
+        window.localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, result.avatarUrl);
       } catch {}
 
-      // Update session with explicit error handling
+      // Update session
       try {
-        await update({ avatarUrl: selectedProfileImage, image: selectedProfileImage });
+        await update({ avatarUrl: result.avatarUrl, image: result.avatarUrl });
       } catch (updateErr) {
         console.error("Session update failed:", updateErr);
       }
 
-      // Fetch fresh user data to ensure everything is synced
+      // Fetch fresh user data
       try {
         const freshResponse = await fetch("/api/me", {
           cache: "no-store",
@@ -400,53 +430,27 @@ export default function ProfilePage() {
       {status === "authenticated" && !isProfileLoading ? (
         <section className={styles.card}>
           <aside className={styles.avatarPanel}>
-            <button
-              type="button"
-              className={styles.avatarUploader}
-              onClick={() => {
-                if (!isFileUploadEnabled) {
-                  return;
-                }
-                fileInputRef.current?.click();
-              }}
-              disabled={isUploadingAvatar || !isFileUploadEnabled}
-            >
-              <div className={styles.avatarWrap}>
-                {avatarUrl || session?.user?.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl || session?.user?.image || ""} alt="Foto profil" className={styles.avatarImage} />
-                ) : (
-                  <span className={styles.avatarFallback}>
-                    {(name || session?.user?.username || session?.user?.email || "U")
-                      .trim()
-                      .charAt(0)
-                      .toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <span className={styles.avatarOverlayText}>
-                Pilih foto Profil
-              </span>
-            </button>
+            <div className={styles.avatarWrap}>
+              {avatarUrl || session?.user?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl || session?.user?.image || ""} alt="Foto profil" className={styles.avatarImage} />
+              ) : (
+                <span className={styles.avatarFallback}>
+                  {(name || session?.user?.username || session?.user?.email || "U")
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase()}
+                </span>
+              )}
+            </div>
             <button
               type="button"
               className={styles.choosePhotoButton}
               onClick={() => setShowProfileModal(true)}
-              disabled={isUploadingAvatar}
+              disabled={isUploadingAvatar || isLoadingPhotos}
             >
               Pilih Foto
             </button>
-            <div className={styles.attributionText}>
-              <span>by </span>
-              <a 
-                href="https://www.instagram.com/sorrisopng?igsh=MXU1Y3d2ZXdvNHVmdA==" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className={styles.attributionLink}
-              >
-                @sorriso
-              </a>
-            </div>
 
             {session?.user?.role === "admin" ? (
               <Link
@@ -621,30 +625,33 @@ export default function ProfilePage() {
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>Pilih Foto Profil</h2>
             <div className={styles.profileImageGrid}>
-              {PROFILE_IMAGES.map((image, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  className={`${styles.profileImageOption} ${
-                    selectedProfileImage === image ? styles.profileImageSelected : ""
-                  }`}
-                  onClick={() => onSelectProfileImage(image)}
-                  title={`Foto profil ${index + 1}`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={image} alt={`Foto profil ${index + 1}`} />
-                </button>
-              ))}
+              {isLoadingPhotos ? (
+                <p className={styles.loadingText}>Memuat foto profil...</p>
+              ) : profilePhotos.length === 0 ? (
+                <p className={styles.emptyText}>Belum ada foto profil tersedia. Hubungi admin untuk menambahkan foto.</p>
+              ) : (
+                profilePhotos.map((photo) => (
+                  <button
+                    key={photo.id}
+                    type="button"
+                    className={`${styles.profileImageOption} ${
+                      selectedProfileImage === photo.url ? styles.profileImageSelected : ""
+                    }`}
+                    onClick={async () => {
+                      setSelectedProfileImage(photo.url);
+                      // Auto-save immediately when user clicks a photo
+                      await onConfirmProfileImage(photo.url);
+                    }}
+                    disabled={isUploadingAvatar}
+                    title={`Pilih foto ini`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photo.url} alt="Opsi foto profil" />
+                  </button>
+                ))
+              )}
             </div>
             <div className={styles.modalButtons}>
-              <button
-                type="button"
-                className={styles.confirmButton}
-                onClick={onConfirmProfileImage}
-                disabled={!selectedProfileImage || isUploadingAvatar}
-              >
-                {isUploadingAvatar ? "Menyimpan..." : "Pilih Foto"}
-              </button>
               <button
                 type="button"
                 className={styles.cancelButton}
@@ -653,7 +660,7 @@ export default function ProfilePage() {
                   setSelectedProfileImage("");
                 }}
               >
-                Batal
+                Tutup
               </button>
             </div>
           </div>

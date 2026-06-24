@@ -1,0 +1,215 @@
+.container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #1f2536;
+}
+
+.success {
+  background: #e8f0ff;
+  border: 1px solid #b8d4ff;
+  color: #214ebd;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+.error {
+  background: #ffe8ed;
+  border: 1px solid #ffbcc8;
+  color: #b3223b;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.form {
+  background: #f7f9fe;
+  border: 1px solid #dce2ef;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field label {
+  color: #1f2536;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.inputGroup {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.field input {
+  flex: 1;
+  min-width: 200px;
+  border: 1px solid #d7dce7;
+  border-radius: 12px;
+  height: 40px;
+  padding: 0 12px;
+  outline: none;
+  font-size: 0.9rem;
+}
+
+.field input:focus {
+  border-color: #8ea1cb;
+}
+
+.field button {
+  border: none;
+  border-radius: 12px;
+  height: 40px;
+  padding: 0 16px;
+  background: #101319;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.field button:hover:not(:disabled) {
+  background: #1a1f2e;
+}
+
+.field button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.hint {
+  color: #8a939f;
+  font-size: 0.78rem;
+}
+
+.photosSection {
+  background: #f7f9fe;
+  border: 1px solid #dce2ef;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.photosSection h3 {
+  color: #1f2536;
+  font-size: 1rem;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.empty {
+  color: #8a939f;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 20px;
+}
+
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.photoCard {
+  background: #ffffff;
+  border: 1px solid #dce2ef;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.photoCard:hover {
+  box-shadow: 0 4px 12px rgba(14, 19, 33, 0.08);
+  border-color: #8ea1cb;
+}
+
+.photoPreview {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #e6ebf8;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photoPreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photoInfo {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid #dce2ef;
+  flex: 1;
+}
+
+.url {
+  color: #8a939f;
+  font-size: 0.7rem;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.date {
+  color: #b8bcc8;
+  font-size: 0.7rem;
+}
+
+.deleteButton {
+  border: none;
+  background: #ff6b6b;
+  color: #ffffff;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.deleteButton:hover:not(:disabled) {
+  background: #ff4757;
+}
+
+.deleteButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

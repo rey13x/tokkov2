@@ -101,21 +101,19 @@
 }
 
 .avatarOverlayText {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  border-radius: 999px;
-  padding: 0 12px;
-  background: #101319;
-  color: #ffffff;
-  font-size: 0.76rem;
+  display: none;
 }
 
 .avatarHint {
-  color: #616c88;
-  font-size: 0.74rem;
-  text-align: center;
+  display: none;
+}
+
+.attributionText {
+  display: none;
+}
+
+.attributionLink {
+  display: none;
 }
 
 .adminButton {
@@ -307,26 +305,6 @@
   transform: none;
 }
 
-.attributionText {
-  color: #8a939f;
-  font-size: 0.75rem;
-  text-align: center;
-  margin-top: 2px;
-}
-
-.attributionLink {
-  color: #214ebd;
-  text-decoration: none;
-  cursor: pointer;
-  font-weight: 500;
-  transition: color 0.2s ease;
-}
-
-.attributionLink:hover {
-  color: #1a3a9a;
-  text-decoration: underline;
-}
-
 /* Modal Styles */
 .modalOverlay {
   position: fixed;
@@ -396,12 +374,11 @@
 
 .profileImageSelected {
   border-color: #214ebd;
-  box-shadow: 0 0 0 2px rgba(33, 78, 189, 0.2);
-  transform: scale(0.95);
+  box-shadow: 0 0 0 3px rgba(33, 78, 189, 0.15);
 }
 
 .profileImageSelected img {
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .modalButtons {
@@ -430,6 +407,15 @@
 .confirmButton:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.loadingText,
+.emptyText {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #8a939f;
+  font-size: 0.9rem;
+  padding: 20px;
 }
 
 .cancelButton {

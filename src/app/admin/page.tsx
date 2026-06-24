@@ -9,6 +9,7 @@ import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
+import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
 import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
 
 // ...existing code...
@@ -28,6 +29,7 @@ type AdminSection =
   | "maintenanceSettings"
   | "admins"
   | "users"
+  | "profilePhotos"
   | "preview";
 
 const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
@@ -45,6 +47,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
     label: "Kebijakan Privasi",
     desc: "Atur konten halaman privasi",
   },
+  { id: "profilePhotos", label: "Foto Profil", desc: "Kelola foto profil user" },
   { id: "maintenanceSettings", label: "Pemeliharaan", desc: "Buka/tutup website" },
   { id: "admins", label: "Admin", desc: "Kelola admin" },
   { id: "users", label: "User", desc: "Lihat data user & aktivitas" },
@@ -4947,6 +4950,12 @@ function AdminManagementSection() {
             </div>
           </form>
         </article>
+        ) : null}
+
+        {activeSection === "profilePhotos" ? (
+          <article className={styles.card}>
+            <AdminProfilePhotosSection />
+          </article>
         ) : null}
 
         {activeSection === "admins" && session?.user?.email?.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL?.toLowerCase() ? (
