@@ -10,16 +10,11 @@ import styles from "./page.module.css";
 
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 
-// Pre-made profile photos from assets
-const PRESET_PROFILE_PHOTOS = [
-  { id: "profile1", url: "/assets/profile1.jpg", label: "Profile 1" },
-  { id: "profile2", url: "/assets/profile2.jpg", label: "Profile 2" },
-  { id: "profile3", url: "/assets/profile3.jpg", label: "Profile 3" },
-  { id: "profile4", url: "/assets/profile4.jpg", label: "Profile 4" },
-  { id: "profile5", url: "/assets/profile5.jpg", label: "Profile 5" },
-  { id: "profile6", url: "/assets/profile6.jpg", label: "Profile 6" },
-  { id: "profile7", url: "/assets/profile7.jpg", label: "Profile 7" },
-];
+interface ProfilePhoto {
+  id: string;
+  url: string;
+  createdAt: string;
+}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -41,6 +36,9 @@ export default function ProfilePage() {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedProfileImage, setSelectedProfileImage] = useState("");
+  const [profilePhotos, setProfilePhotos] = useState<ProfilePhoto[]>([]);
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
+  const [photosError, setPhotosError] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -114,6 +112,42 @@ export default function ProfilePage() {
       return () => clearTimeout(timer);
     }
   }, [message]);
+
+  // Load profile photos when modal opens
+  useEffect(() => {
+    if (!showProfileModal) {
+      return;
+    }
+
+    const loadPhotos = async () => {
+      try {
+        setIsLoadingPhotos(true);
+        setPhotosError("");
+        const response = await fetch("/api/admin/profile-photos", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Gagal mengambil foto profil");
+        }
+
+        const data = (await response.json()) as { photos?: ProfilePhoto[] };
+        setProfilePhotos(data.photos || []);
+
+        if (!data.photos || data.photos.length === 0) {
+          setPhotosError("Belum ada foto profil yang tersedia");
+        }
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Gagal mengambil foto profil";
+        setPhotosError(errorMsg);
+        setProfilePhotos([]);
+      } finally {
+        setIsLoadingPhotos(false);
+      }
+    };
+
+    loadPhotos();
+  }, [showProfileModal]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -521,27 +555,36 @@ export default function ProfilePage() {
         <div className={styles.modalOverlay} onClick={() => setShowProfileModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>Pilih Foto Profil</h2>
-            <div className={styles.profileImageGrid}>
-              {PRESET_PROFILE_PHOTOS.map((photo) => (
-                <button
-                  key={photo.id}
-                  type="button"
-                  className={`${styles.profileImageOption} ${
-                    selectedProfileImage === photo.url ? styles.profileImageSelected : ""
-                  }`}
-                  onClick={async () => {
-                    setSelectedProfileImage(photo.url);
-                    // Auto-save immediately when user clicks a photo
-                    await onConfirmProfileImage(photo.url);
-                  }}
-                  disabled={isUploadingAvatar}
-                  title={`Pilih ${photo.label}`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photo.url} alt={photo.label} />
-                </button>
-              ))}
-            </div>
+            
+            {isLoadingPhotos ? (
+              <div className={styles.loadingText}>Memuat foto profil...</div>
+            ) : photosError ? (
+              <div className={styles.emptyText}>{photosError}</div>
+            ) : profilePhotos.length === 0 ? (
+              <div className={styles.emptyText}>Tidak ada foto profil tersedia</div>
+            ) : (
+              <div className={styles.profileImageGrid}>
+                {profilePhotos.map((photo) => (
+                  <button
+                    key={photo.id}
+                    type="button"
+                    className={`${styles.profileImageOption} ${
+                      selectedProfileImage === photo.url ? styles.profileImageSelected : ""
+                    }`}
+                    onClick={async () => {
+                      setSelectedProfileImage(photo.url);
+                      // Auto-save immediately when user clicks a photo
+                      await onConfirmProfileImage(photo.url);
+                    }}
+                    disabled={isUploadingAvatar}
+                    title="Pilih foto profil"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photo.url} alt="Profile" />
+                  </button>
+                ))}
+              </div>
+            )}
             <div className={styles.modalButtons}>
               <button
                 type="button"
