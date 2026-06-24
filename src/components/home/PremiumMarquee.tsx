@@ -78,13 +78,15 @@ export default function PremiumMarquee<T extends { id: string }>({
         const firstItem = track.children[0] as HTMLElement;
         if (firstItem && items.length > 0) {
           const itemWidth = firstItem.offsetWidth;
-          contentWidthRef.current = items.length * itemWidth + items.length * gap;
+          const singleSetWidth = items.length * itemWidth + items.length * gap;
+          contentWidthRef.current = singleSetWidth > 0 ? singleSetWidth : 1;
         }
       }
 
       // Seamless looping: when we've scrolled one full set, reset position
       if (contentWidthRef.current > 0) {
         if (positionRef.current <= -contentWidthRef.current) {
+          // Reset to 0 for perfect seamless loop
           positionRef.current = 0;
         }
       }
@@ -187,13 +189,32 @@ export default function PremiumMarquee<T extends { id: string }>({
     let isMouseDown = false;
     let dragStartX = 0;
     let dragStartPosition = 0;
-    let lastDragX = 0;
+
+    const normalizePosition = () => {
+      if (contentWidthRef.current > 0) {
+        // Normalize position to keep it within valid bounds for seamless looping
+        while (positionRef.current <= -contentWidthRef.current) {
+          positionRef.current += contentWidthRef.current;
+        }
+        while (positionRef.current > 0) {
+          positionRef.current -= contentWidthRef.current;
+        }
+      }
+    };
 
     const onMouseDown = (e: MouseEvent) => {
+      // Get content width on first drag
+      if (contentWidthRef.current === 0) {
+        const firstItem = track.children[0] as HTMLElement;
+        if (firstItem && duplicatedItems.length > 0) {
+          const itemWidth = firstItem.offsetWidth;
+          contentWidthRef.current = (items.length * itemWidth + items.length * gap) || 1;
+        }
+      }
+
       isMouseDown = true;
       dragStartX = e.clientX;
       dragStartPosition = positionRef.current;
-      lastDragX = e.clientX;
       setIsPaused(true);
     };
 
@@ -202,6 +223,7 @@ export default function PremiumMarquee<T extends { id: string }>({
       
       const deltaX = e.clientX - dragStartX;
       positionRef.current = dragStartPosition + deltaX;
+      normalizePosition();
       
       // Apply transform
       track.style.transform = `translate3d(${positionRef.current}px, 0, 0)`;
@@ -227,6 +249,15 @@ export default function PremiumMarquee<T extends { id: string }>({
     let touchStartPosition = 0;
 
     const onTouchStart = (e: TouchEvent) => {
+      // Get content width on first drag
+      if (contentWidthRef.current === 0) {
+        const firstItem = track.children[0] as HTMLElement;
+        if (firstItem && duplicatedItems.length > 0) {
+          const itemWidth = firstItem.offsetWidth;
+          contentWidthRef.current = (items.length * itemWidth + items.length * gap) || 1;
+        }
+      }
+
       isTouchDown = true;
       touchStartX = e.touches[0].clientX;
       touchStartPosition = positionRef.current;
@@ -238,6 +269,7 @@ export default function PremiumMarquee<T extends { id: string }>({
       
       const deltaX = e.touches[0].clientX - touchStartX;
       positionRef.current = touchStartPosition + deltaX;
+      normalizePosition();
       
       // Apply transform
       track.style.transform = `translate3d(${positionRef.current}px, 0, 0)`;
@@ -273,7 +305,7 @@ export default function PremiumMarquee<T extends { id: string }>({
       container.removeEventListener("touchmove", onTouchMove);
       container.removeEventListener("touchend", onTouchEnd);
     };
-  }, []);
+  }, [items.length, gap, duplicatedItems.length]);
 
   if (items.length === 0) {
     return null;
