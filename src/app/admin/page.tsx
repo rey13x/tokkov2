@@ -2801,25 +2801,17 @@ function AdminManagementSection() {
             ) : null}
 
             {/* Media Gallery Section */}
-            <fieldset style={{ border: "1px solid #ccc", padding: "12px", borderRadius: "6px", marginTop: "12px" }}>
-              <legend style={{ fontWeight: "bold", marginBottom: "8px" }}>Media Tambahan (Opsional)</legend>
-              <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "12px" }}>
+            <fieldset className={styles.productMediaGallery}>
+              <legend>Media Tambahan (Opsional)</legend>
+              <p>
                 Tambahkan foto atau video tambahan untuk galeri produk. Gunakan link (URL).
               </p>
-              
-              {/* Media Gallery Items */}
+
               {productForm.mediaGallery.map((media, index) => (
-                <div
-                  key={index}
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    marginBottom: "8px",
-                    alignItems: "flex-start",
-                  }}
-                >
+                <div key={`${media.url}-${index}`} className={styles.mediaGalleryRow}>
                   <input
                     type="url"
+                    className={styles.mediaGalleryInput}
                     value={media.url}
                     onChange={(event) => {
                       const newGallery = [...productForm.mediaGallery];
@@ -2833,10 +2825,10 @@ function AdminManagementSection() {
                       }));
                     }}
                     placeholder="Link foto atau video"
-                    style={{ flex: 1 }}
                   />
                   <button
                     type="button"
+                    className={styles.mediaGalleryRemoveButton}
                     onClick={() => {
                       const newGallery = productForm.mediaGallery.filter((_, i) => i !== index);
                       setProductForm((current) => ({
@@ -2844,24 +2836,15 @@ function AdminManagementSection() {
                         mediaGallery: newGallery,
                       }));
                     }}
-                    style={{
-                      padding: "8px 12px",
-                      background: "#ff6b6b",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                    }}
                   >
                     Hapus
                   </button>
                 </div>
               ))}
 
-              {/* Add Media Button */}
               <button
                 type="button"
+                className={styles.mediaGalleryAddButton}
                 onClick={() => {
                   setProductForm((current) => ({
                     ...current,
@@ -2870,16 +2853,6 @@ function AdminManagementSection() {
                       { url: "", type: undefined },
                     ],
                   }));
-                }}
-                style={{
-                  marginTop: "8px",
-                  padding: "8px 16px",
-                  background: "#4CAF50",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
                 }}
               >
                 + Tambah Media
@@ -2901,7 +2874,7 @@ function AdminManagementSection() {
             </div>
             <div className={styles.formActions}>
               <button type="submit" disabled={isLoading}>
-                {productEditId ? "Simpan Perubahan" : "Tambah Produk"}
+                {productEditId ? "Simpan Perubahan" : "Tambah"}
               </button>
               {productEditId ? (
                 <button type="button" className={styles.secondaryButton} onClick={resetProductForm}>

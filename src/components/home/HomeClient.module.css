@@ -170,8 +170,12 @@
 .section {
   padding: 0 clamp(14px, 4vw, 56px);
   margin-top: 28px;
-  margin-bottom: 0;
+  margin-bottom: 8px;
   background: transparent;
+}
+
+.section:last-of-type {
+  margin-bottom: 6px;
 }
 
 .storeLoadingBadge {
@@ -618,10 +622,10 @@
 .logoMarquee {
   --logo-size: 58px;
   --logo-gap: 22px;
-  margin-top: 12px;
+  margin-top: 6px;
   overflow-x: hidden;
   overflow-y: hidden;
-  padding: 14px 10px;
+  padding: 10px 8px;
   border-radius: 999px;
   background: #eceff4;
   border: 1px solid #e2e6ee;

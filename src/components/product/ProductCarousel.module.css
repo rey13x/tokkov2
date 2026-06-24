@@ -4,71 +4,83 @@
   display: flex;
   flex-direction: column;
   background: #000;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
   touch-action: none;
   user-select: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
 }
 
 .progressBars {
   display: flex;
   gap: 4px;
   padding: 8px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.28);
   z-index: 10;
 }
 
 .progressBar {
   height: 2px;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .mediaContainer {
   position: relative;
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: 1 / 1;
+  min-height: min(70vw, 420px);
+  max-height: min(78vh, 560px);
   background: #000;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .media {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   display: block;
+  background: #000;
 }
 
 .navButton {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.18);
   border: none;
   color: #fff;
-  font-size: 24px;
-  padding: 8px 12px;
+  width: 46px;
+  height: 46px;
+  padding: 0;
   cursor: pointer;
   z-index: 5;
-  border-radius: 4px;
-  transition: background 0.2s;
+  border-radius: 999px;
+  transition: background 0.2s ease, transform 0.2s ease;
   user-select: none;
   -webkit-user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
 }
 
 .navButton:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.32);
+  transform: translateY(-50%) scale(1.02);
 }
 
 .navPrev {
-  left: 8px;
+  left: 10px;
 }
 
 .navNext {
-  right: 8px;
+  right: 10px;
 }
 
 .playButton {
@@ -76,33 +88,40 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.58);
   border: none;
   color: #fff;
-  font-size: 32px;
   width: 56px;
   height: 56px;
-  border-radius: 50%;
+  border-radius: 999px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 5;
-  transition: background 0.2s;
+  transition: background 0.2s ease, transform 0.2s ease;
+  backdrop-filter: blur(6px);
 }
 
 .playButton:hover {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.72);
+  transform: translate(-50%, -50%) scale(1.02);
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .counter {
   position: absolute;
   bottom: 8px;
   right: 8px;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.62);
   color: #fff;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 999px;
   font-size: 12px;
   z-index: 5;
 }
@@ -113,19 +132,23 @@
     gap: 2px;
   }
 
+  .mediaContainer {
+    min-height: min(76vw, 360px);
+    max-height: min(80vh, 460px);
+  }
+
   .navButton {
-    font-size: 20px;
-    padding: 6px 10px;
+    width: 42px;
+    height: 42px;
   }
 
   .playButton {
-    width: 48px;
-    height: 48px;
-    font-size: 28px;
+    width: 50px;
+    height: 50px;
   }
 
   .counter {
     font-size: 11px;
-    padding: 3px 6px;
+    padding: 3px 7px;
   }
 }

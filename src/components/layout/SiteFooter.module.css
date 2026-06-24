@@ -2,7 +2,7 @@
   margin-top: 0;
   background: #0d1119;
   color: #ffffff;
-  padding: 24px 14px 28px;
+  padding: 18px 14px 24px;
 }
 
 .inner {
@@ -70,9 +70,13 @@
 }
 
 @media (max-width: 760px) {
+  .footer {
+    padding-top: 14px;
+  }
+
   .inner {
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
   }
 
   .contactWrap {

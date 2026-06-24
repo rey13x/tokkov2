@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import FlexibleMedia from "@/components/media/FlexibleMedia";
+import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from "react";
 import { isVideoMediaUrl } from "@/lib/media";
 import type { ProductMediaItem } from "@/types/store";
 import styles from "./ProductCarousel.module.css";
@@ -76,14 +75,14 @@ export default function ProductCarousel({
     setProgress(0);
   };
 
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleDragStart = (e: MouseEvent | TouchEvent) => {
     setIsDragging(true);
     dragStartX.current = "touches" in e ? e.touches[0].clientX : e.clientX;
     dragStartTime.current = Date.now();
   };
 
-  const handleDragEnd = (e: React.MouseEvent | React.TouchEvent) => {
-    const dragEndX = "changedTouches" in e ? e.changedTouches[0].clientX : (e as React.MouseEvent).clientX;
+  const handleDragEnd = (e: MouseEvent | TouchEvent) => {
+    const dragEndX = "changedTouches" in e ? e.changedTouches[0].clientX : (e as MouseEvent).clientX;
     const dragDelta = dragStartX.current - dragEndX;
     const dragDuration = Date.now() - dragStartTime.current;
 
@@ -177,11 +176,17 @@ export default function ProductCarousel({
             className={styles.playButton}
             onClick={togglePlayPause}
             title={isPlaying ? "Pause" : "Play"}
+            type="button"
           >
             {isPlaying ? (
-              <span>⏸</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.icon}>
+                <rect x="6" y="5" width="4" height="14" rx="1.2" />
+                <rect x="14" y="5" width="4" height="14" rx="1.2" />
+              </svg>
             ) : (
-              <span>▶</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.icon}>
+                <path d="M8 6.5v11l9-5.5-9-5.5Z" fill="currentColor" />
+              </svg>
             )}
           </button>
         )}
@@ -193,15 +198,21 @@ export default function ProductCarousel({
               className={`${styles.navButton} ${styles.navPrev}`}
               onClick={handlePrevious}
               title="Previous"
+              type="button"
             >
-              ‹
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.icon}>
+                <path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
             <button
               className={`${styles.navButton} ${styles.navNext}`}
               onClick={handleNext}
               title="Next"
+              type="button"
             >
-              ›
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.icon}>
+                <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
           </>
         )}
