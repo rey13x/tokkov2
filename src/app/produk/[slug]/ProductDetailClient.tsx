@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import type { CallBackProps, Step } from "react-joyride";
 import { gsap } from "gsap";
-import FlexibleMedia from "@/components/media/FlexibleMedia";
+import ProductCarousel from "@/components/product/ProductCarousel";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
@@ -416,14 +416,10 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
       <section className={styles.detailLayout} data-detail="intro">
         <div className={styles.imageWrap}>
-          <FlexibleMedia
-            src={product.imageUrl}
-            alt={product.name}
-            fill
-            className={styles.image}
-            sizes="(max-width: 920px) 100vw, 50vw"
-            priority
-            unoptimized
+          <ProductCarousel
+            primaryImage={product.imageUrl}
+            mediaGallery={product.mediaGallery}
+            productName={product.name}
           />
         </div>
 

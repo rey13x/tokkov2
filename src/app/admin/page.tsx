@@ -62,6 +62,7 @@ const defaultProductForm = {
   duration: "",
   price: 0,
   imageUrl: "/assets/logo.png",
+  mediaGallery: [] as Array<{ url: string; type?: "image" | "video" | "gif" }>,
   productType: "jual_beli" as "jual_beli" | "pekerjaan" | "lms",
   jobApplicationLink: "",
   buyNowLink: "",
@@ -2087,6 +2088,7 @@ function AdminManagementSection() {
       duration: product.duration ?? "",
       price: product.price,
       imageUrl: product.imageUrl,
+      mediaGallery: product.mediaGallery ?? [],
       productType: product.productType || "jual_beli",
       jobApplicationLink: product.jobApplicationLink || "",
       buyNowLink: product.buyNowLink || "",
@@ -2797,6 +2799,92 @@ function AdminManagementSection() {
                 <small>{isUploadingProductImage ? "Uploading..." : "Pilih file media dari device"}</small>
               </label>
             ) : null}
+
+            {/* Media Gallery Section */}
+            <fieldset style={{ border: "1px solid #ccc", padding: "12px", borderRadius: "6px", marginTop: "12px" }}>
+              <legend style={{ fontWeight: "bold", marginBottom: "8px" }}>Media Tambahan (Opsional)</legend>
+              <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "12px" }}>
+                Tambahkan foto atau video tambahan untuk galeri produk. Gunakan link (URL).
+              </p>
+              
+              {/* Media Gallery Items */}
+              {productForm.mediaGallery.map((media, index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    marginBottom: "8px",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <input
+                    type="url"
+                    value={media.url}
+                    onChange={(event) => {
+                      const newGallery = [...productForm.mediaGallery];
+                      newGallery[index] = {
+                        ...media,
+                        url: event.target.value,
+                      };
+                      setProductForm((current) => ({
+                        ...current,
+                        mediaGallery: newGallery,
+                      }));
+                    }}
+                    placeholder="Link foto atau video"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newGallery = productForm.mediaGallery.filter((_, i) => i !== index);
+                      setProductForm((current) => ({
+                        ...current,
+                        mediaGallery: newGallery,
+                      }));
+                    }}
+                    style={{
+                      padding: "8px 12px",
+                      background: "#ff6b6b",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Hapus
+                  </button>
+                </div>
+              ))}
+
+              {/* Add Media Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setProductForm((current) => ({
+                    ...current,
+                    mediaGallery: [
+                      ...current.mediaGallery,
+                      { url: "", type: undefined },
+                    ],
+                  }));
+                }}
+                style={{
+                  marginTop: "8px",
+                  padding: "8px 16px",
+                  background: "#4CAF50",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                + Tambah Media
+              </button>
+            </fieldset>
             <div className={styles.previewCard}>
               <FlexibleMedia
                 src={productForm.imageUrl}

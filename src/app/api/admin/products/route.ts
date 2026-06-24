@@ -16,6 +16,12 @@ const baseSchema = z.object({
   duration: z.string().max(80).default("") ,
   price: z.number().int().min(0),
   imageUrl: z.string().max(3000000).default("/assets/logo.png"),
+  mediaGallery: z.array(
+    z.object({
+      url: z.string().max(3000000),
+      type: z.enum(["image", "video", "gif"]).optional(),
+    })
+  ).default([]),
   productType: z.enum(["jual_beli", "pekerjaan"]).default("jual_beli"),
 });
 

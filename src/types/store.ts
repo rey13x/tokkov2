@@ -1,5 +1,10 @@
 export type ProductType = "jual_beli" | "pekerjaan" | "lms";
 
+export type ProductMediaItem = {
+  url: string;
+  type?: "image" | "video" | "gif"; // auto-detect if not provided
+};
+
 export type StoreProduct = {
   id: string;
   slug: string;
@@ -9,7 +14,8 @@ export type StoreProduct = {
   description: string;
   duration: string;
   price: number;
-  imageUrl: string;
+  imageUrl: string; // Primary/featured image
+  mediaGallery?: ProductMediaItem[]; // Additional media (photos, videos, gifs)
   isActive: boolean;
   productType: ProductType;
   jobApplicationLink?: string;

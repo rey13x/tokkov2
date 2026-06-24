@@ -111,6 +111,27 @@ function normalizePollVotes(options: string[], rawVotes: Record<string, number>)
 }
 
 function mapProduct(row: Record<string, unknown>): StoreProduct {
+  let mediaGallery = undefined;
+  
+  if (row.media_gallery) {
+    try {
+      const parsed = JSON.parse(String(row.media_gallery));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        mediaGallery = parsed.map((item: unknown) => {
+          if (typeof item === 'object' && item !== null) {
+            return {
+              url: resolveMediaUrl(String((item as any).url ?? "")),
+              type: (item as any).type,
+            };
+          }
+          return { url: resolveMediaUrl(String(item ?? "")), type: undefined };
+        });
+      }
+    } catch {
+      // ignore parse error
+    }
+  }
+
   return {
     id: String(row.id),
     slug: String(row.slug),
@@ -121,6 +142,7 @@ function mapProduct(row: Record<string, unknown>): StoreProduct {
     duration: String(row.duration ?? ""),
     price: Number(row.price),
     imageUrl: resolveMediaUrl(String(row.image_url ?? "")),
+    mediaGallery,
     isActive: Number(row.is_active) === 1,
     productType: (String(row.product_type ?? "jual_beli") as "jual_beli" | "pekerjaan"),
     jobApplicationLink: String(row.job_application_link ?? ""),
@@ -463,6 +485,9 @@ export async function ensureDatabase() {
       ).catch(() => {});
       await run(
         "ALTER TABLE products ADD COLUMN job_application_link TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE products ADD COLUMN media_gallery TEXT NOT NULL DEFAULT '[]'",
       ).catch(() => {});
 
       await run(
@@ -1262,6 +1287,7 @@ export async function createProduct(input: {
   duration: string;
   price: number;
   imageUrl: string;
+  mediaGallery?: Array<{ url: string; type?: "image" | "video" | "gif" }>;
   productType?: string;
   jobApplicationLink?: string;
 }) {
@@ -1286,11 +1312,15 @@ export async function createProduct(input: {
   const mediaUrl = resolveMediaUrl(input.imageUrl);
   const productType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
   const jobLink = productType === "pekerjaan" ? (input.jobApplicationLink?.trim() ?? "") : "";
+  const mediaGallery = (input.mediaGallery ?? []).map((item) => ({
+    url: resolveMediaUrl(item.url),
+    type: item.type,
+  }));
 
   await run(
     `INSERT INTO products
-      (id, slug, name, category, short_description, description, duration, price, image_url, is_active, product_type, job_application_link, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+      (id, slug, name, category, short_description, description, duration, price, image_url, media_gallery, is_active, product_type, job_application_link, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
     [
       id,
       slug,
@@ -1301,6 +1331,7 @@ export async function createProduct(input: {
       input.duration.trim(),
       input.price,
       mediaUrl,
+      JSON.stringify(mediaGallery),
       productType,
       jobLink,
       now(),
@@ -1320,6 +1351,7 @@ export async function updateProduct(
     duration: string;
     price: number;
     imageUrl: string;
+    mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif" }>;
     isActive: boolean;
     productType: string;
     jobApplicationLink: string;
@@ -1343,10 +1375,18 @@ export async function updateProduct(
     nextProductType === "pekerjaan"
       ? (input.jobApplicationLink ?? current.jobApplicationLink ?? "").trim()
       : "";
+  
+  const nextMediaGallery = input.mediaGallery ?? current.mediaGallery ?? [];
+  const mediaGalleryJson = JSON.stringify(
+    nextMediaGallery.map((item) => ({
+      url: resolveMediaUrl(item.url),
+      type: item.type,
+    }))
+  );
 
   await run(
     `UPDATE products
-     SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, is_active = ?, product_type = ?, job_application_link = ?, updated_at = ?
+     SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, media_gallery = ?, is_active = ?, product_type = ?, job_application_link = ?, updated_at = ?
      WHERE id = ?`,
     [
       nextSlug,
@@ -1357,6 +1397,7 @@ export async function updateProduct(
       input.duration?.trim() ?? current.duration,
       input.price ?? current.price,
       nextMediaUrl,
+      mediaGalleryJson,
       input.isActive === undefined ? Number(current.isActive) : Number(input.isActive),
       nextProductType,
       nextJobLink,

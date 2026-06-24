@@ -175,6 +175,15 @@ function mapProductDoc(
   id: string,
   data: Record<string, unknown> | undefined,
 ): StoreProduct {
+  let mediaGallery = undefined;
+  
+  if (Array.isArray(data?.mediaGallery)) {
+    mediaGallery = (data.mediaGallery as any[]).map((item) => ({
+      url: resolveMediaUrl(String(item.url ?? "")),
+      type: item.type,
+    }));
+  }
+
   return {
     id,
     slug: String(data?.slug ?? id),
@@ -185,6 +194,7 @@ function mapProductDoc(
     duration: String(data?.duration ?? ""),
     price: Number(data?.price ?? 0),
     imageUrl: resolveMediaUrl(String(data?.imageUrl ?? "")),
+    mediaGallery,
     isActive: Boolean(data?.isActive ?? true),
     productType: (String(data?.productType ?? "jual_beli") as "jual_beli" | "pekerjaan"),
     jobApplicationLink: String(data?.jobApplicationLink ?? ""),
@@ -438,6 +448,7 @@ export async function createProduct(input: {
   duration: string;
   price: number;
   imageUrl: string;
+  mediaGallery?: Array<{ url: string; type?: "image" | "video" | "gif" }>;
   productType?: string;
   jobApplicationLink?: string;
   maxApplicants?: number;
@@ -457,6 +468,10 @@ export async function createProduct(input: {
     const jobLink = productType === "pekerjaan" ? (input.jobApplicationLink?.trim() ?? "") : "";
     const maxApplicants = productType === "pekerjaan" ? (input.maxApplicants ?? 0) : 0;
     const buyNowLink = productType === "jual_beli" ? (input.buyNowLink?.trim() ?? "") : "";
+    const mediaGallery = (input.mediaGallery ?? []).map((item) => ({
+      url: resolveMediaUrl(item.url),
+      type: item.type,
+    }));
 
     await firestore.collection("products").doc(id).set({
       slug,
@@ -468,6 +483,7 @@ export async function createProduct(input: {
       duration: input.duration.trim(),
       price: input.price,
       imageUrl: mediaUrl,
+      mediaGallery,
       isActive: true,
       productType,
       jobApplicationLink: jobLink,
@@ -496,6 +512,7 @@ export async function updateProduct(
     duration: string;
     price: number;
     imageUrl: string;
+    mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif" }>;
     isActive: boolean;
     productType: string;
     jobApplicationLink: string;
@@ -580,6 +597,14 @@ export async function updateProduct(
       ...(input.duration !== undefined ? { duration: input.duration.trim() } : {}),
       ...(input.price !== undefined ? { price: input.price } : {}),
       ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
+      ...(input.mediaGallery !== undefined
+        ? {
+            mediaGallery: input.mediaGallery.map((item) => ({
+              url: resolveMediaUrl(item.url),
+              type: item.type,
+            })),
+          }
+        : {}),
       ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
       ...(nextProductType !== undefined ? { productType: nextProductType } : {}),
       ...(effectiveProductType === "jual_beli" ? { jobApplicationLink: "", maxApplicants: 0, buyNowLink: nextBuyNowLink } : {}),

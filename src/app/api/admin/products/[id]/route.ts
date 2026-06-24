@@ -12,6 +12,12 @@ const updateSchema = z.object({
   duration: z.string().max(80).optional(),
   price: z.number().int().min(0).optional(),
   imageUrl: z.string().max(3000000).optional(),
+  mediaGallery: z.array(
+    z.object({
+      url: z.string().max(3000000),
+      type: z.enum(["image", "video", "gif"]).optional(),
+    })
+  ).optional(),
   isActive: z.boolean().optional(),
   productType: z.enum(["jual_beli", "pekerjaan"]).optional(),
   jobApplicationLink: z.union([z.string().url(), z.literal("")]).optional(),
