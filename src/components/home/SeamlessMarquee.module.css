@@ -1,0 +1,83 @@
+/**
+ * Seamless Marquee Animation
+ * Uses CSS keyframes with transform3d for hardware acceleration
+ * No JavaScript-based scrolling, purely CSS animation
+ */
+
+.marqueeContainer {
+  --marquee-duration: 30s;
+  --marquee-gap: 0px;
+  --marquee-play-state: running;
+
+  width: 100%;
+  overflow: hidden;
+  overflow-y: visible; /* Allow overflow-y to be visible on mobile */
+}
+
+.marqueeTrack {
+  display: flex;
+  align-items: center;
+  gap: var(--marquee-gap);
+  width: max-content;
+  /* Use transform3d for hardware acceleration */
+  animation: marqueeScroll var(--marquee-duration) linear infinite;
+  animation-play-state: var(--marquee-play-state);
+  /* Prevent animation from being paused by browser optimizations */
+  will-change: transform;
+}
+
+/**
+ * Seamless scroll animation using transform3d
+ * Translates from 0 to -50% (half the total width since content is duplicated)
+ */
+@keyframes marqueeScroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/**
+ * Each individual marquee item
+ */
+.marqueeItem {
+  flex: 0 0 auto;
+  /* Prevent text selection during animation */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Pause animation on hover (optional, can be disabled) */
+.marqueeContainer:hover .marqueeTrack {
+  animation-play-state: paused;
+}
+
+/**
+ * Responsive adjustments
+ */
+@media (max-width: 768px) {
+  .marqueeContainer {
+    /* Ensure smooth animation on mobile with different frame rates */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .marqueeTrack {
+    /* Reduce motion for better performance on low-end devices */
+    /* Can be toggled based on device capability */
+  }
+}
+
+/**
+ * Accessibility: Respect prefers-reduced-motion
+ */
+@media (prefers-reduced-motion: reduce) {
+  .marqueeTrack {
+    animation: none;
+    opacity: 1;
+  }
+}

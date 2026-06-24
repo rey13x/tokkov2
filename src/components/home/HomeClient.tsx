@@ -19,6 +19,7 @@ import {
 import bagasPhoto from "@/app/assets/Bagas.jpg";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import ProductCard from "@/components/home/ProductCard";
+import SeamlessMarquee from "@/components/home/SeamlessMarquee";
 import { formatRupiah } from "@/data/products";
 import { HERO_BACKGROUND_URLS, CAROUSEL_PHOTOS_ONLY, ANIMATION_DURATION_MS, getPhotoDuration } from "@/data/hero-backgrounds";
 import { getCartCount } from "@/lib/cart";
@@ -121,22 +122,6 @@ export default function HomeClient() {
   const activeMarquees = useMemo(() => {
     return marquees;
   }, [marquees]);
-  // Enable marquee animation for any number of active logos (creates infinite loop with proper spacing)
-  const shouldAutoSlideMarquees = activeMarquees.length > 0;
-  // Perbanyak pengulangan agar track panjang dan tidak ada area kosong
-  const marqueeCarouselItems = useMemo(
-    () =>
-      shouldAutoSlideMarquees && activeMarquees.length > 0
-        ? [
-            ...activeMarquees,
-            ...activeMarquees,
-            ...activeMarquees,
-            ...activeMarquees,
-            ...activeMarquees,
-          ]
-        : activeMarquees,
-    [activeMarquees, shouldAutoSlideMarquees],
-  );
   const testimonialCarouselItems = useMemo(
     () =>
       shouldAutoSlideTestimonials
@@ -447,110 +432,6 @@ export default function HomeClient() {
       setActivePollVoteId(null);
     }
   };
-
-  useEffect(() => {
-    const viewport = informationViewportRef.current;
-    if (!viewport) {
-      return;
-    }
-
-    if (shouldAutoSlideInformations) {
-      viewport.scrollLeft = viewport.scrollWidth / 3;
-      return;
-    }
-
-    viewport.scrollLeft = 0;
-  }, [informationCarouselItems.length, shouldAutoSlideInformations]);
-
-  useEffect(() => {
-    if (!shouldAutoSlideInformations) {
-      return;
-    }
-
-    let frameId = 0;
-    const tick = () => {
-      const viewport = informationViewportRef.current;
-      if (viewport) {
-        viewport.scrollLeft += 0.24;
-        const segment = viewport.scrollWidth / 3;
-        if (viewport.scrollLeft >= segment * 2) {
-          viewport.scrollLeft = segment + (viewport.scrollLeft - segment * 2);
-        }
-      }
-      frameId = window.requestAnimationFrame(tick);
-    };
-
-    frameId = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [shouldAutoSlideInformations, informationCarouselItems.length]);
-
-  useEffect(() => {
-    const viewport = logoViewportRef.current;
-    if (!viewport) {
-      return;
-    }
-    if (shouldAutoSlideMarquees) {
-      viewport.scrollLeft = viewport.scrollWidth / 3;
-      return;
-    }
-    viewport.scrollLeft = 0;
-  }, [marqueeCarouselItems.length, shouldAutoSlideMarquees]);
-
-  useEffect(() => {
-    if (!shouldAutoSlideMarquees) {
-      return;
-    }
-
-    let frameId = 0;
-    const tick = () => {
-      const viewport = logoViewportRef.current;
-      if (viewport) {
-        viewport.scrollLeft += 0.28;
-        const segment = viewport.scrollWidth / 3;
-        if (viewport.scrollLeft >= segment * 2) {
-          viewport.scrollLeft = segment + (viewport.scrollLeft - segment * 2);
-        }
-      }
-      frameId = window.requestAnimationFrame(tick);
-    };
-
-    frameId = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [shouldAutoSlideMarquees, marqueeCarouselItems.length]);
-
-  useEffect(() => {
-    const viewport = testimonialViewportRef.current;
-    if (!viewport) {
-      return;
-    }
-    if (shouldAutoSlideTestimonials) {
-      viewport.scrollLeft = viewport.scrollWidth / 3;
-      return;
-    }
-    viewport.scrollLeft = 0;
-  }, [testimonialCarouselItems.length, shouldAutoSlideTestimonials]);
-
-  useEffect(() => {
-    if (!shouldAutoSlideTestimonials) {
-      return;
-    }
-
-    let frameId = 0;
-    const tick = () => {
-      const viewport = testimonialViewportRef.current;
-      if (viewport && !isTestimonialDragging) {
-        viewport.scrollLeft += 0.35;
-        const segment = viewport.scrollWidth / 3;
-        if (viewport.scrollLeft >= segment * 2) {
-          viewport.scrollLeft = segment + (viewport.scrollLeft - segment * 2);
-        }
-      }
-      frameId = window.requestAnimationFrame(tick);
-    };
-
-    frameId = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [shouldAutoSlideTestimonials, isTestimonialDragging, testimonialCarouselItems.length]);
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
@@ -1008,21 +889,22 @@ export default function HomeClient() {
         </div>
 
         {activeMarquees.length > 0 ? (
-          <div className={styles.logoMarquee} ref={logoViewportRef}>
-            <div className={styles.logoTrack}>
-              {marqueeCarouselItems.map((item, index) => (
-                <div key={`${item.id}-${index}`} className={styles.logoGlyph}>
-                  <FlexibleMedia
-                    src={item.imageUrl}
-                    alt={item.label}
-                    fill
-                    className={styles.logoImage}
-                    sizes="58px"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+          <SeamlessMarquee<HomeMarquee>
+            items={activeMarquees}
+            speed={40}
+            gap={22}
+            className={styles.logoMarquee}
+            itemClassName={styles.logoGlyph}
+            renderItem={(item) => (
+              <FlexibleMedia
+                src={item.imageUrl}
+                alt={item.label}
+                fill
+                className={styles.logoImage}
+                sizes="58px"
+              />
+            )}
+          />
         ) : null}
       </section>
       ) : null}

@@ -623,13 +623,6 @@
   border-radius: 999px;
   background: #eceff4;
   border: 1px solid #e2e6ee;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  pointer-events: none; /* Nonaktifkan scroll manual */
-}
-
-.logoMarquee::-webkit-scrollbar {
-  display: none;
 }
 
 .logoTrack {
@@ -648,6 +641,10 @@
   overflow: hidden;
   flex: 0 0 auto;
   background: transparent;
+  /* Ensure smooth rendering */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .logoImage {
