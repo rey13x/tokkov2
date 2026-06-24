@@ -123,7 +123,7 @@ export default function ProfilePage() {
       try {
         setIsLoadingPhotos(true);
         setPhotosError("");
-        const response = await fetch("/api/admin/profile-photos", {
+        const response = await fetch("/api/profile-photos", {
           cache: "no-store",
         });
 
