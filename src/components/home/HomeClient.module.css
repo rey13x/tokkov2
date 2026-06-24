@@ -1,7 +1,7 @@
 .page {
   min-height: 100dvh;
   width: 100%;
-  padding: 0 0 112px;
+  padding: 0 0 0;
   position: relative;
   overflow-x: clip;
 }
