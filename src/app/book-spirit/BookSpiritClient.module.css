@@ -136,14 +136,14 @@
   flex-direction: column;
   gap: 12px;
   border-radius: 16px;
-  background: #f9f9f9;
+  background: transparent;
   padding: 20px;
   transition: all 0.2s ease;
-  border: 1px solid #f0f0f0;
+  border: 1px solid transparent;
 }
 
 .storyItem:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
 }
 
 .storyContent {
