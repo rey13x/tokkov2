@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/admin";
+import { listProfilePhotos, createProfilePhoto, deleteProfilePhoto } from "@/server/db";
+import { getFirebaseStorageBucket } from "@/server/firebase-admin";
 
-// In-memory storage for demo - replace with database in production
-let profilePhotos: Array<{ id: string; url: string; createdAt: string }> = [];
+const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+const MAX_IMAGE_SIZE_BYTES = 1 * 1024 * 1024; // 1MB max per image
+
+function sanitizeFileName(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 120);
+}
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -10,10 +20,19 @@ export async function GET() {
     return auth.response;
   }
 
-  return NextResponse.json({
-    success: true,
-    photos: profilePhotos,
-  });
+  try {
+    const photos = await listProfilePhotos();
+    return NextResponse.json({
+      success: true,
+      photos,
+    });
+  } catch (error) {
+    console.error("Failed to fetch profile photos:", error);
+    return NextResponse.json(
+      { message: "Gagal mengambil foto profil" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -23,33 +42,86 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
-    const { url } = body;
+    const formData = await request.formData();
+    const urlInput = formData.get("url");
+    const fileInput = formData.get("file");
 
-    if (!url || typeof url !== "string") {
+    let photoUrl = "";
+
+    // Handle URL input
+    if (urlInput && typeof urlInput === "string" && urlInput.trim()) {
+      photoUrl = urlInput.trim();
+    }
+    // Handle file upload
+    else if (fileInput instanceof File) {
+      // Validate file type
+      if (!ALLOWED_IMAGE_TYPES.has(fileInput.type)) {
+        return NextResponse.json(
+          { message: "Hanya PNG, JPG, GIF, dan WEBP yang diizinkan" },
+          { status: 400 }
+        );
+      }
+
+      // Validate file size (1MB max)
+      if (fileInput.size > MAX_IMAGE_SIZE_BYTES) {
+        const sizeMB = (fileInput.size / (1024 * 1024)).toFixed(2);
+        return NextResponse.json(
+          { message: `Foto terlalu besar (${sizeMB}MB). Maksimal 1MB.` },
+          { status: 400 }
+        );
+      }
+
+      const fileUploadEnabled = process.env.FILE_UPLOAD_ENABLED === "true";
+      const bucket = getFirebaseStorageBucket() as any;
+
+      if (!fileUploadEnabled || !bucket) {
+        return NextResponse.json(
+          { message: "Upload file tidak tersedia. Gunakan URL atau hubungi administrator." },
+          { status: 503 }
+        );
+      }
+
+      // Upload to Firebase Storage
+      const buffer = Buffer.from(await fileInput.arrayBuffer());
+      const extension = fileInput.type === "image/png"
+        ? "png"
+        : fileInput.type === "image/gif"
+          ? "gif"
+          : fileInput.type === "image/webp"
+            ? "webp"
+            : "jpg";
+
+      const fileName = sanitizeFileName(fileInput.name.replace(/\.[^/.]+$/, "") || "profile-photo");
+      const objectPath = `profile-photos/${Date.now()}-${fileName}.${extension}`;
+      const object = bucket.file(objectPath);
+
+      await object.save(buffer, {
+        resumable: false,
+        metadata: {
+          contentType: fileInput.type,
+        },
+      });
+
+      await object.makePublic();
+      photoUrl = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
+    } else {
       return NextResponse.json(
-        { message: "URL is required" },
+        { message: "URL atau file foto diperlukan" },
         { status: 400 }
       );
     }
 
-    const newPhoto = {
-      id: Date.now().toString(),
-      url,
-      createdAt: new Date().toISOString(),
-    };
-
-    profilePhotos.push(newPhoto);
+    const newPhoto = await createProfilePhoto(photoUrl);
 
     return NextResponse.json({
       success: true,
       photo: newPhoto,
-      message: "Profile photo added successfully",
+      message: "Foto profil berhasil ditambahkan",
     });
   } catch (error) {
     console.error("Failed to add profile photo:", error);
     return NextResponse.json(
-      { message: "Failed to add profile photo" },
+      { message: "Gagal menambahkan foto profil" },
       { status: 500 }
     );
   }
@@ -66,19 +138,19 @@ export async function DELETE(request: NextRequest) {
     const { id } = body;
 
     if (!id) {
-      return NextResponse.json({ message: "ID is required" }, { status: 400 });
+      return NextResponse.json({ message: "ID foto diperlukan" }, { status: 400 });
     }
 
-    profilePhotos = profilePhotos.filter((photo) => photo.id !== id);
+    await deleteProfilePhoto(id);
 
     return NextResponse.json({
       success: true,
-      message: "Profile photo deleted successfully",
+      message: "Foto profil berhasil dihapus",
     });
   } catch (error) {
     console.error("Failed to delete profile photo:", error);
     return NextResponse.json(
-      { message: "Failed to delete profile photo" },
+      { message: "Gagal menghapus foto profil" },
       { status: 500 }
     );
   }

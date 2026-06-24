@@ -808,6 +808,14 @@ export async function ensureDatabase() {
         "CREATE INDEX IF NOT EXISTS idx_comment_reactions_user_id ON comment_reactions(user_id)",
       ).catch(() => {});
 
+      await run(
+        `CREATE TABLE IF NOT EXISTS profile_photos (
+          id TEXT PRIMARY KEY,
+          url TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        )`,
+      );
+
       await runOneTimeInitialContentReset();
       await seedIfEmpty();
       await runOneTimeCatalogCleanup();
@@ -2373,4 +2381,39 @@ export async function recordDeviceAccountCreation(deviceId: string, userId: stri
     // Log but don't fail if tracking fails
     console.error("Failed to record device account creation:", error);
   });
+}
+
+// Profile Photos Functions
+export async function listProfilePhotos() {
+  await ensureDatabase();
+  const result = await run(
+    "SELECT id, url, created_at FROM profile_photos ORDER BY created_at DESC"
+  );
+  return (result.rows ?? []).map((row) => ({
+    id: String(row.id),
+    url: String(row.url),
+    createdAt: new Date(Number(row.created_at)).toISOString(),
+  }));
+}
+
+export async function createProfilePhoto(url: string) {
+  await ensureDatabase();
+  const id = randomId();
+  const createdAt = now();
+  
+  await run(
+    "INSERT INTO profile_photos (id, url, created_at) VALUES (?, ?, ?)",
+    [id, url, createdAt]
+  );
+  
+  return {
+    id,
+    url,
+    createdAt: new Date(createdAt).toISOString(),
+  };
+}
+
+export async function deleteProfilePhoto(id: string) {
+  await ensureDatabase();
+  await run("DELETE FROM profile_photos WHERE id = ?", [id]);
 }

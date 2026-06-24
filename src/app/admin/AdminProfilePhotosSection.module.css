@@ -213,3 +213,92 @@
   opacity: 0.6;
   cursor: default;
 }
+
+.tabsContainer {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #dce2ef;
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  color: #8a939f;
+  padding: 10px 0;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #1f2536;
+}
+
+.tabActive {
+  color: #101319;
+  border-bottom-color: #101319;
+}
+
+.fileInputWrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.fileInput {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fileInputLabel {
+  display: block;
+  border: 1px solid #d7dce7;
+  border-radius: 12px;
+  height: 40px;
+  padding: 0 12px;
+  line-height: 40px;
+  background: #ffffff;
+  color: #8a939f;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileInput:focus + .fileInputLabel {
+  border-color: #8ea1cb;
+}
+
+.uploadButton {
+  border: none;
+  border-radius: 12px;
+  height: 40px;
+  padding: 0 16px;
+  background: #101319;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.uploadButton:hover:not(:disabled) {
+  background: #1a1f2e;
+}
+
+.uploadButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

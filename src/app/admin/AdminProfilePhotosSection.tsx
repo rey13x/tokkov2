@@ -14,9 +14,11 @@ export function AdminProfilePhotosSection() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [newPhotoUrl, setNewPhotoUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [uploadMode, setUploadMode] = useState<"url" | "file">("url");
 
   // Fetch photos on mount
   useEffect(() => {
@@ -47,13 +49,13 @@ export function AdminProfilePhotosSection() {
       const data = await response.json();
       setPhotos(data.photos || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch photos");
+      setError(err instanceof Error ? err.message : "Gagal mengambil foto profil");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddPhoto = async (e: React.FormEvent) => {
+  const handleAddPhotoByUrl = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!newPhotoUrl.trim()) {
@@ -69,14 +71,51 @@ export function AdminProfilePhotosSection() {
         body: JSON.stringify({ url: newPhotoUrl.trim() }),
       });
 
-      if (!response.ok) throw new Error("Failed to add photo");
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Gagal menambahkan foto");
+      }
 
       const data = await response.json();
-      setPhotos([...photos, data.photo]);
+      setPhotos([data.photo, ...photos]);
       setNewPhotoUrl("");
       setMessage("Foto profil berhasil ditambahkan");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add photo");
+      setError(err instanceof Error ? err.message : "Gagal menambahkan foto");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleAddPhotoByFile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedFile) {
+      setError("Pilih file foto terlebih dahulu");
+      return;
+    }
+
+    try {
+      setIsAdding(true);
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const response = await fetch("/api/admin/profile-photos", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Gagal upload foto");
+      }
+
+      const data = await response.json();
+      setPhotos([data.photo, ...photos]);
+      setSelectedFile(null);
+      setMessage("Foto profil berhasil diupload");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal upload foto");
     } finally {
       setIsAdding(false);
     }
@@ -93,12 +132,15 @@ export function AdminProfilePhotosSection() {
         body: JSON.stringify({ id }),
       });
 
-      if (!response.ok) throw new Error("Failed to delete photo");
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Gagal menghapus foto");
+      }
 
       setPhotos(photos.filter((p) => p.id !== id));
       setMessage("Foto profil berhasil dihapus");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete photo");
+      setError(err instanceof Error ? err.message : "Gagal menghapus foto");
     } finally {
       setIsDeletingId(null);
     }
@@ -115,27 +157,68 @@ export function AdminProfilePhotosSection() {
       {message && <div className={styles.success}>{message}</div>}
       {error && <div className={styles.error}>{error}</div>}
 
-      <form onSubmit={handleAddPhoto} className={styles.form}>
-        <div className={styles.field}>
-          <label>URL Foto Baru</label>
-          <div className={styles.inputGroup}>
-            <input
-              type="url"
-              placeholder="https://..."
-              value={newPhotoUrl}
-              onChange={(e) => setNewPhotoUrl(e.target.value)}
-              required
-              disabled={isAdding}
-            />
-            <button type="submit" disabled={isAdding}>
-              {isAdding ? "Menambahkan..." : "Tambah Foto"}
-            </button>
+      <div className={styles.tabsContainer}>
+        <button
+          className={`${styles.tab} ${uploadMode === "url" ? styles.tabActive : ""}`}
+          onClick={() => setUploadMode("url")}
+        >
+          URL Foto
+        </button>
+        <button
+          className={`${styles.tab} ${uploadMode === "file" ? styles.tabActive : ""}`}
+          onClick={() => setUploadMode("file")}
+        >
+          Upload File
+        </button>
+      </div>
+
+      {uploadMode === "url" ? (
+        <form onSubmit={handleAddPhotoByUrl} className={styles.form}>
+          <div className={styles.field}>
+            <label>URL Foto Baru</label>
+            <div className={styles.inputGroup}>
+              <input
+                type="url"
+                placeholder="https://..."
+                value={newPhotoUrl}
+                onChange={(e) => setNewPhotoUrl(e.target.value)}
+                required
+                disabled={isAdding}
+              />
+              <button type="submit" disabled={isAdding}>
+                {isAdding ? "Menambahkan..." : "Tambah Foto"}
+              </button>
+            </div>
+            <small className={styles.hint}>
+              Gunakan URL foto yang sudah di-upload atau link public
+            </small>
           </div>
-          <small className={styles.hint}>
-            Gunakan URL foto yang sudah di-upload atau link public
-          </small>
-        </div>
-      </form>
+        </form>
+      ) : (
+        <form onSubmit={handleAddPhotoByFile} className={styles.form}>
+          <div className={styles.field}>
+            <label>Upload Foto</label>
+            <div className={styles.fileInputWrapper}>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                disabled={isAdding}
+                className={styles.fileInput}
+              />
+              <span className={styles.fileInputLabel}>
+                {selectedFile ? selectedFile.name : "Pilih file foto..."}
+              </span>
+            </div>
+            <button type="submit" disabled={isAdding || !selectedFile} className={styles.uploadButton}>
+              {isAdding ? "Mengupload..." : "Upload Foto"}
+            </button>
+            <small className={styles.hint}>
+              Format: PNG, JPG, GIF, WEBP | Ukuran maksimal: 1MB
+            </small>
+          </div>
+        </form>
+      )}
 
       <div className={styles.photosSection}>
         <h3>Foto Profil yang Tersedia ({photos.length})</h3>
