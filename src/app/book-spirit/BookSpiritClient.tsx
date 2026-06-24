@@ -493,6 +493,7 @@ export default function BookSpiritClient() {
             {filteredStories.map((story) => (
               <article key={story.id} className={styles.storyItem}>
                 <div className={styles.storyContent}>
+                  {/* User Info Header */}
                   <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
                     {story.userAvatarUrl ? (
                       <img
@@ -541,6 +542,29 @@ export default function BookSpiritClient() {
                     </div>
                   </div>
                   
+                  {/* Rating and Products - New Position */}
+                  <div className={styles.ratingAndProductsContainer}>
+                    {/* Rating Display */}
+                    {story.rating && story.rating > 0 && (
+                      <div className={styles.ratingBadge}>
+                        <span className={styles.ratingStars}>
+                          {"★".repeat(story.rating)}{"☆".repeat(5 - story.rating)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Linked Products Display */}
+                    {story.linkedProducts && story.linkedProducts.length > 0 && (
+                      <div className={styles.productsScrollContainer}>
+                        {story.linkedProducts.map((prod) => (
+                          <span key={prod.productId} className={styles.productBadge}>
+                            {prod.productName}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
                   {story.photos && story.photos.length > 0 && (
                     <div style={{ display: "flex", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
                       {story.photos.map((photo, idx) => (
@@ -551,7 +575,7 @@ export default function BookSpiritClient() {
                           style={{
                             maxWidth: "100%",
                             maxHeight: "300px",
-                            borderRadius: "8px",
+                            borderRadius: "12px",
                             objectFit: "cover",
                           }}
                         />
@@ -563,29 +587,6 @@ export default function BookSpiritClient() {
                     className={styles.storyText}
                     dangerouslySetInnerHTML={{ __html: story.story }}
                   />
-                  
-                  {/* Rating Display */}
-                  {story.rating && story.rating > 0 && (
-                    <div style={{ marginTop: "12px", padding: "8px", background: "#FFF9E6", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                      <span style={{ fontSize: "16px" }}>
-                        {"★".repeat(story.rating)}{"☆".repeat(5 - story.rating)}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Linked Products Display */}
-                  {story.linkedProducts && story.linkedProducts.length > 0 && (
-                    <div style={{ marginTop: "12px", padding: "8px", background: "#f5f5f5", borderRadius: "8px", border: "1px solid #11151E" }}>
-                      <p style={{ fontSize: "12px", fontWeight: "600", margin: "0 0 6px 0", color: "#11151E" }}>Produk Terkait:</p>
-                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                        {story.linkedProducts.map((prod) => (
-                          <span key={prod.productId} style={{ fontSize: "12px", background: "white", border: "1px solid #11151E", borderRadius: "12px", padding: "4px 8px", color: "#11151E" }}>
-                            {prod.productName}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   
                   <p className={styles.storyBrand}>Testimoni</p>
 
