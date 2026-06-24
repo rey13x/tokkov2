@@ -94,6 +94,13 @@
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 5px;
+  flex-wrap: nowrap;
+  -ms-overflow-style: none;  /* Hide scrollbar for IE and Edge */
+  scrollbar-width: none;  /* Hide scrollbar for Firefox */
+}
+
+.categoryRow::-webkit-scrollbar {
+  display: none;  /* Hide scrollbar for Chrome, Safari and Opera */
 }
 
 .categoryChip {
