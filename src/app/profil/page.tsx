@@ -13,12 +13,21 @@ const MAX_AVATAR_SIZE_MB = 2;
 const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 const ALLOWED_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+const PROFILE_IMAGES = [
+  "/assets/profile1.jpg",
+  "/assets/profile2.jpg",
+  "/assets/profile3.jpg",
+  "/assets/profile4.jpg",
+  "/assets/profile5.jpg",
+  "/assets/profile6.jpg",
+  "/assets/profile7.jpg",
+];
 
 export default function ProfilePage() {
   const router = useRouter();
   const { data: session, status, update } = useSession();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const isFileUploadEnabled = true;
+  const isFileUploadEnabled = false;
   const canUseEmailOtp = process.env.NEXT_PUBLIC_EMAIL_OTP_ENABLED === "true";
 
   const [name, setName] = useState("");
@@ -34,6 +43,8 @@ export default function ProfilePage() {
   const [isRequestingOtp, setIsRequestingOtp] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedProfileImage, setSelectedProfileImage] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -319,6 +330,62 @@ export default function ProfilePage() {
     await signOut({ callbackUrl: "/" });
   };
 
+  const onSelectProfileImage = async (imageUrl: string) => {
+    setSelectedProfileImage(imageUrl);
+  };
+
+  const onConfirmProfileImage = async () => {
+    if (!selectedProfileImage) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsUploadingAvatar(true);
+
+    try {
+      // Update avatar with selected profile image
+      setAvatarUrl(selectedProfileImage);
+
+      // Store in localStorage
+      try {
+        window.localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, selectedProfileImage);
+      } catch {}
+
+      // Update session with explicit error handling
+      try {
+        await update({ avatarUrl: selectedProfileImage, image: selectedProfileImage });
+      } catch (updateErr) {
+        console.error("Session update failed:", updateErr);
+      }
+
+      // Fetch fresh user data to ensure everything is synced
+      try {
+        const freshResponse = await fetch("/api/me", {
+          cache: "no-store",
+          headers: { "pragma": "no-cache", "cache-control": "no-cache" }
+        });
+        if (freshResponse.ok) {
+          const freshData = (await freshResponse.json()) as { avatarUrl?: string };
+          if (freshData.avatarUrl) {
+            setAvatarUrl(freshData.avatarUrl);
+          }
+        }
+      } catch (fetchErr) {
+        console.error("Failed to fetch fresh avatar data:", fetchErr);
+      }
+
+      setMessage("Foto profil berhasil diperbarui.");
+      setShowProfileModal(false);
+      setSelectedProfileImage("");
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Gagal memperbarui foto profil.";
+      setError(errorMsg);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
@@ -358,27 +425,28 @@ export default function ProfilePage() {
                 )}
               </div>
               <span className={styles.avatarOverlayText}>
-                {!isFileUploadEnabled
-                  ? "Upload avatar nonaktif"
-                  : isUploadingAvatar
-                    ? "Mengupload..."
-                    : "Klik foto untuk ganti"}
+                Pilih foto Profil
               </span>
             </button>
-            {isFileUploadEnabled ? (
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp"
-                  onChange={onSelectAvatarFile}
-                  className={styles.hiddenInput}
-                />
-                <small className={styles.avatarHint}>PNG, JPG, GIF, WEBP · Maks 5MB</small>
-              </>
-            ) : (
-              <small className={styles.avatarHint}>Mode database-only: upload avatar dimatikan.</small>
-            )}
+            <button
+              type="button"
+              className={styles.choosePhotoButton}
+              onClick={() => setShowProfileModal(true)}
+              disabled={isUploadingAvatar}
+            >
+              Pilih Foto
+            </button>
+            <div className={styles.attributionText}>
+              <span>by </span>
+              <a 
+                href="https://www.instagram.com/sorrisopng?igsh=MXU1Y3d2ZXdvNHVmdA==" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className={styles.attributionLink}
+              >
+                @sorriso
+              </a>
+            </div>
 
             {session?.user?.role === "admin" ? (
               <Link
@@ -546,6 +614,51 @@ export default function ProfilePage() {
           Logout
         </button>
       ) : null}
+
+      {/* Profile Image Selection Modal */}
+      {showProfileModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowProfileModal(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>Pilih Foto Profil</h2>
+            <div className={styles.profileImageGrid}>
+              {PROFILE_IMAGES.map((image, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className={`${styles.profileImageOption} ${
+                    selectedProfileImage === image ? styles.profileImageSelected : ""
+                  }`}
+                  onClick={() => onSelectProfileImage(image)}
+                  title={`Foto profil ${index + 1}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={image} alt={`Foto profil ${index + 1}`} />
+                </button>
+              ))}
+            </div>
+            <div className={styles.modalButtons}>
+              <button
+                type="button"
+                className={styles.confirmButton}
+                onClick={onConfirmProfileImage}
+                disabled={!selectedProfileImage || isUploadingAvatar}
+              >
+                {isUploadingAvatar ? "Menyimpan..." : "Pilih Foto"}
+              </button>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                onClick={() => {
+                  setShowProfileModal(false);
+                  setSelectedProfileImage("");
+                }}
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
