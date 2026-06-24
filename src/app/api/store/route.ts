@@ -4,21 +4,23 @@ import {
   listInformations,
   listMarquees,
   listProducts,
+  listStoryReels,
   listTestimonials,
 } from "@/server/store-data";
 
 export async function GET() {
   try {
-    const [products, informations, testimonials, marquees, paymentSettings] = await Promise.all([
+    const [products, informations, testimonials, marquees, storyReels, paymentSettings] = await Promise.all([
       listProducts(),
       listInformations(),
       listTestimonials(),
       listMarquees(),
+      listStoryReels(),
       getPaymentSettings(),
     ]);
 
     return NextResponse.json(
-      { products, informations, testimonials, marquees, paymentSettings },
+      { products, informations, testimonials, marquees, storyReels, paymentSettings },
       {
         headers: {
           "Cache-Control": "public, max-age=5, s-maxage=10, stale-while-revalidate=60",
@@ -33,6 +35,7 @@ export async function GET() {
         informations: [],
         testimonials: [],
         marquees: [],
+        storyReels: [],
         paymentSettings: null,
       },
       {

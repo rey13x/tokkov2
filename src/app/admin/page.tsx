@@ -10,7 +10,7 @@ import VerifiedBadge from "@/components/VerifiedBadge";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
 import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
-import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
+import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StoreStoryReel, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
 
 // ...existing code...
 export default AdminManagementSection;
@@ -23,6 +23,7 @@ type AdminSection =
   | "testimonials"
   | "testimonialComments"
   | "marquees"
+  | "storyReels"
   | "bookStories"
   | "paymentSettings"
   | "privacyPolicy"
@@ -40,6 +41,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
   { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
+  { id: "storyReels", label: "Story Reels", desc: "Preview scroll reels" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
@@ -93,6 +95,15 @@ const defaultTestimonialForm = {
 const defaultMarqueeForm = {
   label: "",
   imageUrl: "/assets/logo.png",
+  sortOrder: 0,
+};
+
+const defaultStoryReelForm = {
+  title: "",
+  description: "",
+  mediaGallery: [] as Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; linkUrl?: string }>,
+  linkUrl: "",
+  isActive: true,
   sortOrder: 0,
 };
 
@@ -200,6 +211,7 @@ function AdminManagementSection() {
     const [selectedCommentsToCopy, setSelectedCommentsToCopy] = useState<Set<string>>(new Set());
     const [targetTestimonialId, setTargetTestimonialId] = useState<string>("");
     const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
+    const [storyReels, setStoryReels] = useState<StoreStoryReel[]>([]);
     const [orders, setOrders] = useState<OrderSummary[]>([]);
     const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, string>>({});
     const [series, setSeries] = useState<Array<{ bucket: string; totalOrders: number }>>([]);
@@ -222,6 +234,8 @@ function AdminManagementSection() {
   const [testimonialEditId, setTestimonialEditId] = useState<string | null>(null);
   const [marqueeForm, setMarqueeForm] = useState(defaultMarqueeForm);
   const [marqueeEditId, setMarqueeEditId] = useState<string | null>(null);
+  const [storyReelForm, setStoryReelForm] = useState(defaultStoryReelForm);
+  const [storyReelEditId, setStoryReelEditId] = useState<string | null>(null);
   const [privacyPolicyForm, setPrivacyPolicyForm] = useState(defaultPrivacyPolicyForm);
   const [paymentSettingsForm, setPaymentSettingsForm] = useState(defaultPaymentSettingsForm);
   const [maintenanceSettingsForm, setMaintenanceSettingsForm] = useState(defaultMaintenanceSettingsForm);
@@ -388,6 +402,11 @@ function AdminManagementSection() {
   const resetMarqueeForm = () => {
     setMarqueeEditId(null);
     setMarqueeForm(defaultMarqueeForm);
+  };
+
+  const resetStoryReelForm = () => {
+    setStoryReelEditId(null);
+    setStoryReelForm(defaultStoryReelForm);
   };
 
   useEffect(() => {
@@ -643,6 +662,15 @@ function AdminManagementSection() {
     }
     const result = (await response.json()) as { marquees: StoreMarqueeItem[] };
     setMarquees(result.marquees);
+  };
+
+  const loadStoryReels = async () => {
+    const response = await fetch("/api/admin/story-reels", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil story reels");
+    }
+    const result = (await response.json()) as { storyReels: StoreStoryReel[] };
+    setStoryReels(result.storyReels);
   };
 
   const loadBookStories = async () => {
@@ -1262,6 +1290,7 @@ function AdminManagementSection() {
           loadTestimonials(),
           loadTestimonialComments(),
           loadMarquees(),
+          loadStoryReels(),
           loadBookStories(),
           loadApprovedBookStories(),
           loadStoryReports(),
@@ -1794,6 +1823,98 @@ function AdminManagementSection() {
     }
     await loadMarquees();
     bumpPreview();
+  };
+
+  const onAddStoryReelMediaRow = () => {
+    setStoryReelForm((current) => ({
+      ...current,
+      mediaGallery: [...current.mediaGallery, { url: "", type: "image" }],
+    }));
+  };
+
+  const onRemoveStoryReelMediaRow = (index: number) => {
+    setStoryReelForm((current) => ({
+      ...current,
+      mediaGallery: current.mediaGallery.filter((_, currentIndex) => currentIndex !== index),
+    }));
+  };
+
+  const onUpdateStoryReelMedia = (index: number, field: "url" | "type" | "alt" | "linkUrl", value: string) => {
+    setStoryReelForm((current) => ({
+      ...current,
+      mediaGallery: current.mediaGallery.map((item, currentIndex) =>
+        currentIndex === index ? { ...item, [field]: value } : item,
+      ),
+    }));
+  };
+
+  const onSaveStoryReel = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const payload = {
+        title: storyReelForm.title.trim(),
+        description: storyReelForm.description.trim(),
+        mediaGallery: storyReelForm.mediaGallery.filter((item) => item.url.trim()),
+        linkUrl: storyReelForm.linkUrl.trim(),
+        isActive: storyReelForm.isActive,
+        sortOrder: storyReelForm.sortOrder,
+      };
+
+      const endpoint = storyReelEditId ? `/api/admin/story-reels/${storyReelEditId}` : "/api/admin/story-reels";
+      const method = storyReelEditId ? "PATCH" : "POST";
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        throw new Error(result.message ?? "Gagal simpan story reel.");
+      }
+
+      setMessage(storyReelEditId ? "Story reel berhasil diperbarui." : "Story reel berhasil ditambahkan.");
+      resetStoryReelForm();
+      await loadStoryReels();
+      bumpPreview();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal simpan story reel.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onEditStoryReel = (storyReel: StoreStoryReel) => {
+    setStoryReelEditId(storyReel.id);
+    setStoryReelForm({
+      title: storyReel.title,
+      description: storyReel.description,
+      mediaGallery: storyReel.mediaGallery.length > 0 ? storyReel.mediaGallery : [{ url: "", type: "image" }],
+      linkUrl: storyReel.linkUrl,
+      isActive: storyReel.isActive,
+      sortOrder: storyReel.sortOrder,
+    });
+    setActiveSection("storyReels");
+  };
+
+  const onDeleteStoryReel = async (id: string) => {
+    if (!window.confirm("Hapus story reel ini?")) {
+      return;
+    }
+
+    try {
+      await fetch(`/api/admin/story-reels/${id}`, { method: "DELETE" });
+      if (storyReelEditId === id) {
+        resetStoryReelForm();
+      }
+      await loadStoryReels();
+      bumpPreview();
+    } catch {
+      setError("Gagal hapus story reel.");
+    }
   };
 
   const onApproveBookStory = async (storyId: string) => {
@@ -4414,6 +4535,104 @@ function AdminManagementSection() {
               </div>
             ))}
             {marquees.length === 0 ? <p>Belum ada logo marquee.</p> : null}
+          </div>
+        </article>
+        ) : null}
+
+        {activeSection === "storyReels" ? (
+        <article className={styles.card}>
+          <h2>{storyReelEditId ? "Edit Story Reel" : "Story Reels"}</h2>
+          <form className={styles.form} onSubmit={onSaveStoryReel}>
+            <input
+              value={storyReelForm.title}
+              onChange={(event) => setStoryReelForm((current) => ({ ...current, title: event.target.value }))}
+              placeholder="Judul reel"
+              required
+            />
+            <textarea
+              value={storyReelForm.description}
+              onChange={(event) => setStoryReelForm((current) => ({ ...current, description: event.target.value }))}
+              placeholder="Deskripsi singkat"
+              rows={3}
+            />
+            <input
+              type="number"
+              min={0}
+              value={storyReelForm.sortOrder}
+              onChange={(event) => setStoryReelForm((current) => ({ ...current, sortOrder: Number(event.target.value || 0) }))}
+              placeholder="Urutan tampil"
+            />
+            <input
+              value={storyReelForm.linkUrl}
+              onChange={(event) => setStoryReelForm((current) => ({ ...current, linkUrl: event.target.value }))}
+              placeholder="Link tujuan (opsional)"
+            />
+            <label className={styles.checkField}>
+              <input
+                type="checkbox"
+                checked={storyReelForm.isActive}
+                onChange={(event) => setStoryReelForm((current) => ({ ...current, isActive: event.target.checked }))}
+              />
+              Tampilkan di beranda
+            </label>
+            {storyReelForm.mediaGallery.map((item, index) => (
+              <div key={`${index}-${item.url}`} className={styles.mediaRow}>
+                <input
+                  value={item.url}
+                  onChange={(event) => onUpdateStoryReelMedia(index, "url", event.target.value)}
+                  placeholder="URL media (foto/video/gif)"
+                />
+                <select value={item.type ?? "image"} onChange={(event) => onUpdateStoryReelMedia(index, "type", event.target.value)}>
+                  <option value="image">Foto</option>
+                  <option value="video">Video</option>
+                  <option value="gif">GIF</option>
+                </select>
+                <input
+                  value={item.alt ?? ""}
+                  onChange={(event) => onUpdateStoryReelMedia(index, "alt", event.target.value)}
+                  placeholder="Alt text"
+                />
+                <input
+                  value={item.linkUrl ?? ""}
+                  onChange={(event) => onUpdateStoryReelMedia(index, "linkUrl", event.target.value)}
+                  placeholder="Link item (opsional)"
+                />
+                <button type="button" className={styles.secondaryButton} onClick={() => onRemoveStoryReelMediaRow(index)}>
+                  Hapus
+                </button>
+              </div>
+            ))}
+            <button type="button" className={styles.secondaryButton} onClick={onAddStoryReelMediaRow}>
+              Tambah media
+            </button>
+            <div className={styles.formActions}>
+              <button type="submit" disabled={isLoading}>
+                {storyReelEditId ? "Simpan Perubahan" : "Tambah Reel"}
+              </button>
+              {storyReelEditId ? (
+                <button type="button" className={styles.secondaryButton} onClick={resetStoryReelForm}>
+                  Batal Edit
+                </button>
+              ) : null}
+            </div>
+          </form>
+          <div className={styles.list}>
+            {storyReels.map((reel) => (
+              <div key={reel.id} className={styles.listItem}>
+                <div className={styles.listPreview}>
+                  <div>
+                    <p><strong>{reel.title}</strong></p>
+                    <span>{reel.description}</span>
+                    <span>{reel.mediaGallery.length} media</span>
+                  </div>
+                </div>
+                <div className={styles.rowActions}>
+                  <button type="button" onClick={() => onEditStoryReel(reel)}>Edit</button>
+                  <button type="button" onClick={() => onDeleteStoryReel(reel.id)}>Hapus</button>
+                </div>
+              </div>
+            ))}
+            {storyReels.length === 0 ? <p>Belum ada story reel.</p> : null}
           </div>
         </article>
         ) : null}

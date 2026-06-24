@@ -9,6 +9,7 @@ import type {
   StoreMarqueeItem,
   StorePrivacyPolicyPage,
   StoreProduct,
+  StoreStoryReel,
   StoreTestimonial,
 } from "@/types/store";
 import { resolveMediaUrl } from "@/lib/media";
@@ -187,6 +188,42 @@ function mapMarquee(row: Record<string, unknown>): StoreMarqueeItem {
     id: String(row.id),
     label: String(row.label ?? "Logo"),
     imageUrl: resolveMediaUrl(String(row.image_url ?? "")),
+    isActive: Number(row.is_active ?? 1) === 1,
+    sortOrder: Number(row.sort_order ?? 0),
+    createdAt: new Date(Number(row.created_at ?? now())).toISOString(),
+  };
+}
+
+function mapStoryReel(row: Record<string, unknown>): StoreStoryReel {
+  let mediaGallery: StoreStoryReel["mediaGallery"] = [];
+  if (row.media_gallery) {
+    try {
+      const parsed = JSON.parse(String(row.media_gallery));
+      if (Array.isArray(parsed)) {
+        mediaGallery = parsed.map((item: unknown) => {
+          if (typeof item === "object" && item !== null) {
+            const typed = item as Record<string, unknown>;
+            return {
+              url: resolveMediaUrl(String(typed.url ?? "")),
+              type: (typed.type as "image" | "video" | "gif" | undefined) ?? "image",
+              alt: String(typed.alt ?? ""),
+              linkUrl: String(typed.linkUrl ?? ""),
+            };
+          }
+          return { url: resolveMediaUrl(String(item ?? "")), type: "image" as const };
+        });
+      }
+    } catch {
+      // ignore parse error
+    }
+  }
+
+  return {
+    id: String(row.id),
+    title: String(row.title ?? ""),
+    description: String(row.description ?? ""),
+    mediaGallery,
+    linkUrl: String(row.link_url ?? ""),
     isActive: Number(row.is_active ?? 1) === 1,
     sortOrder: Number(row.sort_order ?? 0),
     createdAt: new Date(Number(row.created_at ?? now())).toISOString(),
@@ -602,6 +639,19 @@ export async function ensureDatabase() {
           id TEXT PRIMARY KEY,
           label TEXT NOT NULL,
           image_url TEXT NOT NULL DEFAULT '/assets/logo.png',
+          is_active INTEGER NOT NULL DEFAULT 1,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )`,
+      );
+      await run(
+        `CREATE TABLE IF NOT EXISTS story_reels (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          media_gallery TEXT NOT NULL DEFAULT '[]',
+          link_url TEXT NOT NULL DEFAULT '',
           is_active INTEGER NOT NULL DEFAULT 1,
           sort_order INTEGER NOT NULL DEFAULT 0,
           created_at INTEGER NOT NULL,
@@ -1728,6 +1778,106 @@ export async function updateMarquee(
 export async function deleteMarquee(id: string) {
   await ensureDatabase();
   await run("DELETE FROM marquees WHERE id = ?", [id]);
+}
+
+export async function listStoryReels() {
+  await ensureDatabase();
+  const res = await run(
+    "SELECT * FROM story_reels ORDER BY sort_order ASC, created_at ASC",
+  );
+  return res.rows.map((row) => mapStoryReel(row as Record<string, unknown>));
+}
+
+export async function getStoryReelById(id: string) {
+  await ensureDatabase();
+  const res = await run("SELECT * FROM story_reels WHERE id = ? LIMIT 1", [id]);
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  return row ? mapStoryReel(row) : null;
+}
+
+export async function createStoryReel(input: {
+  title: string;
+  description: string;
+  mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; linkUrl?: string }>;
+  linkUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+}) {
+  await ensureDatabase();
+  const id = randomId();
+  const mediaGallery = input.mediaGallery.map((item) => ({
+    ...item,
+    url: resolveMediaUrl(item.url),
+  }));
+
+  await run(
+    `INSERT INTO story_reels
+      (id, title, description, media_gallery, link_url, is_active, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.title.trim(),
+      input.description.trim(),
+      JSON.stringify(mediaGallery),
+      input.linkUrl.trim(),
+      Number(input.isActive),
+      Math.max(0, Math.floor(input.sortOrder)),
+      now(),
+      now(),
+    ],
+  );
+
+  return getStoryReelById(id);
+}
+
+export async function updateStoryReel(
+  id: string,
+  input: Partial<{
+    title: string;
+    description: string;
+    mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; linkUrl?: string }>;
+    linkUrl: string;
+    isActive: boolean;
+    sortOrder: number;
+  }>,
+) {
+  await ensureDatabase();
+  const current = await getStoryReelById(id);
+  if (!current) {
+    return null;
+  }
+
+  const nextMediaGallery = input.mediaGallery === undefined
+    ? current.mediaGallery
+    : input.mediaGallery.map((item) => ({
+        ...item,
+        url: resolveMediaUrl(item.url),
+      }));
+
+  await run(
+    `UPDATE story_reels
+     SET title = ?, description = ?, media_gallery = ?, link_url = ?, is_active = ?, sort_order = ?, updated_at = ?
+     WHERE id = ?`,
+    [
+      input.title?.trim() ?? current.title,
+      input.description?.trim() ?? current.description,
+      JSON.stringify(nextMediaGallery),
+      input.linkUrl === undefined ? current.linkUrl : input.linkUrl.trim(),
+      input.isActive === undefined ? Number(current.isActive) : Number(input.isActive),
+      input.sortOrder === undefined
+        ? current.sortOrder
+        : Math.max(0, Math.floor(input.sortOrder)),
+      now(),
+      id,
+    ],
+  );
+
+  return getStoryReelById(id);
+}
+
+export async function deleteStoryReel(id: string) {
+  await ensureDatabase();
+  await run("DELETE FROM story_reels WHERE id = ?", [id]);
 }
 
 export async function getPrivacyPolicyPage() {

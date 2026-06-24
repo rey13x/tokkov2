@@ -39,6 +39,7 @@ import type {
   StoreInformation,
   StoreMarqueeItem,
   StoreProduct,
+  StoreStoryReel,
   StoreTestimonial,
 } from "@/types/store";
 import styles from "./HomeClient.module.css";
@@ -49,6 +50,7 @@ type HomeProduct = StoreProduct;
 type HomeInformation = StoreInformation;
 type HomeTestimonial = StoreTestimonial;
 type HomeMarquee = StoreMarqueeItem;
+type HomeStoryReel = StoreStoryReel;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
@@ -82,6 +84,7 @@ export default function HomeClient() {
   const [informations, setInformations] = useState<HomeInformation[]>([]);
   const [testimonials, setTestimonials] = useState<HomeTestimonial[]>([]);
   const [marquees, setMarquees] = useState<HomeMarquee[]>([]);
+  const [storyReels, setStoryReels] = useState<HomeStoryReel[]>([]);
   const [isTestimonialDragging, setIsTestimonialDragging] = useState(false);
   const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
@@ -355,6 +358,7 @@ export default function HomeClient() {
         setInformations(data.informations ?? []);
         setTestimonials(data.testimonials ?? []);
         setMarquees(data.marquees ?? []);
+        setStoryReels(data.storyReels ?? []);
       })
       .catch(() => {})
       .finally(() => {
@@ -860,6 +864,40 @@ export default function HomeClient() {
           </div>
         )}
       </section>
+      ) : null}
+
+      {storyReels.length > 0 ? (
+        <section className={styles.section} data-animate="section">
+          <div className={styles.sectionHead}>
+            <h2>Story Terbaru</h2>
+          </div>
+          <div className={styles.storyReelViewport}>
+            {storyReels.map((story) => (
+              <article key={story.id} className={styles.storyReelCard}>
+                <div className={styles.storyReelMediaWrap}>
+                  {story.mediaGallery?.[0] ? (
+                    <FlexibleMedia
+                      src={story.mediaGallery[0].url}
+                      alt={story.title}
+                      fill
+                      className={styles.storyReelImage}
+                      sizes="(max-width: 900px) 86vw, 320px"
+                    />
+                  ) : null}
+                </div>
+                <div className={styles.storyReelBody}>
+                  <h3>{story.title}</h3>
+                  {story.description ? <p>{story.description}</p> : null}
+                  {story.linkUrl ? (
+                    <Link href={story.linkUrl} className={styles.storyReelLink}>
+                      Lihat detail
+                    </Link>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {testimonials.length > 0 || activeMarquees.length > 0 ? (

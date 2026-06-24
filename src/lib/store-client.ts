@@ -3,6 +3,7 @@ import type {
   StoreMarqueeItem,
   StorePaymentSettings,
   StoreProduct,
+  StoreStoryReel,
   StoreTestimonial,
 } from "@/types/store";
 
@@ -19,6 +20,7 @@ export async function fetchStoreData() {
     informations: StoreInformation[];
     testimonials: StoreTestimonial[];
     marquees?: StoreMarqueeItem[];
+    storyReels?: StoreStoryReel[];
     paymentSettings?: StorePaymentSettings | null;
   };
 

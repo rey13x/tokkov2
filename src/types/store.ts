@@ -154,6 +154,23 @@ export type StoreMarqueeItem = {
   createdAt: string;
 };
 
+export type StoreStoryMediaItem = {
+  url: string;
+  type?: "image" | "video" | "gif";
+  alt?: string;
+  linkUrl?: string;
+};
+
+export type StoreStoryReel = {
+  id: string;
+  title: string;
+  description: string;
+  mediaGallery: StoreStoryMediaItem[];
+  linkUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+};
 
 export type StorePrivacyPolicyPage = {
   id: string;

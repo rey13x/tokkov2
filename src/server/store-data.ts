@@ -8,6 +8,7 @@ import type {
   StoreInformation,
   StoreMarqueeItem,
   StoreOrderDetail,
+  StoreStoryReel,
   StoreOrderItem,
   StorePaymentSettings,
   StorePrivacyPolicyPage,
@@ -20,10 +21,12 @@ import {
   createOrder as createOrderDb,
   createProduct as createProductDb,
   createMarquee as createMarqueeDb,
+  createStoryReel as createStoryReelDb,
   createTestimonial as createTestimonialDb,
   deleteAllProducts as deleteAllProductsDb,
   deleteInformation as deleteInformationDb,
   deleteMarquee as deleteMarqueeDb,
+  deleteStoryReel as deleteStoryReelDb,
   deleteOrder as deleteOrderDb,
   deleteProduct as deleteProductDb,
   deleteTestimonial as deleteTestimonialDb,
@@ -35,6 +38,7 @@ import {
   getPrivacyPolicyPage as getPrivacyPolicyPageDb,
   getProductById as getProductByIdDb,
   listMarquees as listMarqueesDb,
+  listStoryReels as listStoryReelsDb,
   listOrderItemsByOrderId as listOrderItemsByOrderIdDb,
   listOrdersWithItems as listOrdersWithItemsDb,
   listAllProducts as listAllProductsDb,
@@ -46,6 +50,7 @@ import {
   upsertAppMetaValue as upsertAppMetaValueDb,
   updateInformation as updateInformationDb,
   updateMarquee as updateMarqueeDb,
+  updateStoryReel as updateStoryReelDb,
   updateOrderStatus as updateOrderStatusDb,
   updateProduct as updateProductDb,
   updateTestimonial as updateTestimonialDb,
@@ -252,6 +257,31 @@ function mapMarqueeDoc(
     id,
     label: String(data?.label ?? "Logo"),
     imageUrl: resolveMediaUrl(String(data?.imageUrl ?? "")),
+    isActive: Boolean(data?.isActive ?? true),
+    sortOrder: Number(data?.sortOrder ?? 0),
+    createdAt: new Date(Number(data?.createdAt ?? now())).toISOString(),
+  };
+}
+
+function mapStoryReelDoc(
+  id: string,
+  data: Record<string, unknown> | undefined,
+): StoreStoryReel {
+  const mediaGallery = Array.isArray(data?.mediaGallery)
+    ? (data.mediaGallery as Array<Record<string, unknown>>).map((item) => ({
+        url: resolveMediaUrl(String(item?.url ?? "")),
+        type: (String(item?.type ?? "image") as "image" | "video" | "gif") || "image",
+        alt: String(item?.alt ?? ""),
+        linkUrl: String(item?.linkUrl ?? ""),
+      }))
+    : [];
+
+  return {
+    id,
+    title: String(data?.title ?? ""),
+    description: String(data?.description ?? ""),
+    mediaGallery,
+    linkUrl: String(data?.linkUrl ?? ""),
     isActive: Boolean(data?.isActive ?? true),
     sortOrder: Number(data?.sortOrder ?? 0),
     createdAt: new Date(Number(data?.createdAt ?? now())).toISOString(),
@@ -999,6 +1029,128 @@ export async function deleteTestimonial(id: string) {
       error,
     );
     await deleteTestimonialDb(id);
+  }
+}
+
+export async function listStoryReels() {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return listStoryReelsDb();
+  }
+
+  try {
+    const snapshot = await firestore.collection("storyReels").orderBy("sortOrder", "asc").get();
+    return snapshot.docs.map((doc: any) => mapStoryReelDoc(doc.id, doc.data() as Record<string, unknown>));
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to read story reels from Firestore. Falling back to local database.", error);
+    return listStoryReelsDb();
+  }
+}
+
+export async function createStoryReel(input: {
+  title: string;
+  description: string;
+  mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; linkUrl?: string }>;
+  linkUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+}) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return createStoryReelDb(input);
+  }
+
+  try {
+    const id = crypto.randomUUID();
+    const createdAt = now();
+    const mediaGallery = input.mediaGallery.map((item) => ({
+      ...item,
+      url: resolveMediaUrl(item.url),
+    }));
+
+    await firestore.collection("storyReels").doc(id).set({
+      title: input.title.trim(),
+      description: input.description.trim(),
+      mediaGallery,
+      linkUrl: input.linkUrl.trim(),
+      isActive: Boolean(input.isActive),
+      sortOrder: Math.max(0, Math.floor(input.sortOrder)),
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    const doc = await firestore.collection("storyReels").doc(id).get();
+    return mapStoryReelDoc(doc.id, doc.data() as Record<string, unknown>);
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to create story reel in Firestore. Falling back to local database.", error);
+    return createStoryReelDb(input);
+  }
+}
+
+export async function updateStoryReel(
+  id: string,
+  input: Partial<{
+    title: string;
+    description: string;
+    mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; linkUrl?: string }>;
+    linkUrl: string;
+    isActive: boolean;
+    sortOrder: number;
+  }>,
+) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return updateStoryReelDb(id, input);
+  }
+
+  try {
+    const ref = firestore.collection("storyReels").doc(id);
+    const current = await ref.get();
+    if (!current.exists) {
+      return null;
+    }
+
+    const nextMediaGallery = input.mediaGallery === undefined
+      ? undefined
+      : input.mediaGallery.map((item) => ({
+          ...item,
+          url: resolveMediaUrl(item.url),
+        }));
+
+    await ref.update({
+      ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+      ...(input.description !== undefined ? { description: input.description.trim() } : {}),
+      ...(nextMediaGallery !== undefined ? { mediaGallery: nextMediaGallery } : {}),
+      ...(input.linkUrl !== undefined ? { linkUrl: input.linkUrl.trim() } : {}),
+      ...(input.isActive !== undefined ? { isActive: Boolean(input.isActive) } : {}),
+      ...(input.sortOrder !== undefined ? { sortOrder: Math.max(0, Math.floor(input.sortOrder)) } : {}),
+      updatedAt: now(),
+    });
+
+    const updated = await ref.get();
+    return mapStoryReelDoc(updated.id, updated.data() as Record<string, unknown>);
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to update story reel in Firestore. Falling back to local database.", error);
+    return updateStoryReelDb(id, input);
+  }
+}
+
+export async function deleteStoryReel(id: string) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    await deleteStoryReelDb(id);
+    return;
+  }
+
+  try {
+    await firestore.collection("storyReels").doc(id).delete();
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to delete story reel in Firestore. Falling back to local database.", error);
+    await deleteStoryReelDb(id);
   }
 }
 
