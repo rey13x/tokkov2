@@ -40,10 +40,10 @@ export async function POST(
 
     const { storyId } = await params;
     const user = await findUserById(session.user.id).catch(() => null);
-    const verified =
-      user?.role === "admin" ||
-      user?.email?.toLowerCase() === "digitalawanku2@gmail.com" ||
-      session.user.email?.toLowerCase() === "digitalawanku2@gmail.com";
+    // New comments from regular users start as unverified (admin can toggle later)
+    // Only hardcoded admin is auto-verified
+    const isHardcodedAdmin = session.user.id === "dev-admin-hardcoded";
+    const verified = isHardcodedAdmin;
 
     const comment = {
       id: `comment_${Date.now()}`,

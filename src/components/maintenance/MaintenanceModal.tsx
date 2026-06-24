@@ -104,11 +104,11 @@ export default function MaintenanceModal() {
             {/* Text Content */}
             <div ref={textRef} data-text-content className={styles.textContent}>
               <h1 className={styles.mainTitle}>
-                {settings.maintenanceTitle || "Website sedang dalam Pemeliharaan"}
+                {settings.maintenanceTitle || "Website Sedang Menjalani Pemeliharaan"}
               </h1>
               <p className={styles.subtitle}>
                 {settings.maintenanceSubtitle ||
-                  "Hi! Tokkers Website sedang dalam Pemeliharaan. Tenang.. kamu tetap bisa melihat tampilan website kami"}
+                  "Kami sedang melakukan pemeliharaan sistem untuk meningkatkan kualitas layanan. Website akan kembali online dalam waktu singkat. Anda tetap dapat melihat tampilan website kami."}
               </p>
               <p className={styles.brand}>- Tokko Marketplace</p>
 
@@ -119,7 +119,7 @@ export default function MaintenanceModal() {
                 onClick={handlePahamClick}
                 style={{ pointerEvents: "auto" }}
               >
-                Paham
+                Mengerti
               </button>
             </div>
           </div>

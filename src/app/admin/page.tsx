@@ -4528,22 +4528,39 @@ function AdminManagementSection() {
                             ) : (
                               <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
                                 {story.comments.map((comment) => (
-                                  <div key={comment.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", padding: "8px", background: "#f5f5f5", borderRadius: "4px" }}>
-                                    <div style={{ minWidth: 0 }}>
-                                      <p style={{ margin: 0, fontWeight: 700 }}>{comment.userName}</p>
+                                  <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px", flexWrap: "wrap" }}>
+                                        <p style={{ margin: "0", fontWeight: comment.verified ? 800 : 600, fontSize: "0.95rem" }}>{comment.userName}</p>
+                                        {comment.verified && (
+                                          <div style={{ display: "inline-flex", alignItems: "center", width: "22px", height: "22px", overflow: "hidden" }}>
+                                            <VerifiedBadge />
+                                          </div>
+                                        )}
+                                      </div>
                                       {comment.replyToName ? (
                                         <p style={{ margin: "2px 0 0", color: "#11151E", fontSize: "0.85rem" }}>@{comment.replyToName}</p>
                                       ) : null}
-                                      <p style={{ margin: "4px 0 0", wordBreak: "break-word" }}>{comment.text}</p>
+                                      <p style={{ margin: "4px 0 0", wordBreak: "break-word", fontSize: "0.9rem", color: "#444" }}>{comment.text}</p>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
-                                      disabled={isDeletingComment[comment.id]}
-                                      style={{ padding: "4px 8px", background: "#f44336", color: "white", border: "none", borderRadius: "4px", cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer", fontSize: "12px", flexShrink: 0 }}
-                                    >
-                                      {isDeletingComment[comment.id] ? "Hapus..." : "Hapus"}
-                                    </button>
+                                    <div style={{ display: "flex", gap: "4px", flexShrink: 0, flexDirection: "column" }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => onToggleStoryCommentVerified(story.id, comment.id, comment.verified || false)}
+                                        disabled={isTogglingStoryCommentVerified[comment.id]}
+                                        style={{ padding: "4px 8px", background: comment.verified ? "#FF9800" : "#9E9E9E", color: "white", border: "none", borderRadius: "4px", cursor: isTogglingStoryCommentVerified[comment.id] ? "not-allowed" : "pointer", fontSize: "12px", opacity: isTogglingStoryCommentVerified[comment.id] ? 0.6 : 1 }}
+                                      >
+                                        {isTogglingStoryCommentVerified[comment.id] ? "..." : (comment.verified ? "Verified" : "Non-Ver")}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
+                                        disabled={isDeletingComment[comment.id]}
+                                        style={{ padding: "4px 8px", background: "#f44336", color: "white", border: "none", borderRadius: "4px", cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer", fontSize: "12px", opacity: isDeletingComment[comment.id] ? 0.6 : 1 }}
+                                      >
+                                        {isDeletingComment[comment.id] ? "..." : "Hapus"}
+                                      </button>
+                                    </div>
                                   </div>
                                 ))}
                               </div>

@@ -54,14 +54,12 @@ export async function POST(request: Request, context: { params: Params }) {
     const body = await request.json();
     const validated = addCommentSchema.parse(body);
 
-    // Get user data for verified status (only digitalawanku2@gmail.com gets blue checkmark)
+    // Get user data for verified status
+    // New comments from regular users start as unverified (admin can toggle later in admin panel)
+    // Only hardcoded admin is auto-verified
     const user = await findUserById(session.user.id ?? "");
     const isHardcodedAdmin = session.user.id === "dev-admin-hardcoded";
-    const isVerified = user?.email?.toLowerCase() === "digitalawanku2@gmail.com" || 
-                      session.user.email?.toLowerCase() === "digitalawanku2@gmail.com" ||
-                      session.user.username === "Tokko Marketplace" ||
-                      user?.username === "Tokko Marketplace" ||
-                      isHardcodedAdmin;
+    const isVerified = isHardcodedAdmin;
     // Ensure avatar is provided
     const userAvatarUrl = session.user.image || user?.avatarUrl || "https://via.placeholder.com/32?text=U";
     
