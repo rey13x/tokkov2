@@ -874,7 +874,7 @@ export default function HomeClient() {
             gap={16}
             className={styles.partnerCarousel}
             itemClassName={styles.partnerCard}
-            pauseOnHover={true}
+            pauseOnHover={false}
             pauseOnTouch={true}
             renderItem={(item) => (
               <>

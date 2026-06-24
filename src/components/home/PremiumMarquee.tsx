@@ -31,6 +31,9 @@ export default function PremiumMarquee<T extends { id: string }>({
   const positionRef = useRef<number>(0);
   const contentWidthRef = useRef<number>(0);
   const pauseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragStartXRef = useRef<number>(0);
+  const dragStartPositionRef = useRef<number>(0);
+  const isDraggingRef = useRef<boolean>(false);
 
   const [isAnimating, setIsAnimating] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
@@ -177,6 +180,90 @@ export default function PremiumMarquee<T extends { id: string }>({
       }
     };
   }, [pauseOnTouch]);
+
+  // Handle manual drag
+  useEffect(() => {
+    const container = containerRef.current;
+    const track = trackRef.current;
+    if (!container || !track) return;
+
+    const onMouseDown = (e: MouseEvent) => {
+      isDraggingRef.current = true;
+      dragStartXRef.current = e.clientX;
+      dragStartPositionRef.current = positionRef.current;
+      setIsPaused(true);
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      
+      const deltaX = e.clientX - dragStartXRef.current;
+      positionRef.current = dragStartPositionRef.current + deltaX;
+      
+      // Apply transform
+      track.style.transform = `translate3d(${positionRef.current}px, 0, 0)`;
+    };
+
+    const onMouseUp = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      lastTimeRef.current = Date.now();
+      
+      // Resume animation after 1 second
+      if (pauseTimeoutRef.current) {
+        clearTimeout(pauseTimeoutRef.current);
+      }
+      pauseTimeoutRef.current = setTimeout(() => {
+        setIsPaused(false);
+      }, 1000);
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      isDraggingRef.current = true;
+      dragStartXRef.current = e.touches[0].clientX;
+      dragStartPositionRef.current = positionRef.current;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isDraggingRef.current) return;
+      
+      const deltaX = e.touches[0].clientX - dragStartXRef.current;
+      positionRef.current = dragStartPositionRef.current + deltaX;
+      
+      // Apply transform
+      track.style.transform = `translate3d(${positionRef.current}px, 0, 0)`;
+    };
+
+    const onTouchEnd = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      lastTimeRef.current = Date.now();
+      
+      // Resume animation after 1 second
+      if (pauseTimeoutRef.current) {
+        clearTimeout(pauseTimeoutRef.current);
+      }
+      pauseTimeoutRef.current = setTimeout(() => {
+        setIsPaused(false);
+      }, 1000);
+    };
+
+    container.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    container.addEventListener("touchstart", onTouchStart);
+    container.addEventListener("touchmove", onTouchMove);
+    container.addEventListener("touchend", onTouchEnd);
+
+    return () => {
+      container.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      container.removeEventListener("touchstart", onTouchStart);
+      container.removeEventListener("touchmove", onTouchMove);
+      container.removeEventListener("touchend", onTouchEnd);
+    };
+  }, []);
 
   if (items.length === 0) {
     return null;

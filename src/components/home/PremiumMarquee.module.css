@@ -9,7 +9,12 @@
   --marquee-gap: 16px;
   width: 100%;
   overflow: hidden;
-  touch-action: auto;
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+.marqueeContainer:active {
+  cursor: grabbing;
 }
 
 /**
