@@ -446,30 +446,34 @@ export default function BookSpiritClient() {
                 {"\u2605".repeat(rating)}
               </button>
             ))}
-          </div>
-        )}
-
-        {allProducts.length > 0 && (
-          <div className={styles.categoryRow}>
-            <button
-              type="button"
-              onClick={() => setActiveProductId(null)}
-              className={`${styles.categoryChip} ${activeProductId === null ? styles.categoryChipActive : ""}`}
-            >
-              Semua Produk
-            </button>
-            {allProducts.map((product) => (
-              <button
-                key={product.id}
-                type="button"
-                onClick={() => setActiveProductId(product.id)}
-                className={`${styles.categoryChip} ${
-                  activeProductId === product.id ? styles.categoryChipActive : ""
-                }`}
-              >
-                {product.name}
-              </button>
-            ))}
+            
+            {/* Divider */}
+            <div style={{ width: "1px", height: "24px", background: "rgba(255, 255, 255, 0.2)", margin: "0 4px" }} />
+            
+            {/* Product Filters */}
+            {allProducts.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setActiveProductId(null)}
+                  className={`${styles.categoryChip} ${activeProductId === null ? styles.categoryChipActive : ""}`}
+                >
+                  Semua Produk
+                </button>
+                {allProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => setActiveProductId(product.id)}
+                    className={`${styles.categoryChip} ${
+                      activeProductId === product.id ? styles.categoryChipActive : ""
+                    }`}
+                  >
+                    {product.name}
+                  </button>
+                ))}
+              </>
+            )}
           </div>
         )}
       </section>
