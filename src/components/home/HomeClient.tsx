@@ -11,9 +11,15 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   FiArrowLeft,
+  FiChevronDown,
   FiChevronRight,
+  FiChevronUp,
   FiMenu,
+  FiPause,
+  FiPlay,
   FiUser,
+  FiVolume2,
+  FiVolumeX,
   FiX,
 } from "react-icons/fi";
 import bagasPhoto from "@/app/assets/Bagas.jpg";
@@ -60,6 +66,169 @@ function getTestimonialMediaSrc(item: HomeTestimonial) {
   return item.name.trim().toLowerCase() === "founder" ? bagasPhoto.src : item.mediaUrl;
 }
 
+type StoryReelCardProps = {
+  reel: HomeStoryReel;
+  index: number;
+  isActive: boolean;
+  onAdvance: () => void;
+};
+
+function StoryReelCard({ reel, index, isActive, onAdvance }: StoryReelCardProps) {
+  const [mediaIndex, setMediaIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const currentMedia = reel.mediaGallery?.[mediaIndex] ?? null;
+
+  useEffect(() => {
+    setMediaIndex(0);
+    setProgress(0);
+    setDuration(0);
+    setIsPlaying(true);
+    setIsMuted(true);
+  }, [reel.id]);
+
+  useEffect(() => {
+    if (!isActive || !currentMedia || currentMedia.type !== "video") {
+      return;
+    }
+
+    const videoEl = videoRef.current;
+    if (!videoEl) {
+      return;
+    }
+
+    if (isPlaying) {
+      videoEl.play().catch(() => {});
+    } else {
+      videoEl.pause();
+    }
+  }, [currentMedia, isActive, isPlaying]);
+
+  useEffect(() => {
+    if (!isActive || !currentMedia || currentMedia.type === "video") {
+      return;
+    }
+
+    if (!isPlaying) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (mediaIndex < (reel.mediaGallery?.length ?? 1) - 1) {
+        setMediaIndex((prev) => prev + 1);
+        setProgress(0);
+      } else {
+        onAdvance();
+      }
+    }, 3200);
+
+    return () => window.clearTimeout(timer);
+  }, [currentMedia, isActive, isPlaying, mediaIndex, onAdvance, reel.mediaGallery?.length]);
+
+  const handleMediaEnd = () => {
+    if (mediaIndex < (reel.mediaGallery?.length ?? 1) - 1) {
+      setMediaIndex((prev) => prev + 1);
+      setProgress(0);
+      setIsPlaying(true);
+    } else {
+      onAdvance();
+    }
+  };
+
+  const handleVideoTimeUpdate = () => {
+    const videoEl = videoRef.current;
+    if (!videoEl || !Number.isFinite(videoEl.duration)) {
+      return;
+    }
+    setDuration(videoEl.duration);
+    setProgress(videoEl.currentTime);
+  };
+
+  const togglePlayback = () => {
+    if (currentMedia?.type === "video") {
+      setIsPlaying((prev) => !prev);
+      return;
+    }
+    setIsPlaying((prev) => !prev);
+  };
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setIsMuted(videoRef.current.muted);
+    }
+  };
+
+  const renderMedia = () => {
+    if (!currentMedia) {
+      return null;
+    }
+
+    if (currentMedia.type === "video") {
+      return (
+        <video
+          ref={videoRef}
+          src={currentMedia.url}
+          className={styles.storyMedia}
+          playsInline
+          muted={isMuted}
+          autoPlay={isActive}
+          loop={false}
+          onLoadedMetadata={handleVideoTimeUpdate}
+          onTimeUpdate={handleVideoTimeUpdate}
+          onEnded={handleMediaEnd}
+          poster={reel.mediaGallery?.[0]?.url}
+        />
+      );
+    }
+
+    return (
+      <Image
+        src={currentMedia.url}
+        alt={reel.title}
+        fill
+        className={styles.storyMedia}
+        sizes="(max-width: 900px) 96vw, 420px"
+        unoptimized
+      />
+    );
+  };
+
+  return (
+    <article className={styles.storyCard} data-story-card data-story-index={index}>
+      <div className={styles.storyProgressTrack}>
+        {reel.mediaGallery?.length ? (
+          <div
+            className={styles.storyProgressFill}
+            style={{
+              width: `${reel.mediaGallery.length > 1 ? ((progress / Math.max(duration || 3, 1)) * 100) : 100}%`,
+            }}
+          />
+        ) : null}
+      </div>
+      <div className={styles.storyMediaWrap}>{renderMedia()}</div>
+      <div className={styles.storyOverlay}>
+        <div className={styles.storyTopActions}>
+          <button type="button" className={styles.storyIconButton} onClick={togglePlayback} aria-label="Putar/jeda">
+            {isPlaying ? <FiPause /> : <FiPlay />}
+          </button>
+          <button type="button" className={styles.storyIconButton} onClick={toggleMute} aria-label="Bungkam/aktifkan suara">
+            {isMuted ? <FiVolumeX /> : <FiVolume2 />}
+          </button>
+        </div>
+        <div className={styles.storyTextWrap}>
+          <h3>{reel.title}</h3>
+          {reel.description ? <p>{reel.description}</p> : null}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function HomeClient() {
   const rootRef = useRef<HTMLElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -68,6 +237,7 @@ export default function HomeClient() {
   const menuFabRef = useRef<HTMLButtonElement | null>(null);
   const informationViewportRef = useRef<HTMLDivElement | null>(null);
   const logoViewportRef = useRef<HTMLDivElement | null>(null);
+  const storyFeedRef = useRef<HTMLDivElement | null>(null);
   const testimonialViewportRef = useRef<HTMLDivElement | null>(null);
   const testimonialDragStartRef = useRef(0);
   const testimonialStartScrollRef = useRef(0);
@@ -85,6 +255,7 @@ export default function HomeClient() {
   const [testimonials, setTestimonials] = useState<HomeTestimonial[]>([]);
   const [marquees, setMarquees] = useState<HomeMarquee[]>([]);
   const [storyReels, setStoryReels] = useState<HomeStoryReel[]>([]);
+  const [activeStoryIndex, setActiveStoryIndex] = useState(0);
   const [isTestimonialDragging, setIsTestimonialDragging] = useState(false);
   const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
@@ -345,6 +516,38 @@ export default function HomeClient() {
     startOnboarding();
     clearOnboardingBootQuery();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || storyReels.length === 0) {
+      return;
+    }
+
+    const container = storyFeedRef.current;
+    if (!container) {
+      return;
+    }
+
+    const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-story-card]"));
+    if (cards.length === 0) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) {
+          const index = Number((visible.target as HTMLElement).dataset.storyIndex ?? 0);
+          setActiveStoryIndex(index);
+        }
+      },
+      { root: container, threshold: [0.6, 0.8] },
+    );
+
+    cards.forEach((card) => observer.observe(card));
+    return () => observer.disconnect();
+  }, [storyReels.length]);
 
   useEffect(() => {
     let mounted = true;
@@ -866,42 +1069,46 @@ export default function HomeClient() {
       </section>
       ) : null}
 
-      {storyReels.length > 0 ? (
-        <section className={styles.section} data-animate="section">
-          <div className={styles.sectionHead}>
-            <h2>Story Terbaru</h2>
-          </div>
-          <div className={styles.storyReelViewport}>
-            {storyReels.map((story) => (
-              <article key={story.id} className={styles.storyReelCard}>
-                <div className={styles.storyReelMediaWrap}>
-                  {story.mediaGallery?.[0] ? (
-                    <FlexibleMedia
-                      src={story.mediaGallery[0].url}
-                      alt={story.title}
-                      fill
-                      className={styles.storyReelImage}
-                      sizes="(max-width: 900px) 86vw, 320px"
-                    />
-                  ) : null}
-                </div>
-                <div className={styles.storyReelBody}>
-                  <h3>{story.title}</h3>
-                  {story.description ? <p>{story.description}</p> : null}
-                  {story.linkUrl ? (
-                    <Link href={story.linkUrl} className={styles.storyReelLink}>
-                      Lihat detail
-                    </Link>
-                  ) : null}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       {testimonials.length > 0 || activeMarquees.length > 0 ? (
       <section className={styles.section} data-animate="section">
+        {storyReels.length > 0 ? (
+          <div className={styles.storyFeedShell} ref={storyFeedRef}>
+            {storyReels.map((story, index) => (
+              <StoryReelCard
+                key={story.id}
+                reel={story}
+                index={index}
+                isActive={activeStoryIndex === index}
+                onAdvance={() => {
+                  const nextIndex = index + 1;
+                  if (nextIndex < storyReels.length) {
+                    const container = storyFeedRef.current;
+                    const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
+                    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
+                }}
+              />
+            ))}
+            <div className={styles.storyFeedNav}>
+              <button type="button" className={styles.storyFeedNavButton} onClick={() => {
+                const nextIndex = Math.max(0, activeStoryIndex - 1);
+                const container = storyFeedRef.current;
+                const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
+                target?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }} aria-label="Scroll ke atas">
+                <FiChevronUp />
+              </button>
+              <button type="button" className={styles.storyFeedNavButton} onClick={() => {
+                const nextIndex = Math.min(storyReels.length - 1, activeStoryIndex + 1);
+                const container = storyFeedRef.current;
+                const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
+                target?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }} aria-label="Scroll ke bawah">
+                <FiChevronDown />
+              </button>
+            </div>
+          </div>
+        ) : null}
         <div className={styles.partnerHeader}>
           <h2>Bekerja sama dengan</h2>
         </div>
