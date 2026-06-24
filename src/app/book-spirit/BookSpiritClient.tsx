@@ -424,9 +424,10 @@ export default function BookSpiritClient() {
           </div>
         </div>
 
-        {/* Filter Section */}
+        {/* Filter Section - Combined */}
         {stories.length > 0 && (
           <div className={styles.categoryRow}>
+            {/* Rating Filters */}
             <button
               type="button"
               onClick={() => setActiveRating(null)}
@@ -446,10 +447,7 @@ export default function BookSpiritClient() {
                 {"\u2605".repeat(rating)}
               </button>
             ))}
-            
-            {/* Divider */}
-            <div style={{ width: "1px", height: "24px", background: "rgba(255, 255, 255, 0.2)", margin: "0 4px" }} />
-            
+
             {/* Product Filters */}
             {allProducts.length > 0 && (
               <>
