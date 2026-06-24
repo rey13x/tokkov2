@@ -122,13 +122,6 @@ export default function HomeClient() {
   const activeMarquees = useMemo(() => {
     return marquees;
   }, [marquees]);
-  const testimonialCarouselItems = useMemo(
-    () =>
-      shouldAutoSlideTestimonials
-        ? [...testimonials, ...testimonials, ...testimonials]
-        : testimonials,
-    [testimonials, shouldAutoSlideTestimonials],
-  );
   const isViewportLocked = menuMounted;
   const profileImageSource =
     sessionStatus === "authenticated"
@@ -836,13 +829,31 @@ export default function HomeClient() {
           <h2>Informasi</h2>
         </div>
         {shouldAutoSlideInformations ? (
-          <div className={styles.infoCarousel} ref={informationViewportRef}>
-            <div className={styles.infoTrack}>
-              {informationCarouselItems.map((item, index) =>
-                renderInformationCard(item, `${item.id}-${index}`),
-              )}
-            </div>
-          </div>
+          <SeamlessMarquee<HomeInformation>
+            items={informations}
+            speed={32}
+            gap={12}
+            className={styles.infoCarousel}
+            itemClassName={styles.infoCard}
+            renderItem={(item) => (
+              <>
+                <div className={styles.infoImageWrap}>
+                  <FlexibleMedia
+                    src={item.imageUrl}
+                    alt={item.title}
+                    fill
+                    className={styles.infoImage}
+                    sizes="(max-width: 900px) 34vw, 180px"
+                    unoptimized
+                  />
+                </div>
+                <div className={styles.infoBody}>
+                  <h3>{item.title}</h3>
+                  <p>{item.body}</p>
+                </div>
+              </>
+            )}
+          />
         ) : (
           <div className={styles.infoList}>
             {informations.map((item) => renderInformationCard(item, item.id))}
@@ -856,37 +867,32 @@ export default function HomeClient() {
         <div className={styles.partnerHeader}>
           <h2>Bekerja sama dengan</h2>
         </div>
-        <div
-          className={styles.partnerCarousel}
-          ref={testimonialViewportRef}
-          onPointerDown={onTestimonialPointerDown}
-          onPointerMove={onTestimonialPointerMove}
-          onPointerUp={onTestimonialPointerUp}
-          onPointerCancel={onTestimonialPointerUp}
-          style={{ cursor: isTestimonialDragging ? "grabbing" : "grab" }}
-        >
-          {testimonials.length > 0 ? (
-            <div className={styles.partnerTrack}>
-              {testimonialCarouselItems.map((item, index) => (
-                <article key={`${item.id}-${index}`} className={styles.partnerCard}>
-                  <div className={styles.partnerTop}>
-                    <div className={styles.partnerPhoto}>
-                      <FlexibleMedia
-                        src={getTestimonialMediaSrc(item)}
-                        alt={item.name}
-                        fill
-                        className={styles.bagasImage}
-                        sizes="(max-width: 820px) 72vw, 220px"
-                      />
-                    </div>
+        {testimonials.length > 0 ? (
+          <SeamlessMarquee<HomeTestimonial>
+            items={testimonials}
+            speed={35}
+            gap={16}
+            className={styles.partnerCarousel}
+            itemClassName={styles.partnerCard}
+            renderItem={(item) => (
+              <>
+                <div className={styles.partnerTop}>
+                  <div className={styles.partnerPhoto}>
+                    <FlexibleMedia
+                      src={getTestimonialMediaSrc(item)}
+                      alt={item.name}
+                      fill
+                      className={styles.bagasImage}
+                      sizes="(max-width: 820px) 72vw, 220px"
+                    />
                   </div>
-                  <h3 className={styles.bagasName}>{item.name}</h3>
-                  <p className={styles.testimonialText}>{item.message}</p>
-                </article>
-              ))}
-            </div>
-          ) : null}
-        </div>
+                </div>
+                <h3 className={styles.bagasName}>{item.name}</h3>
+                <p className={styles.testimonialText}>{item.message}</p>
+              </>
+            )}
+          />
+        ) : null}
 
         {activeMarquees.length > 0 ? (
           <SeamlessMarquee<HomeMarquee>
