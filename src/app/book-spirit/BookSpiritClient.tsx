@@ -497,7 +497,20 @@ export default function BookSpiritClient() {
                 <div className={styles.storyContent}>
                   {/* User Info Header */}
                   <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                    {story.userAvatarUrl ? (
+                    {/* Use current session avatar for logged-in user's stories */}
+                    {story.userId === session?.user?.id && session?.user?.image ? (
+                      <img
+                        src={session.user.image}
+                        alt={story.userName}
+                        style={{
+                          width: "40px",
+                          height: "40px",
+                          borderRadius: "50%",
+                          objectFit: "cover",
+                          border: "2px solid #11151E",
+                        }}
+                      />
+                    ) : story.userAvatarUrl ? (
                       <img
                         src={story.userAvatarUrl}
                         alt={story.userName}

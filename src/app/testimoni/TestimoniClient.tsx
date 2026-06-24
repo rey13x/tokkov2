@@ -360,9 +360,12 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
 
           <p className={styles.message}>{testimonial.message}</p>
 
-          {testimonial.userAvatarUrl && (
+          {/* Use current session avatar for logged-in user's testimonials */}
+          {testimonial.userId === session?.user?.id && session?.user?.image ? (
+            <img src={session.user.image} alt="User avatar" className={styles.userAvatar} />
+          ) : testimonial.userAvatarUrl ? (
             <img src={testimonial.userAvatarUrl} alt="User avatar" className={styles.userAvatar} />
-          )}
+          ) : null}
 
           {testimonial.linkedProducts && testimonial.linkedProducts.length > 0 && (
             <div className={styles.linkedProducts}>
@@ -417,12 +420,18 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
 
               {/* Comments List */}
               <div className={styles.commentsList}>
-                {comments[testimonial.id]?.map((comment) => (
+                {comments[testimonial.id]?.map((comment) => {
+                  // Use current session avatar for logged-in user's comments
+                  const displayAvatar = comment.userId === session?.user?.id && session?.user?.image
+                    ? session.user.image
+                    : comment.userAvatarUrl;
+
+                  return (
                   <div key={comment.id} className={styles.comment}>
                     <div className={styles.commentHeader}>
-                      {comment.userAvatarUrl ? (
+                      {displayAvatar ? (
                         <img
-                          src={comment.userAvatarUrl}
+                          src={displayAvatar}
                           alt={comment.userName}
                           className={styles.commentAvatar}
                           onError={(e) => {
@@ -711,7 +720,8 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                         )}
                     </div>
                   </div>
-                ))}
+                );
+                })}
               </div>
 
               {/* Comment Input */}
