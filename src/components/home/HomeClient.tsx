@@ -119,25 +119,14 @@ function StoryReelCard({ reel, index, isActive, onAdvance }: StoryReelCardProps)
     }
 
     const timer = window.setTimeout(() => {
-      if (mediaIndex < (reel.mediaGallery?.length ?? 1) - 1) {
-        setMediaIndex((prev) => prev + 1);
-        setProgress(0);
-      } else {
-        onAdvance();
-      }
+      goToNextMedia();
     }, 3200);
 
     return () => window.clearTimeout(timer);
   }, [currentMedia, isActive, isPlaying, mediaIndex, onAdvance, reel.mediaGallery?.length]);
 
   const handleMediaEnd = () => {
-    if (mediaIndex < (reel.mediaGallery?.length ?? 1) - 1) {
-      setMediaIndex((prev) => prev + 1);
-      setProgress(0);
-      setIsPlaying(true);
-    } else {
-      onAdvance();
-    }
+    goToNextMedia();
   };
 
   const handleVideoTimeUpdate = () => {
@@ -165,13 +154,14 @@ function StoryReelCard({ reel, index, isActive, onAdvance }: StoryReelCardProps)
   };
 
   const goToNextMedia = () => {
-    if (mediaIndex < (reel.mediaGallery?.length ?? 1) - 1) {
-      setMediaIndex((prev) => prev + 1);
-      setProgress(0);
-      setIsPlaying(true);
-    } else {
-      onAdvance();
+    const totalMedia = reel.mediaGallery?.length ?? 0;
+    if (totalMedia <= 1) {
+      return;
     }
+
+    setMediaIndex((prev) => (prev + 1) % totalMedia);
+    setProgress(0);
+    setIsPlaying(true);
   };
 
   const renderMedia = () => {
