@@ -1153,30 +1153,34 @@ export default function HomeClient() {
               <button type="button" className={styles.storyInfoHeader} onClick={toggleStoryInfo} aria-expanded={isStoryInfoOpen}>
                 <span className={styles.storyInfoBadge}>Informasi Media</span>
               </button>
-              <div className={styles.storyInfoBody}>
-                <p>Story reels dipresentasikan dalam format FAQ agar kamu bisa memantau konten media dengan cepat. Geser atau gulir untuk melihat setiap video dan gambar.</p>
-                <p>Panel ini akan menutup otomatis saat kamu mencapai ujung atas atau bawah daftar.</p>
-              </div>
+              {isStoryInfoOpen ? (
+                <div className={styles.storyInfoBody}>
+                  <p>Story reels dipresentasikan dalam format FAQ agar kamu bisa memantau konten media dengan cepat. Geser atau gulir untuk melihat setiap video dan gambar.</p>
+                  <p>Panel ini akan menutup otomatis saat kamu mencapai ujung atas atau bawah daftar.</p>
+                </div>
+              ) : null}
             </div>
-            {storyReels.map((story, index) => (
-              <StoryReelCard
-                key={story.id}
-                reel={story}
-                index={index}
-                isActive={activeStoryIndex === index}
-                onAdvance={() => {
-                  const nextIndex = index + 1;
-                  if (nextIndex < storyReels.length) {
-                    const container = storyFeedRef.current;
-                    const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
-                    if (target) {
-                      target.scrollIntoView({ behavior: "smooth", block: "start" });
-                      setActiveStoryIndex(nextIndex);
-                    }
-                  }
-                }}
-              />
-            ))}
+            {isStoryInfoOpen
+              ? storyReels.map((story, index) => (
+                  <StoryReelCard
+                    key={story.id}
+                    reel={story}
+                    index={index}
+                    isActive={activeStoryIndex === index}
+                    onAdvance={() => {
+                      const nextIndex = index + 1;
+                      if (nextIndex < storyReels.length) {
+                        const container = storyFeedRef.current;
+                        const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
+                        if (target) {
+                          target.scrollIntoView({ behavior: "smooth", block: "start" });
+                          setActiveStoryIndex(nextIndex);
+                        }
+                      }
+                    }}
+                  />
+                ))
+              : null}
           </div>
         ) : null}
         <div className={styles.partnerHeader}>
