@@ -247,10 +247,28 @@
   touch-action: pan-y;
   user-select: none;
   cursor: grab;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.4s ease, transform 0.4s ease, max-height 0.4s ease;
 }
 
 .storyFeedShell:active {
   cursor: grabbing;
+}
+
+.storyFeedShellClosed {
+  opacity: 0;
+  transform: translateY(-12px);
+  max-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.storyFeedShellOpen {
+  opacity: 1;
+  transform: translateY(0);
+  max-height: min(84vh, 720px);
+  pointer-events: auto;
 }
 
 .storyCard {

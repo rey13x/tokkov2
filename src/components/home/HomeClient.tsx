@@ -1147,36 +1147,34 @@ export default function HomeClient() {
                 <span className={styles.storyInfoBadge}>Informasi Media</span>
               </button>
             </div>
-            {isStoryInfoOpen ? (
-              <div
-                className={styles.storyFeedShell}
-                ref={storyFeedRef}
-                onPointerDown={onStoryFeedPointerDown}
-                onPointerMove={onStoryFeedPointerMove}
-                onPointerUp={onStoryFeedPointerUp}
-                onPointerCancel={onStoryFeedPointerUp}
-              >
-                {storyReels.map((story, index) => (
-                  <StoryReelCard
-                    key={story.id}
-                    reel={story}
-                    index={index}
-                    isActive={activeStoryIndex === index}
-                    onAdvance={() => {
-                      const nextIndex = index + 1;
-                      if (nextIndex < storyReels.length) {
-                        const container = storyFeedRef.current;
-                        const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
-                        if (target) {
-                          target.scrollIntoView({ behavior: "smooth", block: "start" });
-                          setActiveStoryIndex(nextIndex);
-                        }
+            <div
+              className={`${styles.storyFeedShell} ${isStoryInfoOpen ? styles.storyFeedShellOpen : styles.storyFeedShellClosed}`}
+              ref={storyFeedRef}
+              onPointerDown={onStoryFeedPointerDown}
+              onPointerMove={onStoryFeedPointerMove}
+              onPointerUp={onStoryFeedPointerUp}
+              onPointerCancel={onStoryFeedPointerUp}
+            >
+              {storyReels.map((story, index) => (
+                <StoryReelCard
+                  key={story.id}
+                  reel={story}
+                  index={index}
+                  isActive={activeStoryIndex === index}
+                  onAdvance={() => {
+                    const nextIndex = index + 1;
+                    if (nextIndex < storyReels.length) {
+                      const container = storyFeedRef.current;
+                      const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
+                      if (target) {
+                        target.scrollIntoView({ behavior: "smooth", block: "start" });
+                        setActiveStoryIndex(nextIndex);
                       }
-                    }}
-                  />
-                ))}
-              </div>
-            ) : null}
+                    }
+                  }}
+                />
+              ))}
+            </div>
           </>
         ) : null}
         <div className={styles.partnerHeader}>
