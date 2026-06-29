@@ -271,7 +271,7 @@ export default function HomeClient() {
   const [marquees, setMarquees] = useState<HomeMarquee[]>([]);
   const [storyReels, setStoryReels] = useState<HomeStoryReel[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
-  const [isStoryInfoOpen, setIsStoryInfoOpen] = useState(true);
+  const [isStoryInfoOpen, setIsStoryInfoOpen] = useState(false);
   const [isTestimonialDragging, setIsTestimonialDragging] = useState(false);
   const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
