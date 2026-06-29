@@ -250,6 +250,7 @@ export default function HomeClient() {
   const informationViewportRef = useRef<HTMLDivElement | null>(null);
   const logoViewportRef = useRef<HTMLDivElement | null>(null);
   const storyFeedRef = useRef<HTMLDivElement | null>(null);
+  const storyInfoRef = useRef<HTMLDivElement | null>(null);
   const storyDragStartYRef = useRef<number | null>(null);
   const storyDragStartScrollTopRef = useRef(0);
   const testimonialViewportRef = useRef<HTMLDivElement | null>(null);
@@ -270,6 +271,7 @@ export default function HomeClient() {
   const [marquees, setMarquees] = useState<HomeMarquee[]>([]);
   const [storyReels, setStoryReels] = useState<HomeStoryReel[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
+  const [isStoryInfoOpen, setIsStoryInfoOpen] = useState(true);
   const [isTestimonialDragging, setIsTestimonialDragging] = useState(false);
   const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
@@ -450,6 +452,32 @@ export default function HomeClient() {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
   };
+
+  const toggleStoryInfo = () => {
+    setIsStoryInfoOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    const container = storyFeedRef.current;
+    if (!container) {
+      return;
+    }
+
+    const handleScroll = () => {
+      if (!isStoryInfoOpen) {
+        return;
+      }
+
+      const atTop = container.scrollTop <= 8;
+      const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 8;
+      if (atTop || atBottom) {
+        setIsStoryInfoOpen(false);
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [isStoryInfoOpen]);
 
   // Preload semua hero background images untuk smooth transition tanpa loading delay
   useEffect(() => {
@@ -1121,6 +1149,21 @@ export default function HomeClient() {
             onPointerUp={onStoryFeedPointerUp}
             onPointerCancel={onStoryFeedPointerUp}
           >
+            <div className={`${styles.storyInfoPanel} ${isStoryInfoOpen ? styles.storyInfoPanelOpen : ""}`} ref={storyInfoRef}>
+              <button type="button" className={styles.storyInfoHeader} onClick={toggleStoryInfo} aria-expanded={isStoryInfoOpen}>
+                <div>
+                  <span className={styles.storyInfoBadge}>Informasi Media</span>
+                  <p className={styles.storyInfoTitle}>Tekan untuk membuka / menutup ringkasan cerita.</p>
+                </div>
+                <span className={styles.storyInfoToggle} aria-hidden="true">
+                  {isStoryInfoOpen ? "−" : "+"}
+                </span>
+              </button>
+              <div className={styles.storyInfoBody}>
+                <p>Story reels dipresentasikan dalam format FAQ agar kamu bisa memantau konten media dengan cepat. Geser atau gulir untuk melihat setiap video dan gambar.</p>
+                <p>Panel ini akan menutup otomatis saat kamu mencapai ujung atas atau bawah daftar.</p>
+              </div>
+            </div>
             {storyReels.map((story, index) => (
               <StoryReelCard
                 key={story.id}
