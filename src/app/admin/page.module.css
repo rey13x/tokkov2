@@ -330,6 +330,46 @@
   white-space: nowrap;
 }
 
+.storyMediaScroller {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+}
+
+.storyMediaCard {
+  flex: 0 0 min(320px, 86vw);
+  border: 1px solid #dbe2ee;
+  border-radius: 14px;
+  background: #f9fbff;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scroll-snap-align: start;
+}
+
+.storyMediaCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.storyMediaCardBody {
+  display: grid;
+  gap: 8px;
+}
+
+.storyMediaCardBody input,
+.storyMediaCardBody select {
+  width: 100%;
+  min-width: 0;
+}
+
 .mediaGalleryAddButton {
   background: #1f4ed8;
   color: #ffffff;

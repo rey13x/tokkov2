@@ -272,6 +272,8 @@ function mapStoryReelDoc(
         url: resolveMediaUrl(String(item?.url ?? "")),
         type: (String(item?.type ?? "image") as "image" | "video" | "gif") || "image",
         alt: String(item?.alt ?? ""),
+        title: String(item?.title ?? ""),
+        description: String(item?.description ?? ""),
         linkUrl: String(item?.linkUrl ?? ""),
       }))
     : [];
@@ -1051,7 +1053,7 @@ export async function listStoryReels() {
 export async function createStoryReel(input: {
   title: string;
   description: string;
-  mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; linkUrl?: string }>;
+  mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
   linkUrl: string;
   isActive: boolean;
   sortOrder: number;
@@ -1094,7 +1096,7 @@ export async function updateStoryReel(
   input: Partial<{
     title: string;
     description: string;
-    mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; linkUrl?: string }>;
+    mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
     linkUrl: string;
     isActive: boolean;
     sortOrder: number;

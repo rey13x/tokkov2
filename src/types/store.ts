@@ -158,6 +158,8 @@ export type StoreStoryMediaItem = {
   url: string;
   type?: "image" | "video" | "gif";
   alt?: string;
+  title?: string;
+  description?: string;
   linkUrl?: string;
 };
 

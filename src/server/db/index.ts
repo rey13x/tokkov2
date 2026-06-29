@@ -207,6 +207,8 @@ function mapStoryReel(row: Record<string, unknown>): StoreStoryReel {
               url: resolveMediaUrl(String(typed.url ?? "")),
               type: (typed.type as "image" | "video" | "gif" | undefined) ?? "image",
               alt: String(typed.alt ?? ""),
+              title: String(typed.title ?? ""),
+              description: String(typed.description ?? ""),
               linkUrl: String(typed.linkUrl ?? ""),
             };
           }
@@ -1798,7 +1800,7 @@ export async function getStoryReelById(id: string) {
 export async function createStoryReel(input: {
   title: string;
   description: string;
-  mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; linkUrl?: string }>;
+  mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
   linkUrl: string;
   isActive: boolean;
   sortOrder: number;
@@ -1835,7 +1837,7 @@ export async function updateStoryReel(
   input: Partial<{
     title: string;
     description: string;
-    mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; linkUrl?: string }>;
+    mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
     linkUrl: string;
     isActive: boolean;
     sortOrder: number;

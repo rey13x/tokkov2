@@ -101,7 +101,7 @@ const defaultMarqueeForm = {
 const defaultStoryReelForm = {
   title: "",
   description: "",
-  mediaGallery: [] as Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; linkUrl?: string }>,
+  mediaGallery: [] as Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>,
   linkUrl: "",
   isActive: true,
   sortOrder: 0,
@@ -1828,7 +1828,7 @@ function AdminManagementSection() {
   const onAddStoryReelMediaRow = () => {
     setStoryReelForm((current) => ({
       ...current,
-      mediaGallery: [...current.mediaGallery, { url: "", type: "image" }],
+      mediaGallery: [...current.mediaGallery, { url: "", type: "image", title: "", description: "" }],
     }));
   };
 
@@ -1839,7 +1839,7 @@ function AdminManagementSection() {
     }));
   };
 
-  const onUpdateStoryReelMedia = (index: number, field: "url" | "type" | "alt" | "linkUrl", value: string) => {
+  const onUpdateStoryReelMedia = (index: number, field: "url" | "type" | "alt" | "title" | "description" | "linkUrl", value: string) => {
     setStoryReelForm((current) => ({
       ...current,
       mediaGallery: current.mediaGallery.map((item, currentIndex) =>
@@ -1892,7 +1892,7 @@ function AdminManagementSection() {
     setStoryReelForm({
       title: storyReel.title,
       description: storyReel.description,
-      mediaGallery: storyReel.mediaGallery.length > 0 ? storyReel.mediaGallery : [{ url: "", type: "image" }],
+      mediaGallery: storyReel.mediaGallery.length > 0 ? storyReel.mediaGallery : [{ url: "", type: "image", title: "", description: "" }],
       linkUrl: storyReel.linkUrl,
       isActive: storyReel.isActive,
       sortOrder: storyReel.sortOrder,
@@ -4575,33 +4575,50 @@ function AdminManagementSection() {
               />
               Tampilkan di beranda
             </label>
-            {storyReelForm.mediaGallery.map((item, index) => (
-              <div key={`${index}-${item.url}`} className={styles.mediaRow}>
-                <input
-                  value={item.url}
-                  onChange={(event) => onUpdateStoryReelMedia(index, "url", event.target.value)}
-                  placeholder="URL media (foto/video/gif)"
-                />
-                <select value={item.type ?? "image"} onChange={(event) => onUpdateStoryReelMedia(index, "type", event.target.value)}>
-                  <option value="image">Foto</option>
-                  <option value="video">Video</option>
-                  <option value="gif">GIF</option>
-                </select>
-                <input
-                  value={item.alt ?? ""}
-                  onChange={(event) => onUpdateStoryReelMedia(index, "alt", event.target.value)}
-                  placeholder="Alt text"
-                />
-                <input
-                  value={item.linkUrl ?? ""}
-                  onChange={(event) => onUpdateStoryReelMedia(index, "linkUrl", event.target.value)}
-                  placeholder="Link item (opsional)"
-                />
-                <button type="button" className={styles.secondaryButton} onClick={() => onRemoveStoryReelMediaRow(index)}>
-                  Hapus
-                </button>
-              </div>
-            ))}
+            <div className={styles.storyMediaScroller}>
+              {storyReelForm.mediaGallery.map((item, index) => (
+                <div key={`${index}-${item.url}`} className={styles.storyMediaCard}>
+                  <div className={styles.storyMediaCardHeader}>
+                    <span>Media {index + 1}</span>
+                    <button type="button" className={styles.secondaryButton} onClick={() => onRemoveStoryReelMediaRow(index)}>
+                      Hapus
+                    </button>
+                  </div>
+                  <div className={styles.storyMediaCardBody}>
+                    <input
+                      value={item.url}
+                      onChange={(event) => onUpdateStoryReelMedia(index, "url", event.target.value)}
+                      placeholder="URL media (foto/video/gif)"
+                    />
+                    <select value={item.type ?? "image"} onChange={(event) => onUpdateStoryReelMedia(index, "type", event.target.value)}>
+                      <option value="image">Foto</option>
+                      <option value="video">Video</option>
+                      <option value="gif">GIF</option>
+                    </select>
+                    <input
+                      value={item.alt ?? ""}
+                      onChange={(event) => onUpdateStoryReelMedia(index, "alt", event.target.value)}
+                      placeholder="Alt text"
+                    />
+                    <input
+                      value={item.title ?? ""}
+                      onChange={(event) => onUpdateStoryReelMedia(index, "title", event.target.value)}
+                      placeholder="Judul media"
+                    />
+                    <input
+                      value={item.description ?? ""}
+                      onChange={(event) => onUpdateStoryReelMedia(index, "description", event.target.value)}
+                      placeholder="Deskripsi media"
+                    />
+                    <input
+                      value={item.linkUrl ?? ""}
+                      onChange={(event) => onUpdateStoryReelMedia(index, "linkUrl", event.target.value)}
+                      placeholder="Link item (opsional)"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
             <button type="button" className={styles.secondaryButton} onClick={onAddStoryReelMediaRow}>
               Tambah media
             </button>

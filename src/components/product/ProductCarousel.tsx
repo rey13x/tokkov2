@@ -26,44 +26,59 @@ export default function ProductCarousel({
   const [progress, setProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
   const dragStartX = useRef<number>(0);
   const dragStartTime = useRef<number>(0);
-  const progressInterval = useRef<NodeJS.Timeout | null>(null);
+  const progressInterval = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const controlHideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slideStartTime = useRef<number>(Date.now());
+  const videoDuration = useRef<number>(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const currentMedia = allMedia[currentIndex];
   const isVideo = currentMedia && isVideoMediaUrl(currentMedia.url);
   const totalSlides = allMedia.length;
 
-  // Progress bar animation - 5 seconds per slide
+  const hideControlsLater = () => {
+    if (controlHideTimeout.current) {
+      clearTimeout(controlHideTimeout.current);
+    }
+    controlHideTimeout.current = setTimeout(() => {
+      setControlsVisible(false);
+    }, 2000);
+  };
+
+  const showControls = () => {
+    setControlsVisible(true);
+    hideControlsLater();
+  };
+
+  // Progress bar animation for photos only. Videos rely on native time events.
   useEffect(() => {
-    if (isDragging || !isPlaying) {
+    if (isDragging || !isPlaying || isVideo) {
       if (progressInterval.current) {
         clearInterval(progressInterval.current);
       }
       return;
     }
 
+    const slideDurationMs = 5000;
+    slideStartTime.current = Date.now();
+    setProgress(0);
+
     const interval = setInterval(() => {
-      setProgress((prev) => {
-        const newProgress = prev + 1;
-        if (newProgress >= 100) {
-          // Move to next slide
-          setCurrentIndex((idx) => (idx + 1) % totalSlides);
-          return 0;
-        }
-        return newProgress;
-      });
-    }, 50); // Update every 50ms for smooth animation (5000ms / 100 steps)
+      const elapsed = Date.now() - slideStartTime.current;
+      const nextProgress = Math.min(100, (elapsed / slideDurationMs) * 100);
+      setProgress(nextProgress);
+
+      if (elapsed >= slideDurationMs) {
+        setCurrentIndex((idx) => (idx + 1) % totalSlides);
+      }
+    }, 50);
 
     progressInterval.current = interval;
     return () => clearInterval(interval);
-  }, [isDragging, isPlaying, totalSlides]);
-
-  // Reset progress when index changes
-  useEffect(() => {
-    setProgress(0);
-  }, [currentIndex]);
+  }, [currentIndex, isDragging, isPlaying, isVideo, totalSlides]);
 
   const handlePrevious = () => {
     setCurrentIndex((idx) => (idx - 1 + totalSlides) % totalSlides);
@@ -79,6 +94,7 @@ export default function ProductCarousel({
     setIsDragging(true);
     dragStartX.current = "touches" in e ? e.touches[0].clientX : e.clientX;
     dragStartTime.current = Date.now();
+    showControls();
   };
 
   const handleDragEnd = (e: MouseEvent | TouchEvent) => {
@@ -87,6 +103,7 @@ export default function ProductCarousel({
     const dragDuration = Date.now() - dragStartTime.current;
 
     setIsDragging(false);
+    showControls();
 
     // Check if it's a significant drag (> 50px or < 300ms quick swipe)
     if (Math.abs(dragDelta) > 50 || (Math.abs(dragDelta) > 30 && dragDuration < 300)) {
@@ -107,6 +124,45 @@ export default function ProductCarousel({
         videoRef.current.pause();
         setIsPlaying(false);
       }
+      showControls();
+    }
+  };
+
+  const handleMediaClick = () => {
+    showControls();
+  };
+
+  const onVideoLoadedMetadata = () => {
+    if (!videoRef.current) {
+      return;
+    }
+    const duration = videoRef.current.duration;
+    if (Number.isFinite(duration) && duration > 0) {
+      videoDuration.current = duration;
+    }
+  };
+
+  const onVideoTimeUpdate = () => {
+    if (!videoRef.current || !Number.isFinite(videoRef.current.duration)) {
+      return;
+    }
+    const duration = videoRef.current.duration;
+    const currentTime = videoRef.current.currentTime;
+    setProgress((currentTime / duration) * 100);
+  };
+
+  const onVideoEnded = () => {
+    showControls();
+    const timer = setTimeout(() => {
+      setControlsVisible(false);
+    }, 2000);
+    if (controlHideTimeout.current) {
+      clearTimeout(controlHideTimeout.current);
+    }
+    controlHideTimeout.current = timer;
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(() => {});
     }
   };
 
@@ -160,6 +216,10 @@ export default function ProductCarousel({
             muted
             playsInline
             className={styles.media}
+            onClick={handleMediaClick}
+            onLoadedMetadata={onVideoLoadedMetadata}
+            onTimeUpdate={onVideoTimeUpdate}
+            onEnded={onVideoEnded}
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
@@ -167,11 +227,12 @@ export default function ProductCarousel({
             src={currentMedia.url}
             alt={`${productName} - ${currentIndex + 1}`}
             className={styles.media}
+            onClick={handleMediaClick}
           />
         )}
 
         {/* Video play/pause button */}
-        {isVideo && (
+        {isVideo && controlsVisible && (
           <button
             className={styles.playButton}
             onClick={togglePlayPause}
@@ -192,7 +253,7 @@ export default function ProductCarousel({
         )}
 
         {/* Navigation arrows (only show if more than 1 slide) */}
-        {totalSlides > 1 && (
+        {totalSlides > 1 && controlsVisible && (
           <>
             <button
               className={`${styles.navButton} ${styles.navPrev}`}
