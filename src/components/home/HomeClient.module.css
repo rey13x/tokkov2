@@ -388,12 +388,10 @@
 }
 
 .storyInfoOuter {
-  position: sticky;
-  top: 8px;
+  position: static;
   display: flex;
   justify-content: center;
   width: 100%;
-  z-index: 10;
   margin-bottom: 12px;
 }
 
