@@ -213,7 +213,6 @@ export default function ProductCarousel({
             src={currentMedia.url}
             controls={false}
             autoPlay={isPlaying}
-            muted
             playsInline
             className={styles.media}
             onClick={handleMediaClick}

@@ -15,6 +15,7 @@ import {
   FiMenu,
   FiPause,
   FiPlay,
+  FiSkipForward,
   FiUser,
   FiVolume2,
   FiVolumeX,
@@ -163,6 +164,16 @@ function StoryReelCard({ reel, index, isActive, onAdvance }: StoryReelCardProps)
     }
   };
 
+  const goToNextMedia = () => {
+    if (mediaIndex < (reel.mediaGallery?.length ?? 1) - 1) {
+      setMediaIndex((prev) => prev + 1);
+      setProgress(0);
+      setIsPlaying(true);
+    } else {
+      onAdvance();
+    }
+  };
+
   const renderMedia = () => {
     if (!currentMedia) {
       return null;
@@ -214,16 +225,23 @@ function StoryReelCard({ reel, index, isActive, onAdvance }: StoryReelCardProps)
       </div>
       <div className={styles.storyMediaWrap}>{renderMedia()}</div>
       <div className={styles.storyOverlay}>
-        {currentMedia?.type === "video" ? (
-          <div className={styles.storyTopActions}>
-            <button type="button" className={styles.storyIconButton} onClick={togglePlayback} aria-label="Putar/jeda">
-              {isPlaying ? <FiPause /> : <FiPlay />}
+        <div className={styles.storyTopActions}>
+          {currentMedia?.type === "video" ? (
+            <>
+              <button type="button" className={styles.storyIconButton} onClick={togglePlayback} aria-label="Putar/jeda">
+                {isPlaying ? <FiPause /> : <FiPlay />}
+              </button>
+              <button type="button" className={styles.storyIconButton} onClick={toggleMute} aria-label="Bungkam/aktifkan suara">
+                {isMuted ? <FiVolumeX /> : <FiVolume2 />}
+              </button>
+            </>
+          ) : null}
+          {reel.mediaGallery && reel.mediaGallery.length > 1 ? (
+            <button type="button" className={styles.storyNextButton} onClick={goToNextMedia} aria-label="Lanjut ke media berikutnya">
+              <FiSkipForward size={14} />
             </button>
-            <button type="button" className={styles.storyIconButton} onClick={toggleMute} aria-label="Bungkam/aktifkan suara">
-              {isMuted ? <FiVolumeX /> : <FiVolume2 />}
-            </button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
         <div className={styles.storyTextWrap}>
           <h3>{mediaTitle}</h3>
           {mediaDescription ? <p>{mediaDescription}</p> : null}

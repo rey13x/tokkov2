@@ -262,7 +262,7 @@
   border-radius: 24px;
   overflow: hidden;
   background: transparent;
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.24);
+  box-shadow: none;
   scroll-snap-align: start;
   scroll-margin-block: 8px;
 }
@@ -335,6 +335,18 @@
   display: grid;
   place-items: center;
   backdrop-filter: blur(8px);
+}
+
+.storyNextButton {
+  border: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
 .storyTextWrap {
