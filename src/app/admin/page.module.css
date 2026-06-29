@@ -332,14 +332,25 @@
 
 .storyMediaScroller {
   display: flex;
+  flex-direction: column;
   gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  scroll-snap-type: x proximity;
+  overflow-y: auto;
+  max-height: min(520px, 52vh);
+  padding-right: 8px;
+  scroll-snap-type: y proximity;
+}
+
+.storyMediaScroller::-webkit-scrollbar {
+  width: 8px;
+}
+
+.storyMediaScroller::-webkit-scrollbar-thumb {
+  background: rgba(26, 32, 44, 0.35);
+  border-radius: 999px;
 }
 
 .storyMediaCard {
-  flex: 0 0 min(320px, 86vw);
+  width: 100%;
   border: 1px solid #dbe2ee;
   border-radius: 14px;
   background: #f9fbff;

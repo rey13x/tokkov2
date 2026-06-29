@@ -261,7 +261,7 @@
   margin: 0 auto;
   border-radius: 24px;
   overflow: hidden;
-  background: #06070b;
+  background: transparent;
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.24);
   scroll-snap-align: start;
   scroll-margin-block: 8px;
@@ -270,7 +270,7 @@
 .storyMediaWrap {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(2, 4, 10, 0.96), rgba(8, 12, 20, 0.94));
+  background: transparent;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -281,12 +281,13 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: inherit;
 }
 
 .storyMedia[data-media-type="image"] {
-  object-fit: contain;
-  padding: clamp(16px, 3vw, 28px);
-  background: radial-gradient(circle at top, rgba(255,255,255,0.18), transparent 60%);
+  object-fit: cover;
+  padding: 0;
+  background: transparent;
 }
 
 .storyOverlay {
@@ -296,7 +297,7 @@
   flex-direction: column;
   justify-content: space-between;
   padding: 14px 14px 18px;
-  background: linear-gradient(180deg, rgba(7, 10, 16, 0.18) 0%, rgba(3, 6, 12, 0.34) 45%, rgba(3, 6, 12, 0.76) 100%);
+  background: linear-gradient(180deg, rgba(3, 6, 12, 0.02) 0%, rgba(3, 6, 12, 0.12) 45%, rgba(3, 6, 12, 0.5) 100%);
 }
 
 .storyProgressTrack {
@@ -342,8 +343,10 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-width: 86%;
+  max-width: 88%;
+  margin-top: auto;
   margin-bottom: 8px;
+  align-items: flex-start;
 }
 
 .storyTextWrap h3 {
