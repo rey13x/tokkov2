@@ -832,7 +832,7 @@
   opacity: 0.82;
 }
 
-..categoryRow {
+.categoryRow {
   display: flex;
   align-items: center;
   gap: 9px;
