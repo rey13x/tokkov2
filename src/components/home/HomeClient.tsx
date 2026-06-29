@@ -1141,27 +1141,22 @@ export default function HomeClient() {
       {testimonials.length > 0 || activeMarquees.length > 0 ? (
       <section className={styles.section} data-animate="section">
         {storyReels.length > 0 ? (
-          <div
-            className={styles.storyFeedShell}
-            ref={storyFeedRef}
-            onPointerDown={onStoryFeedPointerDown}
-            onPointerMove={onStoryFeedPointerMove}
-            onPointerUp={onStoryFeedPointerUp}
-            onPointerCancel={onStoryFeedPointerUp}
-          >
-            <div className={`${styles.storyInfoPanel} ${isStoryInfoOpen ? styles.storyInfoPanelOpen : ""}`} ref={storyInfoRef}>
+          <>
+            <div className={styles.storyInfoOuter} ref={storyInfoRef}>
               <button type="button" className={styles.storyInfoHeader} onClick={toggleStoryInfo} aria-expanded={isStoryInfoOpen}>
                 <span className={styles.storyInfoBadge}>Informasi Media</span>
               </button>
-              {isStoryInfoOpen ? (
-                <div className={styles.storyInfoBody}>
-                  <p>Story reels dipresentasikan dalam format FAQ agar kamu bisa memantau konten media dengan cepat. Geser atau gulir untuk melihat setiap video dan gambar.</p>
-                  <p>Panel ini akan menutup otomatis saat kamu mencapai ujung atas atau bawah daftar.</p>
-                </div>
-              ) : null}
             </div>
-            {isStoryInfoOpen
-              ? storyReels.map((story, index) => (
+            {isStoryInfoOpen ? (
+              <div
+                className={styles.storyFeedShell}
+                ref={storyFeedRef}
+                onPointerDown={onStoryFeedPointerDown}
+                onPointerMove={onStoryFeedPointerMove}
+                onPointerUp={onStoryFeedPointerUp}
+                onPointerCancel={onStoryFeedPointerUp}
+              >
+                {storyReels.map((story, index) => (
                   <StoryReelCard
                     key={story.id}
                     reel={story}
@@ -1179,9 +1174,10 @@ export default function HomeClient() {
                       }
                     }}
                   />
-                ))
-              : null}
-          </div>
+                ))}
+              </div>
+            ) : null}
+          </>
         ) : null}
         <div className={styles.partnerHeader}>
           <h2>Bekerja sama dengan</h2>
