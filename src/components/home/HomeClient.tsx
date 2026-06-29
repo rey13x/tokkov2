@@ -1151,13 +1151,7 @@ export default function HomeClient() {
           >
             <div className={`${styles.storyInfoPanel} ${isStoryInfoOpen ? styles.storyInfoPanelOpen : ""}`} ref={storyInfoRef}>
               <button type="button" className={styles.storyInfoHeader} onClick={toggleStoryInfo} aria-expanded={isStoryInfoOpen}>
-                <div>
-                  <span className={styles.storyInfoBadge}>Informasi Media</span>
-                  <p className={styles.storyInfoTitle}>Tekan untuk membuka / menutup ringkasan cerita.</p>
-                </div>
-                <span className={styles.storyInfoToggle} aria-hidden="true">
-                  {isStoryInfoOpen ? "−" : "+"}
-                </span>
+                <span className={styles.storyInfoBadge}>Informasi Media</span>
               </button>
               <div className={styles.storyInfoBody}>
                 <p>Story reels dipresentasikan dalam format FAQ agar kamu bisa memantau konten media dengan cepat. Geser atau gulir untuk melihat setiap video dan gambar.</p>
