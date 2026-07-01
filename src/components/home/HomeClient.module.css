@@ -919,8 +919,6 @@
 .logoImage {
   object-fit: contain;
   display: block;
-  filter: grayscale(1) contrast(0.82);
-  opacity: 0.82;
 }
 
 .categoryRow {
