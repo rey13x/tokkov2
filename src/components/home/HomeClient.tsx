@@ -1184,7 +1184,7 @@ export default function HomeClient() {
           <PremiumMarquee<HomeTestimonial>
             items={testimonials}
             speed={12}
-            gap={16}
+            gap={28}
             className={styles.partnerCarousel}
             itemClassName={styles.partnerCard}
             pauseOnHover={false}
