@@ -232,23 +232,23 @@
 .storyFeedShell {
   position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: min(100%, 420px);
+  flex-direction: row;
+  gap: 16px;
+  width: min(100%, 100vw);
   margin: 0 auto 20px;
   max-height: min(84vh, 720px);
   padding: 8px 6px 20px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   scroll-behavior: smooth;
-  overscroll-behavior-y: contain;
-  scroll-snap-type: y proximity;
-  scroll-padding-block: 10px;
-  touch-action: pan-y;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 10px;
+  touch-action: pan-x;
   user-select: none;
   cursor: grab;
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(0);
   transition: opacity 0.4s ease, transform 0.4s ease, max-height 0.4s ease;
 }
 
@@ -258,7 +258,7 @@
 
 .storyFeedShellClosed {
   opacity: 0;
-  transform: translateY(-12px);
+  transform: translateX(-12px);
   max-height: 0;
   overflow: hidden;
   pointer-events: none;
@@ -273,16 +273,15 @@
 
 .storyCard {
   position: relative;
-  width: 100%;
+  flex: 0 0 min(100%, 392px);
   max-width: 392px;
   min-height: clamp(500px, 70vh, 640px);
-  margin: 0 auto;
   border-radius: 24px;
   overflow: hidden;
   background: transparent;
   box-shadow: none;
   scroll-snap-align: start;
-  scroll-margin-block: 8px;
+  scroll-margin-inline: 8px;
 }
 
 .storyMediaWrap {
@@ -814,26 +813,30 @@
 }
 
 .partnerCard {
-  flex: 0 0 clamp(320px, 78vw, 760px);
+  flex: 0 0 220px;
+  width: 220px;
   background: #f7f7fa;
   border-radius: 36px;
   padding: 18px;
   display: grid;
   gap: 12px;
+  text-align: center;
+  align-items: center;
 }
 
 .partnerTop {
   display: grid;
-  grid-template-columns: minmax(170px, 220px) minmax(0, 1fr);
-  gap: 16px;
-  align-items: center;
+  place-items: center;
+  width: 100%;
 }
 
 .partnerMeta {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
+  width: 100%;
 }
 
 .partnerPhoto {
@@ -844,6 +847,7 @@
   border-radius: 24px;
   overflow: hidden;
   background: #d9deea;
+  margin: 0 auto;
 }
 
 .bagasPill {

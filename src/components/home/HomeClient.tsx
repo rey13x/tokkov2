@@ -251,8 +251,8 @@ export default function HomeClient() {
   const logoViewportRef = useRef<HTMLDivElement | null>(null);
   const storyFeedRef = useRef<HTMLDivElement | null>(null);
   const storyInfoRef = useRef<HTMLDivElement | null>(null);
-  const storyDragStartYRef = useRef<number | null>(null);
-  const storyDragStartScrollTopRef = useRef(0);
+  const storyDragStartXRef = useRef<number | null>(null);
+  const storyDragStartScrollLeftRef = useRef(0);
   const testimonialViewportRef = useRef<HTMLDivElement | null>(null);
   const testimonialDragStartRef = useRef(0);
   const testimonialStartScrollRef = useRef(0);
@@ -431,23 +431,23 @@ export default function HomeClient() {
     if (!container) {
       return;
     }
-    storyDragStartYRef.current = event.clientY;
-    storyDragStartScrollTopRef.current = container.scrollTop;
+    storyDragStartXRef.current = event.clientX;
+    storyDragStartScrollLeftRef.current = container.scrollLeft;
     container.setPointerCapture(event.pointerId);
   };
 
   const onStoryFeedPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const container = storyFeedRef.current;
-    if (!container || storyDragStartYRef.current === null) {
+    if (!container || storyDragStartXRef.current === null) {
       return;
     }
-    const delta = event.clientY - storyDragStartYRef.current;
-    container.scrollTop = storyDragStartScrollTopRef.current - delta;
+    const delta = event.clientX - storyDragStartXRef.current;
+    container.scrollLeft = storyDragStartScrollLeftRef.current - delta;
   };
 
   const onStoryFeedPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    storyDragStartYRef.current = null;
-    storyDragStartScrollTopRef.current = 0;
+    storyDragStartXRef.current = null;
+    storyDragStartScrollLeftRef.current = 0;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
