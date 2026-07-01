@@ -758,10 +758,11 @@
 .partnerHeader h2 {
   margin: 0;
   color: #111522;
-  font-size: clamp(2.8rem, 5.6vw, 4.45rem);
-  line-height: 0.95;
+  font-size: clamp(1.9rem, 4.6vw, 3.35rem);
+  line-height: 1.04;
   letter-spacing: 0;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .partnerHeader p {
@@ -877,8 +878,8 @@
 .bagasName {
   margin: 0;
   color: #111522;
-  font-size: clamp(2rem, 2.35vw, 3.05rem);
-  line-height: 1;
+  font-size: clamp(1.45rem, 1.75vw, 2.25rem);
+  line-height: 1.06;
   letter-spacing: 0;
   font-weight: 800;
   max-width: 100%;
@@ -1249,6 +1250,14 @@
     min-height: 42px;
     font-size: 0.98rem;
     padding-inline: 16px;
+  }
+
+  .partnerHeader h2 {
+    font-size: clamp(1.8rem, 7.2vw, 2.65rem);
+  }
+
+  .bagasName {
+    font-size: clamp(1.45rem, 5.7vw, 2rem);
   }
 
   .partnerCard {
