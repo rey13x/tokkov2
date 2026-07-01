@@ -509,7 +509,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                 style={applicantLimitReached ? { opacity: 0.6, cursor: "not-allowed", backgroundColor: "#ccc" } : {}}
                 data-onboarding="product-add-to-cart"
               >
-                {status === "loading" ? "Memuat..." : isRedirectingToCart ? "Mengarahkan..." : applicantLimitReached ? "Posisi Penuh" : "Lamar"}
+                {status === "loading" ? "Loading..." : isRedirectingToCart ? "Redirecting..." : applicantLimitReached ? "Position Full" : "i want"}
               </button>
               <p className={styles.orderHint}>
                 {jobApplicationError ? (

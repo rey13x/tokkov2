@@ -2,6 +2,7 @@
 
 import React from 'react';
 import LiquidGlassBackground from '@/components/ui/LiquidGlassBackground';
+import { FloatingLanguageToggle, LanguageProvider } from '@/components/i18n/LanguageTools';
 
 export default function ClientProviders({
   children,
@@ -9,7 +10,10 @@ export default function ClientProviders({
   children: React.ReactNode;
 }) {
   return <>
-    <LiquidGlassBackground />
-    {children}
+    <LanguageProvider>
+      <LiquidGlassBackground />
+      <FloatingLanguageToggle />
+      {children}
+    </LanguageProvider>
   </>;
 }

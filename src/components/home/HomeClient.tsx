@@ -25,6 +25,7 @@ import bagasPhoto from "@/app/assets/Bagas.jpg";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import ProductCard from "@/components/home/ProductCard";
 import PremiumMarquee from "@/components/home/PremiumMarquee";
+import { LanguageToggle } from "@/components/i18n/LanguageTools";
 import { formatRupiah } from "@/data/products";
 import { HERO_BACKGROUND_URLS, CAROUSEL_PHOTOS_ONLY, ANIMATION_DURATION_MS, getPhotoDuration } from "@/data/hero-backgrounds";
 import { getCartCount } from "@/lib/cart";
@@ -1018,6 +1019,7 @@ export default function HomeClient() {
             <Image src={logoImage} alt="Tokko Logo" className={styles.logo} width={86} height={86} priority />
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <LanguageToggle />
             {sessionStatus === "authenticated" ? (
               <button
                 type="button"
