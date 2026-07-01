@@ -220,6 +220,8 @@ function AdminManagementSection() {
     const [session, setSession] = useState<any>(null); // Replace any with session type if available
     const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
     const [resetPasswordUserName, setResetPasswordUserName] = useState<string>("");
+    const [resetPasswordNewPassword, setResetPasswordNewPassword] = useState<string>("");
+    const [resetPasswordConfirmPassword, setResetPasswordConfirmPassword] = useState<string>("");
     const [isResettingPassword, setIsResettingPassword] = useState(false);
     const [productEditId, setProductEditId] = useState<string | null>(null);
     const [priceInput, setPriceInput] = useState<string>("");
@@ -1232,7 +1234,13 @@ function AdminManagementSection() {
       return;
     }
 
-    if (!window.confirm(`Yakin ingin reset password user ${resetPasswordUserName}? User perlu set password baru saat login.`)) {
+    if (!resetPasswordNewPassword || resetPasswordNewPassword.length < 8) {
+      setError("Password baru harus minimal 8 karakter.");
+      return;
+    }
+
+    if (resetPasswordNewPassword !== resetPasswordConfirmPassword) {
+      setError("Konfirmasi password tidak cocok.");
       return;
     }
 
@@ -1241,7 +1249,10 @@ function AdminManagementSection() {
       const response = await fetch("/api/admin/users/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: resetPasswordUserId }),
+        body: JSON.stringify({
+          userId: resetPasswordUserId,
+          newPassword: resetPasswordNewPassword,
+        }),
       });
 
       if (!response.ok) {
@@ -1252,6 +1263,8 @@ function AdminManagementSection() {
       setMessage(result.message ?? "Password berhasil direset.");
       setResetPasswordUserId(null);
       setResetPasswordUserName("");
+      setResetPasswordNewPassword("");
+      setResetPasswordConfirmPassword("");
       await loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal reset password");
@@ -5363,6 +5376,9 @@ function AdminManagementSection() {
                             onClick={() => {
                               setResetPasswordUserId(user.id);
                               setResetPasswordUserName(user.username);
+                              setResetPasswordNewPassword("");
+                              setResetPasswordConfirmPassword("");
+                              setError("");
                             }}
                             disabled={isResettingPassword}
                             style={{ fontSize: "12px", padding: "4px 8px", marginRight: "4px" }}
@@ -5416,11 +5432,35 @@ function AdminManagementSection() {
                 <h2>Reset Password</h2>
               </div>
               <div style={{ padding: "20px" }}>
-                <p style={{ marginBottom: "16px", color: "#666" }}>
-                  Yakin ingin mereset password user <strong>{resetPasswordUserName}</strong>?
+                <p style={{ marginBottom: "12px", color: "#666" }}>
+                  Atur password baru untuk user <strong>{resetPasswordUserName}</strong>.
                 </p>
+                <div style={{ display: "grid", gap: "12px", marginBottom: "18px" }}>
+                  <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "14px", color: "#333" }}>
+                    Password baru
+                    <input
+                      type="password"
+                      value={resetPasswordNewPassword}
+                      onChange={(event) => setResetPasswordNewPassword(event.target.value)}
+                      placeholder="Masukkan password baru"
+                      autoComplete="new-password"
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: "12px", border: "1px solid #d1d5db", fontSize: "14px" }}
+                    />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "14px", color: "#333" }}>
+                    Konfirmasi password
+                    <input
+                      type="password"
+                      value={resetPasswordConfirmPassword}
+                      onChange={(event) => setResetPasswordConfirmPassword(event.target.value)}
+                      placeholder="Ketik ulang password baru"
+                      autoComplete="new-password"
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: "12px", border: "1px solid #d1d5db", fontSize: "14px" }}
+                    />
+                  </label>
+                </div>
                 <p style={{ marginBottom: "20px", fontSize: "14px", color: "#999" }}>
-                  User perlu set password baru saat login berikutnya.
+                  Password minimal 8 karakter.
                 </p>
                 <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                   <button
@@ -5429,6 +5469,8 @@ function AdminManagementSection() {
                     onClick={() => {
                       setResetPasswordUserId(null);
                       setResetPasswordUserName("");
+                      setResetPasswordNewPassword("");
+                      setResetPasswordConfirmPassword("");
                     }}
                     disabled={isResettingPassword}
                   >
@@ -5440,7 +5482,7 @@ function AdminManagementSection() {
                     onClick={onResetUserPassword}
                     disabled={isResettingPassword}
                   >
-                    {isResettingPassword ? "Resetting..." : "Ya, Reset Password"}
+                    {isResettingPassword ? "Resetting..." : "Simpan Password Baru"}
                   </button>
                 </div>
               </div>

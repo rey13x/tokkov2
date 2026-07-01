@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { hash } from "bcryptjs";
 import { requireAdmin } from "@/server/admin";
 import { findUserById, updateUserById } from "@/server/db";
 
 const resetPasswordSchema = z.object({
   userId: z.string().min(1),
+  newPassword: z.string().min(8).optional(),
 });
 
 export async function POST(request: Request) {
@@ -25,9 +27,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Reset password to null - user must set new password on login
+    const passwordHash = payload.newPassword
+      ? await hash(payload.newPassword, 10)
+      : null;
+
     const updated = await updateUserById(payload.userId, {
-      passwordHash: null,
+      passwordHash,
     });
 
     if (!updated) {
@@ -38,7 +43,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      message: `Password user ${updated.email} berhasil di-reset. User perlu set password baru saat login.`,
+      message: payload.newPassword
+        ? `Password user ${updated.email} berhasil diatur ulang.`
+        : `Password user ${updated.email} berhasil di-reset. User perlu set password baru saat login.`,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
