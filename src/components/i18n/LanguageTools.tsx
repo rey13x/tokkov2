@@ -172,7 +172,6 @@ const translations: Record<string, string> = {
   "Uploading...": "Uploading...",
   "Pilih": "Choose",
   "Pilih foto profil": "Choose profile photo",
-  "Pilih foto Profil": "Choose Profile Photo",
   "Pilih testimoni": "Choose testimonial",
   "Pilih Produk": "Choose Product",
   "Pilih Media": "Choose Media",
