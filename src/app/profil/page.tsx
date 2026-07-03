@@ -6,6 +6,11 @@ import { FiArrowRight } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import WaitLoading from "@/components/ui/WaitLoading";
+import {
+  subscribeToPushNotifications,
+  unsubscribeFromPushNotifications,
+  getCurrentPushPermission,
+} from "@/lib/push-notifications";
 import styles from "./page.module.css";
 
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
@@ -31,6 +36,9 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>("default");
+  const [pushToken, setPushToken] = useState<string | null>(null);
   const [isRequestingOtp, setIsRequestingOtp] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -62,12 +70,15 @@ export default function ProfilePage() {
         email: string;
         phone: string;
         avatarUrl?: string;
+        pushSubscription?: string | null;
       };
 
       setName(result.username);
       setEmail(result.email);
       setPhone(result.phone);
       setAvatarUrl(result.avatarUrl ?? "");
+      setPushToken(result.pushSubscription ?? null);
+      setPushPermission(getCurrentPushPermission());
 
       try {
         if (result.avatarUrl) {
@@ -112,6 +123,13 @@ export default function ProfilePage() {
       return () => clearTimeout(timer);
     }
   }, [message]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    setPushPermission(getCurrentPushPermission());
+  }, []);
 
   // Load profile photos when modal opens
   useEffect(() => {
@@ -264,6 +282,69 @@ export default function ProfilePage() {
       setError("Gagal kirim OTP.");
     } finally {
       setIsRequestingOtp(false);
+    }
+  };
+
+  const onTogglePushSubscription = async () => {
+    setError("");
+    setMessage("");
+    setPushLoading(true);
+
+    try {
+      if (pushToken) {
+        await unsubscribeFromPushNotifications();
+        const response = await fetch("/api/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: name,
+            email,
+            phone,
+            oldPassword: canUseEmailOtp ? oldPassword : "",
+            newPassword: canUseEmailOtp ? newPassword : "",
+            otpCode: canUseEmailOtp ? otpCode : "",
+            pushSubscription: null,
+          }),
+        });
+
+        if (!response.ok) {
+          const result = await response.json();
+          throw new Error(result.message || "Gagal berhenti berlangganan notifikasi.");
+        }
+
+        setPushToken(null);
+        setMessage("Langganan notifikasi berhasil dihentikan.");
+        return;
+      }
+
+      const token = await subscribeToPushNotifications();
+      const response = await fetch("/api/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: name,
+          email,
+          phone,
+          oldPassword: canUseEmailOtp ? oldPassword : "",
+          newPassword: canUseEmailOtp ? newPassword : "",
+          otpCode: canUseEmailOtp ? otpCode : "",
+          pushSubscription: token,
+        }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || "Gagal mendaftar notifikasi.");
+      }
+
+      setPushToken(token);
+      setPushPermission("granted");
+      setMessage("Notifikasi berhasil diaktifkan.");
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Gagal mengaktifkan notifikasi.";
+      setError(errorMsg);
+    } finally {
+      setPushLoading(false);
     }
   };
 
@@ -424,6 +505,34 @@ export default function ProfilePage() {
                 placeholder="08xxxxxxxxxx"
               />
             </label>
+
+            <div className={styles.field}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+                <span>Notifikasi Browser</span>
+                <button
+                  type="button"
+                  className={styles.submitButton}
+                  onClick={onTogglePushSubscription}
+                  disabled={pushLoading}
+                  style={{ width: "auto", padding: "10px 16px", fontSize: "14px" }}
+                >
+                  {pushLoading
+                    ? "Memproses..."
+                    : pushToken
+                    ? "Berhenti Berlangganan"
+                    : pushPermission === "granted"
+                    ? "Aktifkan Notifikasi"
+                    : "Minta Izin Notifikasi"}
+                </button>
+              </div>
+              <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#666" }}>
+                {pushToken
+                  ? "Anda sudah berlangganan notifikasi."
+                  : pushPermission === "denied"
+                  ? "Izin notifikasi ditolak di browser. Izinkan dari pengaturan browser untuk menerima notifikasi."
+                  : "Aktifkan notifikasi agar Tokko dapat mengirim pengumuman langsung ke browser Anda."}
+              </p>
+            </div>
 
             {canUseEmailOtp ? (
               <>

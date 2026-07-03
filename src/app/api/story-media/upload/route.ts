@@ -66,30 +66,25 @@ export async function POST(request: Request) {
     let mediaUrl = "";
 
     if (!fileUploadEnabled || !bucket) {
-      // Fallback: Return error if Firebase is not configured
-      return NextResponse.json(
-        {
-          message:
-            "File upload tidak tersedia. Hubungi administrator.",
+      // Firebase not configured: fallback to returning a data URL so uploads still work in dev/local
+      const dataUrl = `data:${file.type};base64,${buffer.toString("base64")}`;
+      mediaUrl = dataUrl;
+    } else {
+      // Upload to Firebase Storage
+      const fileName = sanitizeFileName(file.name.replace(/\.[^/.]+$/, "") || "story-photo");
+      const objectPath = `stories/${session.user.id}/${Date.now()}-${fileName}.${extension}`;
+      const object = bucket.file(objectPath);
+
+      await object.save(buffer, {
+        resumable: false,
+        metadata: {
+          contentType: file.type,
         },
-        { status: 503 }
-      );
+      });
+
+      await object.makePublic();
+      mediaUrl = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
     }
-
-    // Upload to Firebase Storage
-    const fileName = sanitizeFileName(file.name.replace(/\.[^/.]+$/, "") || "story-photo");
-    const objectPath = `stories/${session.user.id}/${Date.now()}-${fileName}.${extension}`;
-    const object = bucket.file(objectPath);
-
-    await object.save(buffer, {
-      resumable: false,
-      metadata: {
-        contentType: file.type,
-      },
-    });
-
-    await object.makePublic();
-    mediaUrl = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
 
     return NextResponse.json({
       url: mediaUrl,

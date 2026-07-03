@@ -9,6 +9,8 @@ import CustomCursor from "./components/CustomCursor";
 import * as THREE from "three";
 import LoadingScreen from "./components/LoadingScreen/LoadingScreen";
 import Settings from "./components/Settings";
+import AdPopup from "./components/AdPopup";
+import AdminPanel from "./components/AdminPanel";
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
           <BackgroundImageCover />
         </Suspense>
       </Canvas>
+      <AdPopup />
+      <AdminPanel />
     </div>
   );
 }

@@ -29,6 +29,7 @@ type AdminSection =
   | "paymentSettings"
   | "privacyPolicy"
   | "maintenanceSettings"
+  | "notifications"
   | "admins"
   | "users"
   | "profilePhotos"
@@ -228,6 +229,11 @@ function AdminManagementSection() {
     const [priceInput, setPriceInput] = useState<string>("");
   const [adminEmails, setAdminEmails] = useState<Array<{ id: string; email: string; createdAt: number }>>([]);
   const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [pushSubscribers, setPushSubscribers] = useState<Array<{ id: string; email: string; username: string }>>([]);
+  const [pushTitle, setPushTitle] = useState("");
+  const [pushBody, setPushBody] = useState("");
+  const [pushUrl, setPushUrl] = useState("");
+  const [isSendingPush, setIsSendingPush] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -1230,6 +1236,53 @@ function AdminManagementSection() {
     }
   };
 
+  const loadPushSubscribers = async () => {
+    try {
+      const response = await fetch("/api/admin/notifications", { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("Gagal memuat langganan notifikasi");
+      }
+      const result = (await response.json()) as { subscribers: Array<{ id: string; email: string; username: string }> };
+      setPushSubscribers(result.subscribers || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const onSendPushNotification = async () => {
+    if (!pushTitle.trim() || !pushBody.trim()) {
+      setError("Judul dan isi notifikasi harus diisi.");
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsSendingPush(true);
+
+    try {
+      const response = await fetch("/api/admin/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: pushTitle.trim(), body: pushBody.trim(), url: pushUrl.trim() || "/" }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Gagal mengirim notifikasi.");
+      }
+
+      setMessage(result.message || "Notifikasi berhasil dikirim ke pengguna berlangganan.");
+      setPushTitle("");
+      setPushBody("");
+      setPushUrl("");
+      await loadPushSubscribers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mengirim notifikasi.");
+    } finally {
+      setIsSendingPush(false);
+    }
+  };
+
   const onResetUserPassword = async () => {
     if (!resetPasswordUserId) {
       return;
@@ -1342,6 +1395,12 @@ function AdminManagementSection() {
       loadTestimonialComments().catch((err) => {
         console.error("Failed to load testimonial comments:", err);
         setError("Gagal memuat komentar testimoni");
+      });
+    }
+
+    if (activeSection === "notifications") {
+      loadPushSubscribers().catch((err) => {
+        console.error("Failed to load push subscriptions:", err);
       });
     }
   }, [activeSection]);
@@ -5289,6 +5348,94 @@ function AdminManagementSection() {
 
         {activeSection === "admins" && session?.user?.email?.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL?.toLowerCase() ? (
           <AdminManagementSection />
+        ) : null}
+
+        {activeSection === "notifications" ? (
+          <article className={styles.card}>
+            <div className={styles.cardHead}>
+              <h2>Notifikasi Browser</h2>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => loadPushSubscribers()}
+                disabled={isLoading}
+              >
+                Refresh
+              </button>
+            </div>
+            <div style={{ display: "grid", gap: "16px" }}>
+              <p style={{ margin: 0, color: "#444" }}>
+                Kirim pemberitahuan browser ke pengguna yang sudah berlangganan notifikasi.
+              </p>
+              <div style={{ display: "grid", gap: "12px" }}>
+                <label style={{ display: "grid", gap: "8px", fontSize: "14px" }}>
+                  Judul Notifikasi
+                  <input
+                    type="text"
+                    value={pushTitle}
+                    onChange={(event) => setPushTitle(event.target.value)}
+                    placeholder="Contoh: Info terbaru Tokko"
+                  />
+                </label>
+                <label style={{ display: "grid", gap: "8px", fontSize: "14px" }}>
+                  Isi Notifikasi
+                  <textarea
+                    rows={4}
+                    value={pushBody}
+                    onChange={(event) => setPushBody(event.target.value)}
+                    placeholder="Contoh: Cek produk baru dan promo menarik hari ini"
+                  />
+                </label>
+                <label style={{ display: "grid", gap: "8px", fontSize: "14px" }}>
+                  URL Target (opsional)
+                  <input
+                    type="text"
+                    value={pushUrl}
+                    onChange={(event) => setPushUrl(event.target.value)}
+                    placeholder="Contoh: /koleksi atau biarkan kosong untuk beranda"
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={onSendPushNotification}
+                  disabled={isSendingPush}
+                >
+                  {isSendingPush ? "Mengirim..." : "Kirim Notifikasi"}
+                </button>
+              </div>
+
+              <div style={{ padding: "16px", background: "#fafafa", borderRadius: "16px", border: "1px solid #eee" }}>
+                <p style={{ margin: "0 0 8px", fontWeight: 600 }}>Peladen Notifikasi</p>
+                <p style={{ margin: 0 }}>
+                  Pengguna berlangganan: <strong>{pushSubscribers.length}</strong>
+                </p>
+                {pushSubscribers.length > 0 ? (
+                  <div style={{ marginTop: "12px", maxHeight: "200px", overflowY: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "1px solid #ddd" }}>Username</th>
+                          <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "1px solid #ddd" }}>Email</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pushSubscribers.map((subscriber) => (
+                          <tr key={subscriber.id}>
+                            <td style={{ padding: "6px 8px", borderBottom: "1px solid #f2f2f2" }}>{subscriber.username}</td>
+                            <td style={{ padding: "6px 8px", borderBottom: "1px solid #f2f2f2" }}>{subscriber.email}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </article>
         ) : null}
 
         {activeSection === "users" ? (

@@ -22,6 +22,7 @@ const updateSchema = z.object({
   oldPassword: z.string().optional().default(""),
   newPassword: z.string().optional().default(""),
   otpCode: z.string().optional().default(""),
+  pushSubscription: z.string().nullable().optional(),
 });
 
 function hashOtp(code: string) {
@@ -70,6 +71,7 @@ export async function GET() {
     phone: user.phone,
     avatarUrl: user.avatarUrl,
     role: user.role,
+    pushSubscription: user.pushSubscription ?? null,
   });
 }
 
@@ -188,6 +190,7 @@ export async function PATCH(request: Request) {
       email: payload.email.trim().toLowerCase(),
       phone: payload.phone.trim(),
       passwordHash,
+      pushSubscription: payload.pushSubscription ?? undefined,
     });
 
     if (!updated) {
@@ -223,6 +226,7 @@ export async function PATCH(request: Request) {
         email: updated.email,
         phone: updated.phone,
         avatarUrl: updated.avatarUrl,
+        pushSubscription: updated.pushSubscription ?? null,
       },
     });
   } catch (error) {

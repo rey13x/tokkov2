@@ -22,6 +22,8 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
   title: "Tokko Marketplace",
   description: "Tokko Marketplace",
+  manifest: "/site.webmanifest",
+  themeColor: "#111319",
   icons: {
     icon: "/assets/maintenancelogo.jpg",
     shortcut: "/assets/maintenancelogo.jpg",

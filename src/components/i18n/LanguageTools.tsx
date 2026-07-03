@@ -73,6 +73,7 @@ const translations: Record<string, string> = {
   "Mengarahkan...": "Redirecting...",
   "Saya mau": "I want",
   "Klik tombol Saya mau untuk melamar pekerjaan ini.": "Click the I want button to apply for this job.",
+  "Beli Sekarang": "Buy Now",
   "Mohon tunggu hingga lamaran selesai diproses.": "Please wait until the application finishes processing.",
   "Mohon tunggu sebelum melamar lagi.": "Please wait before applying again.",
   "Anda tidak dapat melamar pekerjaan ini saat ini.": "You cannot apply for this job right now.",

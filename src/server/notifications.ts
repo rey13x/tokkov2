@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { getFirebaseAdminApp } from "@/server/firebase-admin";
 
 const exportDir = path.join(process.cwd(), "storage", "exports");
 const csvFile = path.join(exportDir, "orders.csv");
@@ -147,6 +148,49 @@ export async function sendTelegramActivityNotification(payload: {
   ];
 
   await sendTelegramMessage(lines.join("\n"));
+}
+
+export async function sendFirebaseWebPushMessage(payload: {
+  token: string;
+  title: string;
+  body: string;
+  url?: string;
+  data?: Record<string, string>;
+}) {
+  if (!payload.token) {
+    return false;
+  }
+
+  const adminApp = getFirebaseAdminApp();
+  if (!adminApp) {
+    console.warn('Firebase Admin is not configured. Web push message skipped.');
+    return false;
+  }
+
+  try {
+    const messaging = adminApp.messaging();
+    await messaging.send({
+      token: payload.token,
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
+      webpush: {
+        fcmOptions: {
+          link: payload.url || "/",
+        },
+        notification: {
+          icon: "/assets/logo.png",
+          badge: "/assets/logo.png",
+        },
+      },
+      data: payload.data || {},
+    });
+    return true;
+  } catch (error) {
+    console.error("Failed to send Firebase web push message:", error);
+    return false;
+  }
 }
 
 /**

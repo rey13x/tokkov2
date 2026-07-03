@@ -480,6 +480,7 @@ export async function ensureDatabase() {
           password_hash TEXT,
           role TEXT NOT NULL DEFAULT 'user',
           last_active_at INTEGER,
+          push_subscription TEXT,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
@@ -489,6 +490,9 @@ export async function ensureDatabase() {
       ).catch(() => {});
       await run(
         "ALTER TABLE users ADD COLUMN last_active_at INTEGER",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE users ADD COLUMN push_subscription TEXT",
       ).catch(() => {});
 
       await run(
@@ -912,6 +916,7 @@ export type DbUser = {
   avatarUrl: string;
   role: "user" | "admin";
   passwordHash: string | null;
+  pushSubscription: string | null;
 };
 
 function mapUser(row: Record<string, unknown>): DbUser {
@@ -923,6 +928,7 @@ function mapUser(row: Record<string, unknown>): DbUser {
     avatarUrl: String(row.avatar_url ?? ""),
     role: (String(row.role) as "user" | "admin") ?? "user",
     passwordHash: row.password_hash ? String(row.password_hash) : null,
+    pushSubscription: row.push_subscription ? String(row.push_subscription) : null,
   };
 }
 
@@ -938,6 +944,10 @@ function mapFirestoreUser(id: string, data: Record<string, unknown> | undefined)
       data?.passwordHash === null || data?.passwordHash === undefined
         ? null
         : String(data.passwordHash),
+    pushSubscription:
+      data?.pushSubscription === null || data?.pushSubscription === undefined
+        ? null
+        : String(data.pushSubscription),
   };
 }
 
@@ -1163,6 +1173,7 @@ export async function createUser(input: {
   avatarUrl?: string;
   passwordHash: string | null;
   role?: "user" | "admin";
+  pushSubscription?: string | null;
 }) {
   const id = randomId();
   const role = input.role ?? "user";
@@ -1183,6 +1194,7 @@ export async function createUser(input: {
         avatarUrl,
         passwordHash: input.passwordHash,
         role,
+        pushSubscription: input.pushSubscription ?? null,
         createdAt,
         updatedAt: createdAt,
       });
@@ -1201,8 +1213,8 @@ export async function createUser(input: {
 
   await ensureDatabase();
   await run(
-    `INSERT INTO users (id, username, email, phone, avatar_url, password_hash, role, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (id, username, email, phone, avatar_url, password_hash, role, push_subscription, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.username.trim(),
@@ -1211,6 +1223,7 @@ export async function createUser(input: {
       avatarUrl,
       input.passwordHash,
       role,
+      input.pushSubscription ?? null,
       now(),
       now(),
     ],
@@ -1227,6 +1240,7 @@ export async function updateUserById(
     avatarUrl: string;
     passwordHash: string | null;
     role: "user" | "admin";
+    pushSubscription: string | null;
   }>,
 ) {
   const firestore = getFirebaseFirestore() as any;
@@ -1245,6 +1259,8 @@ export async function updateUserById(
       const nextPasswordHash =
         input.passwordHash === undefined ? current.passwordHash : input.passwordHash;
       const nextRole = input.role ?? current.role;
+      const nextPushSubscription =
+        input.pushSubscription === undefined ? current.pushSubscription : input.pushSubscription;
 
       await firestore.collection("users").doc(id).set(
         {
@@ -1256,6 +1272,7 @@ export async function updateUserById(
           avatarUrl: nextAvatarUrl,
           passwordHash: nextPasswordHash,
           role: nextRole,
+          pushSubscription: nextPushSubscription,
           updatedAt: now(),
         },
         { merge: true },
@@ -1281,10 +1298,12 @@ export async function updateUserById(
 
   const nextAvatarUrl =
     input.avatarUrl === undefined ? current.avatarUrl : input.avatarUrl.trim();
+  const nextPushSubscription =
+    input.pushSubscription === undefined ? current.pushSubscription : input.pushSubscription;
 
   await run(
     `UPDATE users
-     SET username = ?, email = ?, phone = ?, avatar_url = ?, password_hash = ?, role = ?, updated_at = ?
+     SET username = ?, email = ?, phone = ?, avatar_url = ?, password_hash = ?, role = ?, push_subscription = ?, updated_at = ?
      WHERE id = ?`,
     [
       input.username ?? current.username,
@@ -1293,6 +1312,7 @@ export async function updateUserById(
       nextAvatarUrl,
       input.passwordHash ?? current.passwordHash,
       input.role ?? current.role,
+      nextPushSubscription,
       now(),
       id,
     ],
@@ -2414,6 +2434,19 @@ export async function listAllUsers() {
     phone: string;
     created_at: number;
     last_active_at: number | null;
+  }>;
+}
+
+export async function listUsersWithPushSubscription() {
+  await ensureDatabase();
+  const res = await run(
+    "SELECT id, username, email, push_subscription FROM users WHERE push_subscription IS NOT NULL AND push_subscription != '' ORDER BY created_at DESC",
+  );
+  return ((res.rows ?? []) as unknown) as Array<{
+    id: string;
+    username: string;
+    email: string;
+    pushSubscription: string;
   }>;
 }
 
