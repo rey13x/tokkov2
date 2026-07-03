@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import { LanguageToggle } from "@/components/i18n/LanguageTools";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
 import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
@@ -2289,8 +2290,8 @@ function AdminManagementSection() {
           type="button"
           className={styles.sidebarToggle}
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          title="Toggle sidebar"
-          aria-label="Toggle sidebar"
+          title="Alihkan sidebar"
+          aria-label="Alihkan sidebar"
         >
           {isSidebarOpen ? "✕" : "≡"}
         </button>
@@ -2300,13 +2301,14 @@ function AdminManagementSection() {
         </div>
         <div className={styles.headerActions}>
           <Link href="/api/admin/orders/export?format=csv" className={styles.actionLink}>
-            Export CSV
+            Ekspor CSV
           </Link>
           <Link href="/api/admin/orders/export?format=xlsx" className={styles.actionLink}>
-            Export XLSX
+            Ekspor XLSX
           </Link>
+          <LanguageToggle />
           <button type="button" onClick={onLogoutAdmin} className={styles.actionLink}>
-            Logout Admin
+            Keluar Admin
           </button>
           <Link href="/" className={styles.actionLink}>
             Ke Beranda

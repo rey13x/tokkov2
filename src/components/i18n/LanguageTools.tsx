@@ -68,8 +68,8 @@ const translations: Record<string, string> = {
   "Posisi ini sudah penuh": "This position is full",
   "Memuat...": "Loading...",
   "Mengarahkan...": "Redirecting...",
-  "Lamar": "i want",
-  "Klik tombol Lamar untuk melamar pekerjaan ini.": "Click the i want button to apply for this job.",
+  "Saya mau": "I want",
+  "Klik tombol Saya mau untuk melamar pekerjaan ini.": "Click the I want button to apply for this job.",
   "Mohon tunggu hingga lamaran selesai diproses.": "Please wait until the application finishes processing.",
   "Mohon tunggu sebelum melamar lagi.": "Please wait before applying again.",
   "Anda tidak dapat melamar pekerjaan ini saat ini.": "You cannot apply for this job right now.",
@@ -106,6 +106,14 @@ const translations: Record<string, string> = {
   "Masukkan 6 digit kode": "Enter the 6-digit code",
   "Masukkan email kamu": "Enter your email",
   "Masukkan password baru": "Enter new password",
+  "Alihkan sidebar": "Toggle sidebar",
+  "Admin Dashboard": "Admin Dashboard",
+  "Halo Admin, konsisten untuk produknya yaa. Hubungi melalui Whatsapp jika ada trouble": "Hello Admin, keep the products consistent. Contact via WhatsApp if there is trouble",
+  "Ekspor CSV": "Export CSV",
+  "Ekspor XLSX": "Export XLSX",
+  "Keluar Admin": "Logout Admin",
+  "Ke Beranda": "Back to Home",
+  "Upload file dimatikan. Isi media menggunakan URL manual.": "File upload is disabled. Fill media using manual URLs.",
   "Profil berhasil diperbarui.": "Profile updated successfully.",
   "Login sebagai": "Logged in as",
   "Memuat foto profil...": "Loading profile photos...",
@@ -314,15 +322,15 @@ function translateTree(root: Node, language: LanguageCode) {
 }
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<LanguageCode>("en");
+  const [language, setLanguageState] = useState<LanguageCode>("id");
 
   useEffect(() => {
     const restoreLanguage = window.setTimeout(() => {
       try {
         const stored = window.localStorage.getItem(STORAGE_KEY);
-        setLanguageState(stored === "id" || stored === "en" ? stored : "en");
+        setLanguageState(stored === "id" || stored === "en" ? stored : "id");
       } catch {
-        setLanguageState("en");
+        setLanguageState("id");
       }
     }, 0);
 

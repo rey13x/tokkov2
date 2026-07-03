@@ -509,7 +509,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                 style={applicantLimitReached ? { opacity: 0.6, cursor: "not-allowed", backgroundColor: "#ccc" } : {}}
                 data-onboarding="product-add-to-cart"
               >
-                {status === "loading" ? "Loading..." : isRedirectingToCart ? "Redirecting..." : applicantLimitReached ? "Position Full" : "i want"}
+                {status === "loading" ? "Memuat..." : isRedirectingToCart ? "Mengarahkan..." : applicantLimitReached ? "Posisi Penuh" : "Saya mau"}
               </button>
               <p className={styles.orderHint}>
                 {jobApplicationError ? (
@@ -521,7 +521,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                     Anda harus <Link href={`/auth?redirect=${encodeURIComponent(`/produk/${product.slug}`)}`} style={{ color: "#4a5fe3", textDecoration: "underline" }}>login terlebih dahulu</Link> untuk melamar pekerjaan ini.
                   </>
                 ) : (
-                  <>Klik tombol Lamar untuk melamar pekerjaan ini.</>
+                  <>Klik tombol Saya mau untuk melamar pekerjaan ini.</>
                 )}
               </p>
 
