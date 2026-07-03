@@ -13,6 +13,8 @@ import styles from "./page.module.css";
 import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
 import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StoreStoryReel, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
 
+const AD_POPUP_STORAGE_KEY = "adConfig";
+
 // ...existing code...
 export default AdminManagementSection;
 
@@ -230,6 +232,13 @@ function AdminManagementSection() {
   const [adminEmails, setAdminEmails] = useState<Array<{ id: string; email: string; createdAt: number }>>([]);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [pushSubscribers, setPushSubscribers] = useState<Array<{ id: string; email: string; username: string }>>([]);
+  const [adConfig, setAdConfig] = useState({
+    image: "",
+    link: "",
+    buttonText: "Buka",
+    enabled: true,
+    showOnce: true,
+  });
   const [pushTitle, setPushTitle] = useState("");
   const [pushBody, setPushBody] = useState("");
   const [pushUrl, setPushUrl] = useState("");
@@ -1246,6 +1255,16 @@ function AdminManagementSection() {
       setPushSubscribers(result.subscribers || []);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const onSaveAdPopup = () => {
+    try {
+      window.localStorage.setItem(AD_POPUP_STORAGE_KEY, JSON.stringify(adConfig));
+      window.localStorage.removeItem("adDismissed");
+      setMessage("Pengaturan popup iklan berhasil disimpan.");
+    } catch {
+      setError("Gagal menyimpan pengaturan popup iklan.");
     }
   };
 
@@ -5343,6 +5362,63 @@ function AdminManagementSection() {
         {activeSection === "profilePhotos" ? (
           <article className={styles.card}>
             <AdminProfilePhotosSection />
+          </article>
+        ) : null}
+
+        {activeSection === "maintenanceSettings" ? (
+          <article className={styles.card}>
+            <h2>Popup Iklan</h2>
+            <p style={{ color: "#666", marginTop: 0 }}>
+              Atur iklan popup yang muncul saat pengguna pertama kali membuka website. Bisa pakai URL gambar langsung, tanpa harus upload file.
+            </p>
+            <label style={{ display: "grid", gap: "8px", marginBottom: "12px" }}>
+              URL Gambar
+              <input
+                type="text"
+                value={adConfig.image}
+                onChange={(event) => setAdConfig((current) => ({ ...current, image: event.target.value }))}
+                placeholder="https://.../gambar.jpg"
+              />
+            </label>
+            <label style={{ display: "grid", gap: "8px", marginBottom: "12px" }}>
+              Link Tujuan
+              <input
+                type="text"
+                value={adConfig.link}
+                onChange={(event) => setAdConfig((current) => ({ ...current, link: event.target.value }))}
+                placeholder="https://..."
+              />
+            </label>
+            <label style={{ display: "grid", gap: "8px", marginBottom: "12px" }}>
+              Teks Tombol
+              <input
+                type="text"
+                value={adConfig.buttonText}
+                onChange={(event) => setAdConfig((current) => ({ ...current, buttonText: event.target.value }))}
+                placeholder="Buka"
+              />
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <input
+                type="checkbox"
+                checked={adConfig.enabled}
+                onChange={(event) => setAdConfig((current) => ({ ...current, enabled: event.target.checked }))}
+              />
+              Aktifkan popup iklan
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+              <input
+                type="checkbox"
+                checked={adConfig.showOnce}
+                onChange={(event) => setAdConfig((current) => ({ ...current, showOnce: event.target.checked }))}
+              />
+              Tampilkan sekali saja (per browser/device)
+            </label>
+            <button type="button" className={styles.primaryButton} onClick={onSaveAdPopup}>
+              Simpan Popup Iklan
+            </button>
+            {message ? <p className={styles.success} style={{ marginTop: "12px" }}>{message}</p> : null}
+            {error ? <p className={styles.error} style={{ marginTop: "12px" }}>{error}</p> : null}
           </article>
         ) : null}
 
