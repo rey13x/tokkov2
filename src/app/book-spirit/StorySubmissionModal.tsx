@@ -601,7 +601,7 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                 className={styles.submitButton}
                 disabled={isSubmitting}
               >
-                {isSubmitting ? "Mengirim..." : "Add Story"}
+                {isSubmitting ? "Mengirim..." : "Tambah Testimoni"}
               </button>
             </div>
           </div>
