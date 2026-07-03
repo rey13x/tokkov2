@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const AD_POPUP_STORAGE_KEY = "adConfig";
 const DISMISS_STORAGE_KEY = "adDismissed";
@@ -57,6 +58,7 @@ export default function AdPopup() {
   const [visible, setVisible] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [canClose, setCanClose] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const applyConfig = () => {
@@ -117,7 +119,7 @@ export default function AdPopup() {
   const isVideo = useMemo(() => isVideoUrl(mediaUrl), [mediaUrl]);
   const videoEmbedUrl = useMemo(() => getVideoEmbedUrl(mediaUrl), [mediaUrl]);
 
-  if (!visible || !config || !mediaUrl) return null;
+  if (pathname !== "/" || !visible || !config || !mediaUrl) return null;
 
   const handleClose = () => {
     setVisible(false);
@@ -189,19 +191,19 @@ const overlayStyle: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   padding: "24px",
-  background: "rgba(0,0,0,0.4)",
-  backdropFilter: "blur(8px)",
+  background: "rgba(0,0,0,0.68)",
+  backdropFilter: "blur(10px)",
 };
 
 const modalStyle: React.CSSProperties = {
   position: "relative",
-  width: "min(92vw, 560px)",
+  width: "min(94vw, 680px)",
   maxHeight: "90vh",
   overflow: "hidden",
-  borderRadius: "24px",
-  background: "rgba(255,255,255,0.95)",
-  boxShadow: "0 24px 70px rgba(0,0,0,0.28)",
-  padding: "20px 18px 18px",
+  borderRadius: "32px",
+  background: "transparent",
+  boxShadow: "none",
+  padding: 0,
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
@@ -213,83 +215,89 @@ const mediaWrapperStyle: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   overflow: "hidden",
-  borderRadius: "20px",
-  background: "#f5f5f5",
-  maxHeight: "70vh",
+  borderRadius: "28px",
+  background: "#000",
+  maxHeight: "78vh",
+  boxShadow: "0 24px 70px rgba(0,0,0,0.3)",
 };
 
 const imageStyle: React.CSSProperties = {
   display: "block",
   width: "100%",
   height: "auto",
-  maxHeight: "70vh",
+  maxHeight: "78vh",
   objectFit: "contain",
-  borderRadius: "20px",
+  borderRadius: "28px",
 };
 
 const mediaFrameStyle: React.CSSProperties = {
   width: "100%",
-  height: "min(70vh, 420px)",
+  height: "min(78vh, 460px)",
   border: 0,
-  borderRadius: "20px",
+  borderRadius: "28px",
   background: "#000",
 };
 
 const actionsStyle: React.CSSProperties = {
-  marginTop: "16px",
-  width: "100%",
+  position: "absolute",
+  top: "16px",
+  right: "16px",
+  zIndex: 3,
   display: "flex",
-  justifyContent: "center",
+  justifyContent: "flex-end",
 };
 
 const buttonStyle: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  background: "#111",
+  background: "rgba(0,0,0,0.72)",
   color: "#fff",
   padding: "10px 16px",
   borderRadius: "999px",
   textDecoration: "none",
   fontWeight: 700,
   minWidth: "140px",
+  boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
 };
 
 const buttonStyleDisabled: React.CSSProperties = {
   ...buttonStyle,
-  background: "#cfcfcf",
-  color: "#666",
+  background: "rgba(255,255,255,0.22)",
+  color: "#fff",
   pointerEvents: "none",
 };
 
 const closeAreaStyle: React.CSSProperties = {
   position: "absolute",
-  top: "10px",
-  right: "10px",
-  zIndex: 1,
+  top: "16px",
+  left: "16px",
+  zIndex: 3,
 };
 
 const closeButtonStyle: React.CSSProperties = {
   border: "none",
-  width: "34px",
-  height: "34px",
+  width: "40px",
+  height: "40px",
   borderRadius: "999px",
-  background: "rgba(0,0,0,0.7)",
+  background: "rgba(0,0,0,0.6)",
   color: "#fff",
   cursor: "pointer",
-  fontSize: "20px",
+  fontSize: "22px",
+  boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
 };
 
 const countdownStyle: React.CSSProperties = {
-  minWidth: "34px",
-  minHeight: "34px",
+  minWidth: "46px",
+  minHeight: "40px",
   borderRadius: "999px",
-  padding: "0 8px",
-  background: "rgba(0,0,0,0.7)",
+  padding: "0 12px",
+  background: "rgba(0,0,0,0.6)",
   color: "#fff",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontSize: "12px",
+  fontSize: "13px",
   fontWeight: 700,
+  boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
 };

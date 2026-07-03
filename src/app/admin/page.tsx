@@ -1260,7 +1260,16 @@ function AdminManagementSection() {
 
   const onSaveAdPopup = () => {
     try {
-      window.localStorage.setItem(AD_POPUP_STORAGE_KEY, JSON.stringify(adConfig));
+      const normalizedConfig = {
+        ...adConfig,
+        image: (adConfig.image || "").trim(),
+        link: (adConfig.link || "").trim(),
+        buttonText: (adConfig.buttonText || "Buka").trim() || "Buka",
+        enabled: adConfig.enabled !== false,
+        showOnce: adConfig.showOnce !== false,
+      };
+
+      window.localStorage.setItem(AD_POPUP_STORAGE_KEY, JSON.stringify(normalizedConfig));
       window.localStorage.removeItem("adDismissed");
       window.dispatchEvent(new Event("ad-config-updated"));
       setMessage("Pengaturan popup iklan berhasil disimpan.");
