@@ -69,16 +69,22 @@ export default function AdPopup() {
         return;
       }
 
+      const normalizedConfig: AdConfig = {
+        ...parsed,
+        enabled: parsed.enabled !== false,
+        showOnce: parsed.showOnce === true,
+      };
+
       const dismissed = window.localStorage.getItem(DISMISS_STORAGE_KEY);
-      if (parsed.enabled === false) {
-        setConfig(parsed);
+      if (!normalizedConfig.enabled) {
+        setConfig(normalizedConfig);
         setVisible(false);
         return;
       }
 
-      const mediaUrl = parsed.image || parsed.mediaUrl || parsed.videoUrl || parsed.url || "";
-      const shouldShow = Boolean(mediaUrl) && (parsed.showOnce === false || !dismissed);
-      setConfig(parsed);
+      const mediaUrl = normalizedConfig.image || normalizedConfig.mediaUrl || normalizedConfig.videoUrl || normalizedConfig.url || "";
+      const shouldShow = Boolean(mediaUrl) && (!normalizedConfig.showOnce || !dismissed);
+      setConfig(normalizedConfig);
       setVisible(shouldShow);
     };
 
@@ -115,7 +121,8 @@ export default function AdPopup() {
   const isVideo = useMemo(() => isVideoUrl(mediaUrl), [mediaUrl]);
   const videoEmbedUrl = useMemo(() => getVideoEmbedUrl(mediaUrl), [mediaUrl]);
 
-  if (pathname !== "/" || !visible || !config || !mediaUrl) return null;
+  const isHome = pathname === "/" || (typeof window !== "undefined" && window.location.pathname === "/");
+  if (!isHome || !visible || !config || !mediaUrl) return null;
 
   const handleClose = () => {
     setVisible(false);
