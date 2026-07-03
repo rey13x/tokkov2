@@ -122,7 +122,6 @@ const translations: Record<string, string> = {
   "Admin Panel": "Admin Panel",
   "Dashboard": "Dashboard",
   "Produk": "Products",
-  "Produk Baru": "New Products",
   "CRUD Produk": "Product CRUD",
   "Edit Produk": "Edit Product",
   "Media Produk": "Product Media",
