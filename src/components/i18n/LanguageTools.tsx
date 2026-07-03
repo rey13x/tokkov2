@@ -227,6 +227,29 @@ const phraseTranslations = Object.entries(translations).sort((a, b) => b[0].leng
 const textOriginals = new WeakMap<Text, string>();
 const attrOriginals = new WeakMap<Element, Map<string, string>>();
 
+function detectBrowserLanguage(): LanguageCode {
+  if (typeof navigator === "undefined") return "id";
+  const candidates = [navigator.language, ...(navigator.languages ?? [])].filter(Boolean).map((value) => value.toLowerCase());
+  const hasIndonesian = candidates.some((value) => value.startsWith("id") || value.startsWith("in") || value.includes("indonesia"));
+  const hasEnglish = candidates.some((value) => value.startsWith("en"));
+
+  if (hasEnglish && !hasIndonesian) return "en";
+  if (hasIndonesian && !hasEnglish) return "id";
+  if (hasEnglish) return "en";
+  return "id";
+}
+
+function getInitialLanguage(): LanguageCode {
+  if (typeof window === "undefined") return "id";
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "id" || stored === "en") return stored;
+  } catch {
+    // ignore storage errors
+  }
+  return detectBrowserLanguage();
+}
+
 function preserveOuterWhitespace(original: string, translated: string) {
   const start = original.match(/^\s*/)?.[0] ?? "";
   const end = original.match(/\s*$/)?.[0] ?? "";
@@ -320,20 +343,38 @@ function translateTree(root: Node, language: LanguageCode) {
 }
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<LanguageCode>("id");
+  const [language, setLanguageState] = useState<LanguageCode>(getInitialLanguage);
 
   useEffect(() => {
-    const restoreLanguage = window.setTimeout(() => {
-      try {
-        const stored = window.localStorage.getItem(STORAGE_KEY);
-        setLanguageState(stored === "id" || stored === "en" ? stored : "id");
-      } catch {
-        setLanguageState("id");
-      }
-    }, 0);
+    document.documentElement.lang = language;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, language);
+    } catch {}
 
-    return () => window.clearTimeout(restoreLanguage);
-  }, []);
+    translateTree(document.body, language);
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === "characterData") {
+          translateTree(mutation.target, language);
+        }
+        if (mutation.type === "attributes") {
+          translateTree(mutation.target, language);
+        }
+        mutation.addedNodes.forEach((node) => translateTree(node, language));
+      }
+    });
+
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["placeholder", "title", "aria-label", "alt"],
+    });
+
+    return () => observer.disconnect();
+  }, [language]);
 
   useEffect(() => {
     document.documentElement.lang = language;
