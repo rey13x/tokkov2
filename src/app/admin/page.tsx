@@ -1262,6 +1262,7 @@ function AdminManagementSection() {
     try {
       window.localStorage.setItem(AD_POPUP_STORAGE_KEY, JSON.stringify(adConfig));
       window.localStorage.removeItem("adDismissed");
+      window.dispatchEvent(new Event("ad-config-updated"));
       setMessage("Pengaturan popup iklan berhasil disimpan.");
     } catch {
       setError("Gagal menyimpan pengaturan popup iklan.");

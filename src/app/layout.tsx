@@ -6,6 +6,7 @@ import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { AuthSessionProvider } from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import ClientProviders from "@/components/providers/ClientProviders";
+import AdPopup from "@/components/popup/AdPopup";
 import "./globals.css";
 
 const sora = Sora({
@@ -44,6 +45,7 @@ export default function RootLayout({
             <ClientProviders>
               <PageTransition>{children}</PageTransition>
               <MaintenanceModal />
+              <AdPopup />
               <SiteFooter />
             </ClientProviders>
           </AuthSessionProvider>
