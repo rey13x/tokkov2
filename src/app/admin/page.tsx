@@ -237,9 +237,20 @@ function AdminManagementSection() {
     link: "",
     buttonText: "Buka",
     enabled: true,
-    showOnce: true,
+    showOnce: false,
   });
   const [pushTitle, setPushTitle] = useState("");
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(AD_POPUP_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      setAdConfig((current) => ({ ...current, ...parsed }));
+    } catch {
+      // ignore invalid saved config
+    }
+  }, []);
   const [pushBody, setPushBody] = useState("");
   const [pushUrl, setPushUrl] = useState("");
   const [isSendingPush, setIsSendingPush] = useState(false);
@@ -1273,6 +1284,7 @@ function AdminManagementSection() {
       window.localStorage.removeItem("adDismissed");
       window.dispatchEvent(new Event("ad-config-updated"));
       setMessage("Pengaturan popup iklan berhasil disimpan.");
+      setAdConfig(normalizedConfig);
     } catch {
       setError("Gagal menyimpan pengaturan popup iklan.");
     }

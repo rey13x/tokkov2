@@ -75,15 +75,11 @@ export default function AdPopup() {
         setVisible(false);
         return;
       }
-      if (parsed.showOnce !== false && dismissed) {
-        setConfig(parsed);
-        setVisible(false);
-        return;
-      }
 
       const mediaUrl = parsed.image || parsed.mediaUrl || parsed.videoUrl || parsed.url || "";
+      const shouldShow = Boolean(mediaUrl) && (parsed.showOnce === false || !dismissed);
       setConfig(parsed);
-      setVisible(Boolean(mediaUrl));
+      setVisible(shouldShow);
     };
 
     applyConfig();
