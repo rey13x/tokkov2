@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
 
 const AD_POPUP_STORAGE_KEY = "adConfig";
 const DISMISS_STORAGE_KEY = "adDismissed";
@@ -48,7 +47,11 @@ const readAdConfig = () => {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as AdConfig;
     return parsed;
-  } catch {
+  } catch (error) {
+    console.warn("AdPopup: invalid saved config, clearing storage", error);
+    try {
+      window.localStorage.removeItem(AD_POPUP_STORAGE_KEY);
+    } catch {}
     return null;
   }
 };
@@ -58,11 +61,11 @@ export default function AdPopup() {
   const [visible, setVisible] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [canClose, setCanClose] = useState(false);
-  const pathname = usePathname();
 
   useEffect(() => {
     const applyConfig = () => {
       const parsed = readAdConfig();
+      console.log("AdPopup applyConfig", { parsed });
       if (!parsed) {
         setConfig(null);
         setVisible(false);
@@ -76,14 +79,16 @@ export default function AdPopup() {
       };
 
       const dismissed = window.localStorage.getItem(DISMISS_STORAGE_KEY);
+      const mediaUrl = normalizedConfig.image || normalizedConfig.mediaUrl || normalizedConfig.videoUrl || normalizedConfig.url || "";
+      const shouldShow = Boolean(mediaUrl) && (!normalizedConfig.showOnce || !dismissed);
+      console.log("AdPopup shouldShow", { mediaUrl, dismissed, normalizedConfig, shouldShow });
+
       if (!normalizedConfig.enabled) {
         setConfig(normalizedConfig);
         setVisible(false);
         return;
       }
 
-      const mediaUrl = normalizedConfig.image || normalizedConfig.mediaUrl || normalizedConfig.videoUrl || normalizedConfig.url || "";
-      const shouldShow = Boolean(mediaUrl) && (!normalizedConfig.showOnce || !dismissed);
       setConfig(normalizedConfig);
       setVisible(shouldShow);
     };
@@ -121,7 +126,7 @@ export default function AdPopup() {
   const isVideo = useMemo(() => isVideoUrl(mediaUrl), [mediaUrl]);
   const videoEmbedUrl = useMemo(() => getVideoEmbedUrl(mediaUrl), [mediaUrl]);
 
-  const isHome = pathname === "/" || (typeof window !== "undefined" && window.location.pathname === "/");
+  const isHome = typeof window !== "undefined" && (window.location.pathname.replace(/\/+$|^$/, "/") === "/");
   if (!isHome || !visible || !config || !mediaUrl) return null;
 
   const handleClose = () => {
