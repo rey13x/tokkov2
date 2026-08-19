@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { LanguageToggle } from "@/components/i18n/LanguageTools";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
 import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
@@ -2406,7 +2405,6 @@ function AdminManagementSection() {
           <Link href="/api/admin/orders/export?format=xlsx" className={styles.actionLink}>
             Ekspor XLSX
           </Link>
-          <LanguageToggle />
           <button type="button" onClick={onLogoutAdmin} className={styles.actionLink}>
             Keluar Admin
           </button>

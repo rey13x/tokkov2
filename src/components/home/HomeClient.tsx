@@ -13,6 +13,7 @@ import {
   FiArrowLeft,
   FiChevronRight,
   FiMenu,
+  FiGlobe,
   FiPause,
   FiPlay,
   FiSkipForward,
@@ -25,7 +26,6 @@ import bagasPhoto from "@/app/assets/Bagas.jpg";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import ProductCard from "@/components/home/ProductCard";
 import PremiumMarquee from "@/components/home/PremiumMarquee";
-import { LanguageToggle } from "@/components/i18n/LanguageTools";
 import { formatRupiah } from "@/data/products";
 import { HERO_BACKGROUND_URLS, CAROUSEL_PHOTOS_ONLY, ANIMATION_DURATION_MS, getPhotoDuration } from "@/data/hero-backgrounds";
 import { getCartCount } from "@/lib/cart";
@@ -1019,7 +1019,6 @@ export default function HomeClient() {
             <Image src={logoImage} alt="Tokko Logo" className={styles.logo} width={86} height={86} priority />
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <LanguageToggle />
             {sessionStatus === "authenticated" ? (
               <button
                 type="button"
@@ -1232,9 +1231,8 @@ export default function HomeClient() {
       </section>
       ) : null}
 
-      <button type="button" className={styles.menuFab} onClick={openMenu} ref={menuFabRef}>
+      <button type="button" className={styles.menuFab} onClick={openMenu} ref={menuFabRef} aria-label="Menu">
         <FiMenu />
-        Menu
       </button>
 
       {menuMounted ? (
@@ -1256,8 +1254,23 @@ export default function HomeClient() {
               </div>
 
               <nav className={styles.menuNav} aria-label="Menu utama">
+                <button
+                  type="button"
+                  className={`${styles.menuFounderLink} ${styles.shimmer} menu-founder-global`}
+                  style={{ justifyContent: 'flex-start', width: 'auto', gap: '2px' } as React.CSSProperties}
+                  data-menu-item
+                  onClick={() => { window.open('https://s.id/RaihaanBP', '_blank'); closeMenu(); }}
+                >
+                  <span
+                    className={styles.menuFounderText}
+                    style={{ whiteSpace: 'nowrap', fontSize: 'clamp(0.7rem, 3.2vw, 1.12rem)', paddingRight: '18px' } as CSSProperties}
+                  >
+                    <FiGlobe className={styles.menuFounderIcon} />
+                    <span className={styles.menuFounderLabel}>Founder</span>
+                  </span>
+                </button>
                 <button type="button" onClick={() => moveMenu("products", 1)} data-menu-item>
-                  Semua Layanan
+                  All Services
                   <span>
                     <FiChevronRight />
                   </span>
@@ -1278,7 +1291,7 @@ export default function HomeClient() {
                   <span className={styles.menuActionIcon}>
                     <FiX />
                   </span>
-                  Tutup
+                  Close
                 </button>
               </div>
             </section>
@@ -1294,10 +1307,28 @@ export default function HomeClient() {
                   <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} width={60} height={60} />
                 </Link>
               </div>
-              <p className={styles.menuLabel} data-menu-item>
-                Semua Layanan
-              </p>
               <nav className={styles.menuNav} aria-label="Menu produk">
+                <button
+                  type="button"
+                  className={`${styles.menuFounderLink} ${styles.shimmer} menu-founder-global`}
+                  style={{ justifyContent: 'flex-start', width: 'auto', gap: '2px' } as React.CSSProperties}
+                  data-menu-item
+                  onClick={() => { window.open('https://s.id/RaihaanBP', '_blank'); closeMenu(); }}
+                >
+                  <span
+                    className={styles.menuFounderText}
+                    style={{ whiteSpace: 'nowrap', fontSize: 'clamp(0.7rem, 3.2vw, 1.12rem)', paddingRight: '18px' } as CSSProperties}
+                  >
+                    <FiGlobe className={styles.menuFounderIcon} />
+                    <span className={styles.menuFounderLabel}>Founder</span>
+                  </span>
+                </button>
+                <button type="button" onClick={() => router.push("/troli")} data-menu-item>
+                  PayGate
+                  <span>
+                    <FiChevronRight />
+                  </span>
+                </button>
                 {productMenuItems.map((item) => (
                   <button key={item} type="button" onClick={() => chooseCategory(item)} data-menu-item>
                     {item}
@@ -1323,7 +1354,7 @@ export default function HomeClient() {
                   <span className={styles.menuActionIcon}>
                     <FiX />
                   </span>
-                  Tutup
+                  Close
                 </button>
               </div>
             </section>

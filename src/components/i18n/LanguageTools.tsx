@@ -251,7 +251,7 @@ function getInitialLanguage(): LanguageCode {
   } catch {
     // ignore storage errors
   }
-  return detectBrowserLanguage();
+  return "id";
 }
 
 function preserveOuterWhitespace(original: string, translated: string) {

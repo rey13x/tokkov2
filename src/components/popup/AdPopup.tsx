@@ -77,7 +77,7 @@ export default function AdPopup() {
       };
 
       const mediaUrl = normalizedConfig.image || normalizedConfig.mediaUrl || normalizedConfig.videoUrl || normalizedConfig.url || "";
-      const shouldShow = Boolean(mediaUrl) && normalizedConfig.enabled;
+      const shouldShow = Boolean(mediaUrl && normalizedConfig.enabled);
 
       setConfig(normalizedConfig);
       setVisible(shouldShow);
