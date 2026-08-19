@@ -22,7 +22,6 @@ import {
 } from "@/lib/onboarding";
 import type { OrderSummary } from "@/types/store";
 import styles from "./page.module.css";
-import PayGatePanel from "@/components/payment/PayGatePanel";
 
 function statusLabel(status: string) {
   if (status === "done") {
@@ -817,11 +816,6 @@ export default function StatusPemesananPage() {
       {isLoading ? <WaitLoading centered /> : null}
       {error ? <p className={styles.errorText}>{error}</p> : null}
       {success ? <p className={styles.successText}>{success}</p> : null}
-
-      {/* PayGate Panel (embedded) */}
-      <section style={{ marginTop: 20 }}>
-        <PayGatePanel />
-      </section>
 
       <section className={styles.listWrap}>
         {displayOrders.map((order) => {

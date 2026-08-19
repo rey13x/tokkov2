@@ -22,7 +22,6 @@ import {
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
-import { PaymentQRModal } from "@/components/payment/PaymentQRModal";
 
 type CartLine = {
   slug: string;
@@ -87,14 +86,6 @@ export default function CartPage() {
     amount: number;
   } | null>(null);
 
-  // Payment modal state
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentModalData, setPaymentModalData] = useState<{
-    orderId: string;
-    depositId: string;
-    qrString: string;
-    amount: number;
-  } | null>(null);
   const isClient = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -389,7 +380,6 @@ export default function CartPage() {
       const total = orderResult.total ?? 0;
 
       // Step 2: Generate dynamic QRIS QR code
-      let qrJson: any = null;
       try {
         const qrResponse = await fetch("/api/payments/create-qr", {
           method: "POST",
@@ -416,7 +406,7 @@ export default function CartPage() {
         if (!qrResponse.ok) {
           console.warn("Failed to generate dynamic QRIS, using fallback");
         } else {
-          qrJson = await qrResponse.json().catch(() => null);
+          await qrResponse.json().catch(() => null);
         }
       } catch (qrError) {
         console.warn("Error generating dynamic QRIS:", qrError);
@@ -432,26 +422,7 @@ export default function CartPage() {
       // Step 4: Show success and open payment modal if QR data available
       setSuccess("Pesanan berhasil dibuat! Silakan lakukan pembayaran dengan QRIS.");
 
-      if (qrJson && qrJson.success) {
-        const depositId = qrJson.depositId ?? qrJson.result?.depositId ?? qrJson.data?.depositId ?? qrJson.data?.data?.depositId;
-        const qrString = qrJson.qrCode ?? qrJson.qrCode ?? qrJson.result?.data?.data?.qrString ?? qrJson.data?.data?.qrString ?? qrJson.data?.qr_string;
-        const amountResp = qrJson.amount ?? qrJson.result?.data?.data?.amount ?? qrJson.data?.data?.amount ?? total;
-
-        if (depositId && qrString) {
-          setPaymentModalData({ orderId, depositId, qrString, amount: Number(amountResp) });
-          setPaymentModalOpen(true);
-        } else {
-          // Fallback: redirect to status page
-          window.setTimeout(() => {
-            router.push(`/status-pemesanan?highlight=${orderId}`);
-          }, 1200);
-        }
-      } else {
-        // No QR response available, go to status page
-        window.setTimeout(() => {
-          router.push(`/status-pemesanan?highlight=${orderId}`);
-        }, 1200);
-      }
+      router.push(`/status-pemesanan?highlight=${encodeURIComponent(orderId)}`);
     } catch (err) {
       console.error("Checkout error:", err);
       setError("Gagal memproses pesanan. Coba lagi.");
@@ -544,27 +515,6 @@ export default function CartPage() {
           Kembali belanja
         </Link>
       </header>
-
-      {/* Payment QR Modal */}
-      {paymentModalData && (
-        <PaymentQRModal
-          orderId={paymentModalData.orderId}
-          depositId={paymentModalData.depositId}
-          qrString={paymentModalData.qrString}
-          amount={paymentModalData.amount}
-          isOpen={paymentModalOpen}
-          onClose={() => {
-            setPaymentModalOpen(false);
-            // Redirect to status page when modal closed
-            router.push(`/status-pemesanan?highlight=${paymentModalData.orderId}`);
-          }}
-          onPaymentVerified={(success) => {
-            setPaymentModalOpen(false);
-            // Redirect to status page (highlight order)
-            router.push(`/status-pemesanan?highlight=${paymentModalData.orderId}`);
-          }}
-        />
-      )}
 
       {!isClient || isStoreLoading || isJobApplicationsLoading ? <WaitLoading centered /> : null}
 
