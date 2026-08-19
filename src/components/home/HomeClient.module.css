@@ -993,7 +993,8 @@
   transform: translateX(-50%);
   bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 50;
-  min-width: 220px;
+  width: min(240px, calc(100vw - 36px));
+  min-width: 0;
   height: 56px;
   padding: 0 18px;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1051,7 +1052,8 @@
 /* Ensure wide centered fab on landscape/desktop so icon + label are visible */
 @media (orientation: landscape) and (min-width: 920px) {
   .menuFab {
-    min-width: 320px;
+    width: min(240px, calc(100vw - 36px));
+    min-width: 0;
     padding: 0 20px;
     height: 60px;
     gap: 12px;
