@@ -14,12 +14,7 @@ import {
   FiChevronRight,
   FiMenu,
   FiGlobe,
-  FiPause,
-  FiPlay,
-  FiSkipForward,
   FiUser,
-  FiVolume2,
-  FiVolumeX,
   FiX,
 } from "react-icons/fi";
 import bagasPhoto from "@/app/assets/Bagas.jpg";
@@ -45,7 +40,6 @@ import type {
   StoreInformation,
   StoreMarqueeItem,
   StoreProduct,
-  StoreStoryReel,
   StoreTestimonial,
 } from "@/types/store";
 import styles from "./HomeClient.module.css";
@@ -56,7 +50,6 @@ type HomeProduct = StoreProduct;
 type HomeInformation = StoreInformation;
 type HomeTestimonial = StoreTestimonial;
 type HomeMarquee = StoreMarqueeItem;
-type HomeStoryReel = StoreStoryReel;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
@@ -64,182 +57,6 @@ const logoImage = "/assets/logov2.svg";
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
   return item.name.trim().toLowerCase() === "founder" ? bagasPhoto.src : item.mediaUrl;
-}
-
-type StoryReelCardProps = {
-  reel: HomeStoryReel;
-  index: number;
-  isActive: boolean;
-  onAdvance: () => void;
-};
-
-function StoryReelCard({ reel, index, isActive, onAdvance }: StoryReelCardProps) {
-  const [mediaIndex, setMediaIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(true);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  const currentMedia = reel.mediaGallery?.[mediaIndex] ?? null;
-  const mediaTitle = currentMedia?.title?.trim() || reel.title;
-  const mediaDescription = currentMedia?.description?.trim() || reel.description;
-
-  useEffect(() => {
-    setMediaIndex(0);
-    setProgress(0);
-    setDuration(0);
-    setIsPlaying(true);
-    setIsMuted(true);
-  }, [reel.id]);
-
-  useEffect(() => {
-    if (!isActive || !currentMedia || currentMedia.type !== "video") {
-      return;
-    }
-
-    const videoEl = videoRef.current;
-    if (!videoEl) {
-      return;
-    }
-
-    if (isPlaying) {
-      videoEl.play().catch(() => {});
-    } else {
-      videoEl.pause();
-    }
-  }, [currentMedia, isActive, isPlaying]);
-
-  useEffect(() => {
-    if (!isActive || !currentMedia || currentMedia.type === "video") {
-      return;
-    }
-
-    if (!isPlaying) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      goToNextMedia();
-    }, 3200);
-
-    return () => window.clearTimeout(timer);
-  }, [currentMedia, isActive, isPlaying, mediaIndex, onAdvance, reel.mediaGallery?.length]);
-
-  const handleMediaEnd = () => {
-    goToNextMedia();
-  };
-
-  const handleVideoTimeUpdate = () => {
-    const videoEl = videoRef.current;
-    if (!videoEl || !Number.isFinite(videoEl.duration)) {
-      return;
-    }
-    setDuration(videoEl.duration);
-    setProgress(videoEl.currentTime);
-  };
-
-  const togglePlayback = () => {
-    if (currentMedia?.type === "video") {
-      setIsPlaying((prev) => !prev);
-      return;
-    }
-    setIsPlaying((prev) => !prev);
-  };
-
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
-      setIsMuted(videoRef.current.muted);
-    }
-  };
-
-  const goToNextMedia = () => {
-    const totalMedia = reel.mediaGallery?.length ?? 0;
-    if (totalMedia <= 1) {
-      return;
-    }
-
-    setMediaIndex((prev) => (prev + 1) % totalMedia);
-    setProgress(0);
-    setIsPlaying(true);
-  };
-
-  const renderMedia = () => {
-    if (!currentMedia) {
-      return null;
-    }
-
-    if (currentMedia.type === "video") {
-      return (
-        <video
-          ref={videoRef}
-          src={currentMedia.url}
-          className={styles.storyMedia}
-          data-media-type="video"
-          playsInline
-          muted={isMuted}
-          autoPlay={isActive}
-          loop={false}
-          onLoadedMetadata={handleVideoTimeUpdate}
-          onTimeUpdate={handleVideoTimeUpdate}
-          onEnded={handleMediaEnd}
-          poster={reel.mediaGallery?.[0]?.url}
-        />
-      );
-    }
-
-    return (
-      <Image
-        src={currentMedia.url}
-        alt={mediaTitle}
-        fill
-        className={styles.storyMedia}
-        data-media-type="image"
-        sizes="(max-width: 900px) 96vw, 420px"
-        unoptimized
-      />
-    );
-  };
-
-  return (
-    <article className={styles.storyCard} data-story-card data-story-index={index}>
-      <div className={styles.storyProgressTrack}>
-        {reel.mediaGallery?.length ? (
-          <div
-            className={styles.storyProgressFill}
-            style={{
-              width: `${reel.mediaGallery.length > 1 ? ((progress / Math.max(duration || 3, 1)) * 100) : 100}%`,
-            }}
-          />
-        ) : null}
-      </div>
-      <div className={styles.storyMediaWrap}>{renderMedia()}</div>
-      <div className={styles.storyOverlay}>
-        <div className={styles.storyTopActions}>
-          {currentMedia?.type === "video" ? (
-            <>
-              <button type="button" className={styles.storyIconButton} onClick={togglePlayback} aria-label="Putar/jeda">
-                {isPlaying ? <FiPause /> : <FiPlay />}
-              </button>
-              <button type="button" className={styles.storyIconButton} onClick={toggleMute} aria-label="Bungkam/aktifkan suara">
-                {isMuted ? <FiVolumeX /> : <FiVolume2 />}
-              </button>
-            </>
-          ) : null}
-          {reel.mediaGallery && reel.mediaGallery.length > 1 ? (
-            <button type="button" className={styles.storyNextButton} onClick={goToNextMedia} aria-label="Lanjut ke media berikutnya">
-              <FiSkipForward size={14} />
-            </button>
-          ) : null}
-        </div>
-        <div className={styles.storyTextWrap}>
-          <h3>{mediaTitle}</h3>
-          {mediaDescription ? <p>{mediaDescription}</p> : null}
-        </div>
-      </div>
-    </article>
-  );
 }
 
 export default function HomeClient() {
@@ -250,10 +67,6 @@ export default function HomeClient() {
   const menuFabRef = useRef<HTMLButtonElement | null>(null);
   const informationViewportRef = useRef<HTMLDivElement | null>(null);
   const logoViewportRef = useRef<HTMLDivElement | null>(null);
-  const storyFeedRef = useRef<HTMLDivElement | null>(null);
-  const storyInfoRef = useRef<HTMLDivElement | null>(null);
-  const storyDragStartXRef = useRef<number | null>(null);
-  const storyDragStartScrollLeftRef = useRef(0);
   const testimonialViewportRef = useRef<HTMLDivElement | null>(null);
   const testimonialDragStartRef = useRef(0);
   const testimonialStartScrollRef = useRef(0);
@@ -270,9 +83,6 @@ export default function HomeClient() {
   const [informations, setInformations] = useState<HomeInformation[]>([]);
   const [testimonials, setTestimonials] = useState<HomeTestimonial[]>([]);
   const [marquees, setMarquees] = useState<HomeMarquee[]>([]);
-  const [storyReels, setStoryReels] = useState<HomeStoryReel[]>([]);
-  const [activeStoryIndex, setActiveStoryIndex] = useState(0);
-  const [isStoryInfoOpen, setIsStoryInfoOpen] = useState(false);
   const [isTestimonialDragging, setIsTestimonialDragging] = useState(false);
   const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
@@ -427,59 +237,6 @@ export default function HomeClient() {
     setIsTestimonialDragging(false);
   };
 
-  const onStoryFeedPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const container = storyFeedRef.current;
-    if (!container) {
-      return;
-    }
-    storyDragStartXRef.current = event.clientX;
-    storyDragStartScrollLeftRef.current = container.scrollLeft;
-    container.setPointerCapture(event.pointerId);
-  };
-
-  const onStoryFeedPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const container = storyFeedRef.current;
-    if (!container || storyDragStartXRef.current === null) {
-      return;
-    }
-    const delta = event.clientX - storyDragStartXRef.current;
-    container.scrollLeft = storyDragStartScrollLeftRef.current - delta;
-  };
-
-  const onStoryFeedPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    storyDragStartXRef.current = null;
-    storyDragStartScrollLeftRef.current = 0;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-
-  const toggleStoryInfo = () => {
-    setIsStoryInfoOpen((prev) => !prev);
-  };
-
-  useEffect(() => {
-    const container = storyFeedRef.current;
-    if (!container) {
-      return;
-    }
-
-    const handleScroll = () => {
-      if (!isStoryInfoOpen) {
-        return;
-      }
-
-      const atTop = container.scrollTop <= 8;
-      const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 8;
-      if (atTop || atBottom) {
-        setIsStoryInfoOpen(false);
-      }
-    };
-
-    container.addEventListener("scroll", handleScroll, { passive: true });
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, [isStoryInfoOpen]);
-
   // Preload semua hero background images untuk smooth transition tanpa loading delay
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -588,38 +345,6 @@ export default function HomeClient() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined" || storyReels.length === 0) {
-      return;
-    }
-
-    const container = storyFeedRef.current;
-    if (!container) {
-      return;
-    }
-
-    const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-story-card]"));
-    if (cards.length === 0) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible) {
-          const index = Number((visible.target as HTMLElement).dataset.storyIndex ?? 0);
-          setActiveStoryIndex(index);
-        }
-      },
-      { root: container, threshold: [0.5, 0.75] },
-    );
-
-    cards.forEach((card) => observer.observe(card));
-    return () => observer.disconnect();
-  }, [storyReels.length]);
-
-  useEffect(() => {
     let mounted = true;
 
     fetchStoreData()
@@ -631,7 +356,6 @@ export default function HomeClient() {
         setInformations(data.informations ?? []);
         setTestimonials(data.testimonials ?? []);
         setMarquees(data.marquees ?? []);
-        setStoryReels(data.storyReels ?? []);
       })
       .catch(() => {})
       .finally(() => {
@@ -1141,43 +865,6 @@ export default function HomeClient() {
 
       {testimonials.length > 0 || activeMarquees.length > 0 ? (
       <section className={styles.section} data-animate="section">
-        {storyReels.length > 0 ? (
-          <>
-            <div className={styles.storyInfoOuter} ref={storyInfoRef}>
-              <button type="button" className={styles.storyInfoHeader} onClick={toggleStoryInfo} aria-expanded={isStoryInfoOpen}>
-                <span className={styles.storyInfoBadge}>Informasi Media</span>
-              </button>
-            </div>
-            <div
-              className={`${styles.storyFeedShell} ${isStoryInfoOpen ? styles.storyFeedShellOpen : styles.storyFeedShellClosed}`}
-              ref={storyFeedRef}
-              onPointerDown={onStoryFeedPointerDown}
-              onPointerMove={onStoryFeedPointerMove}
-              onPointerUp={onStoryFeedPointerUp}
-              onPointerCancel={onStoryFeedPointerUp}
-            >
-              {storyReels.map((story, index) => (
-                <StoryReelCard
-                  key={story.id}
-                  reel={story}
-                  index={index}
-                  isActive={activeStoryIndex === index}
-                  onAdvance={() => {
-                    const nextIndex = index + 1;
-                    if (nextIndex < storyReels.length) {
-                      const container = storyFeedRef.current;
-                      const target = container?.querySelector<HTMLElement>(`[data-story-index="${nextIndex}"]`);
-                      if (target) {
-                        target.scrollIntoView({ behavior: "smooth", block: "start" });
-                        setActiveStoryIndex(nextIndex);
-                      }
-                    }
-                  }}
-                />
-              ))}
-            </div>
-          </>
-        ) : null}
         <div className={styles.partnerHeader}>
           <h2>Bekerja sama dengan</h2>
         </div>
