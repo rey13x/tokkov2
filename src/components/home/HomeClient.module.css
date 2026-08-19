@@ -1204,8 +1204,9 @@
 }
 
 .menuPanelMain .menuNav {
-  margin-top: 0 !important;
-  margin-bottom: auto;
+  flex: 1;
+  margin: 0 !important;
+  justify-content: center;
 }
 
 .menuLabel {
@@ -1222,7 +1223,9 @@
 }
 
 .menuPanelSub .menuNav {
-  margin-bottom: auto;
+  flex: 1;
+  margin-bottom: 0;
+  justify-content: center;
 }
 
 .menuNav button {
