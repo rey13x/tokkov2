@@ -190,12 +190,6 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       return;
     }
 
-    // If this is a jual_beli product with buyNowLink, redirect to the link instead
-    if (product.productType === "jual_beli" && product.buyNowLink) {
-      window.location.href = product.buyNowLink;
-      return;
-    }
-
     if (product.productType === "pekerjaan") {
       onApplyForJob();
       return;
