@@ -774,7 +774,7 @@ export default function HomeClient() {
       ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
       ctx.revert();
     };
-  }, [bestSellerProducts.length]);
+  }, []);
 
   useEffect(() => {
     const shouldRun =
