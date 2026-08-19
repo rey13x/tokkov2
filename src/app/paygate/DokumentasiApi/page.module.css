@@ -1,0 +1,83 @@
+.page {
+  min-height: 100dvh;
+  padding: 28px 16px 72px;
+  color: #182033;
+  background: #eef1f5;
+}
+
+.shell {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+}
+
+.hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: clamp(28px, 6vw, 64px);
+  border-radius: 28px;
+  color: #fff;
+  background: linear-gradient(135deg, #171b42 0%, #30368f 58%, #6972d8 100%);
+  box-shadow: 0 22px 60px rgba(30, 39, 101, .2);
+}
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 34px;
+  color: rgba(255, 255, 255, .78);
+  font-size: .9rem;
+  text-decoration: none;
+}
+
+.backLink:hover { color: #fff; text-decoration: underline; }
+.eyebrow, .kicker { margin: 0 0 12px; font-size: .76rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.eyebrow { color: #b8c2ff; }
+.kicker { color: #5865bc; }
+.hero h1 { margin: 0; font-size: clamp(2.4rem, 7vw, 5.4rem); line-height: .94; letter-spacing: -.04em; }
+.lead { max-width: 620px; margin: 22px 0 0; color: rgba(255,255,255,.82); font-size: clamp(1rem, 2vw, 1.2rem); line-height: 1.55; }
+.heroBadge { flex: 0 0 auto; padding: 10px 14px; border: 1px solid rgba(255,255,255,.25); border-radius: 999px; color: #e8ebff; font-size: .78rem; font-weight: 800; }
+
+.introGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0 46px; }
+.introGrid article { display: grid; gap: 7px; padding: 22px; border: 1px solid #dce2eb; border-radius: 18px; background: rgba(255,255,255,.7); }
+.introGrid strong { font-size: 1.05rem; }
+.introGrid span, .section > p:not(.kicker), .endpoint p { color: #667085; line-height: 1.65; }
+
+.section { margin: 0 auto 58px; }
+.section h2 { margin: 0 0 14px; font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -.035em; }
+.section > p:not(.kicker) { max-width: 760px; margin: 0 0 20px; font-size: 1rem; }
+.steps { display: grid; gap: 10px; margin: 22px 0 0; padding-left: 22px; color: #475467; line-height: 1.55; }
+
+.endpoint { margin-top: 28px; padding: clamp(20px, 3vw, 30px); border: 1px solid #dce2eb; border-radius: 22px; background: rgba(255,255,255,.72); }
+.endpointTitle { display: flex; align-items: center; gap: 10px; }
+.endpointTitle h3 { margin: 0; font-size: clamp(1.25rem, 2.5vw, 1.7rem); }
+.method, .methodPost { padding: 5px 8px; border-radius: 7px; color: #136c4a; background: #d9f8e9; font: 800 .7rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.methodPost { color: #1c4f9b; background: #dceaff; }
+.endpoint p { margin: 12px 0 18px; }
+
+.codeWindow { margin-top: 16px; overflow: hidden; border: 1px solid #273044; border-radius: 12px; background: #101521; box-shadow: 0 12px 28px rgba(17, 24, 39, .14); }
+.codeBar { display: flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 12px; background: #1b2231; }
+.dotRed, .dotYellow, .dotGreen { width: 10px; height: 10px; border-radius: 50%; }
+.dotRed { background: #ff5f57; }.dotYellow { background: #febc2e; }.dotGreen { background: #28c840; }
+.codeLanguage { margin-left: 8px; color: #98a2b3; font: 600 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.codeBar button { margin-left: auto; border: 1px solid #465168; border-radius: 7px; padding: 5px 9px; color: #d9e2f2; background: transparent; cursor: pointer; font-size: .73rem; }
+.codeBar button:hover { background: #2b3549; }
+.codeWindow pre { overflow-x: auto; margin: 0; padding: 18px; color: #d9e2f2; font: .82rem/1.7 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; tab-size: 2; }
+
+.statusGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.statusGrid span { display: grid; gap: 5px; padding: 16px; border: 1px solid #dce2eb; border-radius: 14px; background: rgba(255,255,255,.72); }
+.statusGrid b { font: 800 1rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+.statusGrid small { color: #667085; line-height: 1.35; }
+.footer { padding-top: 24px; border-top: 1px solid #d7dde7; color: #667085; font-size: .9rem; }
+
+@media (max-width: 700px) {
+  .page { padding: 12px 12px 48px; }
+  .hero { display: block; padding: 26px 22px 30px; border-radius: 22px; }
+  .backLink { margin-bottom: 48px; }
+  .heroBadge { display: inline-block; margin-top: 24px; }
+  .introGrid, .statusGrid { grid-template-columns: 1fr; }
+  .introGrid { margin-bottom: 38px; }
+  .section { margin-bottom: 44px; }
+  .endpoint { padding: 18px; border-radius: 18px; }
+  .codeWindow pre { font-size: .72rem; }
+}

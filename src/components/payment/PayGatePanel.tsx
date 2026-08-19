@@ -68,7 +68,7 @@ type DepositQr = {
   expiresAt?: number;
 };
 
-type ModalView = "menu" | "deposit" | "topup" | "apiKey" | "docs" | "qris" | null;
+type ModalView = "menu" | "deposit" | "topup" | "apiKey" | "qris" | null;
 type PayGateAuthMode = "register" | "login";
 type TransactionFilter = "all" | "deposit" | "withdrawal";
 type PayGateRouteMode = "entry" | PayGateAuthMode | "dashboard";
@@ -740,7 +740,14 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
                       <small>Manage your API key</small>
                     </span>
                   </button>
-                  <button type="button" className={styles.menuItem} onClick={() => openModal("docs")}>
+                  <button
+                    type="button"
+                    className={styles.menuItem}
+                    onClick={() => {
+                      setModal(null);
+                      router.push("/paygate/DokumentasiApi");
+                    }}
+                  >
                     <FiBookOpen />
                     <span>
                       <strong>API Documentation</strong>
@@ -841,34 +848,6 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
                 <button type="button" className={styles.copyButton} onClick={copyApiKey} disabled={!primaryApiKey?.key}>
                   <FiCopy /> {copied ? "Tersalin" : "API Key Server-side"}
                 </button>
-              </>
-            ) : null}
-
-            {modal === "docs" ? (
-              <>
-                <h2>API Documentation</h2>
-                <div className={styles.docsList}>
-                  <article>
-                    <span>Base URL</span>
-                    <code>/api/paygate</code>
-                  </article>
-                  <article>
-                    <span>Authentication</span>
-                    <code>X-API-Key: your_api_key_here</code>
-                  </article>
-                  <article>
-                    <span>Cek Saldo</span>
-                    <code>GET /api/paygate/account?balance=1</code>
-                  </article>
-                  <article>
-                    <span>Buat Deposit</span>
-                    <code>POST /api/paygate/deposits</code>
-                  </article>
-                  <article>
-                    <span>Cek Status Deposit</span>
-                    <code>GET /api/paygate/deposits/:id/status</code>
-                  </article>
-                </div>
               </>
             ) : null}
 
