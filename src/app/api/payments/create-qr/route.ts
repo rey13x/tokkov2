@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Create QRIS QR Code using Rama Shop API
     const qrResponse = await createDynamicQRCode({
+      userId: session.user.id,
       orderId,
       amount: Math.round(total), // Ensure integer amount
       description: `Pembayaran Tokko - Order ${orderId}`,

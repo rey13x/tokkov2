@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import styles from "./reset-password.module.css";
 
 type ResetStep = "verify" | "reset" | "success" | "error";
@@ -15,6 +16,8 @@ export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -128,30 +131,24 @@ export default function ResetPasswordPage() {
                 <label htmlFor="newPassword" className={styles.label}>
                   Password Baru
                 </label>
-                <input
-                  id="newPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimal 8 karakter"
-                  className={styles.input}
-                  disabled={isSubmitting}
-                />
+                <div className={styles.passwordField}>
+                  <input id="newPassword" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Minimal 8 karakter" className={styles.input} disabled={isSubmitting} />
+                  <button type="button" className={styles.passwordToggle} onClick={() => setShowNewPassword((value) => !value)} aria-label={showNewPassword ? "Sembunyikan password" : "Lihat password"}>
+                    {showNewPassword ? <AiOutlineEyeInvisible /> : <AiOutlineEye />}
+                  </button>
+                </div>
               </div>
 
               <div className={styles.formGroup}>
                 <label htmlFor="confirmPassword" className={styles.label}>
                   Konfirmasi Password
                 </label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Ketik ulang password"
-                  className={styles.input}
-                  disabled={isSubmitting}
-                />
+                <div className={styles.passwordField}>
+                  <input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Ketik ulang password" className={styles.input} disabled={isSubmitting} />
+                  <button type="button" className={styles.passwordToggle} onClick={() => setShowConfirmPassword((value) => !value)} aria-label={showConfirmPassword ? "Sembunyikan password" : "Lihat password"}>
+                    {showConfirmPassword ? <AiOutlineEyeInvisible /> : <AiOutlineEye />}
+                  </button>
+                </div>
               </div>
 
               {message && (

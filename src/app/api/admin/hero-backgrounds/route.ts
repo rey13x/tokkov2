@@ -118,7 +118,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { message: error.issues[0]?.message ?? "Input tidak valid." },
+        { message: "Data yang kamu isi belum lengkap atau belum sesuai." },
         { status: 400 }
       );
     }
@@ -172,7 +172,7 @@ export async function PUT(request: Request) {
     const validationResult = heroBackgroundSchema.safeParse(updated);
     if (!validationResult.success) {
       return NextResponse.json(
-        { message: validationResult.error.issues[0]?.message ?? "Input tidak valid." },
+        { message: "Data yang kamu isi belum lengkap atau belum sesuai." },
         { status: 400 }
       );
     }
@@ -203,7 +203,7 @@ export async function PUT(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { message: error.issues[0]?.message ?? "Input tidak valid." },
+        { message: "Data yang kamu isi belum lengkap atau belum sesuai." },
         { status: 400 }
       );
     }

@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ storyReel }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ message: error.issues[0]?.message ?? "Input tidak valid." }, { status: 400 });
+      return NextResponse.json({ message: "Data yang kamu isi belum lengkap atau belum sesuai." }, { status: 400 });
     }
 
     console.error("POST /api/admin/story-reels failed:", error);

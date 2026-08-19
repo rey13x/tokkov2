@@ -22,6 +22,7 @@ import {
 } from "@/lib/onboarding";
 import type { OrderSummary } from "@/types/store";
 import styles from "./page.module.css";
+import PayGatePanel from "@/components/payment/PayGatePanel";
 
 function statusLabel(status: string) {
   if (status === "done") {
@@ -368,10 +369,12 @@ export default function StatusPemesananPage() {
     if (onboardingState.active && onboardingState.stage === ONBOARDING_STAGE.STATUS_RECEIPT_BACK_TO_CART) {
       advanceOnboarding(ONBOARDING_STAGE.CART_RETURN_STATUS);
       setStatusTutorialStage(null);
-      router.push(`/troli?${ONBOARDING_TUTORIAL_QUERY_KEY}=1`);
+      // Instead of redirecting to the cart (/troli), keep user on status page or highlight the tutorial order
+      router.push(`/status-pemesanan?${ONBOARDING_TUTORIAL_QUERY_KEY}=1&highlight=${ONBOARDING_TUTORIAL_ORDER_ID}`);
       return;
     }
-    router.push("/troli");
+    // Don't redirect to /troli from PayGate/status flows; stay on status page
+    router.push(`/status-pemesanan`);
   };
 
   const onChangeCancelReason = (orderId: string, value: string) => {
@@ -814,6 +817,11 @@ export default function StatusPemesananPage() {
       {isLoading ? <WaitLoading centered /> : null}
       {error ? <p className={styles.errorText}>{error}</p> : null}
       {success ? <p className={styles.successText}>{success}</p> : null}
+
+      {/* PayGate Panel (embedded) */}
+      <section style={{ marginTop: 20 }}>
+        <PayGatePanel />
+      </section>
 
       <section className={styles.listWrap}>
         {displayOrders.map((order) => {

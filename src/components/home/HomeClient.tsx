@@ -1324,7 +1324,14 @@ export default function HomeClient() {
                     <span className={styles.menuFounderLabel}>Founder</span>
                   </span>
                 </button>
-                <button type="button" onClick={() => router.push("/troli")} data-menu-item>
+                <button
+                  type="button"
+                  onClick={() => {
+                    router.push("/paygate");
+                    closeMenu();
+                  }}
+                  data-menu-item
+                >
                   PayGate
                   <span>
                     <FiChevronRight />

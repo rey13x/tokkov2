@@ -40,7 +40,7 @@ export async function PATCH(request: Request, context: { params: Params }) {
     return NextResponse.json({ storyReel });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ message: error.issues[0]?.message ?? "Input tidak valid." }, { status: 400 });
+      return NextResponse.json({ message: "Data yang kamu isi belum lengkap atau belum sesuai." }, { status: 400 });
     }
 
     console.error("PATCH /api/admin/story-reels/[id] failed:", error);

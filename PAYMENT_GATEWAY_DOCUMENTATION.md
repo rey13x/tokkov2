@@ -1,19 +1,22 @@
 # Payment Gateway QRIS - Rama Shop API Integration
 
 ## Overview
+
 Integrasi payment gateway QRIS menggunakan **Rama Shop API** (bukan Midtrans). Sistem ini menghasilkan QR code dinamis per transaksi dengan countdown timer 5 menit dan auto-verification.
 
 ## API Configuration
 
 ### Base URL
+
 ```
 https://ramashop.my.id/api/public
 ```
 
 ### Authentication
+
 ```
 Header: X-API-Key
-Value: rg_1f74fe1557a731a5516593969972d9
+Value: your_user_api_key_from_database
 ```
 
 ---
@@ -25,6 +28,7 @@ Value: rg_1f74fe1557a731a5516593969972d9
 **Endpoint:** `POST /ramashop.my.id/api/public/deposit/create`
 
 **Request:**
+
 ```javascript
 {
   "amount": 11100,           // Total amount (integer, Rupiah)
@@ -34,12 +38,14 @@ Value: rg_1f74fe1557a731a5516593969972d9
 ```
 
 **Headers:**
+
 ```
 X-API-Key: rg_1f74fe1557a731a5516593969972d9
 Content-Type: application/json
 ```
 
 **Response (Success):**
+
 ```javascript
 {
   "status": "ok",
@@ -57,6 +63,7 @@ Content-Type: application/json
 ### 2️⃣ Display QR Modal → Show to User
 
 **What to display:**
+
 - ✅ QR Code (generated from qr_string dengan qrcode.react)
 - ✅ Total amount: Rp 11.100
 - ✅ Countdown timer: 5:00 → 0:00
@@ -76,11 +83,13 @@ User membuka e-wallet (OVO, DANA, GCash, etc) dan scan QR code. Sistem pembayara
 **Endpoint:** `GET /ramashop.my.id/api/public/deposit/status/{depositId}`
 
 **Headers:**
+
 ```
 X-API-Key: rg_1f74fe1557a731a5516593969972d9
 ```
 
 **Response:**
+
 ```javascript
 {
   "status": "ok",
@@ -96,6 +105,7 @@ X-API-Key: rg_1f74fe1557a731a5516593969972d9
 ```
 
 **Status Meanings:**
+
 - `success`: ✅ Pembayaran berhasil
 - `pending`: ⏳ Belum ada transfer masuk
 - `expired`: ❌ QR code sudah expire (> 5 menit)
@@ -134,11 +144,11 @@ X-API-Key: rg_1f74fe1557a731a5516593969972d9
    ├─ Update order status → "paid"
    ├─ Auto-download file (if applicable)
    └─ Redirect ke /status-pemesanan
-   
+
    ELIF PENDING:
    ├─ Show: "Segera scan dan bayar QRIS diatas"
    └─ User bisa klik "Cek Transaksi" lagi
-   
+
    ELIF EXPIRED:
    └─ Show: "QR Code telah kadaluarsa"
 ```
@@ -148,6 +158,7 @@ X-API-Key: rg_1f74fe1557a731a5516593969972d9
 ## API Endpoints (Backend)
 
 ### 1. Create QR Code
+
 ```
 POST /api/payments/create-qr
 
@@ -176,6 +187,7 @@ Response:
 ```
 
 ### 2. Verify Payment
+
 ```
 POST /api/payments/verify
 
@@ -195,6 +207,7 @@ Response:
 ```
 
 ### 3. Get Order Details
+
 ```
 GET /api/payments/orders/[orderId]
 
@@ -213,6 +226,7 @@ Response:
 ```
 
 ### 4. Get Download Files
+
 ```
 GET /api/payments/orders/[orderId]/download
 
@@ -221,15 +235,16 @@ Response:
   "success": true,
   "orderId": "ORDER_123",
   "fileUrls": [
-    { 
+    {
       "productName": "YouTube Music",
-      "fileUrl": "data:application/pdf;base64,..." 
+      "fileUrl": "data:application/pdf;base64,..."
     }
   ]
 }
 ```
 
 ### 5. Generate Receipt
+
 ```
 GET /api/payments/orders/[orderId]/receipt
 
@@ -242,6 +257,7 @@ HTML document (can be printed/downloaded)
 ## Database Schema
 
 ### Orders Collection
+
 ```javascript
 {
   id: "ORDER_123",
@@ -250,7 +266,7 @@ HTML document (can be printed/downloaded)
   paymentMethod: "dynamic_qris",
   depositId: "DEP_1234567890",
   qrString: "00020126360014...",
-  
+
   items: [
     {
       productId: "PROD_123",
@@ -259,17 +275,17 @@ HTML document (can be printed/downloaded)
       unitPrice: 10000
     }
   ],
-  
+
   subtotal: 10000,
   tax: 1100,
   total: 11100,
-  
+
   customerName: "John Doe",
   customerEmail: "john@email.com",
   customerPhone: "081234567890",
-  
+
   paidAmount: 11100,
-  
+
   createdAt: "2026-06-03T10:30:00Z",
   updatedAt: "2026-06-03T10:31:45Z",
   paidAt: "2026-06-03T10:31:45Z"
@@ -281,6 +297,7 @@ HTML document (can be printed/downloaded)
 ## Timer & Expiry Logic
 
 ### QR Code Validity
+
 - **Duration:** 5 minutes (300 seconds)
 - **Standard:** Rama Shop API sets this automatically
 - **UI:** Show countdown timer on modal
@@ -288,6 +305,7 @@ HTML document (can be printed/downloaded)
 - **Expired:** Show "QR Code telah kadaluarsa" message
 
 ### Timer Implementation
+
 ```javascript
 useEffect(() => {
   if (!isOpen || paymentStatus !== "pending") return;
@@ -314,21 +332,25 @@ useEffect(() => {
 ### Common Errors & Solutions
 
 **1. "Failed to create QR code"**
+
 - Check API Key is correct: `rg_1f74fe1557a731a5516593969972d9`
 - Check network connection to `ramashop.my.id`
 - Verify amount is integer (Rupiah)
 - Check API endpoint is exactly: `/api/public/deposit/create`
 
 **2. "Failed to verify payment"**
+
 - Ensure depositId is stored in order
 - Check Rama Shop API status endpoint works
 - Verify API Key header is set
 
 **3. "QR Code telah kadaluarsa"**
+
 - This is normal after 5 minutes
 - User needs to create new order
 
 ### Logging
+
 ```javascript
 // Enable detailed logging during development
 console.log("Creating QRIS with amount:", amount);
@@ -341,6 +363,7 @@ console.log("Status check for depositId:", depositId);
 ## Files Modified
 
 **Backend:**
+
 - `src/server/payment.ts` - Rama Shop API integration
 - `src/app/api/payments/create-qr/route.ts` - Create QR endpoint
 - `src/app/api/payments/verify/route.ts` - Verify payment endpoint
@@ -349,11 +372,13 @@ console.log("Status check for depositId:", depositId);
 - `src/app/api/payments/orders/[orderId]/receipt/route.ts` - Generate receipt
 
 **Frontend:**
+
 - `src/components/payment/PaymentQRModal.tsx` - QR payment modal UI
 - `src/components/payment/PaymentQRModal.module.css` - Modal styling
 - `src/app/troli/page.tsx` - Cart integration
 
 **Config:**
+
 - `src/types/store.ts` - Added payment fields to types
 - `package.json` - Added `qrcode.react` package
 
@@ -406,7 +431,9 @@ curl -X GET https://ramashop.my.id/api/public/balance \
 ---
 
 ## Build Status
+
 ✅ **Build Successful** (3 June 2026)
+
 - All TypeScript errors fixed
 - All API routes working
 - Payment modal integrated with cart
@@ -415,6 +442,7 @@ curl -X GET https://ramashop.my.id/api/public/balance \
 ---
 
 ## Support & Documentation
+
 - **Rama Shop Dashboard:** https://ramashop.my.id
 - **API Key:** rg_1f74fe1557a731a5516593969972d9
 - **Status:** Production Ready ✅

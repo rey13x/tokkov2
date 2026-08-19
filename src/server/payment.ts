@@ -1,8 +1,5 @@
 import { getFirebaseFirestore } from "./firebase-admin";
-
-// Rama Shop API Configuration
-const RAMA_API_KEY = "rg_1f74fe1557a731a5516593969972d9";
-const RAMA_API_BASE_URL = "https://ramashop.my.id/api/public";
+import { getRamashopAccountByUserId, callRamashopApi } from "@/server/integrations/ramashop";
 
 // QR Code validity: standard 5 minutes (300 seconds)
 export const QR_CODE_VALIDITY_SECONDS = 300;
@@ -39,20 +36,13 @@ export interface PaymentVerificationResponse {
 /**
  * Check account balance
  */
-export async function checkBalance(): Promise<{ balance: number; status: string }> {
+export async function checkBalance(userId: string): Promise<{ balance: number; status: string }> {
   try {
-    const response = await fetch(`${RAMA_API_BASE_URL}/balance`, {
-      method: "GET",
-      headers: {
-        "X-API-Key": RAMA_API_KEY,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to check balance: ${response.statusText}`);
-    }
-
-    const data = await response.json();
+    const account = await getRamashopAccountByUserId(userId);
+    if (!account) throw new Error("PayGate akun ini belum aktif.");
+    const response = await callRamashopApi(userId, "/balance", "GET");
+    if (response.status !== 200 || !response.data) throw new Error("Gagal memuat saldo PayGate.");
+    const data = response.data;
     return {
       balance: data.data?.balance || 0,
       status: data.status,
@@ -67,46 +57,33 @@ export async function checkBalance(): Promise<{ balance: number; status: string 
  * Create dynamic QRIS for payment using Rama Shop API
  */
 export async function createDynamicQRCode(
-  payload: CreateQRPayload,
+  payload: CreateQRPayload & { userId: string },
 ): Promise<QRCodeResponse> {
   try {
-    const response = await fetch(`${RAMA_API_BASE_URL}/deposit/create`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": RAMA_API_KEY,
-      },
-      body: JSON.stringify({
-        amount: Math.round(payload.amount), // Ensure integer
-        method: "qris",
-        // Optional: Add reference/order ID
-        reference: payload.orderId,
-      }),
+    const acct = await getRamashopAccountByUserId(payload.userId);
+    if (!acct) {
+      throw new Error("PayGate akun ini belum aktif. Aktifkan PayGate dulu sebelum membuat QRIS.");
+    }
+
+    const res = await callRamashopApi(payload.userId, "/deposit/create", "POST", {
+      amount: Math.round(payload.amount),
+      method: "qris",
+      reference: payload.orderId,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        `Failed to create QR Code: ${errorData.message || response.statusText}`,
-      );
+    if (!res || res.status !== 200 || !res.data) {
+      throw new Error("Ramashop API returned error when creating deposit");
     }
-
-    const data = await response.json();
-
-    if (!data.data || (!data.data.qrImage && !data.data.qr_string)) {
-      throw new Error("Invalid response from Rama Shop API");
-    }
-
+    const data = res.data;
     return {
-      depositId: data.data.depositId,
-      qrString: data.data.qrString || data.data.qr_string,
-      qrImage: data.data.qrImage,
-      amount: data.data.amount,
-      totalAmount: data.data.totalAmount,
-      uniqueCode: data.data.uniqueCode,
+      depositId: data.data?.depositId,
+      qrString: data.data?.qrString || data.data?.qr_string,
+      qrImage: data.data?.qrImage,
+      amount: data.data?.amount,
+      totalAmount: data.data?.totalAmount,
+      uniqueCode: data.data?.uniqueCode,
       expiresIn: QR_CODE_VALIDITY_SECONDS,
       createdAt: new Date().toISOString(),
-      expiredAt: data.data.expiredAt,
+      expiredAt: data.data?.expiredAt,
     };
   } catch (error) {
     console.error("Error creating QRIS QR Code:", error);
@@ -119,48 +96,41 @@ export async function createDynamicQRCode(
  */
 export async function verifyPaymentStatus(
   depositId: string,
+  userId: string,
 ): Promise<PaymentVerificationResponse> {
   try {
-    const response = await fetch(
-      `${RAMA_API_BASE_URL}/deposit/status/${depositId}`,
-      {
-        method: "GET",
-        headers: {
-          "X-API-Key": RAMA_API_KEY,
-        },
-      },
-    );
+    const acct = await getRamashopAccountByUserId(userId);
+    if (!acct) {
+      throw new Error("PayGate akun ini belum aktif.");
+    }
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        return { status: "pending" };
+    const res = await callRamashopApi(userId, `/deposit/status/${depositId}`, "GET");
+    if (res && res.status === 200 && res.data) {
+      const data = res.data;
+      const depositStatus = data.data?.status;
+
+      if (depositStatus === "success") {
+        return {
+          status: "success",
+          amount: data.data?.amount,
+          paidAmount: data.data?.paid_amount,
+          createdAt: data.data?.created_at,
+        };
       }
-      throw new Error(`Failed to verify payment: ${response.statusText}`);
+
+      if (depositStatus === "expired") {
+        return { status: "expired" };
+      }
+
+      if (depositStatus === "already") {
+        return { status: "success", amount: data.data?.amount };
+      }
+
+      return { status: "pending", amount: data.data?.amount };
     }
 
-    const data = await response.json();
-    const depositStatus = data.data?.status;
+    throw new Error("Ramashop API returned error when verifying deposit");
 
-    // Map Rama Shop status to our status
-    if (depositStatus === "success") {
-      return {
-        status: "success",
-        amount: data.data?.amount,
-        paidAmount: data.data?.paid_amount,
-        createdAt: data.data?.created_at,
-      };
-    }
-
-    if (depositStatus === "expired") {
-      return { status: "expired" };
-    }
-
-    if (depositStatus === "already") {
-      return { status: "success", amount: data.data?.amount };
-    }
-
-    // Default to pending
-    return { status: "pending", amount: data.data?.amount };
   } catch (error) {
     console.error("Error verifying payment status:", error);
     throw error;
@@ -234,7 +204,14 @@ export async function updateOrderStatus(
       throw new Error("Firebase is not configured");
     }
 
-    const updatePayload: any = {
+    const updatePayload: {
+      status: "paid" | "pending" | "expired" | "failed";
+      updatedAt: string;
+      paidAt?: string;
+      depositId?: string;
+      paidAmount?: number;
+      paymentNotes?: string;
+    } = {
       status,
       updatedAt: new Date().toISOString(),
     };

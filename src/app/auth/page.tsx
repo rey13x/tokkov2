@@ -26,6 +26,9 @@ function getSafeRedirect(pathname: string | null) {
   if (pathname.startsWith("/auth")) {
     return "/";
   }
+  if (pathname.startsWith("/paygate")) {
+    return "/";
+  }
   return pathname;
 }
 
@@ -78,6 +81,10 @@ function triggerBrowserSavePassword(email: string, password: string) {
   setTimeout(() => {
     document.body.removeChild(form);
   }, 100);
+}
+
+function ButtonLoading() {
+  return <span className={styles.buttonSpinner} aria-label="Loading" role="status" />;
 }
 
 export default function AuthPage() {
@@ -328,7 +335,7 @@ export default function AuthPage() {
         return;
       }
 
-      await signIn("google", { callbackUrl: redirectTarget });
+      await signIn("google", { callbackUrl: getSafeRedirect(redirectTarget) });
     } catch {
       setError("Google login gagal. Coba lagi.");
       setIsGoogleSubmitting(false);
@@ -449,8 +456,14 @@ export default function AuthPage() {
             onClick={onSignInWithGoogle}
             disabled={isGoogleSubmitting || isSubmitting}
           >
-            <FcGoogle className={styles.googleIcon} />
-            <span>{isGoogleSubmitting ? "Memproses..." : "Sign in with Google"}</span>
+            {isGoogleSubmitting ? (
+              <ButtonLoading />
+            ) : (
+              <>
+                <FcGoogle className={styles.googleIcon} />
+                <span>Sign in with Google</span>
+              </>
+            )}
           </button>
         ) : null}
 
@@ -504,7 +517,7 @@ export default function AuthPage() {
             {error ? <p className={styles.errorText}>{error}</p> : null}
             {success ? <p className={styles.successText}>{success}</p> : null}
             <button type="submit" className={styles.submitButton} disabled={isSubmitting}>
-              {isSubmitting ? "Memproses..." : "Masuk"}
+              {isSubmitting ? <ButtonLoading /> : "Masuk"}
             </button>
           </form>
         ) : (
@@ -624,7 +637,7 @@ export default function AuthPage() {
               className={styles.submitButton}
               disabled={isSubmitting || (canUseEmailOtp && !isCodeSent)}
             >
-              {isSubmitting ? "Memproses..." : "Daftar dan Masuk"}
+              {isSubmitting ? <ButtonLoading /> : "Daftar dan Masuk"}
             </button>
           </form>
         )}
@@ -648,7 +661,7 @@ export default function AuthPage() {
               className={styles.submitButton} 
               disabled={isForgotPasswordSubmitting}
             >
-              {isForgotPasswordSubmitting ? "Mengirim..." : "Kirim Link Reset Password"}
+              {isForgotPasswordSubmitting ? <ButtonLoading /> : "Kirim Link Reset Password"}
             </button>
             <p className={styles.helperText}>
               Kami akan mengirim link reset password ke email kamu. link berlaku selama 1 jam

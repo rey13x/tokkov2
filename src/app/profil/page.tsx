@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { FiArrowRight } from "react-icons/fi";
+import { FiArrowRight, FiEye, FiEyeOff } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import WaitLoading from "@/components/ui/WaitLoading";
@@ -27,6 +27,8 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -433,22 +435,22 @@ export default function ProfilePage() {
               <>
                 <label className={styles.field}>
                   Password Lama
-                  <input
-                    value={oldPassword}
-                    onChange={(event) => setOldPassword(event.target.value)}
-                    type="password"
-                    placeholder="Isi jika ingin ganti password"
-                  />
+                  <div className={styles.passwordField}>
+                    <input value={oldPassword} onChange={(event) => setOldPassword(event.target.value)} type={showOldPassword ? "text" : "password"} placeholder="Isi jika ingin ganti password" />
+                    <button type="button" className={styles.passwordToggle} onClick={() => setShowOldPassword((value) => !value)} aria-label={showOldPassword ? "Sembunyikan password" : "Lihat password"}>
+                      {showOldPassword ? <FiEyeOff /> : <FiEye />}
+                    </button>
+                  </div>
                 </label>
 
                 <label className={styles.field}>
                   Ubah Password Baru
-                  <input
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    type="password"
-                    placeholder="Minimal 6 karakter"
-                  />
+                  <div className={styles.passwordField}>
+                    <input value={newPassword} onChange={(event) => setNewPassword(event.target.value)} type={showNewPassword ? "text" : "password"} placeholder="Minimal 6 karakter" />
+                    <button type="button" className={styles.passwordToggle} onClick={() => setShowNewPassword((value) => !value)} aria-label={showNewPassword ? "Sembunyikan password" : "Lihat password"}>
+                      {showNewPassword ? <FiEyeOff /> : <FiEye />}
+                    </button>
+                  </div>
                 </label>
 
                 {newPassword.trim().length > 0 ? (

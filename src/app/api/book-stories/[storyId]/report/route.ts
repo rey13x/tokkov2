@@ -33,7 +33,7 @@ export async function POST(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { message: error.issues[0]?.message ?? "Input tidak valid." },
+        { message: "Data yang kamu isi belum lengkap atau belum sesuai." },
         { status: 400 },
       );
     }

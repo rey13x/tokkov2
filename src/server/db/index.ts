@@ -14,8 +14,6 @@ import type {
 } from "@/types/store";
 import { resolveMediaUrl } from "@/lib/media";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
-import { provisionPayGateForUser } from "@/server/paygate";
-import { registerOnRamashopAndFetchApiKey } from "@/server/integrations/ramashop";
 
 const now = () => Date.now();
 
@@ -1251,31 +1249,6 @@ export async function createUser(input: {
       }
 
       await upsertLocalUserMirror(created).catch(() => {});
-
-      // Provision PayGate account (idempotent). Do not block user creation on failure.
-      try {
-        // Fire and forget; but await to capture any immediate errors.
-        provisionPayGateForUser(created.id).catch(() => {});
-      } catch (err) {
-        // ignore
-      }
-
-      // Attempt to register the same user on Ramashop and fetch their API key.
-      // This is done in a non-blocking way so user creation never fails due to integration problems.
-      (async () => {
-        try {
-          // generate a password for external site if not supplied (deterministic per user id is safer than random here)
-          const externalPassword = crypto.createHash('sha256').update(created.id + String(now())).digest('hex').slice(0, 16);
-          await registerOnRamashopAndFetchApiKey({
-            name: created.username || created.email.split('@')[0],
-            email: created.email,
-            password: externalPassword,
-            userId: created.id,
-          });
-        } catch (err) {
-          console.warn('Ramashop registration failed (non-blocking):', err?.message ?? err);
-        }
-      })();
 
       return created;
     } catch (error) {

@@ -193,6 +193,9 @@
   color: #ffffff;
   font-size: 1.02rem;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .googleButton {
@@ -209,6 +212,26 @@
 .submitButton:disabled {
   opacity: 0.68;
   cursor: default;
+}
+
+.buttonSpinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: buttonSpin 0.8s linear infinite;
+}
+
+.googleSignInButton .buttonSpinner {
+  border-color: rgba(27, 29, 68, 0.22);
+  border-top-color: #1b1d44;
+}
+
+@keyframes buttonSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .rememberRow {

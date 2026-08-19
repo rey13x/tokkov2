@@ -47,8 +47,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify payment status from Rama Shop API
-    const paymentStatus = await verifyPaymentStatus(actualDepositId);
+    // Verify payment status from Rama Shop API (prefer per-user key)
+    const paymentStatus = await verifyPaymentStatus(actualDepositId, order.userId);
 
     // Update order status in database
     if (paymentStatus.status === "success") {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 // @ts-ignore - qrcode.react doesn't have type definitions
 import QRCode from "qrcode.react";
@@ -36,6 +37,8 @@ export function PaymentQRModal({
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const formattedTime = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+  const router = useRouter();
 
   // Countdown timer effect
   useEffect(() => {
@@ -193,7 +196,18 @@ export function PaymentQRModal({
               >
                 Tutup
               </button>
-              <button className={`${styles.button} ${styles.primaryButton}`}>
+              <button
+                className={`${styles.button} ${styles.primaryButton}`}
+                onClick={() => {
+                  // Redirect user to status page /status-pemesanan instead of cart (/troli)
+                  try {
+                    router.push(`/status-pemesanan`);
+                  } catch (e) {
+                    // fallback to onClose
+                    onClose();
+                  }
+                }}
+              >
                 Buat Pesanan Baru
               </button>
             </>

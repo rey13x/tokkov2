@@ -1,17 +1,22 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { checkDepositStatus } from '@/server/integrations/ramashop';
+import { getServerAuthSession } from '@/server/auth';
 
-export async function GET(req: NextRequest, { params }: { params: { depositId: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ depositId: string }> }) {
   try {
-    const depositId = params.depositId;
-    const userId = req.nextUrl.searchParams.get('userId');
-    if (!depositId || !userId) {
-      return NextResponse.json({ ok: false, error: 'depositId (path) and userId (query) are required' }, { status: 400 });
+    const session = await getServerAuthSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ ok: false, error: 'unauthenticated' }, { status: 401 });
     }
 
-    const res = await checkDepositStatus(userId, depositId);
-    return NextResponse.json({ ok: true, result: res }, { status: 200 });
+    const { depositId } = await params;
+    if (!depositId) {
+      return NextResponse.json({ ok: false, error: 'depositId wajib diisi.' }, { status: 400 });
+    }
+
+    const result = await checkDepositStatus(session.user.id, depositId);
+    return NextResponse.json({ ok: true, data: result.data?.data ?? null, result }, { status: 200 });
   } catch (error: any) {
     return NextResponse.json({ ok: false, error: String(error?.message ?? error) }, { status: 500 });
   }

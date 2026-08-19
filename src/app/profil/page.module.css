@@ -185,6 +185,22 @@
   border-color: #8ea1cb;
 }
 
+.passwordField { position: relative; }
+.passwordField input { width: 100%; padding-right: 48px; }
+.passwordToggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #697386;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.passwordToggle svg { width: 19px; height: 19px; }
+
 .otpCard {
   border: 1px solid #dbe1ee;
   border-radius: 12px;
