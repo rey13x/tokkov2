@@ -1152,14 +1152,14 @@
   flex: 0 0 auto;
   font-size: 1rem !important;
   transform: translateY(0.12em);
-  margin-right: 10px !important;
+  margin-right: 0 !important;
 }
 
 .menuFounderText {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 8px;
+  gap: 4px;
   line-height: 1;
   white-space: nowrap;
   max-width: none !important;

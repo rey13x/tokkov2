@@ -952,7 +952,7 @@ export default function HomeClient() {
                     className={styles.menuFounderText}
                   >
                     <FiGlobe className={styles.menuFounderIcon} />
-                    <span className={styles.menuFounderLabel}>Pendiri</span>
+                    <span className={styles.menuFounderLabel}>Founder</span>
                   </span>
                 </button>
                 <button type="button" onClick={() => moveMenu("products", 1)} data-menu-item>
@@ -1004,7 +1004,7 @@ export default function HomeClient() {
                     className={styles.menuFounderText}
                   >
                     <FiGlobe className={styles.menuFounderIcon} />
-                    <span className={styles.menuFounderLabel}>Pendiri</span>
+                    <span className={styles.menuFounderLabel}>Founder</span>
                   </span>
                 </button>
                 <button
