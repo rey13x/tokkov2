@@ -1434,9 +1434,11 @@
 
   .menuNav button {
     position: relative;
-    width: min(100%, 520px);
+    width: 100% !important;
+    max-width: none;
+    align-self: stretch;
     justify-content: space-between;
-    text-align: left;
+    text-align: left !important;
     font-size: clamp(1.72rem, 9.2vw, 2.72rem);
     line-height: 1.14;
   }
@@ -1449,6 +1451,8 @@
   .menuNav .menuFounderLink {
     width: 100%;
     padding-inline: 0 !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
   }
 
   .menuNav .menuFounderLink > span {
