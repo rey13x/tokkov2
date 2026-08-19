@@ -137,6 +137,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
   const [apiKeys, setApiKeys] = useState<PayGateApiKey[]>([]);
   const [transactions, setTransactions] = useState<PayGateTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [splashDone, setSplashDone] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [submittingDeposit, setSubmittingDeposit] = useState(false);
   const [checkingDeposit, setCheckingDeposit] = useState(false);
@@ -158,6 +159,11 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
   const [paygateEmail, setPaygateEmail] = useState("");
   const [paygatePassword, setPaygatePassword] = useState("");
   const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>("all");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSplashDone(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const primaryApiKey = apiKeys[0] ?? null;
   const visibleApiKey = showApiKey ? primaryApiKey?.key || primaryApiKey?.maskedKey : primaryApiKey?.maskedKey;
@@ -465,6 +471,10 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
 
   function goHome() {
     router.push("/");
+  }
+
+  if (!splashDone) {
+    return <PayGateSplashScreen />;
   }
 
   if (loading) {
@@ -911,6 +921,19 @@ function LoadingScreen() {
   return (
     <main className={styles.loadingPage}>
       <WaitLoading centered text="Pastikan Internet kamu Stabil..." />
+    </main>
+  );
+}
+
+function PayGateSplashScreen() {
+  return (
+    <main className={styles.splashPage} aria-label="Payment Gateaway">
+      <div className={styles.splashContent}>
+        <div className={styles.splashLogo} aria-hidden="true">
+          <FiCreditCard />
+        </div>
+        <h1>Payment Gateaway</h1>
+      </div>
     </main>
   );
 }
