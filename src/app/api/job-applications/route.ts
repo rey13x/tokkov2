@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
 import { recordJobApplication, updateUserLastActive, getUserJobApplications, deleteJobApplication } from "@/server/db";
-import { getProductById } from "@/server/db";
+import { getProductById } from "@/server/store-data";
 
 export async function POST(request: Request) {
   const session = await getServerAuthSession();
@@ -148,4 +148,3 @@ export async function DELETE(request: Request) {
     );
   }
 }
-

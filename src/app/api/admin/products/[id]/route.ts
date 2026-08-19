@@ -4,6 +4,18 @@ import { requireAdmin } from "@/server/admin";
 import { deleteProduct, updateProduct } from "@/server/store-data";
 import { sendTelegramActivityNotification } from "@/server/notifications";
 
+const normalizeExternalUrl = (value: unknown) => {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return /^[a-z][a-z\d+\-.]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
+const optionalExternalUrlSchema = z.preprocess(
+  normalizeExternalUrl,
+  z.union([z.string().url("Link harus berupa URL yang valid"), z.literal("")]),
+);
+
 const updateSchema = z.object({
   name: z.string().min(2).max(120).optional(),
   category: z.string().min(2).max(50).optional(),
@@ -20,9 +32,9 @@ const updateSchema = z.object({
   ).optional(),
   isActive: z.boolean().optional(),
   productType: z.enum(["jual_beli", "pekerjaan"]).optional(),
-  jobApplicationLink: z.union([z.string().url(), z.literal("")]).optional(),
+  jobApplicationLink: optionalExternalUrlSchema.optional(),
   maxApplicants: z.number().int().min(0).optional(),
-  buyNowLink: z.union([z.string().url("Link harus berupa URL yang valid"), z.literal("")]).optional(),
+  buyNowLink: optionalExternalUrlSchema.optional(),
 });
 
 type Params = Promise<{ id: string }>;

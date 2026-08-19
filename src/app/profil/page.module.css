@@ -138,6 +138,27 @@
   transform: scale(1.05);
 }
 
+.paygateButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #214ebd;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.0rem;
+  text-decoration: none;
+  border: 2px solid #d7dce7;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.paygateButton:hover {
+  transform: scale(1.05);
+  background: #2b5fe0;
+}
+
 .form {
   display: flex;
   flex-direction: column;

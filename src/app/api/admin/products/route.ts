@@ -8,6 +8,18 @@ import {
 } from "@/server/store-data";
 import { sendTelegramActivityNotification } from "@/server/notifications";
 
+const normalizeExternalUrl = (value: unknown) => {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return /^[a-z][a-z\d+\-.]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
+const optionalExternalUrlSchema = z.preprocess(
+  normalizeExternalUrl,
+  z.union([z.string().url("Link harus berupa URL yang valid"), z.literal("")]),
+);
+
 const baseSchema = z.object({
   name: z.string().min(2).max(120),
   category: z.string().min(2).max(50),
@@ -31,12 +43,15 @@ const productSchema = baseSchema.and(
       productType: z.literal("jual_beli"),
       jobApplicationLink: z.string().optional().or(z.literal("")),
       maxApplicants: z.number().optional().or(z.literal(0)),
-      buyNowLink: z.string().url("Link harus berupa URL yang valid").optional().or(z.literal("")),
+      buyNowLink: optionalExternalUrlSchema.optional(),
     }),
     z.object({
       productType: z.literal("pekerjaan"),
-      jobApplicationLink: z.string().min(1, "Link pendaftaran wajib diisi").url("Link pendaftaran harus berupa URL yang valid"),
-      maxApplicants: z.number().int().min(1, { message: "Jumlah pelamar maksimal minimal 1" }),
+      jobApplicationLink: z.preprocess(
+        normalizeExternalUrl,
+        z.string().min(1, "Link pendaftaran wajib diisi").url("Link pendaftaran harus berupa URL yang valid"),
+      ),
+      maxApplicants: z.number().int().min(0, { message: "Jumlah pelamar maksimal minimal 0" }),
     }),
   ])
 );

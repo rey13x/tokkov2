@@ -577,10 +577,9 @@ export async function updateProduct(
         ? "pekerjaan"
         : input.productType === "jual_beli"
         ? "jual_beli"
-        : undefined;
-    
-    // Use current product type as fallback if not changing it
-    const effectiveProductType = nextProductType ?? currentProductType;
+        : currentProductType;
+
+    const effectiveProductType = nextProductType;
 
     let nextJobLink: string | undefined;
     let nextMaxApplicants: number | undefined;

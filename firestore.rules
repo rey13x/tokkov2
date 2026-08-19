@@ -248,6 +248,49 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // PayGate collections - financial data must be server-controlled
+    match /paygateAccounts/{accountId} {
+      // Owner or admin can read account metadata
+      allow get: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if false; // require explicit doc reads (or server-side APIs)
+
+      // Clients must not create/update/delete financial accounts
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /apiKeys/{keyId} {
+      // API keys are sensitive; only admin can read/write via console
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /deposits/{depositId} {
+      // Owners can read their deposits; clients cannot mutate deposit status directly
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /withdrawals/{withdrawalId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Transactions must be created by trusted server logic only
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /ledger/{ledgerId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /webhookEvents/{eventId} {
+      // Webhook events are processed server-side only
+      allow read: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
     // --- GLOBAL DENY ---
     // Catch-all: Deny any access to documents not explicitly allowed above
     match /{document=**} {

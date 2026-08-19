@@ -27,6 +27,12 @@ type ProductDetailClientProps = {
 
 const PENDING_CART_ACTION_KEY = "tokko_pending_cart_action";
 
+const normalizeExternalUrl = (value?: string | null) => {
+  const trimmed = value?.trim();
+  if (!trimmed) return "";
+  return /^[a-z][a-z\d+\-.]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
 export default function ProductDetailClient({ product }: ProductDetailClientProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const noticeRef = useRef<HTMLParagraphElement | null>(null);
@@ -274,22 +280,15 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
     setJobApplicationError(""); // Clear previous errors
     
-    if (!product.jobApplicationLink) {
+    const applicationLink = normalizeExternalUrl(product.jobApplicationLink);
+
+    if (!applicationLink) {
       setJobApplicationError("Link pendaftaran tidak tersedia.");
       return;
     }
 
     if (status === "unauthenticated") {
-      if (typeof window !== "undefined") {
-        window.sessionStorage.setItem(
-          "tokko_pending_job_apply",
-          JSON.stringify({
-            slug: product.slug,
-            link: product.jobApplicationLink,
-          }),
-        );
-      }
-      router.push(`/auth?redirect=${encodeURIComponent(`/produk/${product.slug}`)}`);
+      window.location.href = applicationLink;
       return;
     }
 
@@ -335,12 +334,11 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
       // Redirect to job application link after a short delay
       window.setTimeout(() => {
-        window.location.href = result.applicationLink;
+        window.location.href = normalizeExternalUrl(result.applicationLink) || applicationLink;
       }, 550);
     } catch (error) {
       console.error("Failed to record job application:", error);
       setJobApplicationError("Gagal mencatat lamaran. Anda akan dialihkan ke link pendaftaran.");
-      const applicationLink = product.jobApplicationLink;
       if (applicationLink) {
         window.setTimeout(() => {
           window.location.href = applicationLink;

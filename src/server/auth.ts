@@ -15,6 +15,7 @@ import {
   updateUserLastActive,
   ensureAdminEmailExists,
 } from "@/server/db";
+import { provisionPayGateForUser } from "@/server/paygate";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
@@ -237,6 +238,9 @@ export const authOptions: NextAuthOptions = {
       // Update user last active time (skip for hardcoded dev admin)
       if (token.userId && token.userId !== "dev-admin-hardcoded") {
         await updateUserLastActive(token.userId as string).catch(() => {});
+        // Ensure PayGate provisioned for existing users on session creation/login
+        // Fire-and-forget to avoid blocking auth flows
+        void provisionPayGateForUser(token.userId as string).catch(() => {});
       }
 
       return session;

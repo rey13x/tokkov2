@@ -1459,29 +1459,29 @@ function AdminManagementSection() {
     setIsLoading(true);
 
     // Clean up fields based on product type
+    const normalizedJobApplicationLink =
+      productForm.productType === "pekerjaan"
+        ? (productForm.jobApplicationLink ?? "").trim()
+        : "";
+
+    const normalizedBuyNowLink =
+      productForm.productType === "jual_beli"
+        ? (productForm.buyNowLink ?? "").trim()
+        : "";
+
     let payload = {
       ...productForm,
       price: Number(productForm.price),
+      jobApplicationLink: normalizedJobApplicationLink,
+      buyNowLink: normalizedBuyNowLink,
+      maxApplicants:
+        productForm.productType === "pekerjaan"
+          ? (typeof productForm.maxApplicants === "string"
+              ? Number.parseInt(productForm.maxApplicants, 10) || 0
+              : Number(productForm.maxApplicants || 0))
+          : 0,
     };
 
-    // For Jual Beli, remove job-related fields
-    if (productForm.productType === "jual_beli") {
-      payload = {
-        ...payload,
-        jobApplicationLink: "",
-        maxApplicants: 0,
-      };
-    }
-    // For Pekerjaan, remove buyNowLink and job-related fields
-    if (productForm.productType === "pekerjaan") {
-      payload = {
-        ...payload,
-        buyNowLink: "",
-        maxApplicants: typeof payload.maxApplicants === "string" ? 
-          parseInt(payload.maxApplicants, 10) : 
-          (payload.maxApplicants || 0),
-      };
-    }
     // For LMS, remove job and buyNow related fields
     if (productForm.productType === "lms") {
       payload = {
@@ -2963,7 +2963,8 @@ function AdminManagementSection() {
             </div>
             {productForm.productType === "pekerjaan" ? (
               <input
-                type="url"
+                type="text"
+                inputMode="url"
                 value={productForm.jobApplicationLink}
                 onChange={(event) =>
                   setProductForm((current) => ({
@@ -2977,7 +2978,8 @@ function AdminManagementSection() {
             ) : null}
             {productForm.productType === "jual_beli" ? (
               <input
-                type="url"
+                type="text"
+                inputMode="url"
                 value={productForm.buyNowLink}
                 onChange={(event) =>
                   setProductForm((current) => ({

@@ -14,6 +14,7 @@ import type {
 } from "@/types/store";
 import { resolveMediaUrl } from "@/lib/media";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
+import { provisionPayGateForUser } from "@/server/paygate";
 
 const now = () => Date.now();
 
@@ -147,6 +148,9 @@ function mapProduct(row: Record<string, unknown>): StoreProduct {
     isActive: Number(row.is_active) === 1,
     productType: (String(row.product_type ?? "jual_beli") as "jual_beli" | "pekerjaan"),
     jobApplicationLink: String(row.job_application_link ?? ""),
+    maxApplicants: Number(row.max_applicants ?? 0) || undefined,
+    applicantCount: Number(row.applicant_count ?? 0) || undefined,
+    buyNowLink: String(row.buy_now_link ?? ""),
   };
 }
 
@@ -485,6 +489,7 @@ export async function ensureDatabase() {
           updated_at INTEGER NOT NULL
         )`,
       );
+      
       await run(
         "ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''",
       ).catch(() => {});
@@ -516,6 +521,9 @@ export async function ensureDatabase() {
           is_active INTEGER NOT NULL DEFAULT 1,
           product_type TEXT NOT NULL DEFAULT 'jual_beli',
           job_application_link TEXT NOT NULL DEFAULT '',
+          max_applicants INTEGER NOT NULL DEFAULT 0,
+          applicant_count INTEGER NOT NULL DEFAULT 0,
+          buy_now_link TEXT NOT NULL DEFAULT '',
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
@@ -531,6 +539,15 @@ export async function ensureDatabase() {
       ).catch(() => {});
       await run(
         "ALTER TABLE products ADD COLUMN media_gallery TEXT NOT NULL DEFAULT '[]'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE products ADD COLUMN max_applicants INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE products ADD COLUMN applicant_count INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE products ADD COLUMN buy_now_link TEXT NOT NULL DEFAULT ''",
       ).catch(() => {});
 
       await run(
@@ -1205,6 +1222,15 @@ export async function createUser(input: {
       }
 
       await upsertLocalUserMirror(created).catch(() => {});
+
+      // Provision PayGate account (idempotent). Do not block user creation on failure.
+      try {
+        // Fire and forget; but await to capture any immediate errors.
+        provisionPayGateForUser(created.id).catch(() => {});
+      } catch (err) {
+        // ignore
+      }
+
       return created;
     } catch (error) {
       console.error("Failed to create user in Firestore. Falling back to local DB:", error);
@@ -1228,6 +1254,7 @@ export async function createUser(input: {
       now(),
     ],
   );
+  
   return findLocalUserById(id);
 }
 
@@ -1362,6 +1389,8 @@ export async function createProduct(input: {
   mediaGallery?: Array<{ url: string; type?: "image" | "video" | "gif" }>;
   productType?: string;
   jobApplicationLink?: string;
+  maxApplicants?: number;
+  buyNowLink?: string;
 }) {
   await ensureDatabase();
   const id = randomId();
@@ -1384,6 +1413,8 @@ export async function createProduct(input: {
   const mediaUrl = resolveMediaUrl(input.imageUrl);
   const productType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
   const jobLink = productType === "pekerjaan" ? (input.jobApplicationLink?.trim() ?? "") : "";
+  const maxApplicants = productType === "pekerjaan" ? (input.maxApplicants ?? 0) : 0;
+  const buyNowLink = productType === "jual_beli" ? (input.buyNowLink?.trim() ?? "") : "";
   const mediaGallery = (input.mediaGallery ?? []).map((item) => ({
     url: resolveMediaUrl(item.url),
     type: item.type,
@@ -1391,8 +1422,8 @@ export async function createProduct(input: {
 
   await run(
     `INSERT INTO products
-      (id, slug, name, category, short_description, description, duration, price, image_url, media_gallery, is_active, product_type, job_application_link, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+      (id, slug, name, category, short_description, description, duration, price, image_url, media_gallery, is_active, product_type, job_application_link, max_applicants, applicant_count, buy_now_link, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 0, ?, ?, ?)`,
     [
       id,
       slug,
@@ -1406,6 +1437,8 @@ export async function createProduct(input: {
       JSON.stringify(mediaGallery),
       productType,
       jobLink,
+      maxApplicants,
+      buyNowLink,
       now(),
       now(),
     ],
@@ -1427,6 +1460,8 @@ export async function updateProduct(
     isActive: boolean;
     productType: string;
     jobApplicationLink: string;
+    maxApplicants: number;
+    buyNowLink: string;
   }>,
 ) {
   await ensureDatabase();
@@ -1442,12 +1477,29 @@ export async function updateProduct(
     nextName !== current.name
       ? `${slugify(nextName)}-${Math.floor(Math.random() * 900 + 100)}`
       : current.slug;
-  const nextProductType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
+  const currentProductType = String(current.productType ?? "jual_beli") as "jual_beli" | "pekerjaan";
+  const nextProductType =
+    input.productType === "pekerjaan"
+      ? "pekerjaan"
+      : input.productType === "jual_beli"
+      ? "jual_beli"
+      : currentProductType;
+
   const nextJobLink =
     nextProductType === "pekerjaan"
       ? (input.jobApplicationLink ?? current.jobApplicationLink ?? "").trim()
       : "";
-  
+
+  const nextBuyNowLink =
+    nextProductType === "jual_beli"
+      ? (input.buyNowLink ?? current.buyNowLink ?? "").trim()
+      : "";
+
+  const nextMaxApplicants =
+    nextProductType === "pekerjaan"
+      ? (typeof input.maxApplicants === "number" ? input.maxApplicants : current.maxApplicants ?? 0)
+      : 0;
+
   const nextMediaGallery = input.mediaGallery ?? current.mediaGallery ?? [];
   const mediaGalleryJson = JSON.stringify(
     nextMediaGallery.map((item) => ({
@@ -1458,7 +1510,7 @@ export async function updateProduct(
 
   await run(
     `UPDATE products
-     SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, media_gallery = ?, is_active = ?, product_type = ?, job_application_link = ?, updated_at = ?
+     SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, media_gallery = ?, is_active = ?, product_type = ?, job_application_link = ?, max_applicants = ?, buy_now_link = ?, updated_at = ?
      WHERE id = ?`,
     [
       nextSlug,
@@ -1473,6 +1525,8 @@ export async function updateProduct(
       input.isActive === undefined ? Number(current.isActive) : Number(input.isActive),
       nextProductType,
       nextJobLink,
+      nextMaxApplicants,
+      nextBuyNowLink,
       now(),
       id,
     ],

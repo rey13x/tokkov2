@@ -51,6 +51,8 @@ export default function ProfilePage() {
       return;
     }
 
+    
+
     const load = async () => {
       const response = await fetch("/api/me", { cache: "no-store" });
       if (!response.ok) {
@@ -393,6 +395,7 @@ export default function ProfilePage() {
                 <FiArrowRight aria-hidden="true" />
               </Link>
             ) : null}
+            
           </aside>
 
           <form className={styles.form} onSubmit={onSubmit}>
