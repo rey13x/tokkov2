@@ -1233,6 +1233,7 @@ export default function HomeClient() {
 
       <button type="button" className={styles.menuFab} onClick={openMenu} ref={menuFabRef} aria-label="Menu">
         <FiMenu />
+        <span className={styles.menuFabLabel}>Menu</span>
       </button>
 
       {menuMounted ? (
