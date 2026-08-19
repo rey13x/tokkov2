@@ -4,7 +4,7 @@ import { provisionPayGateForUser } from '@/server/paygate';
 import { getRamashopAccountByUserId } from '@/server/integrations/ramashop';
 import { getAppMetaValue, upsertAppMetaValue } from '@/server/db';
 
-const REGISTER_COOLDOWN_MS = 15 * 60 * 1000;
+const REGISTER_COOLDOWN_MS = 60 * 1000;
 
 function getPublicErrorMessage(error: unknown, authMode: 'register' | 'login') {
   const message = error instanceof Error ? error.message : String(error || '');
