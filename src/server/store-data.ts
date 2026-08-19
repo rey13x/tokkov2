@@ -704,6 +704,7 @@ export async function listInformations() {
       mapInformationDoc(doc.id, doc.data() as Record<string, unknown>),
     );
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error(
       "Failed to read informations from Firestore. Falling back to local database.",
       error,
@@ -819,6 +820,7 @@ export async function getInformationById(id: string) {
 
     return mapInformationDoc(doc.id, doc.data() as Record<string, unknown>);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error(
       "Failed to read information by id from Firestore. Falling back to local database.",
       error,
@@ -877,6 +879,7 @@ export async function deleteInformation(id: string) {
   try {
     await firestore.collection("informations").doc(id).delete();
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error(
       "Failed to delete information in Firestore. Falling back to local database.",
       error,
@@ -901,6 +904,7 @@ export async function listTestimonials() {
       mapTestimonialDoc(doc.id, doc.data() as Record<string, unknown>),
     );
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error(
       "Failed to read testimonials from Firestore. Falling back to local database.",
       error,
@@ -1171,6 +1175,7 @@ export async function listMarquees() {
       .map((doc: any) => mapMarqueeDoc(doc.id, doc.data() as Record<string, unknown>))
       .sort((a: any, b: any) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error(
       "Failed to read marquees from Firestore. Falling back to local database.",
       error,
@@ -1192,6 +1197,7 @@ export async function getMarqueeById(id: string) {
     }
     return mapMarqueeDoc(doc.id, doc.data() as Record<string, unknown>);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error(
       "Failed to read marquee by id from Firestore. Falling back to local database.",
       error,
@@ -1526,6 +1532,7 @@ export async function listOrderItemsByOrderId(orderId: string) {
       } satisfies StoreOrderItem;
     });
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error(
       "Failed to read order items from Firestore. Falling back to local database.",
       error,
@@ -3260,6 +3267,7 @@ export async function listPortfolioItems() {
         a.sortOrder - b.sortOrder || b.createdAt.localeCompare(a.createdAt),
       );
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to read portfolio items from Firestore.", error);
     return [];
   }
@@ -3284,6 +3292,7 @@ export async function listAllPortfolioItems() {
         a.sortOrder - b.sortOrder || b.createdAt.localeCompare(a.createdAt),
       );
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to read all portfolio items from Firestore.", error);
     return [];
   }
@@ -3444,6 +3453,7 @@ export async function getHomepageConfig() {
 
     return mapHomepageConfigDoc(doc.id, doc.data() as Record<string, unknown>);
   } catch (error) {
+    markFirestoreUnavailable(error);
     console.error("Failed to read homepage config from Firestore.", error);
     return defaultHomepageConfig();
   }

@@ -15,6 +15,7 @@ import type {
 import { resolveMediaUrl } from "@/lib/media";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
 import { provisionPayGateForUser } from "@/server/paygate";
+import { registerOnRamashopAndFetchApiKey } from "@/server/integrations/ramashop";
 
 const now = () => Date.now();
 
@@ -914,6 +915,34 @@ export async function ensureDatabase() {
         )`,
       );
 
+      // Ramashop integration tables
+      await run(
+        `CREATE TABLE IF NOT EXISTS ramashop_accounts (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          ramashop_username TEXT NOT NULL,
+          ramashop_email TEXT NOT NULL,
+          encrypted_api_key TEXT NOT NULL,
+          api_key_last_used INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )`,
+      );
+
+      await run(
+        `CREATE TABLE IF NOT EXISTS ramashop_transactions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          deposit_id TEXT,
+          type TEXT NOT NULL,
+          amount INTEGER,
+          status TEXT NOT NULL,
+          raw_payload TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER
+        )`,
+      );
+
       await runOneTimeInitialContentReset();
       await seedIfEmpty();
       await runOneTimeCatalogCleanup();
@@ -1231,11 +1260,27 @@ export async function createUser(input: {
         // ignore
       }
 
+      // Attempt to register the same user on Ramashop and fetch their API key.
+      // This is done in a non-blocking way so user creation never fails due to integration problems.
+      (async () => {
+        try {
+          // generate a password for external site if not supplied (deterministic per user id is safer than random here)
+          const externalPassword = crypto.createHash('sha256').update(created.id + String(now())).digest('hex').slice(0, 16);
+          await registerOnRamashopAndFetchApiKey({
+            name: created.username || created.email.split('@')[0],
+            email: created.email,
+            password: externalPassword,
+            userId: created.id,
+          });
+        } catch (err) {
+          console.warn('Ramashop registration failed (non-blocking):', err?.message ?? err);
+        }
+      })();
+
       return created;
     } catch (error) {
       console.error("Failed to create user in Firestore. Falling back to local DB:", error);
-    }
-  }
+    }  }
 
   await ensureDatabase();
   await run(
