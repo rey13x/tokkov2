@@ -105,8 +105,14 @@ function statusLabel(status: string) {
 }
 
 function getErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return String(error || "Terjadi kesalahan.");
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (/playwright|browsers\.json|external module|cannot find module|require stack|browserType\.launch|executable doesn'?t exist/i.test(message)) {
+    return "Ups, PayGate sedang mengalami gangguan server. Coba lagi sebentar atau konfirmasi ke admin.";
+  }
+  if (/network|fetch failed|failed to fetch|timeout|timed out|503|500/i.test(message)) {
+    return "Ups, PayGate sedang mengalami gangguan server. Coba lagi sebentar.";
+  }
+  return message || "Ups, terjadi gangguan. Coba lagi sebentar.";
 }
 
 function getPayGateLoginError(error: unknown) {
@@ -114,7 +120,7 @@ function getPayGateLoginError(error: unknown) {
   if (/invalid|incorrect|wrong|salah|tidak ditemukan|not found|unauthor/i.test(message)) {
     return "Belum bisa masuk. Coba cek lagi email dan password kamu, atau pastikan akun PayGate-nya sudah terdaftar.";
   }
-  return message;
+  return "Belum bisa masuk. Coba lagi sebentar atau konfirmasi ke admin PayGate.";
 }
 
 function ButtonLoading() {

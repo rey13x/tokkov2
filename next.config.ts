@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  serverExternalPackages: ["playwright", "playwright-core"],
   // Disable React Compiler untuk dev yang lebih cepat
   reactCompiler: false,
   experimental: {

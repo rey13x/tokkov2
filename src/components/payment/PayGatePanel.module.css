@@ -105,9 +105,9 @@
 }
 
 .errorText {
-  border: 1px solid #ffd0d8;
-  background: #fff2f4;
-  color: #b4233d;
+  border: 1px solid #dbe4f0;
+  background: rgba(248, 250, 252, 0.96);
+  color: #344054;
 }
 
 .noticeText {

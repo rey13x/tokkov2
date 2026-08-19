@@ -29,6 +29,10 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ ok: true, account: account ?? null, balance });
   } catch (err) {
-    return NextResponse.json({ ok: false, reason: "server_error", error: String(err) }, { status: 500 });
+    console.warn("Failed to load PayGate account:", err);
+    return NextResponse.json(
+      { ok: false, reason: "server_error", error: "Ups, PayGate sedang mengalami gangguan server. Coba lagi sebentar." },
+      { status: 503 },
+    );
   }
 }

@@ -17,7 +17,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ dep
 
     const result = await checkDepositStatus(session.user.id, depositId);
     return NextResponse.json({ ok: true, data: result.data?.data ?? null, result }, { status: 200 });
-  } catch (error: any) {
-    return NextResponse.json({ ok: false, error: String(error?.message ?? error) }, { status: 500 });
+  } catch (error: unknown) {
+    console.warn('Failed to check PayGate deposit status:', error);
+    return NextResponse.json(
+      { ok: false, error: 'Ups, layanan pembayaran sedang mengalami gangguan server. Coba lagi sebentar.' },
+      { status: 503 },
+    );
   }
 }
