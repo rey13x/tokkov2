@@ -944,14 +944,12 @@ export default function HomeClient() {
               <nav className={styles.menuNav} aria-label="Menu utama">
                 <button
                   type="button"
-                  className={`${styles.menuFounderLink} ${styles.shimmer} menu-founder-global`}
-                  style={{ justifyContent: 'flex-start', width: 'auto', gap: '2px' } as React.CSSProperties}
+                  className={styles.menuFounderLink}
                   data-menu-item
                   onClick={() => { window.open('https://s.id/RaihaanBP', '_blank'); closeMenu(); }}
                 >
                   <span
                     className={styles.menuFounderText}
-                    style={{ whiteSpace: 'nowrap', fontSize: 'clamp(0.7rem, 3.2vw, 1.12rem)', paddingRight: '18px' } as CSSProperties}
                   >
                     <FiGlobe className={styles.menuFounderIcon} />
                     <span className={styles.menuFounderLabel}>Founder</span>
@@ -998,14 +996,12 @@ export default function HomeClient() {
               <nav className={styles.menuNav} aria-label="Menu produk">
                 <button
                   type="button"
-                  className={`${styles.menuFounderLink} ${styles.shimmer} menu-founder-global`}
-                  style={{ justifyContent: 'flex-start', width: 'auto', gap: '2px' } as React.CSSProperties}
+                  className={styles.menuFounderLink}
                   data-menu-item
                   onClick={() => { window.open('https://s.id/RaihaanBP', '_blank'); closeMenu(); }}
                 >
                   <span
                     className={styles.menuFounderText}
-                    style={{ whiteSpace: 'nowrap', fontSize: 'clamp(0.7rem, 3.2vw, 1.12rem)', paddingRight: '18px' } as CSSProperties}
                   >
                     <FiGlobe className={styles.menuFounderIcon} />
                     <span className={styles.menuFounderLabel}>Founder</span>

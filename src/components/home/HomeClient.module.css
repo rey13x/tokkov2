@@ -1122,13 +1122,16 @@
 .menuFounderLink {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   font-size: clamp(0.75rem, 2.6vw, 1.02rem);
   font-weight: 600;
-  padding-left: 12px !important;
+  padding: 0 12px !important;
   justify-content: flex-start !important;
-  width: auto;
+  width: fit-content !important;
+  max-width: 100%;
   margin-bottom: 0;
   gap: 2px;
+  overflow: visible;
 }
 
 .menuFounderLink small {
@@ -1144,13 +1147,10 @@
 
 .menuFounderIcon {
   color: #ffffff;
-  width: 1em;
-  height: 1em;
-  white-space: nowrap !important;
-  max-width: calc(100% - 40px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: clamp(0.7rem, 2.8vw, 1.1rem) !important;
+  width: 1em !important;
+  height: 1em !important;
+  flex: 0 0 auto;
+  font-size: 1rem !important;
   transform: translateY(0.12em);
   margin-right: 10px !important;
 }
@@ -1158,13 +1158,13 @@
 .menuFounderText {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 8px;
   line-height: 1;
   white-space: nowrap;
-  max-width: calc(100% - 40px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: var(--founder-fs);
+  max-width: none !important;
+  overflow: visible !important;
+  font-size: 1rem !important;
   transform: none;
 }
 
@@ -1173,86 +1173,10 @@
   margin-left: 0 !important;
 }
 
-/* Smaller founder text for narrow portrait screens to avoid clipping */
-@media (orientation: portrait) and (max-width: 420px) {
-  .menuFounderText {
-    font-size: clamp(0.7rem, 3.2vw, 1.0rem) !important;
-    max-width: calc(100vw - 96px) !important;
-    margin-right: 18px !important;
-    padding-right: 8px !important;
-  }
-  .menuFounderIcon {
-    width: 0.95em;
-    height: 0.95em;
-    transform: translateY(0.06em);
-    margin-right: 0 !important;
-  }
-  .menuNav {
-    padding-inline: 18px !important;
-  }
-  :global(nav[aria-label="Menu utama"]) button.menu-founder-global span,
-  :global(nav[aria-label="Menu produk"]) button.menu-founder-global span {
-    font-size: clamp(0.7rem, 3.2vw, 1.0rem) !important;
-    padding-right: 18px !important;
-    max-width: calc(100% - 64px) !important;
-  }
-}
-
-/* Global override for the founder button to prevent global menu button rules from stretching it */
-:global(nav[aria-label="Menu utama"]) button.menu-founder-global,
-:global(nav[aria-label="Menu produk"]) button.menu-founder-global {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  width: auto !important;
-  gap: 2px !important;
-}
-
-/* Force the span inside the founder button to not wrap and to scale with viewport */
-:global(nav[aria-label="Menu utama"]) button.menu-founder-global span,
-:global(nav[aria-label="Menu produk"]) button.menu-founder-global span {
-  white-space: nowrap !important;
-  display: inline-block !important;
-  font-size: clamp(0.75rem, 2.6vw, 1.02rem) !important;
-  max-width: calc(100% - 40px) !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-:global(.menu-founder-global) span {
-  white-space: nowrap !important;
-  display: inline-block !important;
-  font-size: clamp(0.75rem, 2.6vw, 1.02rem) !important;
-  max-width: calc(100% - 40px) !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
 /* Make menu nav sit closer to the founder link */
 .menuPanelMain .menuNav,
 .menuPanelSub .menuNav {
   margin-top: 0 !important;
-}
-
-/* Shimmer effect */
-.shimmer::before {
-  content: "";
-  position: absolute;
-  left: -60%;
-  top: 0;
-  height: 100%;
-  width: 60%;
-  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.28) 50%, rgba(255,255,255,0) 100%);
-  transform: skewX(-18deg);
-  animation: shimmer 3.8s linear infinite;
-  pointer-events: none;
-  mix-blend-mode: screen;
-  opacity: 0.95;
-}
-
-@keyframes shimmer {
-  0% { left: -60%; }
-  100% { left: 160%; }
 }
 
 .menuLogo {
@@ -1490,12 +1414,6 @@
   /* Ensure menu items have horizontal padding on small screens */
   .menuNav {
     padding-inline: 14px;
-  }
-
-  /* Tighter founder font-size on very small screens */
-  :global(nav[aria-label="Menu utama"]) button.menu-founder-global span,
-  :global(nav[aria-label="Menu produk"]) button.menu-founder-global span {
-    font-size: clamp(0.4rem, 2.6vw, 0.78rem) !important;
   }
 
   .menuPanelMain .menuNav {
