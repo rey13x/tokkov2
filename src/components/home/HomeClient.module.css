@@ -137,7 +137,8 @@
 }
 
 .heroSearchWrap {
-  width: min(620px, 100%);
+  width: 100%;
+  box-sizing: border-box;
   height: 58px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.95);
