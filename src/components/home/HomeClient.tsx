@@ -952,11 +952,11 @@ export default function HomeClient() {
                     className={styles.menuFounderText}
                   >
                     <FiGlobe className={styles.menuFounderIcon} />
-                    <span className={styles.menuFounderLabel}>Founder</span>
+                    <span className={styles.menuFounderLabel}>Pendiri</span>
                   </span>
                 </button>
                 <button type="button" onClick={() => moveMenu("products", 1)} data-menu-item>
-                  All Services
+                  Semua Layanan
                   <span>
                     <FiChevronRight />
                   </span>
@@ -977,7 +977,7 @@ export default function HomeClient() {
                   <span className={styles.menuActionIcon}>
                     <FiX />
                   </span>
-                  Close
+                  Tutup
                 </button>
               </div>
             </section>
@@ -1004,7 +1004,7 @@ export default function HomeClient() {
                     className={styles.menuFounderText}
                   >
                     <FiGlobe className={styles.menuFounderIcon} />
-                    <span className={styles.menuFounderLabel}>Founder</span>
+                    <span className={styles.menuFounderLabel}>Pendiri</span>
                   </span>
                 </button>
                 <button
@@ -1045,7 +1045,7 @@ export default function HomeClient() {
                   <span className={styles.menuActionIcon}>
                     <FiX />
                   </span>
-                  Close
+                  Tutup
                 </button>
               </div>
             </section>

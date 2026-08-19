@@ -1414,6 +1414,10 @@
   /* Ensure menu items have horizontal padding on small screens */
   .menuNav {
     padding-inline: 14px;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 6px;
   }
 
   .menuPanelMain .menuNav {
@@ -1426,8 +1430,26 @@
   }
 
   .menuNav button {
+    position: relative;
+    width: min(100%, 520px);
+    justify-content: center;
+    text-align: center;
     font-size: clamp(1.72rem, 9.2vw, 2.72rem);
     line-height: 1.14;
+  }
+
+  .menuNav button > span {
+    position: absolute;
+    right: 0;
+  }
+
+  .menuNav .menuFounderLink {
+    width: fit-content;
+    padding-inline: 0 !important;
+  }
+
+  .menuNav .menuFounderLink > span {
+    position: static;
   }
 
   .menuActionButton {
