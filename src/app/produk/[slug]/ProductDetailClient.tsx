@@ -471,7 +471,8 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                 </button>
               </div>
               <p className={styles.orderHint}>
-                Klik tambah ke troli. Jika belum login, kamu akan diarahkan ke halaman auth.
+                <strong>Demi keamanan STOK pembayaran dialihkan ke Manual VA Scan Qriss.</strong>{" "}
+                Pastikan sebelum membeli <strong>bertanya STOK lebih dulu</strong>
               </p>
 
               {added ? (
