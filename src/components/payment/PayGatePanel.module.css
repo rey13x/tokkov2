@@ -1008,8 +1008,8 @@
   z-index: 200;
   display: grid;
   place-items: center;
-  background: #111827;
-  color: #ffffff;
+  background: #ffffff;
+  color: #111827;
   animation: splashFade 4s ease-in-out both;
 }
 
@@ -1020,18 +1020,6 @@
   animation: splashContentFade 4s ease-in-out both;
 }
 
-.splashLogo {
-  width: 88px;
-  height: 88px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.32);
-  border-radius: 28px;
-  background: linear-gradient(145deg, #20226f, #6972d8);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
-}
-
-.splashLogo svg { width: 42px; height: 42px; }
 .splashContent h1 { margin: 0; font-size: clamp(1.6rem, 5vw, 2.5rem); letter-spacing: -0.03em; }
 
 @keyframes splashFade {

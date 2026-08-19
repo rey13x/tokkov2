@@ -929,9 +929,6 @@ function PayGateSplashScreen() {
   return (
     <main className={styles.splashPage} aria-label="Payment Gateaway">
       <div className={styles.splashContent}>
-        <div className={styles.splashLogo} aria-hidden="true">
-          <FiCreditCard />
-        </div>
         <h1>Payment Gateaway</h1>
       </div>
     </main>
