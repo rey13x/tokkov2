@@ -3046,11 +3046,25 @@ function AdminManagementSection() {
                         border: "1px solid #e5e7eb",
                       }}
                     >
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {background.label}
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
+                        <img
+                          src={background.url}
+                          alt={background.label}
+                          style={{
+                            width: 72,
+                            height: 52,
+                            objectFit: "cover",
+                            borderRadius: 8,
+                            border: "1px solid #ddd",
+                            background: "#f3f4f6",
+                          }}
+                        />
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {background.label}
+                          </div>
+                          <small style={{ color: "#666", wordBreak: "break-all" }}>{background.url}</small>
                         </div>
-                        <small style={{ color: "#666", wordBreak: "break-all" }}>{background.url}</small>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <button type="button" onClick={() => onEditHeroBackground(background)}>

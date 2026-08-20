@@ -16,9 +16,6 @@ export async function GET() {
       // Fallback ke static data jika tidak ada database
       const defaultBackgrounds: HeroBackground[] = [
         { id: "bg-default", label: "Background Default", url: "/assets/backgroundv2.png", duration: 8000, sortOrder: 0 },
-        { id: "bg-2", label: "Background 2", url: "/assets/bg2.jpeg", duration: 6000, sortOrder: 1 },
-        { id: "bg-3", label: "Background 3", url: "/assets/bg3.jpeg", duration: 8000, sortOrder: 2 },
-        { id: "bg-4", label: "Background 4", url: "/assets/bg4.jpeg", duration: 8000, sortOrder: 3 },
       ];
       return NextResponse.json({ backgrounds: defaultBackgrounds }, {
         headers: {
@@ -32,9 +29,6 @@ export async function GET() {
       // Return default backgrounds
       const defaultBackgrounds: HeroBackground[] = [
         { id: "bg-default", label: "Background Default", url: "/assets/backgroundv2.png", duration: 8000, sortOrder: 0 },
-        { id: "bg-2", label: "Background 2", url: "/assets/bg2.jpeg", duration: 6000, sortOrder: 1 },
-        { id: "bg-3", label: "Background 3", url: "/assets/bg3.jpeg", duration: 8000, sortOrder: 2 },
-        { id: "bg-4", label: "Background 4", url: "/assets/bg4.jpeg", duration: 8000, sortOrder: 3 },
       ];
       return NextResponse.json({ backgrounds: defaultBackgrounds }, {
         headers: {
@@ -57,9 +51,6 @@ export async function GET() {
     // Fallback ke default data
     const defaultBackgrounds: HeroBackground[] = [
       { id: "bg-default", label: "Background Default", url: "/assets/backgroundv2.png", duration: 8000, sortOrder: 0 },
-      { id: "bg-2", label: "Background 2", url: "/assets/bg2.jpeg", duration: 6000, sortOrder: 1 },
-      { id: "bg-3", label: "Background 3", url: "/assets/bg3.jpeg", duration: 8000, sortOrder: 2 },
-      { id: "bg-4", label: "Background 4", url: "/assets/bg4.jpeg", duration: 8000, sortOrder: 3 },
     ];
     
     return NextResponse.json({ backgrounds: defaultBackgrounds }, {

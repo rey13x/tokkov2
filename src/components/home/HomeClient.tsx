@@ -74,7 +74,7 @@ export default function HomeClient() {
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
 
-  const [storeDataReady, setStoreDataReady] = useState(false);
+  const [storeDataReady, setStoreDataReady] = useState(true);
   const [menuLayer, setMenuLayer] = useState<MenuLayer>("closed");
   const [menuMounted, setMenuMounted] = useState(false);
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
@@ -403,8 +403,16 @@ export default function HomeClient() {
         setStoreDataReady(true);
       });
 
+    const quickRenderTimer = window.setTimeout(() => {
+      if (!mounted) {
+        return;
+      }
+      setStoreDataReady(true);
+    }, 250);
+
     return () => {
       mounted = false;
+      window.clearTimeout(quickRenderTimer);
     };
   }, []);
 
