@@ -9,7 +9,7 @@ import {
   generatePaymentNotes,
 } from "@/server/payment";
 import { recordDonationTotals } from "@/server/store-data";
-import { sendTelegramPaymentReviewNotification } from "@/server/notifications";
+import { sendTelegramActivityNotification, sendTelegramPaymentReviewNotification } from "@/server/notifications";
 
 export async function POST(request: NextRequest) {
   try {
@@ -100,6 +100,14 @@ export async function POST(request: NextRequest) {
     } else if (paymentStatus.status === "expired") {
       await updateOrderStatus(orderId, "expired");
     } else if (notifyTelegram === true) {
+      await sendTelegramActivityNotification({
+        event: "payment_check",
+        actorName: String(order.userName || "User"),
+        actorEmail: String(order.userEmail || "-"),
+        actorPhone: String(order.userPhone || ""),
+        description: `User mengecek transaksi order ${order.id}.`,
+        metadata: [`Order ID: ${order.id}`, `Nominal: Rp ${Number(order.totalAmount ?? order.total ?? 0).toLocaleString("id-ID")}`],
+      });
       await sendTelegramPaymentReviewNotification({
         orderId: order.id,
         amount: Number(order.totalAmount ?? order.total ?? 0),

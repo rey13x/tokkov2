@@ -11,7 +11,6 @@ import {
 } from "@/server/db";
 import {
   appendOrderToCsv,
-  sendTelegramActivityNotification,
   sendTelegramOrderNotification,
 } from "@/server/notifications";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -139,22 +138,6 @@ export async function POST(request: Request) {
         userPhone: session.user.phone ?? "",
         total: created.total,
         items: enrichedItems,
-      }),
-      sendTelegramActivityNotification({
-        event: "order_created",
-        actorName: session.user.username || session.user.name || "User",
-        actorEmail: session.user.email ?? "-",
-        actorPhone: session.user.phone ?? "",
-        description: `Order ${created.id} dibuat (${enrichedItems.length} item).`,
-        metadata: [
-          `Order ID: ${created.id}`,
-          `Total: Rp ${created.total.toLocaleString("id-ID")}`,
-          "Produk:",
-          ...enrichedItems.map(
-            (item, index) =>
-              `${index + 1}. ${item.productName} x${item.quantity} @ Rp ${item.unitPrice.toLocaleString("id-ID")}`,
-          ),
-        ],
       }),
       pushOrderMetric({
         orderId: created.id,

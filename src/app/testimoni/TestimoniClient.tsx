@@ -5,7 +5,8 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import type { StoreTestimonial, StoreTestimonialComment, CommentReactionSummary, StoreProduct } from "@/types/store";
+import type { StoreTestimonial, StoreTestimonialComment, CommentReactionSummary } from "@/types/store";
+import { RatingStars } from "@/components/foundations/rating-stars";
 import styles from "./TestimoniClient.module.css";
 
 interface TestimoniClientProps {
@@ -33,7 +34,6 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
   const [isUpdatingVerified, setIsUpdatingVerified] = useState<Record<string, boolean>>({});
   const [showReactionPicker, setShowReactionPicker] = useState<Record<string, boolean>>({});
   const [isLoadingReactions, setIsLoadingReactions] = useState<Record<string, boolean>>({});
-  const [products, setProducts] = useState<StoreProduct[]>([]);
 
   const filtered = useMemo(() => {
     return testimonials.filter((testimonial) => activeRating === null || testimonial.rating === activeRating);
@@ -144,20 +144,6 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
     },
     [session],
   );
-
-  useEffect(() => {
-    // Fetch products to get images
-    const fetchProducts = async () => {
-      try {
-        const res = await fetch("/api/store");
-        const data = (await res.json()) as { products: StoreProduct[] };
-        setProducts(data.products);
-      } catch (error) {
-        console.error("Failed to fetch products:", error);
-      }
-    };
-    fetchProducts();
-  }, []);
 
   const loadComments = useCallback(
     async (testimonialId: string) => {
@@ -331,7 +317,7 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
       {filtered.map((testimonial) => (
         <div key={testimonial.id} className={styles.card}>
           <div className={styles.rating}>
-            {testimonial.rating > 0 ? "⭐".repeat(testimonial.rating) : "No Rating"}
+            {testimonial.rating > 0 ? <RatingStars rating={testimonial.rating} animated /> : "No Rating"}
           </div>
 
           <div className={styles.cardHeader}>
@@ -372,7 +358,6 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
               <p className={styles.linkedProductsLabel}>Produk Terkait</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {testimonial.linkedProducts.map((product) => {
-                  const productData = products.find(p => p.id === product.productId);
                   return (
                     <Link
                       key={product.productId}
@@ -380,16 +365,6 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                       className={styles.linkedProductItem}
                       title={product.productName}
                     >
-                      {productData?.imageUrl && (
-                        <img
-                          src={productData.imageUrl}
-                          alt={product.productName}
-                          className={styles.linkedProductThumbnail}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = "none";
-                          }}
-                        />
-                      )}
                       <span className={styles.linkedProductName}>{product.productName}</span>
                     </Link>
                   );

@@ -160,8 +160,6 @@ export async function sendTelegramOrderNotification(payload: {
     inline_keyboard: [[
       { text: "Sudah Bayar", callback_data: `payment:paid:${payload.orderId}` },
       { text: "Belum Bayar", callback_data: `payment:pending:${payload.orderId}` },
-    ], [
-      { text: "📝 Catatan", callback_data: `note:${payload.orderId}` },
     ]],
   });
 }
@@ -208,8 +206,6 @@ export async function sendTelegramPaymentReviewNotification(payload: {
     inline_keyboard: [[
       { text: "Sudah Bayar", callback_data: `payment:paid:${payload.orderId}` },
       { text: "Belum Bayar", callback_data: `payment:pending:${payload.orderId}` },
-    ], [
-      { text: "📝 Catatan", callback_data: `note:${payload.orderId}` },
     ]],
   });
   if (sent) {
@@ -226,9 +222,33 @@ export async function sendTelegramActivityNotification(payload: {
   metadata?: string[];
   occurredAt?: string | number | Date;
 }) {
+  const allowedEvents = new Set([
+    "order_created",
+    "order_cancelled",
+    "payment_check",
+    "payment_cancelled",
+    "testimonial_comment",
+    "sign_in",
+    "sign_up",
+    "sign_out",
+  ]);
+  if (!allowedEvents.has(payload.event)) {
+    return;
+  }
+
   const details = payload.metadata?.filter(Boolean) ?? [];
+  const eventTitle: Record<string, string> = {
+    order_created: "🛒 <b>ORDERAN BARU</b>",
+    order_cancelled: "❌ <b>MEMBATALKAN ORDERAN</b>",
+    payment_check: "💳 <b>CEK TRANSAKSI</b>",
+    payment_cancelled: "🚫 <b>MEMBATALKAN PEMBAYARAN</b>",
+    testimonial_comment: "💬 <b>KOMENTAR TESTIMONI</b>",
+    sign_in: "👤 <b>MASUK AKUN</b>",
+    sign_up: "🆕 <b>MEMBUAT AKUN</b>",
+    sign_out: "🚪 <b>KELUAR AKUN</b>",
+  };
   const lines = [
-    "📣 <b>INFO AKTIVITAS</b>",
+    eventTitle[payload.event] ?? "📣 <b>AKTIVITAS TOKKO</b>",
     "",
     `<b>Event</b>      : ${escapeTelegramHtml(payload.event)}`,
     `<b>Waktu</b>      : ${escapeTelegramHtml(formatAuditDate(payload.occurredAt))}`,
@@ -253,7 +273,7 @@ export async function sendTelegramAuthNotification(payload: {
     ? "🆕 <b>AKUN BARU</b>"
     : payload.event === "password_reset_request"
       ? "🔑 <b>PERMINTAAN RESET PASSWORD</b>"
-      : "👤 <b>AKUN SIGN IN</b>";
+      : "👤 <b>MASUK AKUN</b>";
   const lines = [
     title,
     "",

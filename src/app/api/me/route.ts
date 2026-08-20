@@ -18,7 +18,7 @@ const MAX_OTP_ATTEMPTS = 5;
 const updateSchema = z.object({
   username: z.string().min(2).max(40),
   email: z.string().email(),
-  phone: z.string().max(20).optional().default(""),
+  phone: z.string().min(8, "Nomor WhatsApp wajib diisi.").max(20),
   oldPassword: z.string().optional().default(""),
   newPassword: z.string().optional().default(""),
   otpCode: z.string().optional().default(""),

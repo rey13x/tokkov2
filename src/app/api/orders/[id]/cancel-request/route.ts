@@ -47,7 +47,7 @@ export async function PATCH(request: Request, context: { params: Params }) {
     }
 
     await sendTelegramActivityNotification({
-      event: "cancel_request_created",
+      event: "order_cancelled",
       actorName: session.user.username || session.user.name || order.userName || "User",
       actorEmail: session.user.email ?? order.userEmail,
       actorPhone: session.user.phone ?? order.userPhone,

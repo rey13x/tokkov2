@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreTestimonial } from "@/types/store";
+import { RatingStars } from "@/components/foundations/rating-stars";
 import TestimoniClient from "./TestimoniClient";
 import styles from "./page.module.css";
 
@@ -123,7 +124,7 @@ export default function TestimoniPage() {
                 activeRating === rating ? styles.categoryChipActive : ""
               }`}
             >
-              {rating > 0 ? "⭐".repeat(rating) : "No Rating"}
+              {rating > 0 ? <RatingStars rating={rating} animated /> : "No Rating"}
             </button>
           ))}
         </div>

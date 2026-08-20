@@ -5,7 +5,6 @@ import {
   isDonationOrder,
   updateOrderStatus,
 } from "@/server/payment";
-import { getAppMetaValue, updateOrderAdminNote, upsertAppMetaValue } from "@/server/db";
 import { recordDonationTotals, updateOrderStatus as updateStoreOrderStatus } from "@/server/store-data";
 import { telegramStatusLabel } from "@/server/notifications";
 
@@ -79,20 +78,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, menu: true });
     }
 
-    const pendingOrderId = await getAppMetaValue(`telegram_note_${chatId}`);
-    if (pendingOrderId) {
-      const order = await updateOrderAdminNote(pendingOrderId, command);
-      await upsertAppMetaValue(`telegram_note_${chatId}`, "");
-      await telegramRequest("sendMessage", {
-        chat_id: chatId,
-        text: order
-          ? `✅ <b>Catatan tersimpan</b>\n\nOrder: <tg-spoiler>${order.id}</tg-spoiler>\nPesan akan muncul di halaman status user.`
-          : "Order tidak ditemukan. Silakan pilih catatan dari menu order terbaru.",
-        parse_mode: "HTML",
-      });
-      return NextResponse.json({ ok: true, note: Boolean(order) });
-    }
-
     return NextResponse.json({ ok: true, ignored: true });
   }
 
@@ -106,24 +91,6 @@ export async function POST(request: Request) {
       text: "Notifikasi aktivitas dan order dikirim otomatis ke chat ini.",
     });
     return NextResponse.json({ ok: true, menu: callback.data });
-  }
-
-  if (callback.data.startsWith("note:")) {
-    const orderId = callback.data.slice("note:".length).trim();
-    if (!orderId) {
-      return NextResponse.json({ ok: false, error: "Order tidak valid." }, { status: 400 });
-    }
-    await upsertAppMetaValue(`telegram_note_${chatId}`, orderId);
-    await telegramRequest("answerCallbackQuery", {
-      callback_query_id: callback.id,
-      text: "Kirim teks catatan admin sekarang.",
-    });
-    await telegramRequest("sendMessage", {
-      chat_id: chatId,
-      text: `📝 <b>Catatan untuk order</b> <tg-spoiler>${orderId}</tg-spoiler>\n\nBalas dengan isi pesan yang ingin ditampilkan ke user.`,
-      parse_mode: "HTML",
-    });
-    return NextResponse.json({ ok: true, awaitingNote: orderId });
   }
 
   if (!callback.data.startsWith("payment:")) {

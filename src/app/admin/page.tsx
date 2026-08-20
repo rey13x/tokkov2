@@ -2613,7 +2613,7 @@ function AdminManagementSection() {
             Keluar Admin
           </button>
           <Link href="/" className={styles.actionLink}>
-            Kembali ke Beranda
+            Balik ke Beranda
           </Link>
         </div>
       </header>

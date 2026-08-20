@@ -34,13 +34,13 @@ function getAuthErrorMessage(code: string | null) {
     case "OAuthSignin":
     case "OAuthCallback":
     case "OAuthCreateAccount":
-      return "Login Google gagal. Cek konfigurasi OAuth di Google Cloud lalu coba lagi.";
+      return "Masuk lewat Google gagal. Cek konfigurasi Google lalu coba lagi.";
     case "AccessDenied":
       return "Akses login ditolak. Pastikan akun Google kamu sudah diizinkan pada OAuth Consent Screen (mode Testing) atau app sudah Publish.";
     case "Configuration":
       return "Konfigurasi login Google belum lengkap di server.";
     default:
-      return "Login gagal. Coba lagi.";
+      return "Gagal masuk. Coba lagi.";
   }
 }
 
@@ -89,7 +89,7 @@ export default function AuthPage() {
   const { status } = useSession();
   const googleUiEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "false";
   const canUseEmailOtp = process.env.NEXT_PUBLIC_EMAIL_OTP_ENABLED === "true";
-  const forgotPasswordEnabled = process.env.NEXT_PUBLIC_FORGOT_PASSWORD_ENABLED === "true";
+  const forgotPasswordEnabled = false;
 
   const [mode, setMode] = useState<AuthMode>("signin");
   const [identifier, setIdentifier] = useState("");
@@ -146,7 +146,10 @@ export default function AuthPage() {
     if (!response.ok) {
       return redirectTarget;
     }
-    const me = (await response.json()) as { role?: "user" | "admin" };
+    const me = (await response.json()) as { role?: "user" | "admin"; phone?: string };
+    if (!me.phone?.trim()) {
+      return "/profil?requiredPhone=1";
+    }
     if (me.role === "admin") {
       return "/admin";
     }
@@ -400,8 +403,8 @@ export default function AuthPage() {
         </div>
 
         <header className={styles.headerBlock}>
-          <h1>Login</h1>
-          <p className={styles.description}>Masuk atau daftar akun untuk lanjut belanja.</p>
+          <h1>Masuk</h1>
+          <p className={styles.description}>Masuk atau daftar Akun buat lanjut Belanja.</p>
         </header>
 
         <div className={styles.modeSwitch}>
@@ -416,7 +419,7 @@ export default function AuthPage() {
             }}
             className={mode === "signin" ? styles.modeActive : ""}
           >
-            Sign In
+            Masuk
           </button>
           <button
             type="button"
@@ -429,7 +432,7 @@ export default function AuthPage() {
             }}
             className={mode === "signup" ? styles.modeActive : ""}
           >
-            Sign Up
+            Daftar
           </button>
           {forgotPasswordEnabled && (
             <button
@@ -460,7 +463,7 @@ export default function AuthPage() {
             ) : (
               <>
                 <FcGoogle className={styles.googleIcon} />
-                <span>Sign in with Google</span>
+                <span>Masuk lewat Google</span>
               </>
             )}
           </button>
@@ -469,12 +472,12 @@ export default function AuthPage() {
         {mode === "signin" ? (
           <form className={styles.form} onSubmit={onSignIn}>
             <label className={styles.field}>
-              Username / Gmail
+              Email
               <input
                 type="text"
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
-                placeholder="Username / Gmail kamu"
+                placeholder="Email kamu"
                 required
               />
             </label>
@@ -503,7 +506,7 @@ export default function AuthPage() {
               </div>
             </label>
             <p className={styles.helperText}>
-              Lupa password? Konfirmasi ke{" "}
+              Ganti password? Konfirmasi ke{" "}
               <a
                 href="https://wa.me/6281319865384?text=Halo%20min%20mau%20reset%20password.."
                 target="_blank"
@@ -532,7 +535,7 @@ export default function AuthPage() {
               />
             </label>
             <label className={styles.field}>
-              Gmail
+              Email
               <input
                 type="email"
                 value={signupEmail}
@@ -670,7 +673,7 @@ export default function AuthPage() {
 
         <div className={styles.extraAction}>
           <Link href="/" className={styles.backLink}>
-            Kembali ke Beranda
+            Balik ke Beranda
           </Link>
         </div>
       </section>

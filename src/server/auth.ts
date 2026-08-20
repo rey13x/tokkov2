@@ -15,7 +15,7 @@ import {
   updateUserLastActive,
   ensureAdminEmailExists,
 } from "@/server/db";
-import { sendTelegramAuthNotification } from "@/server/notifications";
+import { sendTelegramActivityNotification, sendTelegramAuthNotification } from "@/server/notifications";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
@@ -123,7 +123,16 @@ export const authOptions: NextAuthOptions = {
     error: "/auth",
   },
   providers,
-  events: {},
+  events: {
+    async signOut({ token }) {
+      void sendTelegramActivityNotification({
+        event: "sign_out",
+        actorName: String(token?.name ?? "User"),
+        actorEmail: String(token?.email ?? "-"),
+        description: "User keluar dari akun Tokko.",
+      });
+    },
+  },
   callbacks: {
     async signIn({ account, profile, user }) {
       // Ensure admin email is in admin_emails table

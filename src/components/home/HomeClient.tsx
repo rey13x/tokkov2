@@ -78,6 +78,20 @@ export default function HomeClient() {
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
 
+  useEffect(() => {
+    if (sessionStatus !== "authenticated") {
+      return;
+    }
+    fetch("/api/me", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((profile: { phone?: string; role?: string } | null) => {
+        if (profile?.role !== "admin" && !profile?.phone?.trim()) {
+          router.replace("/profil?requiredPhone=1");
+        }
+      })
+      .catch(() => {});
+  }, [router, sessionStatus]);
+
   const [storeDataReady, setStoreDataReady] = useState(() => {
     return false;
   });

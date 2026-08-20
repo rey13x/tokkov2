@@ -7,7 +7,11 @@ import { sendTelegramActivityNotification } from "@/server/notifications";
 type Params = Promise<{ id: string }>;
 
 export async function POST(request: Request, context: { params: Params }) {
-  void request;
+  const body = (await request.json().catch(() => ({}))) as { reason?: string };
+  const reason = String(body.reason ?? "").trim();
+  if (reason.length < 5) {
+    return NextResponse.json({ message: "Alasan pembatalan wajib diisi minimal 5 karakter." }, { status: 400 });
+  }
   const session = await getServerAuthSession();
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -58,6 +62,7 @@ export async function POST(request: Request, context: { params: Params }) {
         `Order ID: ${id}`,
         `Total: Rp ${order.total}`,
         `Status sebelumnya: ${order.status}`,
+        `Alasan: ${reason}`,
       ],
     });
 

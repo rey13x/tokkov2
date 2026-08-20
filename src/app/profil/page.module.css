@@ -1,3 +1,9 @@
+.phoneHint {
+  margin: -8px 0 4px;
+  color: #d92d20;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
 .page {
   min-height: 100vh;
   width: 100%;

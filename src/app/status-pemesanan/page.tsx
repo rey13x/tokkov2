@@ -156,8 +156,10 @@ export default function StatusPemesananPage() {
   const [isClearingHistory, setIsClearingHistory] = useState(false);
   const [isPreparingPaymentOrderId, setIsPreparingPaymentOrderId] = useState<string | null>(null);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
-  const [adminNotePopup, setAdminNotePopup] = useState<{ orderId: string; message: string } | null>(null);
-  const knownAdminNotesRef = useRef<Record<string, string>>({});
+  const [paymentCheckCooldown, setPaymentCheckCooldown] = useState(30);
+  const [paymentSuccessPopup, setPaymentSuccessPopup] = useState<{ amount: number } | null>(null);
+  const knownPaymentStatusesRef = useRef<Record<string, string>>({});
+  const [isClosingPayment, setIsClosingPayment] = useState(false);
   const [paymentSecondsLeft, setPaymentSecondsLeft] = useState<number | null>(null);
   const [statusTutorialStage, setStatusTutorialStage] = useState<OnboardingStage | null>(null);
   const summaryCardRef = useRef<HTMLElement | null>(null);
@@ -195,19 +197,13 @@ export default function StatusPemesananPage() {
     const data = (await response.json()) as { orders?: OrderSummary[] };
     const nextOrders = data.orders ?? [];
     nextOrders.forEach((order) => {
-      const note = order.adminNote?.trim() ?? "";
-      const previousNote = knownAdminNotesRef.current[order.id];
-      if (note && previousNote !== undefined && note !== previousNote) {
-        setAdminNotePopup({ orderId: order.id, message: note });
-        try {
-          const audio = new Audio("/assets/buy.mp3");
-          audio.volume = 0.25;
-          void audio.play().catch(() => {});
-        } catch {
-          // Audio can be blocked until the user interacts with the page.
-        }
+      const previousStatus = knownPaymentStatusesRef.current[order.id];
+      if (previousStatus && previousStatus !== "paid" && order.status === "paid") {
+        window.setTimeout(() => {
+          setPaymentSuccessPopup({ amount: Number(order.totalAmount || order.total || 0) });
+        }, 4000);
       }
-      knownAdminNotesRef.current[order.id] = note;
+      knownPaymentStatusesRef.current[order.id] = order.status;
     });
     setOrders(nextOrders);
   }, [status]);
@@ -610,13 +606,6 @@ export default function StatusPemesananPage() {
     }
   };
 
-  const closeAdminNotePopup = () => {
-    if (adminNotePopup) {
-      knownAdminNotesRef.current[adminNotePopup.orderId] = adminNotePopup.message;
-    }
-    setAdminNotePopup(null);
-  };
-
   const onCancelJobApplication = async (applicationId: string) => {
     if (!window.confirm("Yakin ingin membatalkan lamaran pekerjaan ini?")) {
       return;
@@ -656,9 +645,11 @@ export default function StatusPemesananPage() {
     const order = displayOrders.find((item) => item.id === orderId);
     if (!order) return;
 
-
     if (order.qrCode || order.qrImage) {
+      setPaymentCheckCooldown(30);
+      if (order.status !== "paid" && order.status !== "sent") {
       setActivePaymentOrderId(orderId);
+      }
       return;
     }
 
@@ -701,7 +692,11 @@ export default function StatusPemesananPage() {
   };
 
   const closePaymentPopup = () => {
-    setActivePaymentOrderId(null);
+    setIsClosingPayment(true);
+    window.setTimeout(() => {
+      setActivePaymentOrderId(null);
+      setIsClosingPayment(false);
+    }, 520);
     const onboardingState = getOnboardingState();
     if (onboardingState.active && onboardingState.stage === ONBOARDING_STAGE.STATUS_CLOSE_PAYMENT) {
       advanceOnboarding(ONBOARDING_STAGE.STATUS_OPEN_RECEIPT);
@@ -710,7 +705,7 @@ export default function StatusPemesananPage() {
   };
 
   const onCheckPayment = async () => {
-    if (!activePaymentOrder?.depositId) {
+    if (!activePaymentOrder?.depositId || paymentCheckCooldown > 0) {
       return;
     }
 
@@ -736,7 +731,6 @@ export default function StatusPemesananPage() {
         setOrders((current) => current.map((item) => item.id === result.order?.id ? result.order : item));
       }
       if (result.status === "success") {
-        setSuccess("Pembayaran sudah dikonfirmasi. Status pesanan menjadi Terkirim dan struk tersedia.");
         setActivePaymentOrderId(null);
         await loadOrders();
       } else if (result.status === "expired") {
@@ -748,8 +742,19 @@ export default function StatusPemesananPage() {
       setError("Cek transaksi gagal. Coba lagi sebentar.");
     } finally {
       setIsCheckingPayment(false);
+      setPaymentCheckCooldown(60);
     }
   };
+
+  useEffect(() => {
+    if (paymentCheckCooldown <= 0) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setPaymentCheckCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [paymentCheckCooldown]);
 
   const onTutorialReceiptBackToCart = () => {
     setShowTutorialReceiptModal(false);
@@ -933,6 +938,11 @@ export default function StatusPemesananPage() {
   };
 
   const onCancelTransaction = async (order: OrderSummary) => {
+    const reason = (cancelReasonDrafts[order.id] ?? "").trim();
+    if (reason.length < 5) {
+      setError("Tulis alasan pembatalan minimal 5 karakter terlebih dahulu.");
+      return;
+    }
     if (!window.confirm("Yakin ingin membatalkan transaksi ini?\n\nOrder akan tetap tersimpan dengan status Dibatalkan.")) {
       return;
     }
@@ -946,6 +956,7 @@ export default function StatusPemesananPage() {
       const response = await fetch(`/api/orders/${order.id}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
       });
 
       if (!response.ok) {
@@ -1142,7 +1153,7 @@ export default function StatusPemesananPage() {
       return [
         {
           target: onboardingTargetSelectors.receiptBackToCart,
-          content: "Di halaman struk, klik tombol Kembali ke Troli.",
+          content: "Di halaman struk, klik tombol Balik ke Troli.",
           placement: "top",
           disableBeacon: true,
           hideFooter: true,
@@ -1267,7 +1278,7 @@ export default function StatusPemesananPage() {
           </div>
         </div>
         <Link href="/troli" className={styles.backLink}>
-          Kembali ke Troli
+          Balik ke Troli
         </Link>
       </header>
 
@@ -1342,13 +1353,13 @@ export default function StatusPemesananPage() {
           </div>
         </div>
       , document.body) : null}
-      {adminNotePopup && typeof document !== "undefined" ? createPortal(
-        <div className={styles.adminNoteOverlay} role="alertdialog" aria-modal="true" aria-labelledby="admin-note-title">
-          <section className={styles.adminNoteCard}>
-            <div className={styles.adminNoteCheck} aria-hidden="true">✓</div>
-            <h2 id="admin-note-title">Pesan dari Admin</h2>
-            <p>{adminNotePopup.message}</p>
-            <button type="button" className={styles.adminNoteOkayButton} onClick={closeAdminNotePopup}>OKE!</button>
+      {paymentSuccessPopup && typeof document !== "undefined" ? createPortal(
+        <div className={styles.paymentSuccessOverlay} role="alertdialog" aria-modal="true">
+          <section className={styles.paymentSuccessCard}>
+            <div className={styles.paymentSuccessCheck} aria-hidden="true">✓</div>
+            <h2>Pembayaran Berhasil</h2>
+            <p>Pembayaran sudah <strong>Rp {paymentSuccessPopup.amount.toLocaleString("id-ID")}</strong> kamu dikonfirmasi!</p>
+            <button type="button" className={styles.popupCloseButton} onClick={() => setPaymentSuccessPopup(null)}>OKE!</button>
           </section>
         </div>,
         document.body,
@@ -1554,7 +1565,7 @@ export default function StatusPemesananPage() {
       {activePaymentOrder && typeof document !== "undefined"
         ? createPortal(
         <div className={styles.popupOverlay} onClick={closePaymentPopup}>
-          <section className={styles.popupCard} onClick={(event) => event.stopPropagation()}>
+          <section className={`${styles.popupCard} ${isClosingPayment ? styles.popupCardExiting : styles.popupCardEntering}`} onClick={(event) => event.stopPropagation()}>
             <h2>Pembayaran QRISS</h2>
             <p className={styles.popupMeta}>
               <strong>Tunggu konfirmasi pembayaran kamu dari admin ya.</strong>
@@ -1596,10 +1607,14 @@ export default function StatusPemesananPage() {
               type="button"
               className={`${styles.popupCloseButton} ${isCheckingPayment ? styles.popupButtonGlitch : ""}`}
               onClick={onCheckPayment}
-              disabled={isCheckingPayment}
+              disabled={isCheckingPayment || paymentCheckCooldown > 0}
               id="status-payment-close-button"
             >
-              {isCheckingPayment ? "Mengecek..." : "Cek Transaksi"}
+              {isCheckingPayment
+                ? "Mengecek..."
+                : paymentCheckCooldown > 0
+                  ? `Cek Transaksi (${paymentCheckCooldown}s)`
+                  : "Cek Transaksi"}
             </button>
             <button
               type="button"
@@ -1630,7 +1645,7 @@ export default function StatusPemesananPage() {
               id="tutorial-receipt-back-to-cart"
               onClick={onTutorialReceiptBackToCart}
             >
-              Kembali ke Troli
+              Balik ke Troli
             </button>
           </section>
         </div>

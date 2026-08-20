@@ -19,7 +19,7 @@ interface ProfilePhoto {
 export default function ProfilePage() {
   const router = useRouter();
   const { data: session, status, update } = useSession();
-  const canUseEmailOtp = process.env.NEXT_PUBLIC_EMAIL_OTP_ENABLED === "true";
+  const canUseEmailOtp = false;
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -279,6 +279,10 @@ export default function ProfilePage() {
     await signOut({ callbackUrl: "/" });
   };
 
+  const onPasswordHelp = () => {
+    void fetch("/api/auth/password-help", { method: "POST" }).catch(() => {});
+  };
+
   const onSelectProfileImage = (imageUrl: string) => {
     setSelectedProfileImage(imageUrl);
   };
@@ -357,7 +361,7 @@ export default function ProfilePage() {
       <header className={styles.header}>
         <h1>Profil</h1>
         <Link href="/" className={styles.backLink}>
-          Kembali
+          Balik ke Beranda
         </Link>
       </header>
 
@@ -422,14 +426,16 @@ export default function ProfilePage() {
             </label>
 
             <label className={styles.field}>
-              No Telepon
+              No Telepon <span style={{ color: "#d92d20" }}>*</span>
               <input
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 type="tel"
                 placeholder="08xxxxxxxxxx"
+                required
               />
             </label>
+            <p className={styles.phoneHint}>*Pastikan menggunakan Nomor Whatsapp aktif ya!</p>
 
             {canUseEmailOtp ? (
               <>
@@ -477,9 +483,7 @@ export default function ProfilePage() {
                   </div>
                 ) : null}
               </>
-            ) : (
-              <p className={styles.disabledInfo}>Fitur ganti password via email OTP dimatikan.</p>
-            )}
+            ) : null}
 
             {error ? (
               <div
@@ -544,7 +548,12 @@ export default function ProfilePage() {
               {isSaving ? "Menyimpan..." : "Perbarui"}
             </button>
             <div className={styles.accountMeta}>
-              <p>Login sebagai: {session?.user?.email ?? "-"}</p>
+              <p>
+                Ganti password? Konfirmasi ke{" "}
+                <a href="https://wa.me/6281319865384?text=Halo%20min%20mau%20ganti%20password.." target="_blank" rel="noreferrer" onClick={onPasswordHelp}>
+                  admin
+                </a>
+              </p>
             </div>
           </form>
         </section>

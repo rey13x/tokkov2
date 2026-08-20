@@ -413,7 +413,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       ) : null}
       <div className={styles.backRow} data-detail="intro">
         <Link href="/" className={styles.backLink}>
-          Kembali ke katalog
+          Balik ke katalog
         </Link>
         <Link href="/troli" className={styles.cartLink}>
           Buka troli

@@ -116,7 +116,7 @@ export default function ResetPasswordPage() {
               onClick={() => router.replace("/auth")}
               className={styles.button}
             >
-              Kembali ke Login
+              Balik ke Masuk
             </button>
           </div>
         )}
@@ -165,7 +165,7 @@ export default function ResetPasswordPage() {
             </form>
 
             <p className={styles.help}>
-              <a href="/auth">Kembali ke Login</a>
+              <a href="/auth">Balik ke Masuk</a>
             </p>
           </div>
         )}

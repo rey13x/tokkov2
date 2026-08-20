@@ -10,6 +10,7 @@ import {
   updateTestimonialCommentRating,
   updateTestimonialCommentVerified,
 } from "@/server/store-data";
+import { sendTelegramActivityNotification } from "@/server/notifications";
 
 const addCommentSchema = z.object({
   text: z.string().min(1).max(500),
@@ -86,6 +87,14 @@ export async function POST(request: Request, context: { params: Params }) {
         { status: 500 },
       );
     }
+
+    void sendTelegramActivityNotification({
+      event: "testimonial_comment",
+      actorName: userName,
+      actorEmail: session.user.email ?? "-",
+      description: `Komentar baru pada testimoni ${id}.`,
+      metadata: [`Komentar: ${validated.text}`],
+    });
 
     return NextResponse.json({
       message: "Komentar berhasil ditambahkan.",

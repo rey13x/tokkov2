@@ -37,7 +37,7 @@ export default function PrivacyPolicyError({
           >
             Coba Lagi
           </button>
-          <Link href="/">Kembali ke Beranda</Link>
+          <Link href="/">Balik ke Beranda</Link>
         </p>
       </section>
     </main>

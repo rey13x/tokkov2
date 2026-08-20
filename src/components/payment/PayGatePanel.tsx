@@ -647,7 +647,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
               )}
             </button>
           </form>
-          <button type="button" className={styles.authBackButton} onClick={goHome}>Kembali ke Beranda</button>
+          <button type="button" className={styles.authBackButton} onClick={goHome}>Balik ke Beranda</button>
         </motion.section>
       ) : (
         <>
@@ -801,7 +801,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
                 </p>
                 <div className={styles.logoutActions}>
                   <button type="button" className={styles.secondaryButton} onClick={goHome}>
-                    Kembali ke Beranda
+                    Balik ke Beranda
                   </button>
                   <button type="button" className={styles.primaryButton} onClick={() => void handleLogout()}>
                     Ya, keluar
