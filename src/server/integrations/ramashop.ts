@@ -127,11 +127,11 @@ export async function provisionRamashopAccount(opts: {
 
 async function fillFirst(page: import("playwright").Page, selectors: string[], value: string) {
   for (const selector of selectors) {
-    const input = page.locator(selector).filter({ visible: true }).first();
+    const input = page.locator(`${selector}:visible`).first();
     if ((await input.count().catch(() => 0)) === 0) continue;
-    await input.fill(value, { timeout: 1500 }).catch(() => undefined);
+    await input.fill(value, { timeout: 3000 }).catch(() => undefined);
     const currentValue = await input.inputValue({ timeout: 500 }).catch(() => "");
-    if (currentValue === value) return true;
+    if (currentValue.trim() === value.trim()) return true;
   }
   return false;
 }
@@ -144,32 +144,35 @@ async function submitRamashopRegister(page: import("playwright").Page, opts: {
   await page.locator("#register-form").waitFor({ state: "visible", timeout: 2500 }).catch(async () => {
     await page.locator(".tabs button", { hasText: "Register" }).click({ timeout: 2500 });
   });
-  await fillFirst(page, [
+  const usernameFilled = await fillFirst(page, [
     "#reg-username",
     'input[placeholder="Username"]',
     'input[placeholder*="username" i]',
     'input[name="username"]',
     'input[type="text"]',
   ], opts.username);
-  await fillFirst(page, [
+  const emailFilled = await fillFirst(page, [
     "#reg-email",
     'input[placeholder="Email"]',
     'input[placeholder*="email" i]',
     'input[name="email"]',
     'input[type="email"]',
   ], opts.email);
-  await fillFirst(page, [
+  const passwordFilled = await fillFirst(page, [
     "#reg-password",
     'input[placeholder="Password"]',
     'input[placeholder*="password" i]',
     'input[name="password"]',
     'input[type="password"]',
   ], opts.password);
+  if (!usernameFilled || !emailFilled || !passwordFilled) {
+    throw new Error("Form registrasi Ramashop belum siap. Silakan coba lagi beberapa saat.");
+  }
   const registerResponse = page.waitForResponse(
     (response) => response.url().includes("/api/auth/register") && response.request().method() === "POST",
     { timeout: 10000 },
   );
-  await page.locator("#register-form button").click({ timeout: 2500 });
+  await page.locator('#register-form button[type="submit"]:visible, #register-form button:visible').first().click({ timeout: 3000 });
   const response = await registerResponse;
   const payload = await response.json().catch(() => null);
   if (!response.ok() || payload?.success === false) {
@@ -186,7 +189,7 @@ async function submitRamashopLogin(page: import("playwright").Page, opts: {
   await page.locator("#login-form").waitFor({ state: "visible", timeout: 2500 }).catch(async () => {
     await page.locator(".tabs button", { hasText: "Login" }).click({ timeout: 2500 });
   });
-  await fillFirst(page, [
+  const identifierFilled = await fillFirst(page, [
     "#login-email",
     'input[placeholder="Username"]',
     'input[placeholder="Email"]',
@@ -197,18 +200,21 @@ async function submitRamashopLogin(page: import("playwright").Page, opts: {
     'input[type="email"]',
     'input[type="text"]',
   ], opts.email || opts.username);
-  await fillFirst(page, [
+  const passwordFilled = await fillFirst(page, [
     "#login-password",
     'input[placeholder="Password"]',
     'input[placeholder*="password" i]',
     'input[name="password"]',
     'input[type="password"]',
   ], opts.password);
+  if (!identifierFilled || !passwordFilled) {
+    throw new Error("Form login Ramashop belum siap. Silakan coba lagi beberapa saat.");
+  }
   const loginResponse = page.waitForResponse(
     (response) => response.url().includes("/api/auth/login") && response.request().method() === "POST",
     { timeout: 10000 },
   );
-  await page.locator("#login-form button").click({ timeout: 2500 });
+  await page.locator('#login-form button[type="submit"]:visible, #login-form button:visible').first().click({ timeout: 3000 });
   const response = await loginResponse;
   const payload = await response.json().catch(() => null);
   if (!response.ok() || payload?.success === false) {
