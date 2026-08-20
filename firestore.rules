@@ -191,6 +191,41 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Hero backgrounds configured from the admin maintenance panel.
+    match /heroBackgrounds/{configId} {
+      allow read: if true;
+      allow create, update: if isAdmin() &&
+        request.resource.data.keys().hasAll(['backgrounds', 'updatedAt']);
+      allow delete: if isAdmin();
+    }
+
+    match /storyReels/{storyReelId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /testimonialComments/{commentId} {
+      allow read: if true;
+      allow create: if signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['testimonialId', 'userId', 'text', 'createdAt']);
+      allow update, delete: if isAdmin() ||
+        (signedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    match /testimonialComments/{commentId}/reactions/{reactionId} {
+      allow read: if true;
+      allow create, update: if signedIn() &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /profilePhotos/{photoId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     // Services configuration (for nested menu structure)
     match /servicesConfig/{serviceId} {
       allow read: if true;

@@ -1,7 +1,11 @@
 import { createClient } from "@libsql/client";
 
-const TURSO_URL = "libsql://tokkov2-slinku.aws-us-east-1.turso.io";
-const TURSO_AUTH_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzIyNjAwNjcsImlkIjoiMDE5Y2EyZWQtYzEwMS03NDhlLTgyYjUtOWRjNzI4ZjIxYzcxIiwicmlkIjoiYmFmN2QwNGQtNmFmYy00ZTQ3LWE1OTYtYzViYWE5YTlhNDM4In0.R5EcdaiYjsDGXVNbBZ4EMwkXff6fCZxcdJTR-9nyCIw_QEUTN4WuJ5pRttMtlgbBOqQsKY8PkU6aFWTBR7S2AA";
+const TURSO_URL = process.env.TURSO_URL;
+const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN;
+
+if (!TURSO_URL || !TURSO_AUTH_TOKEN) {
+  throw new Error("TURSO_URL dan TURSO_AUTH_TOKEN wajib diisi di environment.");
+}
 
 const remoteDb = createClient({
   url: TURSO_URL,
@@ -22,13 +26,8 @@ async function syncDatabase() {
     const remoteInfos = await remoteDb.execute("SELECT COUNT(*) as count FROM informations");
     console.log("Remote: ", remoteProducts.rows, remoteInfos.rows);
 
-    // Clear old data
-    console.log("\n🗑️  Clearing old data from remote database...");
-    await remoteDb.execute("DELETE FROM products");
-    await remoteDb.execute("DELETE FROM informations");
-    await remoteDb.execute("DELETE FROM testimonials");
-    await remoteDb.execute("DELETE FROM marquees");
-    console.log("✅ Old data cleared!");
+    // Never clear remote data during a migration. Existing rows are preserved.
+    console.log("\n🔒 Non-destructive mode: existing remote rows will be preserved or updated by ID.");
 
     // Fetch data from local database
     console.log("\n📥 Fetching data from local database...");
@@ -49,7 +48,7 @@ async function syncDatabase() {
         const values = Object.values(product);
         const placeholders = values.map(() => "?").join(",");
         const columns = Object.keys(product).join(",");
-        const query = `INSERT INTO products (${columns}) VALUES (${placeholders})`;
+        const query = `INSERT OR REPLACE INTO products (${columns}) VALUES (${placeholders})`;
         await remoteDb.execute({
           sql: query,
           args: values,
@@ -65,7 +64,7 @@ async function syncDatabase() {
         const values = Object.values(info);
         const placeholders = values.map(() => "?").join(",");
         const columns = Object.keys(info).join(",");
-        const query = `INSERT INTO informations (${columns}) VALUES (${placeholders})`;
+        const query = `INSERT OR REPLACE INTO informations (${columns}) VALUES (${placeholders})`;
         await remoteDb.execute({
           sql: query,
           args: values,
@@ -81,7 +80,7 @@ async function syncDatabase() {
         const values = Object.values(testimonial);
         const placeholders = values.map(() => "?").join(",");
         const columns = Object.keys(testimonial).join(",");
-        const query = `INSERT INTO testimonials (${columns}) VALUES (${placeholders})`;
+        const query = `INSERT OR REPLACE INTO testimonials (${columns}) VALUES (${placeholders})`;
         await remoteDb.execute({
           sql: query,
           args: values,
@@ -97,7 +96,7 @@ async function syncDatabase() {
         const values = Object.values(marquee);
         const placeholders = values.map(() => "?").join(",");
         const columns = Object.keys(marquee).join(",");
-        const query = `INSERT INTO marquees (${columns}) VALUES (${placeholders})`;
+        const query = `INSERT OR REPLACE INTO marquees (${columns}) VALUES (${placeholders})`;
         await remoteDb.execute({
           sql: query,
           args: values,

@@ -4,6 +4,17 @@ Dokumen ini adalah inventaris Firebase berdasarkan kode repository saat ini. Jan
 
 ## 1. Ringkasan Arsitektur Saat Ini
 
+Target project baru: `tokkov2-a4603`.
+
+Public web config target:
+
+- Auth domain: `tokkov2-a4603.firebaseapp.com`
+- Messaging sender ID: `916208995900`
+- App ID: `1:916208995900:web:4cea547611e7dc8b273d39`
+- Storage bucket: `tokkov2-a4603.firebasestorage.app`
+
+Config public sudah diperbarui di local environment dan `.env.vercel.example`. Credential Admin lama dari `tokko-ramadhan` sengaja tidak dipasangkan ke project baru karena private key dan project harus berasal dari service account yang sama.
+
 Tokko tidak memakai Firebase sebagai database transaksi utama.
 
 - **Transaksi/order/user utama:** Turso/libSQL melalui `src/server/db/index.ts`.
@@ -261,9 +272,45 @@ Untuk Realtime Database rules hanya deploy jika service benar-benar akan dipakai
 firebase deploy --only database
 ```
 
-Storage rules belum terdaftar di `firebase.json`; tambahkan `storage.rules` setelah rules Storage dibuat dan direview.
+Storage rules sekarang terdaftar di `storage.rules` dan `firebase.json`.
 
-## 8. Checklist Migrasi Terbaru
+Deploy rules baru setelah project target dan service account sudah benar:
+
+```bash
+firebase use tokkov2-a4603
+firebase deploy --only firestore:rules,firestore:indexes,storage
+```
+
+## 8. Migrasi Non-Destruktif
+
+Script migrasi tidak menghapus data destination. Default-nya dry run.
+
+### Salin semua Firestore project lama ke project baru
+
+Isi credential terpisah di environment, jangan di file tracked:
+
+```bash
+export SOURCE_FIREBASE_SERVICE_ACCOUNT_FILE=/secure/old-tokko-ramadhan.json
+export DEST_FIREBASE_SERVICE_ACCOUNT_FILE=/secure/new-tokkov2-a4603.json
+MIGRATION_MODE=firestore npm run migrate:firebase
+MIGRATION_WRITE=true MIGRATION_MODE=firestore npm run migrate:firebase
+```
+
+### Salin seluruh tabel Turso ke collection Firestore baru
+
+Mode ini mempertahankan nama tabel sebagai nama collection, ID row tetap dipakai jika ada, dan row yang sama di-merge:
+
+```bash
+export TURSO_URL="..."
+export TURSO_AUTH_TOKEN="..."
+export DEST_FIREBASE_SERVICE_ACCOUNT_FILE=/secure/new-tokkov2-a4603.json
+MIGRATION_MODE=turso npm run migrate:firebase
+MIGRATION_WRITE=true MIGRATION_MODE=turso npm run migrate:firebase
+```
+
+Script hanya menyalin data. Aplikasi tetap membaca Turso sampai adapter Firestore diuji dan feature flag cutover dibuat. Ini sengaja agar produk, user, order, pembayaran, komentar, Book Spirit, PayGate, dan history tidak hilang ketika migrasi gagal.
+
+## 9. Checklist Migrasi Terbaru
 
 1. Backup/export Turso dan Firestore.
 2. Pastikan project ID, bucket, Messaging sender ID, dan VAPID key berada di project yang sama.
@@ -278,7 +325,7 @@ Storage rules belum terdaftar di `firebase.json`; tambahkan `storage.rules` sete
 11. Uji rollback dengan feature flag atau dual-write sementara.
 12. Setelah data dan monitoring stabil, baru matikan sumber data lama.
 
-## 9. Pemeriksaan Konfigurasi Hero
+## 10. Pemeriksaan Konfigurasi Hero
 
 Hero admin menyimpan daftar pada Firestore `heroBackgrounds/config` melalui:
 
