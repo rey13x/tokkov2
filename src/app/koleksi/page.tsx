@@ -8,14 +8,12 @@ import { FiChevronRight } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
 import { addToCart } from "@/lib/cart";
+import { categoryToSlug } from "@/lib/category";
 import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
 import { fetchStoreData } from "@/lib/store-client";
+import WaitLoading from "@/components/ui/WaitLoading";
 import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
-
-export function categoryToSlug(category: string) {
-  return category.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
 
 type KoleksiPageProps = {
   category?: string;
@@ -30,6 +28,7 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
   const initialCategory = category ?? "Semua";
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [query, setQuery] = useState("");
   const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
   const [cartNotice, setCartNotice] = useState("");
@@ -37,7 +36,8 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
   useEffect(() => {
     fetchStoreData()
       .then((data) => setProducts(data.products))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setIsLoadingProducts(false));
   }, []);
 
   useEffect(() => {
@@ -175,7 +175,7 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
 
       {cartNotice ? <p className={styles.cartNotice}>{cartNotice}</p> : null}
 
-      {filtered.length > 0 ? (
+      {isLoadingProducts ? <WaitLoading centered /> : filtered.length > 0 ? (
         <section className={styles.productGrid}>
           {filtered.map((product) => (
             <article key={product.id} className={styles.productShell}>

@@ -68,7 +68,7 @@ const defaultProductForm = {
   price: 0,
   imageUrl: "/assets/logo.png",
   mediaGallery: [] as Array<{ url: string; type?: "image" | "video" | "gif" }>,
-  productType: "jual_beli" as "jual_beli" | "pekerjaan" | "lms",
+  productType: "jual_beli" as "jual_beli" | "pekerjaan" | "donation" | "lms",
   jobApplicationLink: "",
   buyNowLink: "",
   maxApplicants: 0,
@@ -2613,7 +2613,7 @@ function AdminManagementSection() {
             Keluar Admin
           </button>
           <Link href="/" className={styles.actionLink}>
-            Ke Beranda
+            Kembali ke Beranda
           </Link>
         </div>
       </header>
@@ -3341,6 +3341,24 @@ function AdminManagementSection() {
                   }
                 />
                 Pekerjaan
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="productType"
+                  value="donation"
+                  checked={productForm.productType === "donation"}
+                  onChange={() =>
+                    setProductForm((current) => ({
+                      ...current,
+                      productType: "donation",
+                      jobApplicationLink: "",
+                      buyNowLink: "",
+                      maxApplicants: 0,
+                    }))
+                  }
+                />
+                Donasi
               </label>
             </div>
             {productForm.productType === "pekerjaan" ? (

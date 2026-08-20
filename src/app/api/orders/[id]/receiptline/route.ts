@@ -33,9 +33,9 @@ function escapeReceiptText(value: string) {
 
 function statusLabel(status: string) {
   if (status === "paid") return "Sudah Bayar";
-  if (["done", "delivered", "sent"].includes(status)) return "Dikirim";
-  if (["error", "rejected", "declined", "failed"].includes(status)) return "Ditolak";
-  return "Proses";
+  if (["done", "delivered", "sent"].includes(status)) return "Sudah Bayar";
+  if (["error", "rejected", "declined", "failed"].includes(status)) return "Belum Bayar";
+  return "Sedang diproses";
 }
 
 function buildReceiptDocument(input: {
@@ -52,39 +52,37 @@ function buildReceiptDocument(input: {
   total: number;
 }) {
   const itemLines = input.items.flatMap((item) => [
-    `${escapeReceiptText(item.productName)} | ${item.quantity} | ${formatRupiah(item.unitPrice * item.quantity)}`,
-    `  ${item.quantity} x ${formatRupiah(item.unitPrice)}`,
+    escapeReceiptText(item.productName),
+    `  ${item.quantity} x ${formatRupiah(item.unitPrice)} = ${formatRupiah(item.unitPrice * item.quantity)}`,
   ]);
 
   return [
     "{a:center}",
-    "^^^TOKKO^^^",
     "TOKKO MARKETPLACE",
     "Struk Pembayaran",
     "{a:left}",
-    "------------------------------------------",
+    "--------------------------------",
     `Order ID : ${escapeReceiptText(input.orderId)}`,
     `Tanggal  : ${escapeReceiptText(formatDate(input.createdAt))}`,
-    `Pelanggan: ${escapeReceiptText(input.userName)}`,
+    `Akun     : ${escapeReceiptText(input.userName)}`,
     `Email    : ${escapeReceiptText(input.userEmail)}`,
     `No. HP   : ${escapeReceiptText(input.userPhone || "-")}`,
     `Status   : ${statusLabel(input.status)}`,
-    "------------------------------------------",
-    "{w: 24, 6, 12; b: line}",
-    "Produk | Qty | Jumlah",
+    "--------------------------------",
+    "Produk",
     ...itemLines,
-    "{w: 24, 6, 12; b: line}",
-    `Subtotal |  | ${formatRupiah(input.subtotal)}`,
-    `Pajak    |  | ${formatRupiah(TAX_AMOUNT)}`,
-    `^^^TOTAL |  | ^^^${formatRupiah(input.total)}`,
-    "------------------------------------------",
-    "{a:center}",
+    `Subtotal : ${formatRupiah(input.subtotal)}`,
+    `Pajak    : ${formatRupiah(TAX_AMOUNT)}`,
+    `TOTAL    : ${formatRupiah(input.total)}`,
+    "--------------------------------",
+    "{a:left}",
     "PEMBAYARAN BERHASIL",
     input.depositId ? `Ref: ${escapeReceiptText(input.depositId)}` : "",
     input.paidAt ? `Dibayar: ${escapeReceiptText(formatDate(input.paidAt))}` : "",
-    `{code:${escapeReceiptText(input.orderId)};option:code128,hri}`,
-    "Terima kasih sudah berbelanja di Tokko.",
-    "Simpan struk ini untuk garansi produk.",
+    "{code:https://tokkov2.vercel.app;option:qrcode}",
+    "Founder",
+    "Raihaan Bagastiam Pratama",
+    "Terima kasih sudah berbelanja di Tokko Marketplace.",
   ].filter(Boolean).join("\n");
 }
 
@@ -139,7 +137,7 @@ export async function GET(_request: Request, context: { params: Params }) {
       cutting: false,
       spacing: true,
     });
-    const html = `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Struk ${escapeReceiptText(order.id)}</title><style>body{margin:0;background:#eef1f5;display:flex;justify-content:center;padding:24px 12px;font-family:system-ui,sans-serif}.receipt{width:min(504px,100%);background:#fff;padding:18px 12px;box-shadow:0 12px 36px #10131a22}svg{display:block;width:100%;height:auto}@media print{body{background:#fff;padding:0}.receipt{box-shadow:none;width:100%}}</style></head><body><main class="receipt">${svg}</main><script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250))</script></body></html>`;
+    const html = `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Struk ${escapeReceiptText(order.id)}</title><style>body{margin:0;background:#eef1f5;display:flex;justify-content:center;padding:16px 8px;font-family:system-ui,sans-serif}.receipt{width:min(360px,100%);background:#fff;padding:12px 10px;box-shadow:0 8px 24px #10131a22}.brand{text-align:center;margin-bottom:4px}.brand img{width:58px;height:58px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 6px}.brand h1{font-size:16px;line-height:1.1;margin:0;font-weight:800}.brand p{font-size:11px;margin:3px 0 0;color:#5b6472}svg{display:block;width:100%;height:auto}.founder{margin-top:8px;font-weight:700}.founder small{display:block;font-weight:400;color:#5b6472}.founder img{display:block;width:110px;height:auto;margin-top:4px}@media print{body{background:#fff;padding:0}.receipt{box-shadow:none;width:100%}}</style></head><body><main class="receipt"><header class="brand"><img src="/assets/maintenancelogo.jpg" alt="Tokko Marketplace"><h1>TOKKO MARKETPLACE</h1><p>Struk Pembayaran</p></header>${svg}<div class="founder">Founder<small>Raihaan Bagastiam Pratama</small><img src="/assets/TTD%20Dev.jpeg" alt="Tanda tangan Founder"></div></main><script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250))</script></body></html>`;
 
     return new NextResponse(html, {
       headers: {

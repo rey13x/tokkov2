@@ -4,7 +4,9 @@ import {
   generatePaymentNotes,
   getOrderByTransactionId,
   updateOrderStatus,
+  isDonationOrder,
 } from "@/server/payment";
+import { recordDonationTotals } from "@/server/store-data";
 import { sendTelegramPaymentSuccessNotification } from "@/server/notifications";
 
 export const runtime = "nodejs";
@@ -59,10 +61,13 @@ export async function POST(request: Request) {
       paymentNotes: generatePaymentNotes({
         depositId: transactionId,
         amount,
-        method: "paygate qris",
+        method: "merchant qris",
         timestamp: payload.paidAt || new Date().toISOString(),
       }),
     });
+    if (await isDonationOrder(order)) {
+      await recordDonationTotals(order.id);
+    }
 
     await sendTelegramPaymentSuccessNotification({
       orderId: order.id,

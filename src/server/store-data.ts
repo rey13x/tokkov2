@@ -203,11 +203,12 @@ function mapProductDoc(
     imageUrl: resolveMediaUrl(String(data?.imageUrl ?? "")),
     mediaGallery,
     isActive: Boolean(data?.isActive ?? true),
-    productType: (String(data?.productType ?? "jual_beli") as "jual_beli" | "pekerjaan"),
+    productType: (String(data?.productType ?? "jual_beli") as "jual_beli" | "pekerjaan" | "donation"),
     jobApplicationLink: String(data?.jobApplicationLink ?? ""),
     maxApplicants: Number(data?.maxApplicants ?? 0) || undefined,
     applicantCount: Number(data?.applicantCount ?? 0) || undefined,
     buyNowLink: String(data?.buyNowLink ?? ""),
+    donationTotal: Number(data?.donationTotal ?? 0),
   };
 }
 
@@ -498,7 +499,9 @@ export async function createProduct(input: {
     const createdAt = now();
     const slug = await getUniqueSlug(firestore, input.name);
     const mediaUrl = resolveMediaUrl(input.imageUrl);
-    const productType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
+    const productType = input.productType === "pekerjaan" || input.productType === "donation"
+      ? input.productType
+      : "jual_beli";
     const jobLink = productType === "pekerjaan" ? (input.jobApplicationLink?.trim() ?? "") : "";
     const maxApplicants = productType === "pekerjaan" ? (input.maxApplicants ?? 0) : 0;
     const buyNowLink = productType === "jual_beli" ? (input.buyNowLink?.trim() ?? "") : "";
@@ -524,6 +527,7 @@ export async function createProduct(input: {
       maxApplicants,
       buyNowLink,
       applicantCount: 0,
+      donationTotal: 0,
       createdAt,
       updatedAt: createdAt,
     });
@@ -573,10 +577,12 @@ export async function updateProduct(
       input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
     
     // Determine the product type (use input if provided, otherwise use current)
-    const currentProductType = String(currentData?.productType ?? "jual_beli") as "jual_beli" | "pekerjaan";
+    const currentProductType = String(currentData?.productType ?? "jual_beli") as "jual_beli" | "pekerjaan" | "donation";
     const nextProductType =
       input.productType === "pekerjaan"
         ? "pekerjaan"
+        : input.productType === "donation"
+        ? "donation"
         : input.productType === "jual_beli"
         ? "jual_beli"
         : currentProductType;
@@ -604,6 +610,10 @@ export async function updateProduct(
       nextBuyNowLink = input.buyNowLink !== undefined
         ? input.buyNowLink.trim()
         : (typeof currentData.buyNowLink === "string" ? currentData.buyNowLink : "").trim();
+    } else if (effectiveProductType === "donation") {
+      nextJobLink = "";
+      nextMaxApplicants = 0;
+      nextBuyNowLink = "";
     } else {
       nextJobLink =
         input.jobApplicationLink !== undefined
@@ -1374,6 +1384,8 @@ export async function createOrder(input: {
     productDuration: string;
     quantity: number;
     unitPrice: number;
+    productType?: "jual_beli" | "pekerjaan" | "donation" | "lms";
+    donationAmount?: number;
   }>;
 }) {
   const firestore = getFirestoreOrNull();
@@ -1385,7 +1397,11 @@ export async function createOrder(input: {
     const id = crypto.randomUUID();
     const createdAt = now();
     const subtotal = input.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-    const total = subtotal + ORDER_TAX_AMOUNT;
+    const taxableSubtotal = input.items
+      .filter((item) => item.productType !== "donation")
+      .reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+    const tax = taxableSubtotal > 0 ? ORDER_TAX_AMOUNT : 0;
+    const total = subtotal + tax;
 
     await firestore.collection("orders").doc(id).set({
       userId: input.userId,
@@ -1393,6 +1409,8 @@ export async function createOrder(input: {
       userEmail: input.userEmail,
       userPhone: input.userPhone,
       total,
+      subtotal,
+      tax,
       status: "process",
       cancelRequestStatus: "none",
       cancelRequestReason: "",
@@ -1448,7 +1466,7 @@ export async function updateOrderPayment(
 
 export async function updateOrderStatus(
   id: string,
-  status: "process" | "done" | "error",
+  status: "process" | "done" | "error" | "sent" | "cancelled",
 ) {
   const firestore = getFirestoreOrNull();
   if (!firestore) {
@@ -1469,7 +1487,12 @@ export async function updateOrderStatus(
             cancelRequestStatus: "none",
             cancelConfirmedAt: null,
           }
-        : {}),
+        : status === "cancelled"
+          ? {
+              cancelRequestStatus: "confirmed",
+              cancelConfirmedAt: now(),
+            }
+          : {}),
       updatedAt: now(),
     });
     return getOrderById(id);
@@ -1569,6 +1592,8 @@ export async function listOrderItemsByOrderId(orderId: string) {
         productDuration: String(typed.productDuration ?? ""),
         quantity: Number(typed.quantity ?? 1),
         unitPrice: Number(typed.unitPrice ?? 0),
+        productType: typed.productType as StoreOrderItem["productType"],
+        donationAmount: Number(typed.donationAmount ?? 0) || undefined,
       } satisfies StoreOrderItem;
     });
   } catch (error) {
@@ -1578,6 +1603,64 @@ export async function listOrderItemsByOrderId(orderId: string) {
       error,
     );
     return listOrderItemsByOrderIdDb(orderId);
+  }
+}
+
+export async function recordDonationTotals(orderId: string) {
+  const order = await getOrderById(orderId);
+  if (!order || order.status !== "paid") {
+    return;
+  }
+
+  const items = await listOrderItemsByOrderId(orderId);
+  const itemsWithProducts = await Promise.all(
+    items.map(async (item) => ({ item, product: await getProductById(item.productId) })),
+  );
+  const donations = itemsWithProducts.filter(({ product }) => product?.productType === "donation");
+  if (donations.length === 0) {
+    return;
+  }
+
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    await ensureDatabase();
+    for (const { item } of donations) {
+      const amount = item.unitPrice * item.quantity;
+      await run("UPDATE products SET donation_total = donation_total + ? WHERE id = ?", [amount, item.productId]);
+    }
+    return;
+  }
+
+  try {
+    await firestore.runTransaction(async (transaction: any) => {
+      const orderRef = firestore.collection("orders").doc(orderId);
+      const orderSnapshot = await transaction.get(orderRef);
+      const orderData = orderSnapshot.data() as Record<string, unknown>;
+      if (orderData.donationTotalsRecordedAt) {
+        return;
+      }
+
+      const productSnapshots = await Promise.all(
+        donations
+          .filter(({ product }) => Boolean(product))
+          .map(({ item }) => transaction.get(firestore.collection("products").doc(item.productId))),
+      );
+      donations.forEach(({ item }, index) => {
+        const productSnapshot = productSnapshots[index];
+        const productData = productSnapshot.data() as Record<string, unknown> | undefined;
+        const amount = item.unitPrice * item.quantity;
+        const productRef = firestore.collection("products").doc(item.productId);
+        transaction.update(productRef, { donationTotal: Number(productData?.donationTotal ?? 0) + amount });
+      });
+      transaction.update(orderRef, { donationTotalsRecordedAt: now() });
+    });
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to record donation totals in Firestore. Falling back to database.", error);
+    for (const { item } of donations) {
+      const amount = item.unitPrice * item.quantity;
+      await run("UPDATE products SET donation_total = donation_total + ? WHERE id = ?", [amount, item.productId]);
+    }
   }
 }
 

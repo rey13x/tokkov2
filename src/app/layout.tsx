@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Sora, Space_Mono } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import PageTransition from "@/components/layout/PageTransition";
 import SiteFooter from "@/components/layout/SiteFooter";
 import GlobalScrollSmoother from "@/components/layout/GlobalScrollSmoother";
@@ -53,6 +54,7 @@ export default function RootLayout({
               <GlobalScrollSmoother />
               <MaintenanceModal />
               <AdPopup />
+              <SpeedInsights />
             </ClientProviders>
           </AuthSessionProvider>
         </ThemeProvider>

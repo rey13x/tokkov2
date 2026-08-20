@@ -34,7 +34,7 @@ const baseSchema = z.object({
       type: z.enum(["image", "video", "gif"]).optional(),
     })
   ).default([]),
-  productType: z.enum(["jual_beli", "pekerjaan"]).default("jual_beli"),
+  productType: z.enum(["jual_beli", "pekerjaan", "donation"]).default("jual_beli"),
 });
 
 const productSchema = baseSchema.and(
@@ -52,6 +52,12 @@ const productSchema = baseSchema.and(
         z.string().min(1, "Link pendaftaran wajib diisi").url("Link pendaftaran harus berupa URL yang valid"),
       ),
       maxApplicants: z.number().int().min(0, { message: "Jumlah pelamar maksimal minimal 0" }),
+    }),
+    z.object({
+      productType: z.literal("donation"),
+      jobApplicationLink: z.string().optional().or(z.literal("")),
+      maxApplicants: z.number().optional().or(z.literal(0)),
+      buyNowLink: optionalExternalUrlSchema.optional(),
     }),
   ])
 );

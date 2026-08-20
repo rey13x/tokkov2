@@ -57,20 +57,13 @@ function initializeFirebase() {
       return;
     }
 
-    // Initialize Firebase - try to get existing app, otherwise create new one
-    try {
-      _adminApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccountJson),
-        storageBucket: `${serviceAccountJson.project_id}.appspot.com`,
-      });
-    } catch (initError: any) {
-      // App already initialized, get the default app
-      if (initError.code === "app/duplicate-app") {
-        _adminApp = admin.app();
-      } else {
-        throw initError;
-      }
-    }
+    // Reuse the default app when another module initialized Firebase first.
+    _adminApp = admin.apps.length > 0
+      ? admin.app()
+      : admin.initializeApp({
+          credential: admin.credential.cert(serviceAccountJson),
+          storageBucket: `${serviceAccountJson.project_id}.appspot.com`,
+        });
 
     _firestore = admin.firestore();
     _storage = admin.storage();

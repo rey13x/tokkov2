@@ -8,6 +8,8 @@ import {
   generateOrderWhatsAppLink,
   generatePaymentNotes,
 } from "@/server/payment";
+import { recordDonationTotals } from "@/server/store-data";
+import { sendTelegramPaymentReviewNotification } from "@/server/notifications";
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { orderId, depositId } = body;
+    const { orderId, depositId, notifyTelegram } = body;
 
     if (!orderId && !depositId) {
       return NextResponse.json(
@@ -37,6 +39,10 @@ export async function POST(request: NextRequest) {
         { status: 404 },
       );
     }
+
+    if (order.userId !== session.user.id && session.user.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     
     actualDepositId = actualDepositId || order.depositId;
 
@@ -48,10 +54,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify payment status from Rama Shop API (prefer per-user key)
-    const paymentStatus = await verifyPaymentStatus(actualDepositId, order.userId);
+    const paymentStatus = await verifyPaymentStatus(
+      actualDepositId,
+      order.userId,
+    );
 
     // Update order status in database
     if (paymentStatus.status === "success") {
+      const wasAlreadyPaid = ["paid", "sent"].includes(order.status);
       // Generate payment notes
       const paymentNotes = generatePaymentNotes({
         depositId: actualDepositId,
@@ -60,15 +70,20 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
       });
 
-      await updateOrderStatus(
-        orderId,
-        "paid",
-        {
-          depositId: actualDepositId,
-          paidAmount: paymentStatus.paidAmount,
-          paymentNotes,
-        },
-      );
+      if (!wasAlreadyPaid) {
+        await updateOrderStatus(
+          orderId,
+          "paid",
+          {
+            depositId: actualDepositId,
+            paidAmount: paymentStatus.paidAmount,
+            paymentNotes,
+          },
+        );
+      }
+      if (!wasAlreadyPaid) {
+        await recordDonationTotals(orderId);
+      }
       
       // Generate WhatsApp notification link after successful payment
       let whatsappLink = "";
@@ -84,6 +99,13 @@ export async function POST(request: NextRequest) {
       paymentStatus.whatsappLink = whatsappLink;
     } else if (paymentStatus.status === "expired") {
       await updateOrderStatus(orderId, "expired");
+    } else if (notifyTelegram === true) {
+      await sendTelegramPaymentReviewNotification({
+        orderId: order.id,
+        amount: Number(order.totalAmount ?? order.total ?? 0),
+        userName: String(order.userName || order.customerName || ""),
+        userEmail: String(order.userEmail || order.customerEmail || ""),
+      });
     }
 
     // Get updated order details

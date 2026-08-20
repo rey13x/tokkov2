@@ -80,7 +80,7 @@ export function PaymentQRModal({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ orderId, depositId }),
+        body: JSON.stringify({ orderId, depositId, notifyTelegram: true }),
       });
 
       const data = await response.json();

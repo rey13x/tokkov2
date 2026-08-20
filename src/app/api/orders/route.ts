@@ -23,6 +23,7 @@ const createOrderSchema = z.object({
       z.object({
         productId: z.string().min(1),
         quantity: z.number().int().min(1).max(99),
+        donationAmount: z.number().int().min(1).optional(),
       }),
     )
     .min(1),
@@ -73,6 +74,8 @@ export async function POST(request: Request) {
       productDuration: string;
       quantity: number;
       unitPrice: number;
+      productType: "jual_beli" | "pekerjaan" | "donation" | "lms";
+      donationAmount?: number;
     }> = [];
 
     for (const item of payload.items) {
@@ -84,12 +87,23 @@ export async function POST(request: Request) {
         );
       }
 
+      if (product.productType === "donation" && (!item.donationAmount || item.donationAmount < 1)) {
+        return NextResponse.json(
+          { message: `Nominal donasi untuk ${product.name} wajib diisi.` },
+          { status: 400 },
+        );
+      }
+
       enrichedItems.push({
         productId: product.id,
         productName: product.name,
         productDuration: product.duration ?? "",
         quantity: item.quantity,
-        unitPrice: product.price,
+        unitPrice: product.productType === "donation"
+          ? Math.round(item.donationAmount ?? 0)
+          : product.price,
+        productType: product.productType,
+        donationAmount: product.productType === "donation" ? item.donationAmount : undefined,
       });
     }
 
@@ -103,7 +117,7 @@ export async function POST(request: Request) {
 
     const createdAt = new Date().toISOString();
 
-    await Promise.allSettled([
+    void Promise.allSettled([
       updateUserLastActive(session.user.id),
       appendOrderToCsv({
         orderId: created.id,

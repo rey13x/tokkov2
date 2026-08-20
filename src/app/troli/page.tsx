@@ -9,7 +9,7 @@ import FlexibleMedia from "@/components/media/FlexibleMedia";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
-import { CART_NOTICE_STORAGE_KEY, readCart, removeFromCart, updateCartQuantity } from "@/lib/cart";
+import { readCart, removeFromCart, updateCartQuantity } from "@/lib/cart";
 import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
 import {
   ONBOARDING_STAGE,
@@ -27,6 +27,7 @@ type CartLine = {
   slug: string;
   quantity: number;
   selected: boolean;
+  donationAmount?: number;
 };
 
 type JobApplication = {
@@ -57,6 +58,7 @@ function getInitialCartLines(): CartLine[] {
     slug: entry.slug,
     quantity: entry.quantity,
     selected: true,
+    donationAmount: entry.donationAmount,
   }));
 }
 
@@ -77,7 +79,6 @@ export default function CartPage() {
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [cartNotice, setCartNotice] = useState("");
   const [paymentConsent, setPaymentConsent] = useState(false);
   const [isCartTutorialRunning, setIsCartTutorialRunning] = useState(false);
   const [cartTutorialStage, setCartTutorialStage] = useState<OnboardingStage | null>(null);
@@ -93,14 +94,6 @@ export default function CartPage() {
     () => true,
     () => false,
   );
-
-  useEffect(() => {
-    const notice = window.sessionStorage.getItem(CART_NOTICE_STORAGE_KEY);
-    if (notice) {
-      setCartNotice(notice);
-      window.sessionStorage.removeItem(CART_NOTICE_STORAGE_KEY);
-    }
-  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -186,7 +179,10 @@ export default function CartPage() {
         return {
           ...line,
           product,
-          lineTotal: product.price * line.quantity,
+          lineTotal:
+            product.productType === "donation"
+              ? (line.donationAmount ?? 0) * line.quantity
+              : product.price * line.quantity,
         };
       })
       .filter((line): line is NonNullable<typeof line> => Boolean(line));
@@ -262,7 +258,10 @@ export default function CartPage() {
   const subtotal = detailedItems
     .filter((item) => item.selected)
     .reduce((total, item) => total + item.lineTotal, 0);
-  const tax = subtotal > 0 ? TAX_AMOUNT : 0;
+  const taxableSubtotal = detailedItems
+    .filter((item) => item.selected && item.product.productType !== "donation")
+    .reduce((total, item) => total + item.lineTotal, 0);
+  const tax = taxableSubtotal > 0 ? TAX_AMOUNT : 0;
   const total = subtotal + tax;
 
   const changeQuantity = (slug: string, nextQuantity: number) => {
@@ -375,6 +374,7 @@ export default function CartPage() {
           items: selected.map((item) => ({
             productId: item.product.id,
             quantity: item.quantity,
+            donationAmount: item.product.productType === "donation" ? item.donationAmount : undefined,
           })),
         }),
       });
@@ -403,28 +403,17 @@ export default function CartPage() {
           },
           body: JSON.stringify({
             orderId,
-            items: selected.map((item) => ({
-              productId: item.product.id,
-              productName: item.product.name,
-              quantity: item.quantity,
-              price: item.product.price,
-            })),
-            subtotal: selected.reduce((acc, item) => acc + item.product.price * item.quantity, 0),
-            tax: 500,
-            total,
-            customerName: session?.user?.username || session?.user?.name || "User",
-            customerEmail: session?.user?.email ?? "",
-            customerPhone: session?.user?.phone ?? "",
           }),
         });
 
-        if (!qrResponse.ok) {
-          console.warn("Failed to generate dynamic QRIS, using fallback");
-        } else {
-          await qrResponse.json().catch(() => null);
+        const qrResult = (await qrResponse.json().catch(() => null)) as { qrCode?: string; qrImage?: string } | null;
+        if (!qrResponse.ok || (!qrResult?.qrCode && !qrResult?.qrImage)) {
+          throw new Error("Server lagi sibuk, coba lagi nanti ya!");
         }
       } catch (qrError) {
         console.warn("Error generating dynamic QRIS:", qrError);
+        setError("Server lagi sibuk, coba lagi nanti ya!");
+        return;
       }
 
       // Step 3: Remove items from cart
@@ -440,7 +429,7 @@ export default function CartPage() {
       router.push(`/status-pemesanan?highlight=${encodeURIComponent(orderId)}&pay=1`);
     } catch (err) {
       console.error("Checkout error:", err);
-      setError("Pesanannya belum berhasil diproses. Coba lagi ya.");
+      setError("Server lagi sibuk, coba lagi nanti ya!");
     } finally {
       setIsCheckoutLoading(false);
     }
@@ -530,8 +519,6 @@ export default function CartPage() {
           Kembali belanja
         </Link>
       </header>
-      {cartNotice ? <div className={styles.cartNotice} role="status">{cartNotice}</div> : null}
-
       {!isClient || isStoreLoading || isJobApplicationsLoading ? <WaitLoading centered /> : null}
 
       {isClient && !isStoreLoading && !isJobApplicationsLoading && detailedItems.length === 0 && freelanceJobApplications.length === 0 ? (
@@ -728,10 +715,6 @@ export default function CartPage() {
                 <strong>Pembayaran menggunakan Sistem Otomatis, Demi keamanan STOK, Saya setuju apabila Produk saya diarahkan ke Pre-Order atau pengembalian Uang</strong>
               </span>
             </label>
-            <p className={`${styles.stockWarning} ${paymentConsent ? styles.stockWarningAccepted : styles.stockWarningShake}`}>
-              <strong>Demi keamanan STOK pembayaran dialihkan ke Manual VA Scan Qriss.</strong>{" "}
-              Pastikan sebelum membeli <strong>bertanya STOK lebih dulu</strong>
-            </p>
             <button
               type="button"
               className={`${styles.actionButton} ${styles.actionPrimary}`}

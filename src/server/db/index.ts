@@ -26,6 +26,19 @@ export const db = createClient({
   authToken: authToken,
 });
 
+let firestoreUnavailable = false;
+
+function getFirestoreOrNull() {
+  return firestoreUnavailable ? null : getFirebaseFirestore();
+}
+
+function markFirestoreUnavailable(error: unknown) {
+  const message = String(error || "").toLowerCase();
+  if (message.includes("permission_denied") || message.includes("permission denied")) {
+    firestoreUnavailable = true;
+  }
+}
+
 let initialized = false;
 let initPromise: Promise<void> | null = null;
 
@@ -145,7 +158,8 @@ function mapProduct(row: Record<string, unknown>): StoreProduct {
     imageUrl: resolveMediaUrl(String(row.image_url ?? "")),
     mediaGallery,
     isActive: Number(row.is_active) === 1,
-    productType: (String(row.product_type ?? "jual_beli") as "jual_beli" | "pekerjaan"),
+    productType: (String(row.product_type ?? "jual_beli") as "jual_beli" | "pekerjaan" | "donation"),
+    donationTotal: Number(row.donation_total ?? 0),
     jobApplicationLink: String(row.job_application_link ?? ""),
     maxApplicants: Number(row.max_applicants ?? 0) || undefined,
     applicantCount: Number(row.applicant_count ?? 0) || undefined,
@@ -523,6 +537,7 @@ export async function ensureDatabase() {
           max_applicants INTEGER NOT NULL DEFAULT 0,
           applicant_count INTEGER NOT NULL DEFAULT 0,
           buy_now_link TEXT NOT NULL DEFAULT '',
+          donation_total INTEGER NOT NULL DEFAULT 0,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
@@ -547,6 +562,9 @@ export async function ensureDatabase() {
       ).catch(() => {});
       await run(
         "ALTER TABLE products ADD COLUMN buy_now_link TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE products ADD COLUMN donation_total INTEGER NOT NULL DEFAULT 0",
       ).catch(() => {});
 
       await run(
@@ -626,6 +644,12 @@ export async function ensureDatabase() {
       ).catch(() => {});
       await run(
         "ALTER TABLE orders ADD COLUMN updated_at TEXT",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN admin_note TEXT NOT NULL DEFAULT ''",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN admin_note_at TEXT",
       ).catch(() => {});
 
       await run(
@@ -1141,7 +1165,7 @@ async function findLocalUserByIdentifier(identifier: string) {
 }
 
 async function findFirestoreUserById(id: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull() as any;
   if (!firestore) {
     return null;
   }
@@ -1154,7 +1178,7 @@ async function findFirestoreUserById(id: string) {
 }
 
 async function findFirestoreUserByEmail(email: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull() as any;
   if (!firestore) {
     return null;
   }
@@ -1183,7 +1207,7 @@ async function findFirestoreUserByEmail(email: string) {
 }
 
 async function findFirestoreUserByIdentifier(identifier: string) {
-  const firestore = getFirebaseFirestore() as any;
+  const firestore = getFirestoreOrNull() as any;
   if (!firestore) {
     return null;
   }
@@ -1282,6 +1306,7 @@ export async function findUserByEmail(email: string) {
         return firebaseUser;
       }
     } catch (error) {
+      markFirestoreUnavailable(error);
       console.error("Failed to read user by email from Firestore:", error);
     }
   }
@@ -1298,6 +1323,7 @@ export async function findUserById(id: string) {
         return firebaseUser;
       }
     } catch (error) {
+      markFirestoreUnavailable(error);
       console.error("Failed to read user by id from Firestore:", error);
     }
   }
@@ -1314,6 +1340,7 @@ export async function findUserByIdentifier(identifier: string) {
         return firebaseUser;
       }
     } catch (error) {
+      markFirestoreUnavailable(error);
       console.error("Failed to read user by identifier from Firestore:", error);
     }
   }
@@ -1540,7 +1567,9 @@ export async function createProduct(input: {
   }
 
   const mediaUrl = resolveMediaUrl(input.imageUrl);
-  const productType = input.productType === "pekerjaan" ? "pekerjaan" : "jual_beli";
+  const productType = input.productType === "pekerjaan" || input.productType === "donation"
+    ? input.productType
+    : "jual_beli";
   const jobLink = productType === "pekerjaan" ? (input.jobApplicationLink?.trim() ?? "") : "";
   const maxApplicants = productType === "pekerjaan" ? (input.maxApplicants ?? 0) : 0;
   const buyNowLink = productType === "jual_beli" ? (input.buyNowLink?.trim() ?? "") : "";
@@ -1551,8 +1580,8 @@ export async function createProduct(input: {
 
   await run(
     `INSERT INTO products
-      (id, slug, name, category, short_description, description, duration, price, image_url, media_gallery, is_active, product_type, job_application_link, max_applicants, applicant_count, buy_now_link, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 0, ?, ?, ?)`,
+      (id, slug, name, category, short_description, description, duration, price, image_url, media_gallery, is_active, product_type, job_application_link, max_applicants, applicant_count, buy_now_link, donation_total, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 0, ?, 0, ?, ?)`,
     [
       id,
       slug,
@@ -1606,10 +1635,12 @@ export async function updateProduct(
     nextName !== current.name
       ? `${slugify(nextName)}-${Math.floor(Math.random() * 900 + 100)}`
       : current.slug;
-  const currentProductType = String(current.productType ?? "jual_beli") as "jual_beli" | "pekerjaan";
+  const currentProductType = String(current.productType ?? "jual_beli") as "jual_beli" | "pekerjaan" | "donation";
   const nextProductType =
     input.productType === "pekerjaan"
       ? "pekerjaan"
+      : input.productType === "donation"
+      ? "donation"
       : input.productType === "jual_beli"
       ? "jual_beli"
       : currentProductType;
@@ -2142,12 +2173,17 @@ export async function createOrder(input: {
     productDuration: string;
     quantity: number;
     unitPrice: number;
+    productType?: "jual_beli" | "pekerjaan" | "donation" | "lms";
+    donationAmount?: number;
   }>;
 }) {
   await ensureDatabase();
   const id = randomId();
   const subtotal = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-  const total = subtotal + 500;
+  const taxableSubtotal = input.items
+    .filter((item) => item.productType !== "donation")
+    .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const total = subtotal + (taxableSubtotal > 0 ? 500 : 0);
 
   await run(
     `INSERT INTO orders
@@ -2181,7 +2217,7 @@ export async function createOrder(input: {
 
 export async function updateOrderStatus(
   id: string,
-  status: "process" | "done" | "error",
+  status: "process" | "done" | "error" | "sent" | "cancelled",
 ) {
   await ensureDatabase();
   const existing = await getOrderById(id);
@@ -2194,14 +2230,16 @@ export async function updateOrderStatus(
      SET status = ?,
          cancel_request_status = CASE
            WHEN ? IN ('process', 'done') THEN 'none'
+           WHEN ? = 'cancelled' THEN 'confirmed'
            ELSE cancel_request_status
          END,
          cancel_confirmed_at = CASE
            WHEN ? IN ('process', 'done') THEN NULL
+           WHEN ? = 'cancelled' THEN ?
            ELSE cancel_confirmed_at
          END
      WHERE id = ?`,
-    [status, status, status, id],
+    [status, status, status, status, status, now(), id],
   );
 
   return getOrderById(id);
@@ -2309,6 +2347,9 @@ export async function listOrders(limit = 100) {
           uniqueCode: Number(data.unique_code ?? 0),
           depositId: String(data.deposit_id ?? ""),
           paymentExpiresAt: String(data.payment_expires_at ?? ""),
+          paidAt: data.paid_at ? String(data.paid_at) : undefined,
+            adminNote: String(data.admin_note ?? ""),
+            adminNoteAt: data.admin_note_at ? String(data.admin_note_at) : null,
       createdAt: new Date(Number(data.created_at)).toISOString(),
     } satisfies OrderSummary;
   });
@@ -2317,7 +2358,7 @@ export async function listOrders(limit = 100) {
 export async function listOrderItemsByOrderId(orderId: string) {
   await ensureDatabase();
   const res = await run(
-    "SELECT * FROM order_items WHERE order_id = ? ORDER BY rowid DESC",
+    "SELECT order_items.*, products.product_type FROM order_items LEFT JOIN products ON products.id = order_items.product_id WHERE order_items.order_id = ? ORDER BY order_items.rowid DESC",
     [orderId],
   );
   return res.rows.map((row) => {
@@ -2330,6 +2371,7 @@ export async function listOrderItemsByOrderId(orderId: string) {
       productDuration: String(data.product_duration ?? ""),
       quantity: Number(data.quantity),
       unitPrice: Number(data.unit_price),
+      productType: String(data.product_type ?? "jual_beli") as StoreOrderItem["productType"],
     } satisfies StoreOrderItem;
   });
 }
@@ -2368,8 +2410,26 @@ export async function getOrderById(id: string) {
       uniqueCode: Number(row.unique_code ?? 0),
       depositId: String(row.deposit_id ?? ""),
       paymentExpiresAt: String(row.payment_expires_at ?? ""),
+      paidAt: row.paid_at ? String(row.paid_at) : undefined,
+      adminNote: String(row.admin_note ?? ""),
+      adminNoteAt: row.admin_note_at ? String(row.admin_note_at) : null,
     createdAt: new Date(Number(row.created_at)).toISOString(),
   } satisfies OrderSummary;
+}
+
+export async function updateOrderAdminNote(id: string, note: string) {
+  await ensureDatabase();
+  const existing = await getOrderById(id);
+  if (!existing) {
+    return null;
+  }
+
+  const trimmed = note.trim().slice(0, 1000);
+  await run(
+    "UPDATE orders SET admin_note = ?, admin_note_at = ? WHERE id = ?",
+    [trimmed, new Date().toISOString(), id],
+  );
+  return getOrderById(id);
 }
 
 export async function updateOrderPayment(

@@ -1,4 +1,5 @@
-import KoleksiPage, { categoryToSlug } from "../page";
+import { categoryToSlug } from "@/lib/category";
+import KoleksiPage from "../page";
 
 type CategoryPageProps = {
   params: Promise<{ category: string }>;

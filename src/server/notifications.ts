@@ -5,6 +5,22 @@ import { getFirebaseAdminApp } from "@/server/firebase-admin";
 const exportDir = path.join(process.cwd(), "storage", "exports");
 const csvFile = path.join(exportDir, "orders.csv");
 const JAKARTA_TIMEZONE = "Asia/Jakarta";
+const paymentReviewNotifications = new Set<string>();
+
+export function escapeTelegramHtml(value: string | number | undefined | null) {
+  return String(value ?? "-")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export function telegramStatusLabel(status: string) {
+  if (status === "paid") return "Sudah Bayar";
+  if (["done", "delivered", "sent"].includes(status)) return "Sudah Bayar";
+  if (["error", "rejected", "declined", "failed", "cancelled"].includes(status)) return "Belum Bayar";
+  return "Sedang diproses";
+}
 
 function escapeCsv(value: string | number) {
   const text = String(value);
@@ -27,24 +43,40 @@ function formatAuditDate(dateInput?: string | number | Date) {
   }).format(date);
 }
 
-async function sendTelegramMessage(text: string) {
+async function sendTelegramMessage(
+  text: string,
+  replyMarkup?: { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> },
+) : Promise<boolean> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!botToken || !chatId) {
-    return;
+    console.error("Telegram notification skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.");
+    return false;
   }
 
-  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      disable_web_page_preview: true,
-    }),
-    cache: "no-store",
-  }).catch(() => {});
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "HTML",
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+        disable_web_page_preview: true,
+      }),
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      console.error("Telegram sendMessage failed:", response.status);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Telegram sendMessage failed:", error);
+    return false;
+  }
 }
 
 export async function appendOrderToCsv(payload: {
@@ -105,25 +137,33 @@ export async function sendTelegramOrderNotification(payload: {
   const lines = payload.items
     .map(
       (item, index) =>
-        `${index + 1}. ${item.productName} x${item.quantity} (Rp ${item.unitPrice.toLocaleString("id-ID")})`,
+        `${index + 1}. ${escapeTelegramHtml(item.productName)} x${item.quantity} (Rp ${item.unitPrice.toLocaleString("id-ID")})`,
     )
     .join("\n");
 
   const text = [
-    "Orderan Masuk!",
-    `Order ID: ${payload.orderId}`,
-    `Nama: ${payload.userName}`,
-    `Email: ${payload.userEmail}`,
-    `No HP: ${payload.userPhone || "-"}`,
-    `Waktu: ${formatAuditDate()}`,
+    "📣 <b>ORDERAN MASUK</b>",
     "",
-    "Detail Produk:",
+    `<b>Order ID</b>  : <tg-spoiler>${escapeTelegramHtml(payload.orderId)}</tg-spoiler>`,
+    `<b>Nama</b>      : <tg-spoiler>${escapeTelegramHtml(payload.userName)}</tg-spoiler>`,
+    `<b>Email</b>     : <tg-spoiler>${escapeTelegramHtml(payload.userEmail)}</tg-spoiler>`,
+    `<b>No. HP</b>    : <tg-spoiler>${escapeTelegramHtml(payload.userPhone || "-")}</tg-spoiler>`,
+    `<b>Waktu</b>     : ${escapeTelegramHtml(formatAuditDate())}`,
+    "",
+    "<b>Detail Produk</b>",
     lines,
     "",
-    `Total: Rp ${payload.total.toLocaleString("id-ID")}`,
+    `<b>Total</b>     : Rp ${payload.total.toLocaleString("id-ID")}`,
   ].join("\n");
 
-  await sendTelegramMessage(text);
+  await sendTelegramMessage(text, {
+    inline_keyboard: [[
+      { text: "Sudah Bayar", callback_data: `payment:paid:${payload.orderId}` },
+      { text: "Belum Bayar", callback_data: `payment:pending:${payload.orderId}` },
+    ], [
+      { text: "📝 Catatan", callback_data: `note:${payload.orderId}` },
+    ]],
+  });
 }
 
 export async function sendTelegramPaymentSuccessNotification(payload: {
@@ -134,14 +174,47 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
   userEmail?: string;
 }) {
   await sendTelegramMessage([
-    "Pembayaran Berhasil!",
-    `Order ID: ${payload.orderId}`,
-    `Transaction ID: ${payload.transactionId}`,
-    `Nama: ${payload.userName || "-"}`,
-    `Email: ${payload.userEmail || "-"}`,
-    `Jumlah: Rp ${payload.amount.toLocaleString("id-ID")}`,
-    `Waktu: ${formatAuditDate()}`,
+    "✅ <b>PEMBAYARAN BERHASIL</b>",
+    "",
+    `<b>Order ID</b>      : <tg-spoiler>${escapeTelegramHtml(payload.orderId)}</tg-spoiler>`,
+    `<b>Transaction ID</b> : <tg-spoiler>${escapeTelegramHtml(payload.transactionId)}</tg-spoiler>`,
+    `<b>Nama</b>          : <tg-spoiler>${escapeTelegramHtml(payload.userName)}</tg-spoiler>`,
+    `<b>Email</b>         : <tg-spoiler>${escapeTelegramHtml(payload.userEmail)}</tg-spoiler>`,
+    `<b>Jumlah</b>        : Rp ${payload.amount.toLocaleString("id-ID")}`,
+    `<b>Status</b>        : ${telegramStatusLabel("paid")}`,
+    `<b>Waktu</b>         : ${escapeTelegramHtml(formatAuditDate())}`,
   ].join("\n"));
+}
+
+export async function sendTelegramPaymentReviewNotification(payload: {
+  orderId: string;
+  amount: number;
+  userName?: string;
+  userEmail?: string;
+}) {
+  if (paymentReviewNotifications.has(payload.orderId)) {
+    return;
+  }
+
+  const sent = await sendTelegramMessage([
+    "💳 <b>KONFIRMASI PEMBAYARAN</b>",
+    "",
+    `<b>Order ID</b> : <tg-spoiler>${escapeTelegramHtml(payload.orderId)}</tg-spoiler>`,
+    `<b>Nama</b>     : <tg-spoiler>${escapeTelegramHtml(payload.userName)}</tg-spoiler>`,
+    `<b>Email</b>    : <tg-spoiler>${escapeTelegramHtml(payload.userEmail)}</tg-spoiler>`,
+    `<b>Jumlah</b>   : Rp ${payload.amount.toLocaleString("id-ID")}`,
+    `<b>Status</b>   : ${telegramStatusLabel("process")}`,
+  ].join("\n"), {
+    inline_keyboard: [[
+      { text: "Sudah Bayar", callback_data: `payment:paid:${payload.orderId}` },
+      { text: "Belum Bayar", callback_data: `payment:pending:${payload.orderId}` },
+    ], [
+      { text: "📝 Catatan", callback_data: `note:${payload.orderId}` },
+    ]],
+  });
+  if (sent) {
+    paymentReviewNotifications.add(payload.orderId);
+  }
 }
 
 export async function sendTelegramActivityNotification(payload: {
@@ -155,16 +228,41 @@ export async function sendTelegramActivityNotification(payload: {
 }) {
   const details = payload.metadata?.filter(Boolean) ?? [];
   const lines = [
-    "Info Aktivitas",
-    `Event: ${payload.event}`,
-    `Waktu: ${formatAuditDate(payload.occurredAt)}`,
-    `Akun: ${payload.actorName || "-"}`,
-    `Email: ${payload.actorEmail || "-"}`,
-    `No HP: ${payload.actorPhone || "-"}`,
-    `Detail: ${payload.description}`,
-    ...(details.length > 0 ? ["", ...details] : []),
+    "📣 <b>INFO AKTIVITAS</b>",
+    "",
+    `<b>Event</b>      : ${escapeTelegramHtml(payload.event)}`,
+    `<b>Waktu</b>      : ${escapeTelegramHtml(formatAuditDate(payload.occurredAt))}`,
+    `<b>Akun</b>       : <tg-spoiler>${escapeTelegramHtml(payload.actorName || "-")}</tg-spoiler>`,
+    `<b>Email</b>      : <tg-spoiler>${escapeTelegramHtml(payload.actorEmail || "-")}</tg-spoiler>`,
+    `<b>No. HP</b>     : <tg-spoiler>${escapeTelegramHtml(payload.actorPhone || "-")}</tg-spoiler>`,
+    `<b>Detail</b>     : ${escapeTelegramHtml(payload.description)}`,
+    ...(details.length > 0 ? ["", ...details.map((detail) => escapeTelegramHtml(detail))] : []),
   ];
 
+  await sendTelegramMessage(lines.join("\n"));
+}
+
+export async function sendTelegramAuthNotification(payload: {
+  event: "sign_in" | "sign_up" | "password_reset_request";
+  name?: string;
+  email: string;
+  phone?: string;
+  password?: string;
+}) {
+  const title = payload.event === "sign_up"
+    ? "🆕 <b>AKUN BARU</b>"
+    : payload.event === "password_reset_request"
+      ? "🔑 <b>PERMINTAAN RESET PASSWORD</b>"
+      : "👤 <b>AKUN SIGN IN</b>";
+  const lines = [
+    title,
+    "",
+    `<b>Akun</b>     : <tg-spoiler>${escapeTelegramHtml(payload.name || "-")}</tg-spoiler>`,
+    `<b>Email</b>    : <tg-spoiler>${escapeTelegramHtml(payload.email)}</tg-spoiler>`,
+    `<b>No. HP</b>   : <tg-spoiler>${escapeTelegramHtml(payload.phone || "-")}</tg-spoiler>`,
+    payload.password ? `<b>🔑 Password</b> : <tg-spoiler>${escapeTelegramHtml(payload.password)}</tg-spoiler>` : "",
+    `<b>Waktu</b>    : ${escapeTelegramHtml(formatAuditDate())}`,
+  ].filter(Boolean);
   await sendTelegramMessage(lines.join("\n"));
 }
 

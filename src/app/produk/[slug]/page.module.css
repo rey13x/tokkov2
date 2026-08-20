@@ -202,6 +202,43 @@
   font-size: 0.78rem;
 }
 
+.donationField {
+  display: grid;
+  gap: 8px;
+  color: #11151f;
+  font-weight: 700;
+}
+
+.donationInputWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid #cfd5e2;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.donationInputWrap span {
+  color: #5d667a;
+}
+
+.donationInputWrap input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #11151f;
+  font: inherit;
+}
+
+.donationError {
+  margin: -6px 0 0;
+  color: #b42318;
+  font-size: 0.82rem;
+}
+
 @keyframes cartBounce {
   0%, 100% { transform: translateY(0) scale(1); }
   30% { transform: translateY(-9px) scale(1.08); }

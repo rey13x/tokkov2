@@ -343,48 +343,6 @@
   accent-color: #050608;
 }
 
-.stockWarning {
-  margin: 0;
-  color: #a0182d;
-  font-size: 0.82rem;
-  line-height: 1.45;
-}
-
-.stockWarningShake {
-  animation: stockWarningShake 0.55s ease-in-out infinite;
-}
-
-.stockWarningAccepted {
-  animation: none;
-}
-
-.cartNotice {
-  width: min(720px, 100%);
-  margin: 0 auto 16px;
-  padding: 12px 18px;
-  border: 1px solid #b9e8cc;
-  border-radius: 14px;
-  background: #effcf4;
-  color: #126b38;
-  font-weight: 700;
-  text-align: center;
-  animation: cartNoticeBounce 0.7s ease;
-}
-
-@keyframes stockWarningShake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-4px); }
-  40% { transform: translateX(4px); }
-  60% { transform: translateX(-3px); }
-  80% { transform: translateX(3px); }
-}
-
-@keyframes cartNoticeBounce {
-  0% { opacity: 0; transform: translateY(-12px) scale(0.96); }
-  55% { opacity: 1; transform: translateY(3px) scale(1.02); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
 .actionButton {
   border-radius: 14px;
   min-height: 46px;

@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
 import { getAdminIdentity } from "@/server/admin";
@@ -26,6 +27,12 @@ function formatDateLabel(iso: string) {
   });
 }
 
+function statusLabel(status: string) {
+  if (status === "paid" || ["done", "delivered", "sent"].includes(status)) return "Sudah Bayar";
+  if (["error", "rejected", "declined", "failed", "cancelled"].includes(status)) return "Belum Bayar";
+  return "Sedang diproses";
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -42,6 +49,8 @@ async function buildReceiptPdf(input: {
   userPhone: string;
   status: string;
   createdAt: string;
+  depositId?: string;
+  paidAt?: string;
   items: Array<{
     productName: string;
     productDuration: string;
@@ -51,55 +60,81 @@ async function buildReceiptPdf(input: {
   total: number;
 }) {
   const doc = new PDFDocument({
-    size: [320, 760],
-    margins: { top: 24, left: 20, right: 20, bottom: 24 },
+    size: [420, 920],
+    margins: { top: 28, left: 28, right: 28, bottom: 28 },
   });
 
   const chunks: Buffer[] = [];
   doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 
-  const logoPath = path.join(process.cwd(), "public", "assets", "logo.png");
+  const logoPath = path.join(process.cwd(), "public", "assets", "maintenancelogo.jpg");
   try {
     const logo = await fs.readFile(logoPath);
-    doc.image(logo, 132, 16, { fit: [56, 56], align: "center", valign: "center" });
-    doc.moveDown(2.9);
+    doc.image(logo, 182, 18, { fit: [56, 56], align: "center", valign: "center" });
+    doc.moveDown(3.1);
   } catch {
     doc.moveDown(0.2);
   }
 
-  doc.fontSize(12).font("Helvetica-Bold").text("TOKKO", { align: "center" });
+  doc.fontSize(15).font("Helvetica-Bold").text("TOKKO MARKETPLACE", { align: "center" });
   doc.moveDown(0.3);
-  doc.fontSize(9).font("Helvetica");
-  doc.text(`Order ID: ${input.orderId}`);
-  doc.text(`Tanggal: ${formatDateLabel(input.createdAt)}`);
-  doc.text(`Akun: ${input.userName}`);
-  doc.text(`Email: ${input.userEmail}`);
-  doc.text(`No HP: ${input.userPhone || "-"}`);
-  doc.text(`Status: ${input.status}`);
+  doc.fontSize(11).font("Helvetica-Bold").text("Struk Pembayaran", { align: "center" });
+  doc.moveDown(0.7);
+  doc.fontSize(9).font("Courier");
+  const metadata = [
+    ["Order ID", input.orderId],
+    ["Tanggal", formatDateLabel(input.createdAt)],
+    ["Akun", input.userName],
+    ["Email", input.userEmail],
+    ["No. HP", input.userPhone || "-"],
+    ["Status", statusLabel(input.status)],
+  ];
+  metadata.forEach(([label, value]) => {
+    doc.text(`${label.padEnd(8, " ")} : ${value}`);
+  });
   doc.moveDown(0.4);
-  doc.text("========================================");
+  doc.text("-".repeat(54));
   doc.moveDown(0.2);
 
   input.items.forEach((item, index) => {
     const lineTotal = item.quantity * item.unitPrice;
-    doc.font("Helvetica-Bold").fontSize(9).text(`${index + 1}. ${item.productName}`);
-    doc.font("Helvetica").fontSize(8);
-    doc.text(`Qty ${item.quantity} x ${formatRupiah(item.unitPrice)} = ${formatRupiah(lineTotal)}`);
+    doc.font("Courier-Bold").fontSize(9).text(`${index + 1}. ${item.productName}`);
+    doc.font("Courier").fontSize(8.5);
+    doc.text(`   ${item.quantity} x ${formatRupiah(item.unitPrice)} = ${formatRupiah(lineTotal)}`);
     if (item.productDuration) {
       doc.text(`Durasi: ${item.productDuration}`);
     }
     doc.moveDown(0.25);
   });
 
-  doc.text("========================================");
+  doc.text("-".repeat(54));
   doc.moveDown(0.3);
-  doc.font("Helvetica-Bold").fontSize(10).text(`Total: ${formatRupiah(input.total)}`);
+  doc.font("Courier-Bold").fontSize(9.5);
+  doc.text(`Subtotal : ${formatRupiah(input.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0))}`);
+  doc.text(`Pajak    : ${formatRupiah(500)}`);
+  doc.text(`TOTAL    : ${formatRupiah(input.total)}`);
   doc.moveDown(0.8);
-  doc.font("Helvetica").fontSize(8).text("Simpan Struk ini untuk menjaga masa Garansi", {
-    align: "center",
+  doc.font("Helvetica-Bold").fontSize(9).text("PEMBAYARAN BERHASIL");
+  if (input.depositId) doc.font("Courier").fontSize(8).text(`Ref: ${input.depositId}`);
+  if (input.paidAt) doc.text(`Dibayar: ${formatDateLabel(input.paidAt)}`);
+  doc.moveDown(0.5);
+  const qrDataUrl = await QRCode.toDataURL(`https://tokkov2.vercel.app/status-pemesanan?order=${encodeURIComponent(input.orderId)}`, {
+    errorCorrectionLevel: "H",
+    margin: 1,
+    width: 120,
   });
-  doc.moveDown(0.1);
-  doc.fontSize(7).text("** Tokko **", { align: "center" });
+  doc.image(Buffer.from(qrDataUrl.split(",")[1], "base64"), 28, doc.y, { width: 100, height: 100 });
+  doc.font("Helvetica-Bold").fontSize(9).text("Founder", 150, doc.y + 18);
+  doc.font("Helvetica").fontSize(8).text("Raihaan Bagastiam Pratama", 150, doc.y + 4);
+  const signaturePath = path.join(process.cwd(), "public", "assets", "TTD Dev.jpeg");
+  try {
+    const signature = await fs.readFile(signaturePath);
+    doc.image(signature, 150, doc.y + 16, { fit: [110, 55] });
+  } catch {
+    // Keep the PDF usable when the optional signature asset is unavailable.
+  }
+  doc.y = Math.max(doc.y + 112, 790);
+  doc.font("Helvetica").fontSize(8).text("Terima kasih sudah berbelanja di Tokko Marketplace.", { align: "center" });
   doc.end();
 
   return await new Promise<Buffer>((resolve, reject) => {
@@ -207,6 +242,8 @@ export async function GET(_request: Request, context: { params: Params }) {
       userPhone: order.userPhone,
       status: order.status,
       createdAt: order.createdAt,
+      depositId: order.depositId,
+      paidAt: (order as { paidAt?: string }).paidAt,
       items: items.map((item) => ({
         productName: item.productName,
         productDuration: item.productDuration,

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
 import { updateOrderStatus } from "@/server/store-data";
-import { sendTelegramActivityNotification } from "@/server/notifications";
+import { sendTelegramActivityNotification, telegramStatusLabel } from "@/server/notifications";
 
 const statusSchema = z.object({
   status: z.enum(["process", "done", "error"]),
@@ -33,7 +33,7 @@ export async function PATCH(request: Request, context: { params: Params }) {
       description: `Admin mengubah status order ${id} menjadi ${payload.status}.`,
       metadata: [
         `Order ID: ${id}`,
-        `Status Baru: ${payload.status}`,
+        `Status Baru: ${telegramStatusLabel(payload.status)}`,
         `Pemesan: ${order.userName} (${order.userEmail})`,
       ],
     });

@@ -1,4 +1,4 @@
-export type ProductType = "jual_beli" | "pekerjaan" | "lms";
+export type ProductType = "jual_beli" | "pekerjaan" | "donation" | "lms";
 
 export type ProductMediaItem = {
   url: string;
@@ -29,6 +29,7 @@ export type StoreProduct = {
   // LMS fields (lms product_type only)
   accessKey?: string; // Access key for course entry (case-sensitive)
   rewardFileUrl?: string; // Certificate/reward file URL
+  donationTotal?: number;
 };
 
 // LMS Course Structures
@@ -246,6 +247,7 @@ export type BookStory = {
 export type OrderItemInput = {
   productId: string;
   quantity: number;
+  donationAmount?: number;
 };
 
 export type OrderSummary = {
@@ -270,6 +272,8 @@ export type OrderSummary = {
   uniqueCode?: number; // Unique code for payment verification
   depositId?: string; // Deposit ID from payment gateway
   paymentExpiresAt?: string; // QRIS expiry timestamp
+  adminNote?: string;
+  adminNoteAt?: string | null;
   qrReference?: string; // Reference ID from payment gateway
   transactionId?: string; // Transaction ID after payment
   paidAt?: string; // Payment timestamp
@@ -285,6 +289,8 @@ export type StoreOrderItem = {
   productDuration: string;
   quantity: number;
   unitPrice: number;
+  productType?: ProductType;
+  donationAmount?: number;
 };
 
 // PortfolioItem type used in admin and server modules

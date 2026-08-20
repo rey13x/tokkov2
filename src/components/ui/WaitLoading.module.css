@@ -4,6 +4,12 @@
   justify-content: center;
 }
 
+.viewport {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+}
+
 .pill {
   width: fit-content;
   min-height: 0;

@@ -99,9 +99,11 @@ export default function PageTransition({
         <div
           style={{
             position: "fixed",
-            top: "10px",
+            top: pathname.startsWith("/produk/") ? "50%" : "10px",
             left: "50%",
-            transform: "translateX(-50%)",
+            transform: pathname.startsWith("/produk/")
+              ? "translate(-50%, -50%)"
+              : "translateX(-50%)",
             zIndex: 1200,
             pointerEvents: "none",
           }}

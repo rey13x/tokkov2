@@ -44,6 +44,8 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const { isMaintenanceEnabled } = useMaintenanceMode();
 
   const [quantity, setQuantity] = useState(1);
+  const [donationAmount, setDonationAmount] = useState("");
+  const [donationError, setDonationError] = useState("");
   const [added, setAdded] = useState(false);
   const [isRedirectingToCart, setIsRedirectingToCart] = useState(false);
   const [isProductTutorialRunning, setIsProductTutorialRunning] = useState(false);
@@ -164,7 +166,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
     hasHandledPendingRef.current = true;
     try {
-      const pending = JSON.parse(raw) as { slug?: string; quantity?: number };
+      const pending = JSON.parse(raw) as { slug?: string; quantity?: number; donationAmount?: number; redirectToCart?: boolean };
       if (pending.slug !== product.slug) {
         return;
       }
@@ -172,8 +174,11 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       const safeQty = Math.min(99, Math.max(1, Number(pending.quantity ?? 1)));
       window.sessionStorage.removeItem(PENDING_CART_ACTION_KEY);
       const timer = window.setTimeout(() => {
-        addToCart(product.slug, safeQty);
+        addToCart(product.slug, safeQty, pending.donationAmount);
         setAdded(true);
+        if (pending.redirectToCart) {
+          router.push("/troli");
+        }
       }, 550);
 
       return () => window.clearTimeout(timer);
@@ -182,7 +187,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     }
   }, [status, product.slug, product.id, router]);
 
-  const onAddToCart = () => {
+  const onAddToCart = (redirectToCart = false, requestedDonationAmount?: number) => {
     if (isMaintenanceEnabled) {
       reopenMaintenanceNotice();
       return;
@@ -190,6 +195,12 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
     if (product.productType === "pekerjaan") {
       onApplyForJob();
+      return;
+    }
+
+    const safeDonationAmount = product.productType === "donation" ? requestedDonationAmount : undefined;
+    if (product.productType === "donation" && (!safeDonationAmount || safeDonationAmount < 1)) {
+      setDonationError("Masukkan nominal donasi terlebih dahulu.");
       return;
     }
 
@@ -211,12 +222,14 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           "Kalau bukan tutorial, kamu bakal diarahkan ke login/daftar. Untuk tutorial ini, langkah login kita lewati dulu ya.",
         );
       }
-      addToCart(product.slug, quantity);
+      addToCart(product.slug, quantity, safeDonationAmount);
       setAdded(true);
-      setIsRedirectingToCart(true);
-      window.setTimeout(() => {
-        router.push("/troli?tutorial=1");
-      }, 420);
+      if (redirectToCart) {
+        setIsRedirectingToCart(true);
+        window.setTimeout(() => {
+          router.push("/troli?tutorial=1");
+        }, 420);
+      }
       return;
     }
 
@@ -227,6 +240,8 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           JSON.stringify({
             slug: product.slug,
             quantity,
+            donationAmount: safeDonationAmount,
+            redirectToCart,
           }),
         );
       }
@@ -234,8 +249,13 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       return;
     }
 
-    addToCart(product.slug, quantity);
+    addToCart(product.slug, quantity, safeDonationAmount);
     setAdded(true);
+    if (redirectToCart) {
+      window.setTimeout(() => {
+        router.push("/troli");
+      }, 420);
+    }
   };
 
   const onApplyForJob = async () => {
@@ -413,7 +433,44 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           <span className={styles.badge}>{product.category}</span>
           <h1>{product.name}</h1>
           <p className={styles.description}>{product.description}</p>
-          {product.productType === "jual_beli" ? (
+          {product.productType === "donation" ? (
+            <>
+              <p className={styles.price}>Terkumpul {formatRupiah(product.donationTotal ?? 0)}</p>
+              <label className={styles.donationField}>
+                <span>Mau Donasi berapa?</span>
+                <div className={styles.donationInputWrap}>
+                  <span>Rp</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={donationAmount}
+                    onChange={(event) => {
+                      setDonationError("");
+                      const digits = event.target.value.replace(/\D/g, "");
+                      setDonationAmount(digits ? Number(digits).toLocaleString("id-ID") : "");
+                    }}
+                    placeholder="Masukkan nominal"
+                    aria-label="Nominal donasi"
+                  />
+                </div>
+              </label>
+              {donationError ? <p className={styles.donationError}>{donationError}</p> : null}
+              <button
+                type="button"
+                className={styles.orderButton}
+                onClick={() => onAddToCart(true, Number(donationAmount.replace(/\D/g, "")))}
+                disabled={status === "loading"}
+                data-onboarding="product-add-to-cart"
+              >
+                {status === "loading" ? "Memuat..." : "Donasi Sekarang"}
+              </button>
+              {added ? (
+                <p className={styles.successMessage} ref={noticeRef}>
+                  Donasi masuk ke Troli ya!
+                </p>
+              ) : null}
+            </>
+          ) : product.productType === "jual_beli" ? (
             <>
               <p className={styles.price}>{formatRupiah(product.price)}</p>
               <p className={styles.duration}>
@@ -442,7 +499,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                 <button
                   type="button"
                   className={`${styles.orderButton}${product.buyNowLink ? ` ${styles.orderButtonWithLink}` : ''}`}
-                  onClick={onAddToCart}
+                  onClick={() => onAddToCart(true)}
                   disabled={status === "loading"}
                   data-onboarding="product-add-to-cart"
                   style={{ flex: 1 }}
@@ -452,7 +509,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                 <button
                   type="button"
                   className={`${styles.cartIconButton}${added ? ` ${styles.cartIconButtonBump}` : ""}`}
-                  onClick={onAddToCart}
+                  onClick={() => onAddToCart(false)}
                   disabled={status === "loading"}
                   title="Tambahkan ke troli"
                   aria-label="Tambahkan ke troli"
@@ -464,11 +521,6 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                   </svg>
                 </button>
               </div>
-              <p className={styles.orderHint}>
-                <strong>Demi keamanan STOK pembayaran dialihkan ke Manual VA Scan Qriss.</strong>{" "}
-                Pastikan sebelum membeli <strong>bertanya STOK lebih dulu</strong>
-              </p>
-
               {added ? (
                       <p className={styles.successMessage} ref={noticeRef}>
                         Produk kamu sudah masuk Troli ya! ({quantity} item)

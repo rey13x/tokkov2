@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
 import { findUserByEmail } from "@/server/db";
 import { sendPasswordResetEmail } from "@/server/email";
+import { sendTelegramAuthNotification } from "@/server/notifications";
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,6 +53,12 @@ export async function POST(request: NextRequest) {
     // Send email with reset link
     const resetLink = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${resetToken}`;
     await sendPasswordResetEmail(user.email || "", resetLink, user.username);
+    void sendTelegramAuthNotification({
+      event: "password_reset_request",
+      name: user.username,
+      email: user.email || email,
+      phone: user.phone,
+    });
 
     return NextResponse.json(
       { message: "Link reset password sudah dikirim ke email kamu" },

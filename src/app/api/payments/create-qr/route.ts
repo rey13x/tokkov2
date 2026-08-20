@@ -3,9 +3,9 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/server/auth";
 import {
   createDynamicQRCode,
-  saveOrder,
   QR_CODE_VALIDITY_SECONDS,
 } from "@/server/payment";
+import { getOrderById, updateOrderPayment } from "@/server/store-data";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,50 +16,37 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const {
-      orderId,
-      items,
-      subtotal,
-      tax,
-      total,
-      customerName,
-      customerEmail,
-      customerPhone,
-    } = body;
+    const { orderId } = body;
 
-    if (!orderId || !items || !Array.isArray(items)) {
+    if (!orderId) {
       return NextResponse.json(
         { error: "Invalid request data" },
         { status: 400 },
       );
     }
 
+    const order = await getOrderById(String(orderId));
+    if (!order || order.userId !== session.user.id) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
     // Create QRIS QR Code using Rama Shop API
     const qrResponse = await createDynamicQRCode({
       userId: session.user.id,
       orderId,
-      amount: Math.round(total), // Ensure integer amount
+      amount: Math.round(order.total),
       description: `Pembayaran Tokko - Order ${orderId}`,
-      customerName,
-      customerEmail,
-      customerPhone,
     });
 
     // Save order to database
-    await saveOrder(session.user.id, {
-      orderId,
-      depositId: qrResponse.depositId,
-      items,
-      subtotal,
-      tax,
-      total,
-      qrString: qrResponse.qrString,
+    await updateOrderPayment(String(orderId), {
+      paymentMethod: "dynamic_qris",
+      qrCode: qrResponse.qrString,
       qrImage: qrResponse.qrImage,
       totalAmount: qrResponse.totalAmount,
       uniqueCode: qrResponse.uniqueCode,
+      depositId: qrResponse.depositId,
       paymentExpiresAt: qrResponse.expiredAt,
-      customerEmail,
-      customerPhone,
     });
 
     return NextResponse.json({

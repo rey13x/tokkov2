@@ -31,7 +31,7 @@ const updateSchema = z.object({
     })
   ).optional(),
   isActive: z.boolean().optional(),
-  productType: z.enum(["jual_beli", "pekerjaan"]).optional(),
+  productType: z.enum(["jual_beli", "pekerjaan", "donation"]).optional(),
   jobApplicationLink: optionalExternalUrlSchema.optional(),
   maxApplicants: z.number().int().min(0).optional(),
   buyNowLink: optionalExternalUrlSchema.optional(),

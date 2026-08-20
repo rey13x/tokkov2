@@ -5,6 +5,7 @@ export const CART_NOTICE_STORAGE_KEY = "tokko_cart_notice";
 export type CartEntry = {
   slug: string;
   quantity: number;
+  donationAmount?: number;
 };
 
 function clampQuantity(value: number) {
@@ -30,6 +31,10 @@ export function readCart(): CartEntry[] {
         quantity: clampQuantity(
           typeof item.quantity === "number" ? item.quantity : Number(item.quantity ?? 1),
         ),
+        donationAmount:
+          typeof item.donationAmount === "number" && Number.isFinite(item.donationAmount)
+            ? Math.max(0, Math.round(item.donationAmount))
+            : undefined,
       }));
   } catch {
     return [];
@@ -44,12 +49,17 @@ export function saveCart(items: CartEntry[]) {
   localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
 }
 
-export function addToCart(slug: string, quantity: number) {
+export function addToCart(slug: string, quantity: number, donationAmount?: number) {
   const cart = readCart();
   const existing = cart.find((item) => item.slug === slug);
 
   if (existing) {
-    existing.quantity = clampQuantity(existing.quantity + quantity);
+    if (donationAmount !== undefined) {
+      existing.quantity = 1;
+      existing.donationAmount = Math.max(0, Math.round(existing.donationAmount ?? 0) + donationAmount);
+    } else {
+      existing.quantity = clampQuantity(existing.quantity + quantity);
+    }
     saveCart(cart);
     if (typeof window !== "undefined") {
       window.sessionStorage.setItem(CART_NOTICE_STORAGE_KEY, "Produk berhasil masuk ke troli.");
@@ -58,7 +68,12 @@ export function addToCart(slug: string, quantity: number) {
     return;
   }
 
-  cart.push({ slug, quantity: clampQuantity(quantity) });
+  cart.push({
+    slug,
+    quantity: clampQuantity(quantity),
+    donationAmount:
+      donationAmount === undefined ? undefined : Math.max(0, Math.round(donationAmount)),
+  });
   saveCart(cart);
   if (typeof window !== "undefined") {
     window.sessionStorage.setItem(CART_NOTICE_STORAGE_KEY, "Produk berhasil masuk ke troli.");

