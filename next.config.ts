@@ -2,6 +2,15 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "larabert-qrgen.hf.space",
+        pathname: "/v1/create-qr-code",
+      },
+    ],
+  },
   serverExternalPackages: ["playwright", "playwright-core"],
   // Disable React Compiler untuk dev yang lebih cepat
   reactCompiler: false,

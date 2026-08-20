@@ -20,6 +20,16 @@
   box-shadow: 0 4px 12px rgba(14, 18, 30, 0.08);
 }
 
+.cartNotice {
+  margin: 16px 0 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #e9f8ef;
+  color: #176b3a;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
 .header {
   display: flex;
   align-items: center;

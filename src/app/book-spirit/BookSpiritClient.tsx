@@ -8,9 +8,11 @@ import { FaRegComment } from "react-icons/fa";
 import { MdOutlineShare, MdPhotoCamera } from "react-icons/md";
 import { MdFlagCircle } from "react-icons/md";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import WaitLoading from "@/components/ui/WaitLoading";
 import type { BookStory } from "@/types/store";
 import StorySubmissionModal from "./StorySubmissionModal";
 import styles from "./BookSpiritClient.module.css";
+import { fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
 
 export default function BookSpiritClient() {
   const router = useRouter();
@@ -35,11 +37,11 @@ export default function BookSpiritClient() {
   useEffect(() => {
     const loadStories = async () => {
       try {
-        const response = await fetch("/api/book-stories/approved");
-        if (response.ok) {
-          const data = (await response.json()) as { stories: BookStory[] };
-          setStories(data.stories);
-        }
+        const data = await fetchSessionCached<{ stories: BookStory[] }>(
+          PUBLIC_DATA_CACHE_KEY.bookStories,
+          "/api/book-stories/approved",
+        );
+        setStories(data.stories ?? []);
       } catch (error) {
         console.error("Failed to fetch stories:", error);
       } finally {
@@ -363,9 +365,7 @@ export default function BookSpiritClient() {
   if (loading) {
     return (
       <main className={styles.page}>
-        <div className={styles.loadingContainer}>
-          <p style={{ textAlign: 'center' }}>Pastikan Internet kamu Stabil...</p>
-        </div>
+        <WaitLoading centered />
       </main>
     );
   }
@@ -389,11 +389,14 @@ export default function BookSpiritClient() {
 
         <div className={styles.searchWrap}>
           <div className={styles.searchRow}>
-            <input
-              type="search"
-              placeholder="Cari Testimoni..."
-              style={{ cursor: "pointer" }}
-            />
+            <button
+              type="button"
+              className={styles.tellStoryButton}
+              onClick={handleTellStory}
+              data-maintenance-guide="write-testimoni"
+            >
+              Isi Testimoni
+            </button>
             {session?.user ? (
               <button
                 type="button"
@@ -404,7 +407,7 @@ export default function BookSpiritClient() {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={session.user.image || "/assets/logo.png"}
+                  src={session.user.image || "/assets/maintenancelogo.jpg"}
                   alt="Profil"
                   style={{
                     borderRadius: "50%",
@@ -416,8 +419,8 @@ export default function BookSpiritClient() {
               <div className={styles.gifBox} aria-hidden="true">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="https://media.giphy.com/media/13HgwGsXF0aiGY/giphy.gif"
-                  alt=""
+                  src="/assets/maintenancelogo.jpg"
+                  alt="Maintenance"
                 />
               </div>
             )}
@@ -479,15 +482,6 @@ export default function BookSpiritClient() {
       <section className={styles.content}>
         {filteredStories.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 20px", color: "#999" }}>
-            <button
-              type="button"
-              className={styles.tellStoryButton}
-              onClick={handleTellStory}
-              data-maintenance-guide="write-testimoni"
-              style={{ marginTop: "24px" }}
-            >
-              Isi Testimoni
-            </button>
             <p style={{ marginTop: "16px", fontSize: "14px", color: "#666" }}>Bagikan pengalaman terbaik mu bersama kami</p>
           </div>
         ) : (
@@ -581,19 +575,11 @@ export default function BookSpiritClient() {
                   </div>
                   
                   {story.photos && story.photos.length > 0 && (
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
+                    <div className={styles.storyPhotos}>
                       {story.photos.map((photo, idx) => (
-                        <img
-                          key={idx}
-                          src={photo}
-                          alt={`Story photo ${idx + 1}`}
-                          style={{
-                            maxWidth: "100%",
-                            maxHeight: "300px",
-                            borderRadius: "12px",
-                            objectFit: "cover",
-                          }}
-                        />
+                        <div key={idx} className={styles.storyPhotoFrame}>
+                          <img src={photo} alt={`Story photo ${idx + 1}`} />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -811,14 +797,6 @@ export default function BookSpiritClient() {
                     </div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  className={styles.tellStoryButton}
-                  onClick={handleTellStory}
-                  data-maintenance-guide="write-testimoni"
-                >
-                  Isi Testimoni
-                </button>
               </article>
             ))}
           </>

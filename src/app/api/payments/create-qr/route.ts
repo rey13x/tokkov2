@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       qrImage: qrResponse.qrImage,
       totalAmount: qrResponse.totalAmount,
       uniqueCode: qrResponse.uniqueCode,
+      paymentExpiresAt: qrResponse.expiredAt,
       customerEmail,
       customerPhone,
     });

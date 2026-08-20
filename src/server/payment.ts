@@ -1,8 +1,10 @@
 import { getFirebaseFirestore } from "./firebase-admin";
-import crypto from "crypto";
+import { ensureDatabase, run, updateOrderPayment } from "./db";
+import { getOrderById as getStoreOrderById, updateOrderPayment as updateStoreOrderPayment } from "./store-data";
 
-// QR Code validity: standard 5 minutes (300 seconds)
-export const QR_CODE_VALIDITY_SECONDS = 300;
+// QRIS validity is limited to one hour for this payment flow.
+export const QR_CODE_VALIDITY_SECONDS = 60 * 60;
+const RAMASHOP_API_BASE_URL = "https://ramashop.my.id/api/public";
 
 export interface CreateQRPayload {
   orderId: string;
@@ -33,12 +35,31 @@ export interface PaymentVerificationResponse {
   whatsappLink?: string; // Link untuk WhatsApp notification
 }
 
-function getPayGateStaticQr() {
-  const qrString = process.env.PAYGATE_STATIC_QRIS?.trim();
-  if (!qrString) {
-    throw new Error("PAYGATE_STATIC_QRIS belum dikonfigurasi.");
+function getRamashopApiKey() {
+  const apiKey = (process.env.RAMASHOP_API_KEY || process.env.RAMASHOP_MASTER_KEY)?.trim();
+  if (!apiKey) {
+    throw new Error("RAMASHOP_API_KEY atau RAMASHOP_MASTER_KEY belum dikonfigurasi di environment server.");
   }
-  return qrString;
+  return apiKey;
+}
+
+async function callRamashopGateway(path: string, init?: RequestInit) {
+  const response = await fetch(`${RAMASHOP_API_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      "X-API-Key": getRamashopApiKey(),
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...init?.headers,
+    },
+    signal: AbortSignal.timeout(15_000),
+  });
+  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  return { response, payload };
+}
+
+function getGatewayData(payload: Record<string, unknown> | null) {
+  const data = payload?.data;
+  return data && typeof data === "object" ? data as Record<string, unknown> : {};
 }
 
 /**
@@ -55,29 +76,44 @@ export async function checkBalance(userId: string): Promise<{ balance: number; s
 export async function createDynamicQRCode(
   payload: CreateQRPayload & { userId: string },
 ): Promise<QRCodeResponse> {
-  try {
-    void payload.userId;
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + QR_CODE_VALIDITY_SECONDS * 1000);
-    const transactionId = `PG-${crypto.randomUUID()}`;
-    const qrString = getPayGateStaticQr();
-    const uniqueCode = crypto.randomInt(100, 1000);
-    const totalAmount = Math.round(payload.amount) + uniqueCode;
-    return {
-      depositId: transactionId,
-      qrString,
-      qrImage: "",
+  void payload.userId;
+  const { response, payload: gatewayPayload } = await callRamashopGateway("/deposit/create", {
+    method: "POST",
+    body: JSON.stringify({
       amount: Math.round(payload.amount),
-      totalAmount,
-      uniqueCode,
-      expiresIn: QR_CODE_VALIDITY_SECONDS,
-      createdAt: now.toISOString(),
-      expiredAt: expiresAt.toISOString(),
-    };
-  } catch (error) {
-    console.error("Error creating QRIS QR Code:", error);
-    throw error;
+      method: "qris",
+    }),
+  });
+
+  if (!response.ok || gatewayPayload?.success === false || gatewayPayload?.status === false) {
+    const message = typeof gatewayPayload?.message === "string" ? gatewayPayload.message : "QRIS belum berhasil dibuat.";
+    throw new Error(message);
   }
+
+  const data = getGatewayData(gatewayPayload);
+  const depositId = String(data.depositId ?? data.deposit_id ?? "");
+  const qrString = String(data.qrString ?? data.qr_string ?? "");
+  if (!depositId || !qrString) {
+    throw new Error("QRIS dari gateway belum lengkap. Coba buat pembayaran lagi ya.");
+  }
+
+  const now = new Date();
+  const gatewayExpiredAt = data.expiredAt ?? data.expired_at;
+  const expiresAt = gatewayExpiredAt
+    ? new Date(String(gatewayExpiredAt))
+    : new Date(now.getTime() + QR_CODE_VALIDITY_SECONDS * 1000);
+
+  return {
+    depositId,
+    qrString,
+    qrImage: typeof data.qrImage === "string" ? data.qrImage : "",
+    amount: Number(data.amount ?? payload.amount),
+    totalAmount: Number(data.totalAmount ?? data.total_amount ?? data.amount ?? payload.amount),
+    uniqueCode: Number(data.uniqueCode ?? data.unique_code ?? 0),
+    expiresIn: Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / 1000)),
+    createdAt: String(data.createdAt ?? data.created_at ?? now.toISOString()),
+    expiredAt: expiresAt.toISOString(),
+  };
 }
 
 /**
@@ -89,14 +125,23 @@ export async function verifyPaymentStatus(
   userId: string,
 ): Promise<PaymentVerificationResponse> {
   try {
-    const order = await getOrderByTransactionId(depositId);
     void userId;
-    if (!order) return { status: "failed" };
-    if (order.status === "paid") {
-      return { status: "success", amount: Number(order.total), paidAmount: Number(order.paidAmount ?? order.total) };
+    const { response, payload: gatewayPayload } = await callRamashopGateway(`/deposit/status/${encodeURIComponent(depositId)}`);
+    if (!response.ok) {
+      throw new Error("Status pembayaran belum bisa dicek dari gateway.");
     }
-    if (order.status === "expired") return { status: "expired" };
-    return { status: "pending", amount: Number(order.total) };
+
+    const data = getGatewayData(gatewayPayload);
+    const gatewayStatus = String(data.status ?? "pending").toLowerCase();
+    if (gatewayStatus === "success" || gatewayStatus === "already") {
+      return {
+        status: "success",
+        amount: Number(data.amount ?? 0),
+        paidAmount: Number(data.paidAmount ?? data.paid_amount ?? data.amount ?? 0),
+      };
+    }
+    if (gatewayStatus === "expired") return { status: "expired" };
+    return { status: "pending", amount: Number(data.amount ?? 0) };
 
   } catch (error) {
     console.error("Error verifying payment status:", error);
@@ -125,6 +170,7 @@ export async function saveOrder(
     qrImage: string;
     totalAmount: number;
     uniqueCode: number;
+    paymentExpiresAt?: string;
     customerEmail: string;
     customerPhone: string;
   },
@@ -132,7 +178,16 @@ export async function saveOrder(
   try {
     const db = getFirebaseFirestore();
     if (!db) {
-      throw new Error("Firebase is not configured");
+      await updateOrderPayment(orderData.orderId, {
+        paymentMethod: "dynamic_qris",
+        qrCode: orderData.qrString,
+        qrImage: orderData.qrImage,
+        totalAmount: orderData.totalAmount,
+        uniqueCode: orderData.uniqueCode,
+        depositId: orderData.depositId,
+        paymentExpiresAt: orderData.paymentExpiresAt,
+      });
+      return orderData.orderId;
     }
 
     // Save to Firestore
@@ -153,6 +208,42 @@ export async function saveOrder(
   }
 }
 
+export async function createQRCodeForExistingOrder(orderId: string, userId: string) {
+  const order = await getStoreOrderById(orderId);
+
+  if (!order) {
+    throw new Error("Order tidak ditemukan.");
+  }
+  if (order.userId !== userId) {
+    throw new Error("Kamu tidak punya akses ke order ini.");
+  }
+  if (order.status === "paid") {
+    throw new Error("Order ini sudah dibayar.");
+  }
+
+  const qrResponse = await createDynamicQRCode({
+    userId,
+    orderId,
+    amount: Math.round(order.total),
+    description: `Pembayaran Tokko - Order ${orderId}`,
+    customerName: order.userName,
+    customerEmail: order.userEmail,
+    customerPhone: order.userPhone,
+  });
+
+  await updateStoreOrderPayment(orderId, {
+    paymentMethod: "dynamic_qris",
+    qrCode: qrResponse.qrString,
+    qrImage: qrResponse.qrImage,
+    totalAmount: qrResponse.totalAmount,
+    uniqueCode: qrResponse.uniqueCode,
+    depositId: qrResponse.depositId,
+    paymentExpiresAt: qrResponse.expiredAt,
+  });
+
+  return qrResponse;
+}
+
 /**
  * Update order status after payment verification
  */
@@ -168,7 +259,25 @@ export async function updateOrderStatus(
   try {
     const db = getFirebaseFirestore();
     if (!db) {
-      throw new Error("Firebase is not configured");
+      await ensureDatabase();
+      const updatedAt = new Date().toISOString();
+      const paidAt = status === "paid" ? updatedAt : null;
+      const depositId = transactionData?.depositId ?? null;
+      const paidAmount = transactionData?.paidAmount ?? null;
+      const paymentNotes = transactionData?.paymentNotes ?? null;
+      await run(
+        `UPDATE orders SET status = ?, updated_at = ?, paid_at = ?, deposit_id = COALESCE(?, deposit_id), paid_amount = ?, payment_notes = ? WHERE id = ?`,
+        [
+          status,
+          updatedAt,
+          paidAt,
+          depositId,
+          paidAmount,
+          paymentNotes,
+          orderId,
+        ],
+      );
+      return;
     }
 
     const updatePayload: {
@@ -208,7 +317,26 @@ export async function getOrderById(orderId: string) {
   try {
     const db = getFirebaseFirestore();
     if (!db) {
-      throw new Error("Firebase is not configured");
+      await ensureDatabase();
+      const result = await run("SELECT * FROM orders WHERE id = ? LIMIT 1", [orderId]);
+      const row = result.rows[0] as Record<string, unknown> | undefined;
+      if (!row) return null;
+      return {
+        id: String(row.id),
+        userId: String(row.user_id ?? ""),
+        userName: String(row.user_name ?? ""),
+        userEmail: String(row.user_email ?? ""),
+        userPhone: String(row.user_phone ?? ""),
+        total: Number(row.total ?? 0),
+        status: String(row.status ?? "new"),
+        items: [],
+        depositId: String(row.deposit_id ?? ""),
+        qrString: String(row.qr_code ?? ""),
+        qrImage: String(row.qr_image ?? ""),
+        totalAmount: Number(row.total_amount ?? 0),
+        uniqueCode: Number(row.unique_code ?? 0),
+        paidAmount: Number(row.paid_amount ?? 0),
+      };
     }
 
     const orderRef = await db.collection("orders").doc(orderId).get();
@@ -224,7 +352,12 @@ export async function getOrderById(orderId: string) {
 
 export async function getOrderByTransactionId(transactionId: string) {
   const db = getFirebaseFirestore();
-  if (!db) throw new Error("Firebase is not configured");
+  if (!db) {
+    await ensureDatabase();
+    const result = await run("SELECT * FROM orders WHERE deposit_id = ? LIMIT 1", [transactionId]);
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    return row ? { id: String(row.id), ...row } : null;
+  }
   const snapshot = await db.collection("orders").where("depositId", "==", transactionId).limit(1).get();
   const order = snapshot.docs[0];
   return order ? { id: order.id, ...order.data() } : null;

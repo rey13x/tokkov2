@@ -4,6 +4,7 @@ import {
   getOrderById,
   deleteOrder,
 } from "@/server/store-data";
+import { verifyPaymentStatus } from "@/server/payment";
 import { sendTelegramActivityNotification } from "@/server/notifications";
 
 type Params = Promise<{ id: string }>;
@@ -29,12 +30,32 @@ export async function DELETE(request: Request, context: { params: Params }) {
       return NextResponse.json({ message: "Akses ditolak." }, { status: 403 });
     }
 
-    // Allow deletion only if order status is still "process" (not yet confirmed payment)
-    if (order.status !== "process") {
+    const canDeleteUnpaidOrder = ["process", "pending", "pending_payment", "new", "expired"].includes(order.status);
+    if (!canDeleteUnpaidOrder) {
       return NextResponse.json(
         { message: "Hanya pesanan yang masih diproses yang dapat dibatalkan." },
         { status: 400 },
       );
+    }
+
+    if (order.depositId) {
+      let paymentStatus: Awaited<ReturnType<typeof verifyPaymentStatus>>;
+      try {
+        paymentStatus = await verifyPaymentStatus(order.depositId, session.user.id);
+      } catch (error) {
+        console.error("Failed to verify payment before cancellation:", error);
+        return NextResponse.json(
+          { message: "Status pembayaran Rama Shop belum bisa dipastikan. Coba lagi." },
+          { status: 502 },
+        );
+      }
+
+      if (paymentStatus.status === "success") {
+        return NextResponse.json(
+          { message: "Pembayaran sudah berhasil. Pesanan tidak dapat dibatalkan." },
+          { status: 409 },
+        );
+      }
     }
 
     const deleted = await deleteOrder(id);

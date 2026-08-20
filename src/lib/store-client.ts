@@ -2,27 +2,33 @@ import type {
   StoreInformation,
   StoreMarqueeItem,
   StorePaymentSettings,
+  StorePrivacyPolicyPage,
   StoreProduct,
   StoreStoryReel,
   StoreTestimonial,
 } from "@/types/store";
+import {
+  clearSessionCached,
+  fetchSessionCached,
+  PUBLIC_DATA_CACHE_KEY,
+} from "@/lib/public-data-cache";
 
-export async function fetchStoreData() {
-  const response = await fetch("/api/store", {
+export type StoreData = {
+  products: StoreProduct[];
+  informations: StoreInformation[];
+  testimonials: StoreTestimonial[];
+  marquees?: StoreMarqueeItem[];
+  storyReels?: StoreStoryReel[];
+  paymentSettings?: StorePaymentSettings | null;
+  privacyPolicy?: StorePrivacyPolicyPage | null;
+};
+
+export function fetchStoreData(): Promise<StoreData> {
+  return fetchSessionCached<StoreData>(PUBLIC_DATA_CACHE_KEY.store, "/api/store", {
     cache: "no-store",
   });
-  if (!response.ok) {
-    throw new Error("Failed to fetch store");
-  }
+}
 
-  const data = (await response.json()) as {
-    products: StoreProduct[];
-    informations: StoreInformation[];
-    testimonials: StoreTestimonial[];
-    marquees?: StoreMarqueeItem[];
-    storyReels?: StoreStoryReel[];
-    paymentSettings?: StorePaymentSettings | null;
-  };
-
-  return data;
+export function clearStoreDataCache() {
+  clearSessionCached(PUBLIC_DATA_CACHE_KEY.store);
 }

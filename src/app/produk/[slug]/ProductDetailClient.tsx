@@ -210,7 +210,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     if (onboardingActive && status !== "authenticated") {
       if (typeof window !== "undefined") {
         window.alert(
-          "Di luar tutorial kamu akan dialihkan ke login/daftar. Karena ini tutorial, langkah login kita skip.",
+          "Kalau bukan tutorial, kamu bakal diarahkan ke login/daftar. Untuk tutorial ini, langkah login kita lewati dulu ya.",
         );
       }
       addToCart(product.slug, quantity);
@@ -248,21 +248,21 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     // ===== SECURITY: Prevent devtools bypass =====
     // Check if already applying (prevent concurrent requests)
     if (isApplyingRef.current) {
-      setJobApplicationError("Mohon tunggu hingga lamaran selesai diproses.");
+      setJobApplicationError("Tunggu sebentar ya, lamaranmu masih diproses.");
       return;
     }
 
     // Rate limiting: prevent rapid-fire clicks (500ms minimum between attempts)
     const now = Date.now();
     if (now - lastApplyTimeRef.current < 500) {
-      setJobApplicationError("Mohon tunggu sebelum melamar lagi.");
+      setJobApplicationError("Tunggu sebentar sebelum melamar lagi ya.");
       return;
     }
     lastApplyTimeRef.current = now;
 
     // Verify button should actually be disabled (check limit state)
     if (applicantLimitReached) {
-      setJobApplicationError("Anda tidak dapat melamar pekerjaan ini saat ini.");
+      setJobApplicationError("Kamu belum bisa melamar pekerjaan ini sekarang ya.");
       return;
     }
 
@@ -277,7 +277,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     const applicationLink = normalizeExternalUrl(product.jobApplicationLink);
 
     if (!applicationLink) {
-      setJobApplicationError("Link pendaftaran tidak tersedia.");
+      setJobApplicationError("Link pendaftarannya belum tersedia ya.");
       return;
     }
 
@@ -288,7 +288,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
     // Show confirmation popup
     const confirmed = window.confirm(
-      "Yakin ingin melamar pekerjaan ini?\n\nSetelah kamu lamar, kamu akan dicatat di sistem kami."
+      "Mau melamar pekerjaan ini?\n\nSetelah lanjut, lamaranmu bakal tercatat di sini ya."
     );
     if (!confirmed) {
       lastApplyTimeRef.current = 0; // Reset rate limit on cancel
@@ -476,9 +476,9 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
               </p>
 
               {added ? (
-                <p className={styles.successMessage} ref={noticeRef}>
-                  {quantity} item berhasil ditambahkan ke troli.
-                </p>
+                      <p className={styles.successMessage} ref={noticeRef}>
+                        Produk kamu sudah masuk Troli ya! ({quantity} item)
+                      </p>
               ) : null}
             </>
           ) : (

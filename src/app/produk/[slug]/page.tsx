@@ -1,19 +1,52 @@
-import { notFound } from "next/navigation";
-import { getProductBySlug } from "@/server/db";
+"use client";
+
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import WaitLoading from "@/components/ui/WaitLoading";
+import { fetchStoreData } from "@/lib/store-client";
+import type { StoreProduct } from "@/types/store";
 import ProductDetailClient from "./ProductDetailClient";
 
-type ProductDetailPageProps = {
-  params: Promise<{ slug: string }>;
-};
+export default function ProductDetailPage() {
+  const { slug } = useParams<{ slug: string }>();
+  const [product, setProduct] = useState<StoreProduct | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-export const dynamic = "force-dynamic";
+  useEffect(() => {
+    let mounted = true;
 
-export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
-  const { slug } = await params;
-  const product = await getProductBySlug(slug);
+    fetchStoreData()
+      .then((data) => {
+        if (!mounted) {
+          return;
+        }
+        const foundProduct = data.products.find(
+          (item) => item.slug.toLowerCase() === slug.toLowerCase(),
+        );
+        setProduct(foundProduct ?? null);
+      })
+      .catch(() => {
+        if (mounted) {
+          setProduct(null);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [slug]);
+
+  if (isLoading) {
+    return <WaitLoading centered />;
+  }
 
   if (!product) {
-    notFound();
+    return <p style={{ padding: "40px 20px", textAlign: "center" }}>Produk tidak ditemukan.</p>;
   }
 
   return <ProductDetailClient product={product} />;

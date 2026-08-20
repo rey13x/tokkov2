@@ -10,6 +10,7 @@ import { FaInstagram, FaWhatsapp, FaLinkedin } from "react-icons/fa";
 import type { PortfolioItem, HomepageConfig } from "@/types/store";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import styles from "./PortfolioClient.module.css";
+import { fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
 
 const logoImage = "/assets/logo.png";
 
@@ -69,8 +70,10 @@ export default function PortfolioClient() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("/api/portfolio");
-        const data = await response.json();
+        const data = await fetchSessionCached<{ portfolioItems?: PortfolioItem[]; homepageConfig?: HomepageConfig }>(
+          PUBLIC_DATA_CACHE_KEY.portfolio,
+          "/api/portfolio",
+        );
         setPortfolioItems(data.portfolioItems || []);
         setConfig(data.homepageConfig || null);
       } catch (error) {

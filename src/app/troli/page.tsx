@@ -42,7 +42,7 @@ type JobApplication = {
   category?: string;
 };
 
-const TAX_RATE = 0.11;
+const TAX_AMOUNT = 500;
 
 function ButtonLoading() {
   return <span className={styles.buttonSpinner} aria-label="Loading" role="status" />;
@@ -252,7 +252,7 @@ export default function CartPage() {
   const subtotal = detailedItems
     .filter((item) => item.selected)
     .reduce((total, item) => total + item.lineTotal, 0);
-  const tax = subtotal * TAX_RATE;
+  const tax = subtotal > 0 ? TAX_AMOUNT : 0;
   const total = subtotal + tax;
 
   const changeQuantity = (slug: string, nextQuantity: number) => {
@@ -322,7 +322,7 @@ export default function CartPage() {
 
     const selected = detailedItems.filter((item) => item.selected);
     if (selected.length === 0) {
-      setError("Pilih minimal satu item untuk checkout.");
+      setError("Pilih dulu minimal satu produk yang mau dibeli ya.");
       return;
     }
 
@@ -332,7 +332,7 @@ export default function CartPage() {
         advanceOnboarding(ONBOARDING_STAGE.STATUS_OPEN_PAYMENT);
         setIsCartTutorialRunning(false);
       }
-      setSuccess("Mode tutorial aktif. Simulasi berjalan, data pesanan tidak masuk database.");
+      setSuccess("Mode tutorial aktif ya. Ini cuma simulasi, jadi pesanan belum masuk database.");
       window.setTimeout(() => {
         router.push(
           `/status-pemesanan?highlight=${encodeURIComponent(
@@ -395,7 +395,7 @@ export default function CartPage() {
               price: item.product.price,
             })),
             subtotal: selected.reduce((acc, item) => acc + item.product.price * item.quantity, 0),
-            tax: total - selected.reduce((acc, item) => acc + item.product.price * item.quantity, 0),
+            tax: 500,
             total,
             customerName: session?.user?.username || session?.user?.name || "User",
             customerEmail: session?.user?.email ?? "",
@@ -420,12 +420,12 @@ export default function CartPage() {
       setCartLines((current) => current.filter((item) => !item.selected));
 
       // Step 4: Show success and open payment modal if QR data available
-      setSuccess("Pesanan berhasil dibuat! Silakan lakukan pembayaran dengan QRIS.");
+      setSuccess("Pesanan kamu sudah dibuat! Tinggal lanjut bayar lewat QRIS ya.");
 
-      router.push(`/status-pemesanan?highlight=${encodeURIComponent(orderId)}`);
+      router.push(`/status-pemesanan?highlight=${encodeURIComponent(orderId)}&pay=1`);
     } catch (err) {
       console.error("Checkout error:", err);
-      setError("Gagal memproses pesanan. Coba lagi.");
+      setError("Pesanannya belum berhasil diproses. Coba lagi ya.");
     } finally {
       setIsCheckoutLoading(false);
     }
@@ -464,10 +464,10 @@ export default function CartPage() {
 
       // Remove from state
       setJobApplications((current) => current.filter((app) => app.id !== applicationId));
-      setSuccess("Lamaran berhasil dibatalkan.");
+      setSuccess("Lamaran kamu sudah dibatalkan ya.");
     } catch (err) {
       console.error("Failed to cancel job application:", err);
-      setJobApplicationError("Gagal membatalkan lamaran. Coba lagi.");
+      setJobApplicationError("Lamarannya belum bisa dibatalkan. Coba lagi ya.");
     } finally {
       setCancelingApplicationId(null);
     }
@@ -658,7 +658,6 @@ export default function CartPage() {
                       </button>
                     </div>
                     <p className={styles.metaLine}>{item.product.category}</p>
-                    <p className={styles.metaLineMuted}>Tidak dapat refund</p>
                   </div>
 
                   <div className={styles.actionCol}>

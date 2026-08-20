@@ -52,6 +52,7 @@ import {
   updateMarquee as updateMarqueeDb,
   updateStoryReel as updateStoryReelDb,
   updateOrderStatus as updateOrderStatusDb,
+  updateOrderPayment as updateOrderPaymentDb,
   updateProduct as updateProductDb,
   updateTestimonial as updateTestimonialDb,
   upsertPrivacyPolicyPage as upsertPrivacyPolicyPageDb,
@@ -63,6 +64,7 @@ import { getFirebaseFirestore } from "@/server/firebase-admin";
 import { resolveMediaUrl } from "@/lib/media";
 
 const now = () => Date.now();
+const ORDER_TAX_AMOUNT = 500;
 
 const PORTFOLIO_ITEMS_META_KEY = "portfolioItems";
 const HOMEPAGE_CONFIG_META_KEY = "homepageConfig";
@@ -1382,7 +1384,8 @@ export async function createOrder(input: {
   try {
     const id = crypto.randomUUID();
     const createdAt = now();
-    const total = input.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+    const subtotal = input.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+    const total = subtotal + ORDER_TAX_AMOUNT;
 
     await firestore.collection("orders").doc(id).set({
       userId: input.userId,
@@ -1404,6 +1407,42 @@ export async function createOrder(input: {
     markFirestoreUnavailable(error);
     console.error("Failed to create order in Firestore. Falling back to local database.", error);
     return createOrderDb(input);
+  }
+}
+
+export async function updateOrderPayment(
+  orderId: string,
+  payment: {
+    paymentMethod: "static_qris" | "dynamic_qris";
+    qrCode: string;
+    qrImage: string;
+    totalAmount: number;
+    uniqueCode: number;
+    depositId: string;
+    paymentExpiresAt?: string;
+  },
+) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return updateOrderPaymentDb(orderId, payment);
+  }
+
+  try {
+    const ref = firestore.collection("orders").doc(orderId);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return null;
+    }
+
+    await ref.update({
+      ...payment,
+      updatedAt: now(),
+    });
+    return getOrderById(orderId);
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to update order payment in Firestore. Falling back to local database.", error);
+    return updateOrderPaymentDb(orderId, payment);
   }
 }
 
@@ -1489,6 +1528,7 @@ export async function listOrders(limit = 100) {
         totalAmount: Number(data.totalAmount ?? 0),
         uniqueCode: Number(data.uniqueCode ?? 0),
         depositId: String(data.depositId ?? ""),
+        paymentExpiresAt: String(data.paymentExpiresAt ?? ""),
         qrCode: String(data.qrCode ?? ""),
         cancelRequestStatus: mapCancelRequestStatus(data.cancelRequestStatus),
         cancelRequestReason: String(data.cancelRequestReason ?? ""),
@@ -1556,6 +1596,7 @@ export async function getOrderById(id: string) {
     const data = doc.data() as Record<string, unknown>;
     return {
       id: doc.id,
+      userId: String(data.userId ?? ""),
       userName: String(data.userName ?? ""),
       userEmail: String(data.userEmail ?? ""),
       userPhone: String(data.userPhone ?? ""),
@@ -1566,6 +1607,7 @@ export async function getOrderById(id: string) {
       totalAmount: Number(data.totalAmount ?? 0),
       uniqueCode: Number(data.uniqueCode ?? 0),
       depositId: String(data.depositId ?? ""),
+      paymentExpiresAt: String(data.paymentExpiresAt ?? ""),
       qrCode: String(data.qrCode ?? ""),
       cancelRequestStatus: mapCancelRequestStatus(data.cancelRequestStatus),
       cancelRequestReason: String(data.cancelRequestReason ?? ""),

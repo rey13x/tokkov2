@@ -37,6 +37,14 @@ body {
   overflow-x: clip;
 }
 
+#smooth-wrapper {
+  min-height: 100dvh;
+}
+
+#smooth-content {
+  min-height: 100dvh;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -46,6 +54,7 @@ body {
   color: var(--text-color);
   background: var(--bg-primary);
   font-family: var(--font-sora), sans-serif;
+  -webkit-overflow-scrolling: touch;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.3s ease, color 0.3s ease;

@@ -2,6 +2,7 @@
 
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -21,6 +22,7 @@ import bagasPhoto from "@/app/assets/Bagas.jpg";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import ProductCard from "@/components/home/ProductCard";
 import PremiumMarquee from "@/components/home/PremiumMarquee";
+import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import { HERO_BACKGROUND_URLS, HERO_CONFIG, getPhotoDuration } from "@/data/hero-backgrounds";
 import { getCartCount } from "@/lib/cart";
@@ -36,6 +38,7 @@ import {
   startOnboarding,
 } from "@/lib/onboarding";
 import { fetchStoreData } from "@/lib/store-client";
+import { fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
 import type {
   StoreInformation,
   StoreMarqueeItem,
@@ -53,7 +56,6 @@ type HomeMarquee = StoreMarqueeItem;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
-const HOME_DATA_READY_STORAGE_KEY = "tokko_home_data_ready";
 const logoImage = "/assets/logov2.svg";
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
@@ -65,23 +67,21 @@ export default function HomeClient() {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const mainPanelRef = useRef<HTMLDivElement | null>(null);
   const productsPanelRef = useRef<HTMLDivElement | null>(null);
-  const menuFabRef = useRef<HTMLButtonElement | null>(null);
   const informationViewportRef = useRef<HTMLDivElement | null>(null);
   const logoViewportRef = useRef<HTMLDivElement | null>(null);
   const testimonialViewportRef = useRef<HTMLDivElement | null>(null);
   const testimonialDragStartRef = useRef(0);
   const testimonialStartScrollRef = useRef(0);
   const previousLayerRef = useRef<MenuLayer>("closed");
+  const menuFabRef = useRef<HTMLButtonElement | null>(null);
+  const menuIntroRef = useRef<gsap.core.Timeline | null>(null);
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
 
   const [storeDataReady, setStoreDataReady] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    return window.localStorage.getItem(HOME_DATA_READY_STORAGE_KEY) === "1";
+    return false;
   });
+  const [isMounted, setIsMounted] = useState(false);
   const [menuLayer, setMenuLayer] = useState<MenuLayer>("closed");
   const [menuMounted, setMenuMounted] = useState(false);
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
@@ -103,6 +103,13 @@ export default function HomeClient() {
     ),
   });
   const heroImage = heroBackgroundUrls[currentBackgroundIndex] || "/assets/backgroundv2.png";
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => setIsMounted(true));
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, []);
 
   const categories = useMemo(() => {
     const set = new Set(products.map((product) => product.category));
@@ -157,11 +164,38 @@ export default function HomeClient() {
     setMenuLayer("main");
   };
 
+  const showMenuButton = () => {
+    const menuFab = menuFabRef.current;
+    const menuIntro = menuIntroRef.current;
+    if (!menuFab || !menuIntro) {
+      return;
+    }
+
+    gsap.set(menuFab, { opacity: 0, scale: 0.82 });
+    gsap.to(menuFab, { opacity: 1, scale: 1, duration: 0.24, ease: "power2.out" });
+    menuIntro.restart();
+  };
+
   function openMenu() {
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
-    window.requestAnimationFrame(activateMenu);
+
+    const menuFab = menuFabRef.current;
+    const menuIntro = menuIntroRef.current;
+    if (!menuFab || !menuIntro) {
+      activateMenu();
+      return;
+    }
+
+    menuIntro.reverse();
+    gsap.to(menuFab, {
+      opacity: 0,
+      scale: 0.82,
+      duration: 0.72,
+      ease: "power2.inOut",
+      onComplete: activateMenu,
+    });
   }
 
   function closeMenu() {
@@ -170,6 +204,7 @@ export default function HomeClient() {
       setMenuLayer("closed");
       setMenuMounted(false);
       previousLayerRef.current = "closed";
+      showMenuButton();
       return;
     }
 
@@ -181,6 +216,7 @@ export default function HomeClient() {
         setMenuLayer("closed");
         setMenuMounted(false);
         previousLayerRef.current = "closed";
+        showMenuButton();
       },
     });
   }
@@ -255,12 +291,11 @@ export default function HomeClient() {
 
     const loadHeroBackgrounds = async () => {
       try {
-        const response = await fetch("/api/hero-backgrounds", { cache: "no-store" });
-        if (!response.ok) {
-          return;
-        }
-
-        const data = (await response.json()) as { backgrounds?: Array<{ url: string; duration?: number }> };
+        const data = await fetchSessionCached<{ backgrounds?: Array<{ url: string; duration?: number }> }>(
+          PUBLIC_DATA_CACHE_KEY.heroBackgrounds,
+          "/api/hero-backgrounds",
+          { cache: "no-store" },
+        );
         const backgrounds = (data.backgrounds ?? []).filter((item) => typeof item?.url === "string" && item.url.trim());
         if (!backgrounds.length || !isMounted) {
           return;
@@ -392,14 +427,6 @@ export default function HomeClient() {
   useEffect(() => {
     let mounted = true;
 
-    const hasCachedHomeData = typeof window !== "undefined" && window.localStorage.getItem(HOME_DATA_READY_STORAGE_KEY) === "1";
-    if (hasCachedHomeData) {
-      setStoreDataReady(true);
-      return () => {
-        mounted = false;
-      };
-    }
-
     fetchStoreData()
       .then((data) => {
         if (!mounted) {
@@ -409,19 +436,17 @@ export default function HomeClient() {
         setInformations(data.informations ?? []);
         setTestimonials(data.testimonials ?? []);
         setMarquees(data.marquees ?? []);
+        setStoreDataReady((data.products ?? []).length > 0);
       })
       .catch(() => {
         // keep the homepage usable even if the store API is slow or unavailable
-      })
-      .finally(() => {
-        if (!mounted) {
-          return;
-        }
-        setStoreDataReady(true);
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(HOME_DATA_READY_STORAGE_KEY, "1");
-        }
       });
+
+    void Promise.allSettled([
+      fetchSessionCached(PUBLIC_DATA_CACHE_KEY.heroBackgrounds, "/api/hero-backgrounds", { cache: "no-store" }),
+      fetchSessionCached(PUBLIC_DATA_CACHE_KEY.portfolio, "/api/portfolio", { cache: "no-store" }),
+      fetchSessionCached(PUBLIC_DATA_CACHE_KEY.bookStories, "/api/book-stories/approved", { cache: "no-store" }),
+    ]);
 
     return () => {
       mounted = false;
@@ -541,22 +566,40 @@ export default function HomeClient() {
         );
       });
 
-      if (menuFabRef.current) {
-        gsap.to(menuFabRef.current, {
-          y: -6,
-          duration: 1.1,
-          repeat: -1,
-          yoyo: true,
-          ease: "sine.inOut",
-        });
-      }
     }, rootRef);
 
     return () => {
-      ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
       ctx.revert();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isMounted || !menuFabRef.current) {
+      return;
+    }
+
+    const menuFab = menuFabRef.current;
+    const menuIcon = menuFab.querySelector<HTMLElement>("svg");
+    const menuLabel = menuFab.querySelector<HTMLElement>(`.${styles.menuFabLabel}`);
+    const isCompact = window.matchMedia("(orientation: portrait) and (max-width: 920px)").matches;
+    const targetWidth = isCompact ? 46 : 156;
+
+    gsap.set(menuFab, { width: isCompact ? 46 : 48, paddingLeft: 0, paddingRight: 0 });
+    gsap.set(menuIcon, { opacity: 0, scale: 0.2 });
+    gsap.set(menuLabel, { opacity: 0, x: 8 });
+
+    const menuIntro = gsap.timeline({ delay: 0.25 });
+    menuIntro
+      .to(menuIcon, { opacity: 1, scale: 1, duration: 0.32, ease: "back.out(1.7)" })
+      .to(menuFab, { width: targetWidth, paddingLeft: isCompact ? 8 : 18, paddingRight: isCompact ? 8 : 18, duration: 0.42, ease: "power3.out" })
+      .to(menuLabel, { opacity: 1, x: 0, duration: 0.24, ease: "power2.out" }, "-=0.08");
+    menuIntroRef.current = menuIntro;
+
+    return () => {
+      menuIntro.kill();
+      menuIntroRef.current = null;
+    };
+  }, [isMounted]);
 
   useEffect(() => {
     const shouldRun =
@@ -844,7 +887,11 @@ export default function HomeClient() {
         </div>
       </section>
 
-      {!storeDataReady ? <div className={styles.storeLoadingBadge} style={{ textAlign: 'center' }}>Pastikan Internet kamu Stabil...</div> : null}
+      {!storeDataReady ? (
+        <div className={styles.storeLoading}>
+          <WaitLoading />
+        </div>
+      ) : null}
 
       <AppOnboardingJoyride
         run={isHomeTutorialRunning}
@@ -976,10 +1023,22 @@ export default function HomeClient() {
       </section>
       ) : null}
 
-      <button type="button" className={styles.menuFab} onClick={openMenu} ref={menuFabRef} aria-label="Menu">
-        <FiMenu />
-        <span className={styles.menuFabLabel}>Menu</span>
-      </button>
+      {isMounted
+        ? createPortal(
+            <button
+              type="button"
+              className={`${styles.menuFab} ${menuMounted ? styles.menuFabBehindOverlay : ""}`}
+              onClick={openMenu}
+              ref={menuFabRef}
+              aria-label="Menu"
+              aria-hidden={menuMounted}
+            >
+              <FiMenu />
+              <span className={styles.menuFabLabel}>Menu</span>
+            </button>,
+            document.body,
+          )
+        : null}
 
       {menuMounted ? (
         <aside className={styles.menuOverlay} ref={overlayRef} aria-modal="true" role="dialog">
@@ -1093,13 +1152,14 @@ export default function HomeClient() {
                   type="button"
                   className={styles.menuActionButton}
                   onClick={() => moveMenu("main", -1)}
+                  data-menu-item
                 >
                   <span className={styles.menuActionIcon}>
                     <FiArrowLeft />
                   </span>
                   Kembali
                 </button>
-                <button type="button" className={styles.menuActionButton} onClick={closeMenu}>
+                <button type="button" className={styles.menuActionButton} onClick={closeMenu} data-menu-item>
                   <span className={styles.menuActionIcon}>
                     <FiX />
                   </span>

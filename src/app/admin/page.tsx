@@ -152,10 +152,10 @@ function parseRupiahInput(value: string) {
 
 function statusOrderLabel(status: string) {
   if (status === "done") {
-    return "Habis";
+    return "Dikirim";
   }
   if (status === "error") {
-    return "Dikirim";
+    return "Ditolak";
   }
   return "Proses";
 }
@@ -2789,8 +2789,8 @@ function AdminManagementSection() {
                     }
                   >
                     <option value="process">Proses</option>
-                    <option value="done">Habis</option>
-                    <option value="error">Dikirim</option>
+                    <option value="done">Dikirim</option>
+                    <option value="error">Ditolak</option>
                   </select>
                   <button type="button" onClick={() => onSaveOrderStatus(order.id)}>
                     Simpan

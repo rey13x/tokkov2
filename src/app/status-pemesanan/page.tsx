@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -25,24 +26,49 @@ import {
 import type { OrderSummary } from "@/types/store";
 import styles from "./page.module.css";
 
-function statusLabel(status: string) {
-  if (status === "done") {
-    return "Habis";
+function statusGroup(status: string) {
+  if (status === "paid") {
+    return "paid";
   }
-  if (status === "error") {
+  if (["done", "delivered", "sent"].includes(status)) {
+    return "done";
+  }
+  if (["error", "rejected", "declined", "failed"].includes(status)) {
+    return "error";
+  }
+  return "process";
+}
+
+function statusLabel(status: string) {
+  if (statusGroup(status) === "paid") {
+    return "Sudah Bayar";
+  }
+  if (statusGroup(status) === "done") {
     return "Dikirim";
+  }
+  if (statusGroup(status) === "error") {
+    return "Ditolak";
   }
   return "Proses";
 }
 
 function statusClass(status: string) {
-  if (status === "done") {
+  if (["paid", "done", "delivered", "sent"].includes(status)) {
     return styles.statusDone;
   }
-  if (status === "error") {
+  if (statusGroup(status) === "error") {
     return styles.statusError;
   }
   return styles.statusProcess;
+}
+
+function isPaymentExpired(order: OrderSummary) {
+  if (!order.paymentExpiresAt) {
+    return false;
+  }
+
+  const expiresAt = new Date(order.paymentExpiresAt).getTime();
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
 }
 
 function ReceiptIcon() {
@@ -63,6 +89,14 @@ function PaymentIcon() {
         d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2H3V7Zm0 4h18v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6Zm3.2 3.2v1.6h4.4v-1.6H6.2Z"
         fill="currentColor"
       />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M6 7h12l-1 14H7L6 7Zm3-4h6l1 2H8l1-2ZM4 5h16v2H4V5Z" fill="currentColor" />
     </svg>
   );
 }
@@ -113,6 +147,14 @@ export default function StatusPemesananPage() {
   const [confirmationNotes, setConfirmationNotes] = useState<Record<string, string>>({});
   const [isConfirmationSubmittingOrderId, setIsConfirmationSubmittingOrderId] = useState<string | null>(null);
   const [isDeletingOrderId, setIsDeletingOrderId] = useState<string | null>(null);
+  const [showCancellationSuccess, setShowCancellationSuccess] = useState(false);
+  const [showHistoryCleaner, setShowHistoryCleaner] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<"all" | "process" | "done" | "error">("all");
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
+  const [isClearingHistory, setIsClearingHistory] = useState(false);
+  const [isPreparingPaymentOrderId, setIsPreparingPaymentOrderId] = useState<string | null>(null);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+  const [paymentSecondsLeft, setPaymentSecondsLeft] = useState<number | null>(null);
   const [statusTutorialStage, setStatusTutorialStage] = useState<OnboardingStage | null>(null);
 
   const loadOrders = useCallback(async () => {
@@ -144,6 +186,43 @@ export default function StatusPemesananPage() {
       console.error("Failed to load job applications:", err);
     }
   }, [status]);
+
+  const syncPendingPaymentStatuses = useCallback(async () => {
+    const paymentOrders = orders.filter((order) => order.depositId && order.status !== "paid");
+    if (paymentOrders.length === 0) {
+      return;
+    }
+
+    const paidOrders = await Promise.all(
+      paymentOrders.map(async (order) => {
+        try {
+          const response = await fetch("/api/payments/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId: order.id, depositId: order.depositId }),
+          });
+          if (!response.ok) {
+            return null;
+          }
+
+          const result = (await response.json()) as { status?: string; order?: OrderSummary };
+          return result.status === "success" ? result.order ?? null : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const successfulOrders = paidOrders.filter((order): order is OrderSummary => Boolean(order));
+    if (successfulOrders.length === 0) {
+      return;
+    }
+
+    setOrders((current) => current.map((order) => {
+      const updated = successfulOrders.find((paidOrder) => paidOrder.id === order.id);
+      return updated ?? order;
+    }));
+  }, [orders]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -247,10 +326,92 @@ export default function StatusPemesananPage() {
     const timer = window.setInterval(() => {
       loadOrders().catch(() => {});
       loadJobApplications();
+      syncPendingPaymentStatuses().catch(() => {});
     }, 8000);
 
     return () => window.clearInterval(timer);
-  }, [loadOrders, loadJobApplications, status]);
+  }, [loadOrders, loadJobApplications, status, syncPendingPaymentStatuses]);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      syncPendingPaymentStatuses().catch(() => {});
+    }
+  }, [status, syncPendingPaymentStatuses]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || orders.length === 0) {
+      return;
+    }
+
+    const expiredOrders = orders.filter((order) => {
+      if (order.id === activePaymentOrderId || statusGroup(order.status) === "paid" || !order.paymentExpiresAt) {
+        return false;
+      }
+
+      const expiresAt = new Date(order.paymentExpiresAt).getTime();
+      return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+    });
+
+    if (expiredOrders.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    let cleanupStarted = false;
+    const removeExpiredOrders = async () => {
+      if (cleanupStarted) {
+        return;
+      }
+      cleanupStarted = true;
+      const removedOrderIds: string[] = [];
+
+      for (const order of expiredOrders) {
+        try {
+          if (order.depositId) {
+            const verifyResponse = await fetch("/api/payments/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ orderId: order.id, depositId: order.depositId }),
+            });
+            const verifyResult = (await verifyResponse.json()) as { status?: string; order?: OrderSummary };
+            if (verifyResult.status === "success") {
+              if (!cancelled && verifyResult.order) {
+                setOrders((current) => current.map((item) => item.id === order.id ? verifyResult.order! : item));
+              }
+              continue;
+            }
+          }
+
+          const deleteResponse = await fetch(`/api/orders/${order.id}/delete`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+          });
+          if (deleteResponse.ok) {
+            removedOrderIds.push(order.id);
+          }
+        } catch {
+          // Keep the order visible so a later page poll can retry the cleanup.
+        }
+      }
+
+      if (cancelled || removedOrderIds.length === 0) {
+        return;
+      }
+
+      setOrders((current) => current.filter((order) => !removedOrderIds.includes(order.id)));
+      if (removedOrderIds.includes(activePaymentOrderId ?? "")) {
+        setActivePaymentOrderId(null);
+      }
+      setSuccess("Waktu QRIS habis, jadi pesanan yang belum dibayar sudah dihapus ya.");
+    };
+
+    void removeExpiredOrders();
+    const expiryTimer = window.setInterval(() => void removeExpiredOrders(), 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(expiryTimer);
+    };
+  }, [activePaymentOrderId, orders, status]);
 
   const tutorialOrder = useMemo<OrderSummary>(
     () => ({
@@ -291,8 +452,71 @@ export default function StatusPemesananPage() {
     return [tutorialOrder, ...withoutTutorial];
   }, [orders, isTutorialMode, tutorialOrder]);
 
+  const historyCandidates = useMemo(
+    () => displayOrders.filter((order) => statusGroup(order.status) !== "paid"),
+    [displayOrders],
+  );
+
+  const filteredHistoryCandidates = useMemo(
+    () => historyCandidates.filter((order) => historyFilter === "all" || statusGroup(order.status) === historyFilter),
+    [historyCandidates, historyFilter],
+  );
+
+  const toggleHistorySelection = (orderId: string) => {
+    setSelectedHistoryIds((current) =>
+      current.includes(orderId) ? current.filter((id) => id !== orderId) : [...current, orderId],
+    );
+  };
+
+  const selectAllFilteredHistory = () => {
+    const filteredIds = filteredHistoryCandidates.map((order) => order.id);
+    setSelectedHistoryIds((current) => [
+      ...current.filter((id) => !filteredIds.includes(id)),
+      ...filteredIds,
+    ]);
+  };
+
+  const clearSelectedHistory = async () => {
+    if (selectedHistoryIds.length === 0) {
+      return;
+    }
+
+    setIsClearingHistory(true);
+    setError("");
+    try {
+      const response = await fetch("/api/orders/clear-history", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderIds: selectedHistoryIds, status: historyFilter }),
+      });
+      const result = (await response.json()) as { message?: string; deletedIds?: string[] };
+      if (!response.ok) {
+        throw new Error(result.message ?? "Gagal membersihkan riwayat pemesanan.");
+      }
+
+      const deletedIds = result.deletedIds ?? [];
+      setOrders((current) => current.filter((order) => !deletedIds.includes(order.id)));
+      setSelectedHistoryIds([]);
+      setShowHistoryCleaner(false);
+      setSuccess(`${deletedIds.length} riwayat pemesanan berhasil dihapus.`);
+    } catch (clearError) {
+      setError(clearError instanceof Error ? clearError.message : "Gagal membersihkan riwayat pemesanan.");
+    } finally {
+      setIsClearingHistory(false);
+    }
+  };
+
   const displayTotalBelanja = useMemo(
     () => displayOrders.reduce((sum, order) => sum + Number(order.total || 0), 0),
+    [displayOrders],
+  );
+
+  const orderStatusCounts = useMemo(
+    () => ({
+      process: displayOrders.filter((order) => statusGroup(order.status) === "process").length,
+      done: displayOrders.filter((order) => statusGroup(order.status) === "done").length,
+      error: displayOrders.filter((order) => statusGroup(order.status) === "error").length,
+    }),
     [displayOrders],
   );
 
@@ -313,7 +537,7 @@ export default function StatusPemesananPage() {
       setSuccess("Mode tutorial: ini simulasi struk, tidak ada data yang disimpan.");
       return;
     }
-    window.open(`/api/orders/${orderId}/receipt`, "_blank", "noopener,noreferrer");
+    window.open(`/api/orders/${orderId}/receiptline`, "_blank", "noopener,noreferrer");
   };
 
   const onCancelJobApplication = async (applicationId: string) => {
@@ -342,7 +566,7 @@ export default function StatusPemesananPage() {
     }
   };
 
-  const onOpenPayment = (orderId: string) => {
+  const onOpenPayment = async (orderId: string) => {
     const onboardingState = getOnboardingState();
     if (
       onboardingState.active &&
@@ -352,7 +576,48 @@ export default function StatusPemesananPage() {
       advanceOnboarding(ONBOARDING_STAGE.STATUS_CLOSE_PAYMENT);
       setStatusTutorialStage(ONBOARDING_STAGE.STATUS_CLOSE_PAYMENT);
     }
-    setActivePaymentOrderId(orderId);
+    const order = displayOrders.find((item) => item.id === orderId);
+    if (!order) return;
+
+    if (order.qrCode || order.qrImage) {
+      setActivePaymentOrderId(orderId);
+      return;
+    }
+
+    setIsPreparingPaymentOrderId(orderId);
+    setError("");
+    try {
+      const response = await fetch(`/api/payments/orders/${orderId}/qris`, { method: "POST" });
+      const result = (await response.json()) as {
+        error?: string;
+        qrCode?: string;
+        qrImage?: string;
+        depositId?: string;
+        totalAmount?: number;
+        uniqueCode?: number;
+        expiredAt?: string;
+      };
+      if (!response.ok || (!result.qrCode && !result.qrImage)) {
+        throw new Error(result.error || "QRIS Rama Shop belum berhasil dibuat ya.");
+      }
+
+      setOrders((current) => current.map((item) => item.id === orderId
+        ? {
+            ...item,
+            qrCode: result.qrCode,
+            qrImage: result.qrImage,
+            depositId: result.depositId,
+            totalAmount: result.totalAmount,
+            uniqueCode: result.uniqueCode,
+            paymentExpiresAt: result.expiredAt,
+          }
+        : item));
+      setActivePaymentOrderId(orderId);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "QRIS belum berhasil dibuat ya.");
+    } finally {
+      setIsPreparingPaymentOrderId(null);
+    }
   };
 
   const closePaymentPopup = () => {
@@ -361,6 +626,42 @@ export default function StatusPemesananPage() {
     if (onboardingState.active && onboardingState.stage === ONBOARDING_STAGE.STATUS_CLOSE_PAYMENT) {
       advanceOnboarding(ONBOARDING_STAGE.STATUS_OPEN_RECEIPT);
       setStatusTutorialStage(ONBOARDING_STAGE.STATUS_OPEN_RECEIPT);
+    }
+  };
+
+  const onCheckPayment = async () => {
+    if (!activePaymentOrder?.depositId) {
+      setError("ID pembayaran Rama Shop belum tersedia ya.");
+      return;
+    }
+
+    setIsCheckingPayment(true);
+    setError("");
+    try {
+      const response = await fetch("/api/payments/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: activePaymentOrder.id, depositId: activePaymentOrder.depositId }),
+      });
+      const result = (await response.json()) as { status?: string; order?: OrderSummary; error?: string };
+      if (!response.ok) {
+        throw new Error(result.error || "Status pembayaran belum bisa dicek ya.");
+      }
+
+      if (result.order) {
+        setOrders((current) => current.map((item) => item.id === result.order?.id ? result.order : item));
+      }
+      if (result.status === "success") {
+        setSuccess("Pembayaran kamu sudah masuk! Struknya sekarang bisa dibuka ya.");
+      } else if (result.status === "expired") {
+        setError("QRIS-nya sudah kedaluwarsa. Buat pembayaran baru ya.");
+      } else {
+        setSuccess("Belum masuk ya. Kalau sudah bayar, tunggu sebentar lalu cek lagi.");
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Status pembayaran belum bisa dicek ya.");
+    } finally {
+      setIsCheckingPayment(false);
     }
   };
 
@@ -552,6 +853,7 @@ export default function StatusPemesananPage() {
 
     setError("");
     setSuccess("");
+    setShowCancellationSuccess(false);
     setIsDeletingOrderId(order.id);
 
     try {
@@ -567,7 +869,8 @@ export default function StatusPemesananPage() {
         return;
       }
 
-      setSuccess("Transaksi berhasil dibatalkan dan dihapus.");
+      setSuccess("Transaksi dan QRIS berhasil dibatalkan. Order tidak lagi aktif di status pemesanan.");
+      setShowCancellationSuccess(true);
       await loadOrders();
     } catch (err) {
       setError("Gagal membatalkan transaksi.");
@@ -578,6 +881,72 @@ export default function StatusPemesananPage() {
   };
 
   const activePaymentOrder = displayOrders.find((order) => order.id === activePaymentOrderId) ?? null;
+
+  useEffect(() => {
+    if (!success) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSuccess("");
+      setShowCancellationSuccess(false);
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
+
+  useEffect(() => {
+    if (!activePaymentOrder?.paymentExpiresAt || activePaymentOrder.status === "paid") {
+      setPaymentSecondsLeft(null);
+      return;
+    }
+
+    const expiresAt = new Date(activePaymentOrder.paymentExpiresAt).getTime();
+    if (!Number.isFinite(expiresAt)) return;
+
+    let handled = false;
+    const checkExpiry = async () => {
+      const secondsLeft = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setPaymentSecondsLeft(secondsLeft);
+      if (secondsLeft > 0 || handled) return;
+      handled = true;
+
+      try {
+        if (activePaymentOrder.depositId) {
+          const verifyResponse = await fetch("/api/payments/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId: activePaymentOrder.id, depositId: activePaymentOrder.depositId }),
+          });
+          const verifyResult = (await verifyResponse.json()) as { status?: string; order?: OrderSummary };
+          if (verifyResult.status === "success") {
+            if (verifyResult.order) {
+              setOrders((current) => current.map((item) => item.id === verifyResult.order?.id ? verifyResult.order : item));
+            }
+            setSuccess("Pembayaran kamu sudah masuk sebelum waktunya habis ya.");
+            return;
+          }
+        }
+
+        const deleteResponse = await fetch(`/api/orders/${activePaymentOrder.id}/delete`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!deleteResponse.ok) {
+          const deleteResult = (await deleteResponse.json().catch(() => null)) as { message?: string } | null;
+          throw new Error(deleteResult?.message ?? "Order expired belum bisa dihapus.");
+        }
+        setActivePaymentOrderId(null);
+        await loadOrders();
+        setSuccess("Waktu QRIS habis, jadi pesanan yang belum dibayar sudah dihapus ya.");
+      } catch {
+        setError("Waktu QRIS sudah habis. Coba muat ulang status pemesanan ya.");
+      }
+    };
+
+    void checkExpiry();
+    const timer = window.setInterval(() => void checkExpiry(), 1000);
+    return () => window.clearInterval(timer);
+  }, [activePaymentOrder, loadOrders]);
   const onboardingTargetOrderId = useMemo(() => {
     if (highlightedOrderId && displayOrders.some((order) => order.id === highlightedOrderId)) {
       return highlightedOrderId;
@@ -810,14 +1179,105 @@ export default function StatusPemesananPage() {
           <strong>{displayOrders.length}</strong>
         </div>
         <div>
+          <span>Proses</span>
+          <strong>{orderStatusCounts.process}</strong>
+        </div>
+        <div>
+          <span>Dikirim</span>
+          <strong>{orderStatusCounts.done}</strong>
+        </div>
+        <div>
+          <span>Ditolak</span>
+          <strong>{orderStatusCounts.error}</strong>
+        </div>
+        <div>
           <span>Total belanja</span>
           <strong>{formatRupiah(displayTotalBelanja)}</strong>
+        </div>
+        <div className={styles.summaryHistoryAction}>
+          <button
+            type="button"
+            className={styles.clearHistoryIconButton}
+            onClick={() => {
+              setSelectedHistoryIds([]);
+              setHistoryFilter("all");
+              setShowHistoryCleaner(true);
+            }}
+            title="Hapus Riwayat Pemesanan"
+            aria-label="Hapus Riwayat Pemesanan"
+          >
+            <TrashIcon />
+          </button>
         </div>
       </section>
 
       {isLoading ? <WaitLoading centered /> : null}
       {error ? <p className={styles.errorText}>{error}</p> : null}
-      {success ? <p className={styles.successText}>{success}</p> : null}
+      {success && !showCancellationSuccess && typeof document !== "undefined" ? createPortal(
+        <div className={styles.successToastOverlay} role="status" aria-live="polite">
+          <div className={styles.successToast}>
+            <div className={styles.successCheck} aria-hidden="true">✓</div>
+            <div>
+              <strong>Berhasil</strong>
+              <p>{success}</p>
+            </div>
+          </div>
+        </div>
+      , document.body) : null}
+      {showCancellationSuccess && typeof document !== "undefined" ? createPortal(
+        <div className={styles.successToastOverlay} role="status" aria-live="polite">
+          <div className={styles.successToast}>
+            <div className={styles.successCheck} aria-hidden="true">✓</div>
+            <div>
+              <strong>Transaksi dibatalkan</strong>
+              <p>QRIS berhasil dibatalkan. Order tidak lagi aktif di status pemesanan.</p>
+            </div>
+          </div>
+        </div>
+      , document.body) : null}
+
+      {showHistoryCleaner && typeof document !== "undefined" ? createPortal(
+        <div className={styles.historyOverlay} role="dialog" aria-modal="true" aria-labelledby="history-cleaner-title">
+          <section className={styles.historyModal}>
+            <div className={styles.historyModalHeader}>
+              <div>
+                <h2 id="history-cleaner-title">Bersihkan Riwayat</h2>
+                <p>Pilih status atau pesanan yang ingin dihapus permanen.</p>
+              </div>
+              <button type="button" className={styles.modalCloseButton} onClick={() => setShowHistoryCleaner(false)} aria-label="Tutup bersihkan riwayat">×</button>
+            </div>
+            <div className={styles.historyFilters}>
+              {([
+                ["all", "Semua", historyCandidates.length],
+                ["process", "Proses", orderStatusCounts.process],
+                ["done", "Dikirim", orderStatusCounts.done],
+                ["error", "Ditolak", orderStatusCounts.error],
+              ] as const).map(([value, label, count]) => (
+                <button key={value} type="button" className={historyFilter === value ? styles.historyFilterActive : styles.historyFilter} onClick={() => setHistoryFilter(value)}>
+                  {label} ({count})
+                </button>
+              ))}
+            </div>
+            <button type="button" className={styles.selectAllHistoryButton} onClick={selectAllFilteredHistory} disabled={filteredHistoryCandidates.length === 0}>
+              Pilih semua yang tampil ({filteredHistoryCandidates.length})
+            </button>
+            <div className={styles.historySelectionList}>
+              {filteredHistoryCandidates.length > 0 ? filteredHistoryCandidates.map((order) => (
+                <label key={order.id} className={styles.historySelectionItem}>
+                  <input type="checkbox" checked={selectedHistoryIds.includes(order.id)} onChange={() => toggleHistorySelection(order.id)} />
+                  <span><strong>{statusLabel(order.status)}</strong><small>{order.id} · {formatRupiah(order.total)}</small></span>
+                </label>
+              )) : <p className={styles.historyEmpty}>Tidak ada riwayat pada filter ini.</p>}
+            </div>
+            <div className={styles.historyModalActions}>
+              <button type="button" className={styles.historyCancelButton} onClick={() => setShowHistoryCleaner(false)}>Batal</button>
+              <button type="button" className={styles.historyDeleteButton} onClick={() => void clearSelectedHistory()} disabled={selectedHistoryIds.length === 0 || isClearingHistory}>
+                {isClearingHistory ? <span className={styles.buttonSpinner} aria-label="Menghapus riwayat" /> : `Hapus ${selectedHistoryIds.length} riwayat`}
+              </button>
+            </div>
+          </section>
+        </div>
+      , document.body) : null}
 
       <section className={styles.listWrap}>
         {displayOrders.map((order) => {
@@ -855,7 +1315,7 @@ export default function StatusPemesananPage() {
                   <span>Waktu konfirmasi: {formatStatusDate(order.cancelConfirmedAt)}</span>
                 ) : null}
               </div>
-              {order.cancelRequestStatus !== "confirmed" ? (
+              {order.status !== "paid" && order.cancelRequestStatus !== "confirmed" ? (
                 <div className={styles.cancelRequestBox}>
                   <textarea
                     value={confirmationNotes[order.id] ?? ""}
@@ -870,7 +1330,7 @@ export default function StatusPemesananPage() {
                   />
                   <button
                     type="button"
-                    className={styles.cancelRequestButton}
+                    className={styles.adminConfirmationButton}
                     disabled={isConfirmationSubmittingOrderId === order.id}
                     onClick={() => onSendConfirmationViaWhatsapp(order)}
                     data-onboarding={isOnboardingTargetOrder ? "status-cancel-submit" : undefined}
@@ -878,7 +1338,7 @@ export default function StatusPemesananPage() {
                   >
                     {isConfirmationSubmittingOrderId === order.id
                       ? "Mengirim..."
-                      : "Konfirmasi Pemesanan & Kirim WhatsApp"}
+                      : "Konfirmasi Pemesanan & Kirim Admin"}
                   </button>
                 </div>
               ) : null}
@@ -887,38 +1347,43 @@ export default function StatusPemesananPage() {
                 data-onboarding={isOnboardingTargetOrder ? "status-action-icons" : undefined}
                 id={isOnboardingTargetOrder ? `status-action-icons-${order.id}` : undefined}
               >
-                <button
+                {statusGroup(order.status) === "process" && !isPaymentExpired(order) ? <button
                   type="button"
                   className={styles.payIconButton}
-                  onClick={() => onOpenPayment(order.id)}
+                  onClick={() => void onOpenPayment(order.id)}
+                  disabled={isPreparingPaymentOrderId === order.id}
                   title="Lihat QRIS pembayaran"
                   aria-label={`Lihat QRIS pembayaran order ${order.id}`}
                   data-onboarding={isOnboardingTargetOrder ? "status-pay-icon" : undefined}
                   id={isOnboardingTargetOrder ? `status-pay-icon-${order.id}` : undefined}
                 >
                   <PaymentIcon />
-                </button>
-                <button
-                  type="button"
-                  className={styles.receiptIconButton}
-                  onClick={() => onDownloadReceipt(order.id)}
-                  title="Download struk"
-                  aria-label={`Download struk order ${order.id}`}
-                  data-onboarding={isOnboardingTargetOrder ? "status-receipt-icon" : undefined}
-                  id={isOnboardingTargetOrder ? `status-receipt-icon-${order.id}` : undefined}
-                >
-                  <ReceiptIcon />
-                </button>
+                </button> : null}
+                {statusGroup(order.status) === "paid" || statusGroup(order.status) === "done" ? (
+                  <button
+                    type="button"
+                    className={styles.receiptIconButton}
+                    onClick={() => onDownloadReceipt(order.id)}
+                    title="Buka struk pembayaran"
+                    aria-label={`Buka struk pembayaran order ${order.id}`}
+                    data-onboarding={isOnboardingTargetOrder ? "status-receipt-icon" : undefined}
+                    id={isOnboardingTargetOrder ? `status-receipt-icon-${order.id}` : undefined}
+                  >
+                    <ReceiptIcon />
+                  </button>
+                ) : null}
                 {order.status === "process" && (
                   <button
                     type="button"
                     className={styles.cancelTransactionButton}
                     onClick={() => onCancelTransaction(order)}
                     disabled={isDeletingOrderId === order.id}
-                    title="Batalkan transaksi"
-                    aria-label={`Batalkan transaksi order ${order.id}`}
+                    title="Batalkan transaksi dan QRIS"
+                    aria-label={`Batalkan transaksi dan QRIS order ${order.id}`}
                   >
-                    {isDeletingOrderId === order.id ? "Membatalkan..." : "✕"}
+                    {isDeletingOrderId === order.id ? (
+                      <span className={styles.buttonSpinner} aria-label="Membatalkan transaksi" />
+                    ) : "✕"}
                   </button>
                 )}
               </div>
@@ -957,11 +1422,22 @@ export default function StatusPemesananPage() {
         {!isLoading && jobApplications.length === 0 ? <p className={styles.emptyText}>Belum ada lamaran pekerjaan.</p> : null}
       </section>
 
-      {activePaymentOrder ? (
+      {activePaymentOrder && typeof document !== "undefined"
+        ? createPortal(
         <div className={styles.popupOverlay} onClick={closePaymentPopup}>
           <section className={styles.popupCard} onClick={(event) => event.stopPropagation()}>
             <h2>QRIS Pembayaran</h2>
             <p className={styles.popupMeta}>Order: {activePaymentOrder.id}</p>
+            <p className={styles.popupNotice}>
+              {activePaymentOrder.status === "paid"
+                ? "Pembayaran sudah masuk. Terima kasih ya."
+                : "Belum masuk ya. Kalau sudah bayar, tunggu sebentar lalu cek lagi."}
+            </p>
+            {paymentSecondsLeft !== null ? (
+              <p className={styles.popupCountdown}>
+                Sisa waktu QRIS: {Math.floor(paymentSecondsLeft / 60)}:{String(paymentSecondsLeft % 60).padStart(2, "0")}
+              </p>
+            ) : null}
             <div className={styles.popupQrWrap}>
               {activePaymentOrder.qrCode ? (
                 <QRCode
@@ -976,25 +1452,17 @@ export default function StatusPemesananPage() {
                   alt="QRIS Pembayaran"
                   fill
                   className={styles.popupQrImage}
-                  sizes="260px"
-                  priority
+                  unoptimized
                   onError={() => {
                     console.error("Failed to load QR image");
                   }}
                 />
               ) : (
-                <Image
-                  src="/assets/qris.jpg"
-                  alt="QRIS Pembayaran"
-                  fill
-                  className={styles.popupQrImage}
-                  sizes="260px"
-                  priority
-                />
+                <p className={styles.popupHelp}>QRIS dari Rama Shop belum siap. Coba tutup lalu buka lagi ya.</p>
               )}
             </div>
             {activePaymentOrder.totalAmount && (
-              <p className={styles.popupMeta}>
+              <p className={styles.popupAmount}>
                 Jumlah bayar: Rp {activePaymentOrder.totalAmount.toLocaleString("id-ID")}
               </p>
             )}
@@ -1004,14 +1472,25 @@ export default function StatusPemesananPage() {
             <button
               type="button"
               className={styles.popupCloseButton}
-              onClick={closePaymentPopup}
+              onClick={onCheckPayment}
+              disabled={isCheckingPayment}
               id="status-payment-close-button"
             >
-              Tutup
+              {isCheckingPayment ? "Mengecek..." : "Cek Transaksi"}
+            </button>
+            <button
+              type="button"
+              className={styles.popupCloseIcon}
+              onClick={closePaymentPopup}
+              aria-label="Tutup pembayaran"
+            >
+              ×
             </button>
           </section>
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+      )
+        : null}
 
       {showTutorialReceiptModal ? (
         <div className={styles.popupOverlay}>

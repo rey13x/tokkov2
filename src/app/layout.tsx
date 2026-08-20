@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Sora, Space_Mono } from "next/font/google";
 import PageTransition from "@/components/layout/PageTransition";
 import SiteFooter from "@/components/layout/SiteFooter";
+import GlobalScrollSmoother from "@/components/layout/GlobalScrollSmoother";
 import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { AuthSessionProvider } from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
@@ -43,10 +44,15 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthSessionProvider>
             <ClientProviders>
-              <PageTransition>{children}</PageTransition>
+              <div id="smooth-wrapper">
+                <div id="smooth-content">
+                  <PageTransition>{children}</PageTransition>
+                  <SiteFooter />
+                </div>
+              </div>
+              <GlobalScrollSmoother />
               <MaintenanceModal />
               <AdPopup />
-              <SiteFooter />
             </ClientProviders>
           </AuthSessionProvider>
         </ThemeProvider>

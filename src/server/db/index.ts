@@ -594,6 +594,39 @@ export async function ensureDatabase() {
       await run(
         "ALTER TABLE orders ADD COLUMN cancel_confirmed_at INTEGER",
       ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN payment_method TEXT",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN qr_code TEXT",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN qr_image TEXT",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN total_amount INTEGER",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN unique_code INTEGER",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN deposit_id TEXT",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN payment_expires_at TEXT",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN paid_at TEXT",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN paid_amount INTEGER",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN payment_notes TEXT",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN updated_at TEXT",
+      ).catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS testimonials (
@@ -2113,7 +2146,8 @@ export async function createOrder(input: {
 }) {
   await ensureDatabase();
   const id = randomId();
-  const total = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const subtotal = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const total = subtotal + 500;
 
   await run(
     `INSERT INTO orders
@@ -2268,6 +2302,13 @@ export async function listOrders(limit = 100) {
         data.cancel_confirmed_at === null || data.cancel_confirmed_at === undefined
           ? null
           : new Date(Number(data.cancel_confirmed_at)).toISOString(),
+          paymentMethod: data.payment_method as "static_qris" | "dynamic_qris" | undefined,
+          qrCode: String(data.qr_code ?? ""),
+          qrImage: String(data.qr_image ?? ""),
+          totalAmount: Number(data.total_amount ?? 0),
+          uniqueCode: Number(data.unique_code ?? 0),
+          depositId: String(data.deposit_id ?? ""),
+          paymentExpiresAt: String(data.payment_expires_at ?? ""),
       createdAt: new Date(Number(data.created_at)).toISOString(),
     } satisfies OrderSummary;
   });
@@ -2303,6 +2344,7 @@ export async function getOrderById(id: string) {
 
   return {
     id: String(row.id),
+    userId: String(row.user_id ?? ""),
     userName: String(row.user_name),
     userEmail: String(row.user_email),
     userPhone: String(row.user_phone ?? ""),
@@ -2319,8 +2361,46 @@ export async function getOrderById(id: string) {
       row.cancel_confirmed_at === null || row.cancel_confirmed_at === undefined
         ? null
         : new Date(Number(row.cancel_confirmed_at)).toISOString(),
+      paymentMethod: row.payment_method as "static_qris" | "dynamic_qris" | undefined,
+      qrCode: String(row.qr_code ?? ""),
+      qrImage: String(row.qr_image ?? ""),
+      totalAmount: Number(row.total_amount ?? 0),
+      uniqueCode: Number(row.unique_code ?? 0),
+      depositId: String(row.deposit_id ?? ""),
+      paymentExpiresAt: String(row.payment_expires_at ?? ""),
     createdAt: new Date(Number(row.created_at)).toISOString(),
   } satisfies OrderSummary;
+}
+
+export async function updateOrderPayment(
+  orderId: string,
+  payment: {
+    paymentMethod: "static_qris" | "dynamic_qris";
+    qrCode: string;
+    qrImage: string;
+    totalAmount: number;
+    uniqueCode: number;
+    depositId: string;
+    paymentExpiresAt?: string;
+  },
+) {
+  await ensureDatabase();
+  await run(
+    `UPDATE orders
+     SET payment_method = ?, qr_code = ?, qr_image = ?, total_amount = ?, unique_code = ?, deposit_id = ?, payment_expires_at = ?
+     WHERE id = ?`,
+    [
+      payment.paymentMethod,
+      payment.qrCode,
+      payment.qrImage,
+      payment.totalAmount,
+      payment.uniqueCode,
+      payment.depositId,
+      payment.paymentExpiresAt ?? null,
+      orderId,
+    ],
+  );
+  return getOrderById(orderId);
 }
 
 export async function listOrdersWithItems(limit = 100) {

@@ -27,6 +27,7 @@ export default function KoleksiPage() {
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [query, setQuery] = useState("");
   const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
+  const [cartNotice, setCartNotice] = useState("");
 
   useEffect(() => {
     fetchStoreData()
@@ -84,10 +85,13 @@ export default function KoleksiPage() {
     setAddingToCartId(product.id);
     try {
       addToCart(product.slug, 1);
-      // Show brief feedback
+      setCartNotice(`Produk ${product.name} sudah masuk Troli ya!`);
       setTimeout(() => {
         setAddingToCartId(null);
       }, 800);
+      setTimeout(() => {
+        setCartNotice("");
+      }, 2600);
     } catch {
       setAddingToCartId(null);
     }
@@ -160,6 +164,8 @@ export default function KoleksiPage() {
           </div>
         </div>
       </section>
+
+      {cartNotice ? <p className={styles.cartNotice}>{cartNotice}</p> : null}
 
       {filtered.length > 0 ? (
         <section className={styles.productGrid}>
