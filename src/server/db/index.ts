@@ -941,6 +941,84 @@ export async function ensureDatabase() {
         )`,
       );
 
+      await run(
+        `CREATE TABLE IF NOT EXISTS paygate_stores (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL UNIQUE,
+          slug TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          website TEXT NOT NULL DEFAULT '',
+          banner_url TEXT NOT NULL DEFAULT '',
+          logo_url TEXT NOT NULL DEFAULT '',
+          theme TEXT NOT NULL DEFAULT 'light',
+          is_active INTEGER NOT NULL DEFAULT 1,
+          qris_name TEXT NOT NULL DEFAULT 'QRIS Utama',
+          static_qris TEXT NOT NULL DEFAULT '',
+          package_ids TEXT NOT NULL DEFAULT '[]',
+          min_amount INTEGER NOT NULL DEFAULT 1000,
+          max_amount INTEGER NOT NULL DEFAULT 10000000,
+          allow_custom_amount INTEGER NOT NULL DEFAULT 1,
+          preset_amounts TEXT NOT NULL DEFAULT '[10000,25000,50000,100000]',
+          telegram_chat_id TEXT NOT NULL DEFAULT '',
+          webhook_url TEXT NOT NULL DEFAULT '',
+          webhook_secret TEXT NOT NULL DEFAULT '',
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )`,
+      ).catch(() => {});
+      await run(
+        `CREATE TABLE IF NOT EXISTS paygate_products (
+          id TEXT PRIMARY KEY,
+          store_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          price INTEGER NOT NULL,
+          image_url TEXT NOT NULL DEFAULT '',
+          is_active INTEGER NOT NULL DEFAULT 1,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )`,
+      ).catch(() => {});
+      await run(
+        `CREATE TABLE IF NOT EXISTS paygate_api_keys (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          key_hash TEXT NOT NULL UNIQUE,
+          prefix TEXT NOT NULL,
+          request_count INTEGER NOT NULL DEFAULT 0,
+          revoked_at INTEGER,
+          last_used_at INTEGER,
+          created_at INTEGER NOT NULL
+        )`,
+      ).catch(() => {});
+      await run(
+        `CREATE TABLE IF NOT EXISTS paygate_transactions (
+          id TEXT PRIMARY KEY,
+          store_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          product_id TEXT,
+          external_id TEXT,
+          amount INTEGER NOT NULL,
+          total_amount INTEGER NOT NULL,
+          unique_code INTEGER NOT NULL DEFAULT 0,
+          status TEXT NOT NULL DEFAULT 'pending',
+          qr_string TEXT NOT NULL,
+          customer_name TEXT NOT NULL DEFAULT '',
+          customer_email TEXT NOT NULL DEFAULT '',
+          customer_phone TEXT NOT NULL DEFAULT '',
+          callback_url TEXT NOT NULL DEFAULT '',
+          raw_payload TEXT NOT NULL DEFAULT '{}',
+          expired_at INTEGER NOT NULL,
+          paid_at INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )`,
+      ).catch(() => {});
+      await run("CREATE INDEX IF NOT EXISTS idx_paygate_transactions_store_id ON paygate_transactions(store_id)").catch(() => {});
+      await run("CREATE INDEX IF NOT EXISTS idx_paygate_transactions_status ON paygate_transactions(status)").catch(() => {});
+
       await runOneTimeInitialContentReset();
       await seedIfEmpty();
       await runOneTimeCatalogCleanup();

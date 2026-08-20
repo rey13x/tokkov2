@@ -268,6 +268,15 @@ function AdminManagementSection() {
   const [paymentSettingsForm, setPaymentSettingsForm] = useState(defaultPaymentSettingsForm);
   const [maintenanceSettingsForm, setMaintenanceSettingsForm] = useState(defaultMaintenanceSettingsForm);
   const [maintenanceInstantAction, setMaintenanceInstantAction] = useState<"close" | "open" | null>(null);
+  const [heroBackgrounds, setHeroBackgrounds] = useState<Array<{ id: string; label: string; url: string; duration: number; sortOrder: number }>>([]);
+  const [heroBackgroundEditId, setHeroBackgroundEditId] = useState<string | null>(null);
+  const [heroBackgroundForm, setHeroBackgroundForm] = useState({
+    id: "",
+    label: "",
+    url: "",
+    duration: 8000,
+    sortOrder: 0,
+  });
   const [previewVersion, setPreviewVersion] = useState(0);
   const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
   const [isUploadingInfoImage, setIsUploadingInfoImage] = useState(false);
@@ -332,8 +341,105 @@ function AdminManagementSection() {
       }
     };
 
+    const loadHeroBackgrounds = async () => {
+      try {
+        const response = await fetch("/api/admin/hero-backgrounds", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("Gagal load hero background");
+        }
+        const data = await response.json();
+        setHeroBackgrounds(data.backgrounds || []);
+      } catch (err) {
+        console.error("Error loading hero backgrounds:", err);
+      }
+    };
+
     loadAdmins();
+    loadHeroBackgrounds();
   }, []);
+
+  const onSaveHeroBackground = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+
+    const trimmedUrl = heroBackgroundForm.url.trim();
+    const trimmedLabel = heroBackgroundForm.label.trim();
+    const trimmedId = heroBackgroundForm.id.trim();
+
+    if (!trimmedUrl || !trimmedLabel) {
+      setError("URL dan label tidak boleh kosong.");
+      return;
+    }
+
+    try {
+      const payload = {
+        ...heroBackgroundForm,
+        id: trimmedId || `${Date.now()}`,
+        label: trimmedLabel,
+        url: trimmedUrl,
+        duration: Number(heroBackgroundForm.duration) || 8000,
+        sortOrder: Number(heroBackgroundForm.sortOrder) || 0,
+      };
+
+      const method = heroBackgroundEditId ? "PUT" : "POST";
+      const response = await fetch("/api/admin/hero-backgrounds", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal menyimpan foto hero.");
+      }
+
+      setHeroBackgroundForm({ id: "", label: "", url: "", duration: 8000, sortOrder: 0 });
+      setHeroBackgroundEditId(null);
+      const refreshed = await fetch("/api/admin/hero-backgrounds", { cache: "no-store" });
+      if (refreshed.ok) {
+        const nextData = await refreshed.json();
+        setHeroBackgrounds(nextData.backgrounds || []);
+      }
+      setMessage(heroBackgroundEditId ? "Foto hero berhasil diubah." : "Foto hero berhasil ditambahkan.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menyimpan foto hero.");
+    }
+  };
+
+  const onEditHeroBackground = (background: { id: string; label: string; url: string; duration: number; sortOrder: number }) => {
+    setHeroBackgroundEditId(background.id);
+    setHeroBackgroundForm({
+      id: background.id,
+      label: background.label,
+      url: background.url,
+      duration: background.duration,
+      sortOrder: background.sortOrder,
+    });
+    setMessage("Edit foto hero dipilih. Ubah data lalu simpan.");
+  };
+
+  const onDeleteHeroBackground = async (backgroundId: string) => {
+    if (!window.confirm("Yakin hapus foto hero ini?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/hero-backgrounds?id=${encodeURIComponent(backgroundId)}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal hapus foto hero.");
+      }
+      setHeroBackgrounds((current) => current.filter((item) => item.id !== backgroundId));
+      setHeroBackgroundForm({ id: "", label: "", url: "", duration: 8000, sortOrder: 0 });
+      setHeroBackgroundEditId(null);
+      setMessage("Foto hero berhasil dihapus.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal hapus foto hero.");
+    }
+  };
 
   const handleAddAdmin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -2854,6 +2960,115 @@ function AdminManagementSection() {
                 </small>
               </div>
             )}
+
+            <div style={{ marginTop: "20px", padding: "16px", backgroundColor: "#f8faff", borderRadius: "10px", border: "1px solid #dfe9ff" }}>
+              <h3 style={{ margin: "0 0 12px", fontSize: "1rem" }}>📸 Foto Hero Homepage</h3>
+              <form className={styles.form} onSubmit={onSaveHeroBackground}>
+                <input
+                  type="text"
+                  value={heroBackgroundForm.label}
+                  onChange={(event) =>
+                    setHeroBackgroundForm((current) => ({ ...current, label: event.target.value }))
+                  }
+                  placeholder="Label foto (contoh: Hero 1)"
+                  required
+                />
+                <input
+                  type="url"
+                  value={heroBackgroundForm.url}
+                  onChange={(event) =>
+                    setHeroBackgroundForm((current) => ({ ...current, url: event.target.value }))
+                  }
+                  placeholder="URL foto hero (https://...)"
+                  required
+                />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <input
+                    type="number"
+                    min={1000}
+                    max={60000}
+                    value={heroBackgroundForm.duration}
+                    onChange={(event) =>
+                      setHeroBackgroundForm((current) => ({
+                        ...current,
+                        duration: Number(event.target.value || 8000),
+                      }))
+                    }
+                    placeholder="Durasi (ms)"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    value={heroBackgroundForm.sortOrder}
+                    onChange={(event) =>
+                      setHeroBackgroundForm((current) => ({
+                        ...current,
+                        sortOrder: Number(event.target.value || 0),
+                      }))
+                    }
+                    placeholder="Urutan"
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button type="submit">
+                    {heroBackgroundEditId ? "💾 Update Foto" : "＋ Tambah Foto"}
+                  </button>
+                  {heroBackgroundEditId && (
+                    <button
+                      type="button"
+                      style={{ backgroundColor: "#6c757d" }}
+                      onClick={() => {
+                        setHeroBackgroundEditId(null);
+                        setHeroBackgroundForm({ id: "", label: "", url: "", duration: 8000, sortOrder: 0 });
+                      }}
+                    >
+                      Batal
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              <div style={{ marginTop: "18px", display: "grid", gap: "8px" }}>
+                {heroBackgrounds.length === 0 ? (
+                  <p style={{ margin: 0, color: "#666" }}>Belum ada foto hero yang diatur.</p>
+                ) : (
+                  [...heroBackgrounds].sort((a, b) => a.sortOrder - b.sortOrder).map((background) => (
+                    <div
+                      key={background.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        padding: "10px 12px",
+                        borderRadius: "8px",
+                        backgroundColor: "#fff",
+                        border: "1px solid #e5e7eb",
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {background.label}
+                        </div>
+                        <small style={{ color: "#666", wordBreak: "break-all" }}>{background.url}</small>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <button type="button" onClick={() => onEditHeroBackground(background)}>
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          style={{ backgroundColor: "#dc3545" }}
+                          onClick={() => onDeleteHeroBackground(background.id)}
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
 
             {error ? <p className={styles.errorText}>{error}</p> : null}
             {message ? <p className={styles.successText}>{message}</p> : null}

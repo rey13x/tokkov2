@@ -23,6 +23,165 @@
   gap: 16px;
 }
 
+/* Casaku-inspired PayGate workspace */
+.page {
+  position: relative;
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  align-items: start;
+  gap: 22px;
+  padding: 22px 28px 48px 96px;
+  background: #f8f8fa;
+  color: #17181c;
+}
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 5;
+  width: 78px;
+  padding: 28px 14px 22px;
+  border-right: 1px solid #e4e4e7;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.brandMark {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 22px;
+  border-radius: 12px;
+  background: #17181c;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+}
+
+.brandMark span { color: #a9c7ff; }
+.sidebarSpacer { flex: 1; }
+.sidebarItem,
+.sidebarItemActive {
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #75777e;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.sidebarItem:hover { background: #f0f0f2; color: #17181c; }
+.sidebarItemActive { background: #17181c; color: #ffffff; }
+.sidebarItem svg,
+.sidebarItemActive svg { width: 20px; height: 20px; }
+
+.topbar,
+.statsGrid,
+.actionGrid,
+.historyPanel,
+.errorText,
+.noticeText,
+.overlay { grid-column: 2; }
+
+.topbar {
+  min-height: 128px;
+  padding: 22px 28px;
+  border: 1px solid #e2e2e5;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, .88);
+  box-shadow: 0 18px 44px rgba(29, 30, 38, .06);
+}
+.avatar { width: 70px; height: 70px; background: #202633; }
+.identity span { color: #777a84; letter-spacing: .08em; }
+.identity strong { font-size: 1.65rem; letter-spacing: -.04em; }
+.actionButton,
+.iconButton { width: 62px; height: 62px; border-radius: 22px; background: #ffffff; border-color: #dfe2eb; }
+.actionButton span { display: none; }
+.actionButton svg, .iconButton svg { width: 25px; height: 25px; }
+
+.statsGrid { grid-template-columns: 1.05fr 1fr 1fr; gap: 16px; }
+.statCard {
+  min-height: 164px;
+  border: 1px solid #e1e1e5;
+  border-left: 0;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(29, 30, 38, .045);
+  padding: 25px;
+}
+.statCard:first-child { background: #17181c; color: #ffffff; }
+.statCard:first-child span { color: #b5bac6; }
+.statCard span { color: #777a84; letter-spacing: .06em; }
+.statCard strong { font-size: 2rem; letter-spacing: -.05em; }
+
+.actionGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.depositButton, .topupButton {
+  min-height: 86px;
+  border-radius: 22px;
+  background: #ffffff;
+  border: 1px solid #e1e1e5;
+  color: #17181c;
+  box-shadow: 0 12px 30px rgba(29, 30, 38, .045);
+}
+.depositButton { background: #17181c; color: #ffffff; }
+.depositButton svg, .topupButton svg { width: 25px; height: 25px; }
+
+.historyPanel {
+  border: 1px solid #e1e1e5;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(29, 30, 38, .045);
+  padding: 26px;
+}
+.sectionHeader h2 { font-size: 1.35rem; letter-spacing: -.04em; }
+.transactionItem { border-color: #ececf0; padding: 18px 4px; }
+.transactionItem strong { color: #17181c; }
+.statusBerhasil { background: #dff7e8; color: #138443; }
+.statusPending { background: #fff2c9; color: #8a6500; }
+.statusGagal { background: #ffe1e1; color: #b42318; }
+
+.modal { border-radius: 26px; border-color: #dedee2; box-shadow: 0 28px 80px rgba(17, 18, 24, .18); }
+.modalHero { background: #17181c; border-radius: 20px; }
+.qrBox { border-radius: 20px; background: #f5f5f7; }
+
+@media (max-width: 760px) {
+  .page { display: flex; padding: 14px 14px 34px 76px; gap: 16px; }
+  .sidebar { width: 62px; padding-inline: 7px; }
+  .sidebarItem, .sidebarItemActive { width: 46px; height: 46px; }
+  .brandMark { width: 40px; height: 40px; }
+  .topbar, .statsGrid, .actionGrid, .historyPanel, .errorText, .noticeText { width: 100%; }
+  .topbar { min-height: 92px; padding: 14px; border-radius: 22px; }
+  .avatar { width: 52px; height: 52px; }
+  .identity strong { font-size: 1.15rem; }
+  .statsGrid, .actionGrid { grid-template-columns: 1fr; }
+}
+
+/* Final visual overrides keep the new workspace ahead of legacy auth styles. */
+.page { display: grid !important; grid-template-columns: 78px minmax(0, 1fr); padding: 22px 28px 48px 96px; background: #f8f8fa; color: #17181c; }
+.sidebar { position: fixed; display: flex; }
+.topbar, .statsGrid, .actionGrid, .historyPanel, .errorText, .noticeText { grid-column: 2; }
+.topbar { min-height: 128px; border-radius: 28px; background: rgba(255,255,255,.88); }
+.statsGrid { grid-template-columns: 1.05fr 1fr 1fr; }
+.statCard { border-left: 0; border-radius: 24px; background: #fff; }
+.statCard:first-child { background: #17181c; color: #fff; }
+.actionGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.depositButton, .topupButton { border-radius: 22px; }
+.depositButton { background: #17181c; color: #fff; }
+.historyPanel { border-radius: 24px; background: #fff; }
+
+@media (max-width: 760px) {
+  .page { display: flex !important; grid-template-columns: none; padding: 14px 14px 34px 76px; }
+  .topbar, .statsGrid, .actionGrid, .historyPanel, .errorText, .noticeText { width: 100%; }
+  .statsGrid, .actionGrid { grid-template-columns: 1fr; }
+}
+
 .identity {
   min-width: 0;
   display: flex;
@@ -1030,29 +1189,63 @@
   z-index: 200;
   display: grid;
   place-items: center;
-  background: #ffffff;
+  background: linear-gradient(145deg, #ffffff 0%, #f3f6fb 100%);
   color: #111827;
-  animation: splashFade 4s ease-in-out both;
+  animation: splashFade 5s ease-in-out both;
 }
 
 .splashContent {
   display: grid;
   justify-items: center;
-  gap: 22px;
-  animation: splashContentFade 4s ease-in-out both;
+  gap: 16px;
+  text-align: center;
+  animation: splashContentFade 5s ease-in-out both;
 }
 
-.splashContent h1 { margin: 0; font-size: clamp(1.6rem, 5vw, 2.5rem); letter-spacing: -0.03em; }
+.splashLogoWrap {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(17, 24, 39, 0.12);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.splashLogo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.splashContent h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 5vw, 2.8rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  font-weight: 900;
+  color: #111827;
+}
+
+.splashContent p {
+  margin: 0;
+  color: #1f2937;
+  font-size: clamp(0.8rem, 2vw, 1.05rem);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
 
 @keyframes splashFade {
-  0%, 70% { opacity: 1; }
+  0%, 72% { opacity: 1; }
   100% { opacity: 0; }
 }
 
 @keyframes splashContentFade {
-  0% { opacity: 0; transform: translateY(10px) scale(0.98); }
-  16%, 68% { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-8px) scale(1.02); }
+  0% { opacity: 0; transform: translateY(12px) scale(0.98); }
+  12%, 68% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-10px) scale(1.02); }
 }
 
 @media (max-width: 700px) {
@@ -1135,4 +1328,23 @@
   .apiStats {
     grid-template-columns: 1fr;
   }
+}
+
+/* Final visual overrides keep the new workspace ahead of legacy auth styles. */
+.page { display: grid !important; grid-template-columns: 78px minmax(0, 1fr); padding: 22px 28px 48px 96px; background: #f8f8fa; color: #17181c; }
+.sidebar { position: fixed; display: flex; }
+.topbar, .statsGrid, .actionGrid, .historyPanel, .errorText, .noticeText { grid-column: 2; }
+.topbar { min-height: 128px; border-radius: 28px; background: rgba(255,255,255,.88); }
+.statsGrid { grid-template-columns: 1.05fr 1fr 1fr; }
+.statCard { border-left: 0; border-radius: 24px; background: #fff; }
+.statCard:first-child { background: #17181c; color: #fff; }
+.actionGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.depositButton, .topupButton { border-radius: 22px; }
+.depositButton { background: #17181c; color: #fff; }
+.historyPanel { border-radius: 24px; background: #fff; }
+
+@media (max-width: 760px) {
+  .page { display: flex !important; grid-template-columns: none; padding: 14px 14px 34px 76px; }
+  .topbar, .statsGrid, .actionGrid, .historyPanel, .errorText, .noticeText { width: 100%; }
+  .statsGrid, .actionGrid { grid-template-columns: 1fr; }
 }

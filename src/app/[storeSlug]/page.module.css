@@ -1,0 +1,240 @@
+.page {
+  min-height: 100vh;
+  padding: 56px 18px;
+  background: #fff7e7;
+  color: #17181c;
+}
+
+.shell {
+  width: min(100%, 430px);
+  margin: 0 auto;
+  border: 3px solid #17181c;
+  background: #ffffff;
+  box-shadow: 10px 10px 0 #17181c;
+}
+
+.hero {
+  text-align: center;
+  border-bottom: 1px solid #17181c;
+}
+
+.banner {
+  min-height: 150px;
+  background: #fff7e7;
+  background-size: cover;
+  background-position: center;
+}
+
+.identity {
+  padding: 0 28px 28px;
+  margin-top: -48px;
+}
+
+.logo {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 18px;
+  border: 3px solid #17181c;
+  background: #ffffff;
+  box-shadow: 8px 8px 0 #17181c;
+  display: grid;
+  place-items: center;
+}
+
+.logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.logo svg {
+  width: 42px;
+  height: 42px;
+}
+
+.identity h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.identity p {
+  margin: 10px 0 18px;
+  color: #3f4654;
+}
+
+.identity a {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 3px solid #17181c;
+  border-radius: 999px;
+  color: #17181c;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+}
+
+.checkout,
+.paymentBox {
+  padding: 28px;
+}
+
+.checkout h2,
+.paymentBox h2 {
+  margin: 0 0 18px;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+}
+
+.products,
+.presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.products button,
+.presets button,
+.payButton,
+.paymentBox button,
+.textButton {
+  border: 3px solid #17181c;
+  background: #fffaf0;
+  color: #17181c;
+  min-height: 66px;
+  padding: 12px;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.products button {
+  min-height: 130px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.products img {
+  width: 100%;
+  aspect-ratio: 1.8;
+  object-fit: cover;
+}
+
+.selected {
+  background: #17181c !important;
+  color: #ffffff !important;
+  box-shadow: 6px 6px 0 #17181c;
+}
+
+.textButton {
+  width: 100%;
+  margin: 14px 0 22px;
+  min-height: 48px;
+  background: #ffffff;
+}
+
+.customAmount {
+  margin: 16px 0 0;
+  border: 3px solid #17181c;
+  min-height: 64px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 900;
+}
+
+.customAmount input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  background: transparent;
+}
+
+.payButton {
+  width: 100%;
+  margin-top: 24px;
+  background: #17181c;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.checkout small {
+  margin-top: 16px;
+  color: #667085;
+  display: block;
+  text-align: center;
+}
+
+.paymentBox {
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+}
+
+.paymentBox strong {
+  font-size: 1.8rem;
+}
+
+.paymentBox span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: #667085;
+}
+
+.success {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+}
+
+.success svg {
+  width: 58px;
+  height: 58px;
+  color: #138443;
+}
+
+.error {
+  margin: 16px 0 0;
+  color: #b42318;
+  font-weight: 800;
+}
+
+.theme_dark { background: #0d0f14; }
+.theme_dark .shell { background: #17181c; color: #ffffff; border-color: #ffffff; box-shadow: 10px 10px 0 #4c6fff; }
+.theme_dark .hero,
+.theme_dark .logo,
+.theme_dark .products button,
+.theme_dark .presets button,
+.theme_dark .customAmount,
+.theme_dark .payButton { border-color: #ffffff; }
+.theme_dark .identity p,
+.theme_dark .checkout small,
+.theme_dark .paymentBox span { color: #c7cbd4; }
+
+.theme_mint { background: #e8fff5; }
+.theme_mint .payButton,
+.theme_mint .selected { background: #006d54 !important; }
+
+.theme_midnight { background: #09091a; }
+.theme_midnight .shell { box-shadow: 10px 10px 0 #7c5cff; }
+
+.theme_matrix { background: #001409; }
+.theme_matrix .shell { background: #03180c; color: #b4ffcc; border-color: #28d267; box-shadow: 10px 10px 0 #28d267; }
+
+@media (max-width: 560px) {
+  .page { padding: 20px 12px; }
+  .shell { box-shadow: 6px 6px 0 #17181c; }
+  .checkout,
+  .paymentBox { padding: 22px; }
+}

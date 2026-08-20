@@ -136,7 +136,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
   const [balance, setBalance] = useState<number | null>(null);
   const [apiKeys, setApiKeys] = useState<PayGateApiKey[]>([]);
   const [transactions, setTransactions] = useState<PayGateTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(routeMode !== "entry");
   const [splashDone, setSplashDone] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [submittingDeposit, setSubmittingDeposit] = useState(false);
@@ -161,9 +161,17 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
   const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>("all");
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSplashDone(true), 4000);
+    const timer = window.setTimeout(() => setSplashDone(true), 5000);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!splashDone || routeMode !== "entry") {
+      return;
+    }
+
+    router.replace("/");
+  }, [routeMode, router, splashDone]);
 
   const primaryApiKey = apiKeys[0] ?? null;
   const visibleApiKey = showApiKey ? primaryApiKey?.key || primaryApiKey?.maskedKey : primaryApiKey?.maskedKey;
@@ -257,6 +265,10 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
   }, [router, session, sessionUserId]);
 
   useEffect(() => {
+    if (routeMode === "entry") {
+      return;
+    }
+
     loadSeqRef.current += 1;
     queueMicrotask(() => {
       setAccount(null);
@@ -275,7 +287,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
       setLoading(true);
       void loadPayGate();
     });
-  }, [loadPayGate, sessionUserId]);
+  }, [loadPayGate, routeMode, sessionUserId]);
 
   useEffect(() => {
     if (!depositQr?.expiresAt) return;
@@ -473,6 +485,10 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
     return <PayGateSplashScreen />;
   }
 
+  if (routeMode === "entry") {
+    return null;
+  }
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -484,6 +500,16 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
       animate={{ opacity: 1 }}
       transition={{ duration: 0.45 }}
     >
+      <aside className={styles.sidebar} aria-label="Navigasi PayGate">
+        <div className={styles.brandMark}>P<span>G</span></div>
+        <button type="button" className={styles.sidebarItemActive} aria-label="QRIS Saya" title="QRIS Saya"><FiCreditCard /></button>
+        <button type="button" className={styles.sidebarItem} onClick={() => openModal("apiKey")} aria-label="API Keys" title="API Keys"><FiKey /></button>
+        <button type="button" className={styles.sidebarItem} onClick={() => router.push("/paygate/DokumentasiApi")} aria-label="Dokumentasi API" title="Dokumentasi API"><FiBookOpen /></button>
+        <button type="button" className={styles.sidebarItem} onClick={() => openModal("menu")} aria-label="Menu" title="Menu"><FiMenu /></button>
+        <div className={styles.sidebarSpacer} />
+        <button type="button" className={styles.sidebarItem} onClick={goHome} aria-label="Beranda" title="Beranda"><FiHome /></button>
+        <button type="button" className={styles.sidebarItem} onClick={() => openModal("logout")} aria-label="Keluar" title="Keluar"><FiLogOut /></button>
+      </aside>
       {routeMode !== "login" && routeMode !== "register" ? (
         <motion.header className={styles.topbar} initial={{ y: -24, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
           <div className={styles.identity}>
@@ -514,7 +540,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
         {notice ? <motion.p key="paygate-notice" className={styles.noticeText} role="status" aria-live="polite" initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ opacity: 0 }}>{notice}</motion.p> : null}
       </AnimatePresence>
 
-      {sessionUserId ? (
+      {false ? (
         <motion.section className={`${styles.setupPanel} ${styles.authPanel}`} initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
           <div className={styles.authBanner} aria-hidden="true">
             {Array.from({ length: 9 }).map((_, index) => (
@@ -942,7 +968,18 @@ function PayGateSplashScreen() {
   return (
     <main className={styles.splashPage} aria-label="Payment Gateaway">
       <div className={styles.splashContent}>
+        <div className={styles.splashLogoWrap}>
+          <Image
+            src="/assets/maintenancelogo.jpg"
+            alt="Tokko logo"
+            width={104}
+            height={104}
+            className={styles.splashLogo}
+            priority
+          />
+        </div>
         <h1>Payment Gateaway</h1>
+        <p>Segera Hadir</p>
       </div>
     </main>
   );

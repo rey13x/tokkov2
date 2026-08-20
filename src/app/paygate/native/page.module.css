@@ -1,0 +1,252 @@
+.page {
+  min-height: 100vh;
+  padding: 24px 32px 48px 104px;
+  background: #f7f8fb;
+  color: #17181c;
+}
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 76px;
+  padding: 30px 14px;
+  border-right: 1px solid #e3e5eb;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: center;
+}
+
+.sidebar strong {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #17181c;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+}
+
+.sidebar a {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  color: #5d6270;
+  display: grid;
+  place-items: center;
+}
+
+.hero {
+  margin-bottom: 20px;
+  border: 1px solid #e1e3e9;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+}
+
+.hero p {
+  margin: 0 0 8px;
+  color: #6c7280;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: clamp(2rem, 5vw, 4.2rem);
+}
+
+.hero span,
+.heroStats span {
+  color: #667085;
+}
+
+.heroStats {
+  min-width: 260px;
+  border-radius: 8px;
+  background: #17181c;
+  color: #ffffff;
+  padding: 22px;
+  display: grid;
+  align-content: center;
+}
+
+.heroStats strong {
+  font-size: 1.8rem;
+}
+
+.notice,
+.error {
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #e9f8ef;
+  color: #116a35;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error {
+  background: #fff1f1;
+  color: #b42318;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr) 360px;
+  gap: 18px;
+  align-items: start;
+}
+
+.panel {
+  margin-bottom: 18px;
+  border: 1px solid #e1e3e9;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 24px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.05);
+}
+
+.panel h2 {
+  margin: 0 0 18px;
+  font-size: 1.35rem;
+}
+
+.panel label {
+  margin-bottom: 14px;
+  color: #545b6b;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  display: grid;
+  gap: 8px;
+}
+
+.panel input,
+.panel textarea {
+  width: 100%;
+  border: 1px solid #d8dbe3;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+  color: #17181c;
+  font: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.panel textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.twoCols,
+.productForm {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.themeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.themeGrid button,
+.primary,
+.secondary,
+.productForm button {
+  min-height: 50px;
+  border: 1px solid #d8dbe3;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17181c;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.themeActive,
+.primary {
+  background: #17181c !important;
+  color: #ffffff !important;
+}
+
+.secondary {
+  margin-top: 10px;
+  text-decoration: none;
+  display: grid;
+  place-items: center;
+}
+
+.switch {
+  grid-template-columns: auto 1fr !important;
+  align-items: center;
+}
+
+.switch input {
+  width: auto;
+}
+
+.productForm {
+  grid-template-columns: 1fr 160px 1fr 130px;
+  margin-bottom: 18px;
+}
+
+.productForm button,
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.productList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.productList article,
+.transaction,
+.keyRow {
+  border: 1px solid #eceef3;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.transaction {
+  margin-top: 10px;
+}
+
+.transaction span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction em {
+  font-style: normal;
+  font-weight: 900;
+  color: #116a35;
+}
+
+@media (max-width: 980px) {
+  .page { padding: 16px 16px 32px 82px; }
+  .grid { grid-template-columns: 1fr; }
+  .hero { flex-direction: column; }
+  .heroStats { min-width: 0; }
+  .productForm { grid-template-columns: 1fr; }
+}

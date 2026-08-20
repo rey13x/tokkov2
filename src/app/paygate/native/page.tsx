@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function PayGateDashboardPage() {
+export default function NativePayGatePage() {
   redirect("/");
 }

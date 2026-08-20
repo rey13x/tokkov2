@@ -22,7 +22,7 @@ import FlexibleMedia from "@/components/media/FlexibleMedia";
 import ProductCard from "@/components/home/ProductCard";
 import PremiumMarquee from "@/components/home/PremiumMarquee";
 import { formatRupiah } from "@/data/products";
-import { HERO_BACKGROUND_URLS, CAROUSEL_PHOTOS_ONLY, ANIMATION_DURATION_MS, getPhotoDuration } from "@/data/hero-backgrounds";
+import { HERO_BACKGROUND_URLS, HERO_CONFIG, getPhotoDuration } from "@/data/hero-backgrounds";
 import { getCartCount } from "@/lib/cart";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import {
@@ -89,7 +89,13 @@ export default function HomeClient() {
   const [profileAvatarPreview, setProfileAvatarPreview] = useState("");
   const [isHomeTutorialRunning, setIsHomeTutorialRunning] = useState(false);
   const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0);
-  const heroImage = HERO_BACKGROUND_URLS[currentBackgroundIndex] || "/assets/backgroundv2.png";
+  const [heroBackgroundUrls, setHeroBackgroundUrls] = useState<string[]>(HERO_BACKGROUND_URLS);
+  const [heroBackgroundDurations, setHeroBackgroundDurations] = useState<Record<string, number>>({
+    ...Object.fromEntries(
+      Object.entries(HERO_CONFIG).map(([url, config]) => [url, config.duration]),
+    ),
+  });
+  const heroImage = heroBackgroundUrls[currentBackgroundIndex] || "/assets/backgroundv2.png";
 
   const categories = useMemo(() => {
     const set = new Set(products.map((product) => product.category));
@@ -237,46 +243,78 @@ export default function HomeClient() {
     setIsTestimonialDragging(false);
   };
 
-  // Preload semua hero background images untuk smooth transition tanpa loading delay
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadHeroBackgrounds = async () => {
+      try {
+        const response = await fetch("/api/hero-backgrounds", { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as { backgrounds?: Array<{ url: string; duration?: number }> };
+        const backgrounds = (data.backgrounds ?? []).filter((item) => typeof item?.url === "string" && item.url.trim());
+        if (!backgrounds.length || !isMounted) {
+          return;
+        }
+
+        const normalizedUrls = backgrounds.map((item) => item.url);
+        const nextDurations = Object.fromEntries(
+          backgrounds.map((item) => [item.url, Number(item.duration ?? getPhotoDuration(item.url))]),
+        );
+
+        setHeroBackgroundUrls(normalizedUrls);
+        setHeroBackgroundDurations((current) => ({ ...current, ...nextDurations }));
+        setCurrentBackgroundIndex(0);
+      } catch {
+        // keep default static hero list if API is unavailable
+      }
+    };
+
+    loadHeroBackgrounds();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
-    HERO_BACKGROUND_URLS.forEach((url) => {
-      const img = new (window.Image as any)();
-      img.src = url;
-    });
-  }, []);
 
-  // Background carousel effect - random dengan durasi berbeda per foto
-  useEffect(() => {
-    if (CAROUSEL_PHOTOS_ONLY.length === 0) {
+    if (heroBackgroundUrls.length === 0) {
       return;
     }
 
-    // Ambil foto carousel yang bukan foto awal
-    const carouselPhotos = CAROUSEL_PHOTOS_ONLY;
-    let timeoutId: NodeJS.Timeout;
+    const currentPhotoUrl = heroBackgroundUrls[currentBackgroundIndex] ?? heroBackgroundUrls[0];
+    const img = new window.Image();
+    img.src = currentPhotoUrl;
+    const nextPhotos = heroBackgroundUrls.filter((url) => url !== currentPhotoUrl);
 
-    const scheduleNextCarousel = () => {
-      // Pilih random foto dari carousel
-      const randomIndex = Math.floor(Math.random() * carouselPhotos.length);
-      const nextPhotoUrl = carouselPhotos[randomIndex];
-      const nextPhotoIndex = HERO_BACKGROUND_URLS.indexOf(nextPhotoUrl);
+    nextPhotos.forEach((url) => {
+      const preloadImage = new window.Image();
+      preloadImage.src = url;
+    });
+  }, [currentBackgroundIndex, heroBackgroundUrls]);
 
-      // Set foto baru
-      setCurrentBackgroundIndex(nextPhotoIndex >= 0 ? nextPhotoIndex : 1);
+  useEffect(() => {
+    if (heroBackgroundUrls.length <= 1) {
+      return;
+    }
 
-      // Ambil durasi untuk foto ini dan schedule foto berikutnya
-      const pauseDuration = getPhotoDuration(nextPhotoUrl);
-      timeoutId = setTimeout(scheduleNextCarousel, pauseDuration);
-    };
+    const currentPhotoUrl = heroBackgroundUrls[currentBackgroundIndex] ?? heroBackgroundUrls[0];
+    const pauseDuration = heroBackgroundDurations[currentPhotoUrl] ?? getPhotoDuration(currentPhotoUrl);
+    const timeoutId = window.setTimeout(() => {
+      setCurrentBackgroundIndex((previousIndex) => {
+        const nextIndex = (previousIndex + 1) % heroBackgroundUrls.length;
+        return nextIndex;
+      });
+    }, pauseDuration);
 
-    // Mulai carousel setelah loading awal
-    timeoutId = setTimeout(scheduleNextCarousel, getPhotoDuration(HERO_BACKGROUND_URLS[0]));
-
-    return () => clearTimeout(timeoutId);
-  }, []);
+    return () => window.clearTimeout(timeoutId);
+  }, [currentBackgroundIndex, heroBackgroundDurations, heroBackgroundUrls]);
 
   useEffect(() => {
     const syncState = () => {
