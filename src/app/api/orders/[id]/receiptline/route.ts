@@ -69,7 +69,7 @@ function buildReceiptDocument(input: {
     `No. HP   : ${escapeReceiptText(input.userPhone || "-")}`,
     `Status   : ${statusLabel(input.status)}`,
     "--------------------------------",
-    "Produk",
+    "Produk                         Jumlah",
     ...itemLines,
     `Subtotal : ${formatRupiah(input.subtotal)}`,
     `Pajak    : ${formatRupiah(TAX_AMOUNT)}`,
@@ -79,9 +79,7 @@ function buildReceiptDocument(input: {
     "PEMBAYARAN BERHASIL",
     input.depositId ? `Ref: ${escapeReceiptText(input.depositId)}` : "",
     input.paidAt ? `Dibayar: ${escapeReceiptText(formatDate(input.paidAt))}` : "",
-    "{code:https://tokkov2.vercel.app;option:qrcode}",
-    "Founder",
-    "Raihaan Bagastiam Pratama",
+    `{code:${escapeReceiptText(`${(process.env.NEXTAUTH_URL?.trim() || "https://www.tokkomarketplace.shop").replace(/\/$/, "")}/status-pemesanan?order=${input.orderId}`)};option:qrcode}`,
     "Terima kasih sudah berbelanja di Tokko Marketplace.",
   ].filter(Boolean).join("\n");
 }

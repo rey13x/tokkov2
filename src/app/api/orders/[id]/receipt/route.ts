@@ -118,7 +118,8 @@ async function buildReceiptPdf(input: {
   if (input.depositId) doc.font("Courier").fontSize(8).text(`Ref: ${input.depositId}`);
   if (input.paidAt) doc.text(`Dibayar: ${formatDateLabel(input.paidAt)}`);
   doc.moveDown(0.5);
-  const qrDataUrl = await QRCode.toDataURL(`https://tokkov2.vercel.app/status-pemesanan?order=${encodeURIComponent(input.orderId)}`, {
+  const receiptOrigin = (process.env.NEXTAUTH_URL?.trim() || "https://www.tokkomarketplace.shop").replace(/\/$/, "");
+  const qrDataUrl = await QRCode.toDataURL(`${receiptOrigin}/status-pemesanan?order=${encodeURIComponent(input.orderId)}`, {
     errorCorrectionLevel: "H",
     margin: 1,
     width: 120,
