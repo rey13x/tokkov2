@@ -19,7 +19,7 @@ export async function GET() {
       ];
       return NextResponse.json({ backgrounds: defaultBackgrounds }, {
         headers: {
-          "Cache-Control": "public, max-age=5, s-maxage=10, stale-while-revalidate=60",
+          "Cache-Control": "no-store",
         },
       });
     }
@@ -32,7 +32,7 @@ export async function GET() {
       ];
       return NextResponse.json({ backgrounds: defaultBackgrounds }, {
         headers: {
-          "Cache-Control": "public, max-age=5, s-maxage=10, stale-while-revalidate=60",
+          "Cache-Control": "no-store",
         },
       });
     }
@@ -42,7 +42,7 @@ export async function GET() {
 
     return NextResponse.json({ backgrounds }, {
       headers: {
-        "Cache-Control": "public, max-age=5, s-maxage=10, stale-while-revalidate=60",
+        "Cache-Control": "no-store",
       },
     });
   } catch (error) {
@@ -55,7 +55,7 @@ export async function GET() {
     
     return NextResponse.json({ backgrounds: defaultBackgrounds }, {
       headers: {
-        "Cache-Control": "public, max-age=5, s-maxage=10, stale-while-revalidate=60",
+        "Cache-Control": "no-store",
       },
     });
   }

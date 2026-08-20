@@ -151,13 +151,13 @@ function parseRupiahInput(value: string) {
 }
 
 function statusOrderLabel(status: string) {
-  if (status === "done") {
-    return "Dikirim";
+  if (["done", "delivered", "sent", "paid"].includes(status)) {
+    return "Sudah Bayar";
   }
-  if (status === "error") {
-    return "Ditolak";
+  if (["error", "rejected", "declined", "failed", "cancelled"].includes(status)) {
+    return "Belum Bayar";
   }
-  return "Proses";
+  return "Sedang diproses";
 }
 
 function cancelRequestStatusLabel(status: string | undefined) {
@@ -396,6 +396,7 @@ function AdminManagementSection() {
 
       setHeroBackgroundForm({ id: "", label: "", url: "", duration: 8000, sortOrder: 0 });
       setHeroBackgroundEditId(null);
+      window.dispatchEvent(new Event("tokko:hero-backgrounds-updated"));
       const refreshed = await fetch("/api/admin/hero-backgrounds", { cache: "no-store" });
       if (refreshed.ok) {
         const nextData = await refreshed.json();
@@ -435,6 +436,7 @@ function AdminManagementSection() {
       setHeroBackgrounds((current) => current.filter((item) => item.id !== backgroundId));
       setHeroBackgroundForm({ id: "", label: "", url: "", duration: 8000, sortOrder: 0 });
       setHeroBackgroundEditId(null);
+      window.dispatchEvent(new Event("tokko:hero-backgrounds-updated"));
       setMessage("Foto hero berhasil dihapus.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal hapus foto hero.");
@@ -1626,6 +1628,7 @@ function AdminManagementSection() {
 
     const timer = window.setInterval(() => {
       loadStats().catch(() => {});
+      loadOrders().catch(() => {});
     }, 5000);
 
     return () => window.clearInterval(timer);
@@ -2788,9 +2791,9 @@ function AdminManagementSection() {
                       }))
                     }
                   >
-                    <option value="process">Proses</option>
-                    <option value="done">Dikirim</option>
-                    <option value="error">Ditolak</option>
+                    <option value="process">Sedang diproses</option>
+                    <option value="done">Sudah Bayar</option>
+                    <option value="error">Belum Bayar</option>
                   </select>
                   <button type="button" onClick={() => onSaveOrderStatus(order.id)}>
                     Simpan

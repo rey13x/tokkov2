@@ -38,7 +38,7 @@ import {
   startOnboarding,
 } from "@/lib/onboarding";
 import { fetchStoreData } from "@/lib/store-client";
-import { fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
+import { clearSessionCached, fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
 import type {
   StoreInformation,
   StoreMarqueeItem,
@@ -77,6 +77,28 @@ export default function HomeClient() {
   const menuIntroRef = useRef<gsap.core.Timeline | null>(null);
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
+
+  useEffect(() => {
+    const refreshHeroBackgrounds = () => {
+      clearSessionCached(PUBLIC_DATA_CACHE_KEY.heroBackgrounds);
+      fetchSessionCached<{ backgrounds?: Array<{ url: string; duration?: number }> }>(
+        PUBLIC_DATA_CACHE_KEY.heroBackgrounds,
+        "/api/hero-backgrounds",
+        { cache: "no-store" },
+      ).then((data) => {
+        const backgrounds = (data.backgrounds ?? []).filter((item) => item.url.trim());
+        if (backgrounds.length > 0) {
+          setHeroBackgroundUrls(backgrounds.map((item) => item.url));
+          setHeroBackgroundDurations(Object.fromEntries(
+            backgrounds.map((item) => [item.url, Number(item.duration ?? 8000)]),
+          ));
+        }
+      }).catch(() => {});
+    };
+
+    window.addEventListener("tokko:hero-backgrounds-updated", refreshHeroBackgrounds);
+    return () => window.removeEventListener("tokko:hero-backgrounds-updated", refreshHeroBackgrounds);
+  }, []);
 
   useEffect(() => {
     if (sessionStatus !== "authenticated") {

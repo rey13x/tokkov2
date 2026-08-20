@@ -45,7 +45,11 @@ function writeSessionCache<T>(key: string, value: T) {
 }
 
 export function fetchSessionCached<T>(key: string, url: string, init?: RequestInit): Promise<T> {
-  const ttlMs = key === PUBLIC_DATA_CACHE_KEY.store ? 30_000 : 5 * 60_000;
+  const ttlMs = key === PUBLIC_DATA_CACHE_KEY.heroBackgrounds
+    ? 0
+    : key === PUBLIC_DATA_CACHE_KEY.store
+      ? 30_000
+      : 5 * 60_000;
   const memoryValue = memoryCache.get(key) as T | undefined;
   const memoryCachedAt = memoryCacheTimes.get(key) ?? 0;
   if (memoryValue !== undefined && Date.now() - memoryCachedAt < ttlMs) {
