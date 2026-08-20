@@ -53,6 +53,7 @@ type HomeMarquee = StoreMarqueeItem;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
+const HOME_DATA_READY_STORAGE_KEY = "tokko_home_data_ready";
 const logoImage = "/assets/logov2.svg";
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
@@ -74,7 +75,13 @@ export default function HomeClient() {
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
 
-  const [storeDataReady, setStoreDataReady] = useState(true);
+  const [storeDataReady, setStoreDataReady] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.localStorage.getItem(HOME_DATA_READY_STORAGE_KEY) === "1";
+  });
   const [menuLayer, setMenuLayer] = useState<MenuLayer>("closed");
   const [menuMounted, setMenuMounted] = useState(false);
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
@@ -385,6 +392,14 @@ export default function HomeClient() {
   useEffect(() => {
     let mounted = true;
 
+    const hasCachedHomeData = typeof window !== "undefined" && window.localStorage.getItem(HOME_DATA_READY_STORAGE_KEY) === "1";
+    if (hasCachedHomeData) {
+      setStoreDataReady(true);
+      return () => {
+        mounted = false;
+      };
+    }
+
     fetchStoreData()
       .then((data) => {
         if (!mounted) {
@@ -395,24 +410,21 @@ export default function HomeClient() {
         setTestimonials(data.testimonials ?? []);
         setMarquees(data.marquees ?? []);
       })
-      .catch(() => {})
+      .catch(() => {
+        // keep the homepage usable even if the store API is slow or unavailable
+      })
       .finally(() => {
         if (!mounted) {
           return;
         }
         setStoreDataReady(true);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(HOME_DATA_READY_STORAGE_KEY, "1");
+        }
       });
-
-    const quickRenderTimer = window.setTimeout(() => {
-      if (!mounted) {
-        return;
-      }
-      setStoreDataReady(true);
-    }, 250);
 
     return () => {
       mounted = false;
-      window.clearTimeout(quickRenderTimer);
     };
   }, []);
 
