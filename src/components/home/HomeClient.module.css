@@ -1265,6 +1265,17 @@
   height: 0.95em;
 }
 
+.cartMenuBump {
+  animation: cartMenuBounce 0.7s ease;
+}
+
+@keyframes cartMenuBounce {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+  55% { transform: translateY(2px); }
+  75% { transform: translateY(-3px); }
+}
+
 .menuFooterMain {
   margin-top: auto;
   padding-top: 14px;

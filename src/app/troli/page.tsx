@@ -9,7 +9,7 @@ import FlexibleMedia from "@/components/media/FlexibleMedia";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
-import { readCart, removeFromCart, updateCartQuantity } from "@/lib/cart";
+import { CART_NOTICE_STORAGE_KEY, readCart, removeFromCart, updateCartQuantity } from "@/lib/cart";
 import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
 import {
   ONBOARDING_STAGE,
@@ -77,6 +77,8 @@ export default function CartPage() {
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [cartNotice, setCartNotice] = useState("");
+  const [paymentConsent, setPaymentConsent] = useState(false);
   const [isCartTutorialRunning, setIsCartTutorialRunning] = useState(false);
   const [cartTutorialStage, setCartTutorialStage] = useState<OnboardingStage | null>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
@@ -91,6 +93,14 @@ export default function CartPage() {
     () => true,
     () => false,
   );
+
+  useEffect(() => {
+    const notice = window.sessionStorage.getItem(CART_NOTICE_STORAGE_KEY);
+    if (notice) {
+      setCartNotice(notice);
+      window.sessionStorage.removeItem(CART_NOTICE_STORAGE_KEY);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -326,6 +336,11 @@ export default function CartPage() {
       return;
     }
 
+    if (!paymentConsent) {
+      setError("Centang persetujuan pembayaran dan pastikan stok sudah ditanyakan dulu ya.");
+      return;
+    }
+
     const onboardingState = getOnboardingState();
     if (onboardingState.active) {
       if (onboardingState.stage === ONBOARDING_STAGE.CART_CHECKOUT) {
@@ -515,6 +530,7 @@ export default function CartPage() {
           Kembali belanja
         </Link>
       </header>
+      {cartNotice ? <div className={styles.cartNotice} role="status">{cartNotice}</div> : null}
 
       {!isClient || isStoreLoading || isJobApplicationsLoading ? <WaitLoading centered /> : null}
 
@@ -702,14 +718,28 @@ export default function CartPage() {
               <span>Total</span>
               <strong>{formatRupiah(total)}</strong>
             </div>
+            <label className={styles.paymentConsent}>
+              <input
+                type="checkbox"
+                checked={paymentConsent}
+                onChange={(event) => setPaymentConsent(event.target.checked)}
+              />
+              <span>
+                <strong>Pembayaran menggunakan Sistem Otomatis, Demi keamanan STOK, Saya setuju apabila Produk saya diarahkan ke Pre-Order atau pengembalian Uang</strong>
+              </span>
+            </label>
+            <p className={`${styles.stockWarning} ${paymentConsent ? styles.stockWarningAccepted : styles.stockWarningShake}`}>
+              <strong>Demi keamanan STOK pembayaran dialihkan ke Manual VA Scan Qriss.</strong>{" "}
+              Pastikan sebelum membeli <strong>bertanya STOK lebih dulu</strong>
+            </p>
             <button
               type="button"
               className={`${styles.actionButton} ${styles.actionPrimary}`}
-              disabled={subtotal <= 0 || isCheckoutLoading}
+              disabled={subtotal <= 0 || isCheckoutLoading || !paymentConsent}
               onClick={onCheckout}
               data-onboarding="cart-checkout"
             >
-              {isCheckoutLoading ? <ButtonLoading /> : "Lanjut ke Pembayaran"}
+              {isCheckoutLoading ? <ButtonLoading /> : "Beli Sekarang"}
             </button>
 
             <button

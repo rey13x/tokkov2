@@ -1,4 +1,6 @@
 export const CART_STORAGE_KEY = "tokko_cart";
+export const CART_UPDATED_EVENT = "tokko-cart-updated";
+export const CART_NOTICE_STORAGE_KEY = "tokko_cart_notice";
 
 export type CartEntry = {
   slug: string;
@@ -49,11 +51,19 @@ export function addToCart(slug: string, quantity: number) {
   if (existing) {
     existing.quantity = clampQuantity(existing.quantity + quantity);
     saveCart(cart);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(CART_NOTICE_STORAGE_KEY, "Produk berhasil masuk ke troli.");
+      window.dispatchEvent(new CustomEvent(CART_UPDATED_EVENT));
+    }
     return;
   }
 
   cart.push({ slug, quantity: clampQuantity(quantity) });
   saveCart(cart);
+  if (typeof window !== "undefined") {
+    window.sessionStorage.setItem(CART_NOTICE_STORAGE_KEY, "Produk berhasil masuk ke troli.");
+    window.dispatchEvent(new CustomEvent(CART_UPDATED_EVENT));
+  }
 }
 
 export function updateCartQuantity(slug: string, quantity: number) {

@@ -174,8 +174,6 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       const timer = window.setTimeout(() => {
         addToCart(product.slug, safeQty);
         setAdded(true);
-        setIsRedirectingToCart(true);
-        router.replace("/troli");
       }, 550);
 
       return () => window.clearTimeout(timer);
@@ -238,10 +236,6 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
     addToCart(product.slug, quantity);
     setAdded(true);
-    setIsRedirectingToCart(true);
-    window.setTimeout(() => {
-      router.push("/troli");
-    }, 420);
   };
 
   const onApplyForJob = async () => {
@@ -457,7 +451,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                 </button>
                 <button
                   type="button"
-                  className={styles.cartIconButton}
+                  className={`${styles.cartIconButton}${added ? ` ${styles.cartIconButtonBump}` : ""}`}
                   onClick={onAddToCart}
                   disabled={status === "loading"}
                   title="Tambahkan ke troli"

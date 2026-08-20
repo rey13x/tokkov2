@@ -25,7 +25,7 @@ import PremiumMarquee from "@/components/home/PremiumMarquee";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import { HERO_BACKGROUND_URLS, HERO_CONFIG, getPhotoDuration } from "@/data/hero-backgrounds";
-import { getCartCount } from "@/lib/cart";
+import { CART_UPDATED_EVENT, getCartCount } from "@/lib/cart";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import {
   ONBOARDING_BOOT_QUERY_KEY,
@@ -86,6 +86,7 @@ export default function HomeClient() {
   const [menuMounted, setMenuMounted] = useState(false);
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
   const [cartCount, setCartCount] = useState(0);
+  const [isCartBouncing, setIsCartBouncing] = useState(false);
   const [products, setProducts] = useState<HomeProduct[]>([]);
   const [informations, setInformations] = useState<HomeInformation[]>([]);
   const [testimonials, setTestimonials] = useState<HomeTestimonial[]>([]);
@@ -377,13 +378,20 @@ export default function HomeClient() {
 
     const onFocus = () => syncState();
     const onStorage = () => syncState();
+    const onCartUpdated = () => {
+      syncState();
+      setIsCartBouncing(true);
+      window.setTimeout(() => setIsCartBouncing(false), 700);
+    };
 
     window.addEventListener("focus", onFocus);
     window.addEventListener("storage", onStorage);
+    window.addEventListener(CART_UPDATED_EVENT, onCartUpdated);
 
     return () => {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener(CART_UPDATED_EVENT, onCartUpdated);
     };
   }, [sessionStatus]);
 
@@ -1084,7 +1092,7 @@ export default function HomeClient() {
                     <FiChevronRight />
                   </span>
                 </button>
-                <button type="button" onClick={() => router.push("/troli")} data-menu-item>
+                <button type="button" onClick={() => router.push("/troli")} data-menu-item className={isCartBouncing ? styles.cartMenuBump : ""}>
                   Troli ({cartCount})
                 </button>
               </nav>
