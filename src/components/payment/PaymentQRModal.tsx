@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createPortal, useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 // @ts-ignore - qrcode.react doesn't have type definitions
