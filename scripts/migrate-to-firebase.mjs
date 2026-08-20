@@ -3,14 +3,33 @@ import { createClient } from "@libsql/client";
 import crypto from "node:crypto";
 import fs from "node:fs";
 
+if (typeof process.loadEnvFile === "function") {
+  try {
+    process.loadEnvFile(".env");
+  } catch {}
+}
+
 const writeEnabled = process.env.MIGRATION_WRITE === "true";
 const mode = process.env.MIGRATION_MODE || "firestore";
 
-function readCredential(jsonName, fileName) {
+function readCredential(jsonName, fileName, allowLegacySource = false) {
   const json = process.env[jsonName];
   if (json) return JSON.parse(json);
   const file = process.env[fileName];
   if (file) return JSON.parse(fs.readFileSync(file, "utf8"));
+  if (allowLegacySource) {
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+      return JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString());
+    }
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+      return {
+        project_id: process.env.FIREBASE_PROJECT_ID,
+        client_email: process.env.FIREBASE_CLIENT_EMAIL,
+        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      };
+    }
+  }
   throw new Error(`${jsonName} atau ${fileName} wajib diisi.`);
 }
 
@@ -53,7 +72,7 @@ async function copyDocumentTree(sourceRef, destinationRef, stats) {
 }
 
 async function migrateFirestoreProject() {
-  const sourceCredential = readCredential("SOURCE_FIREBASE_SERVICE_ACCOUNT_JSON", "SOURCE_FIREBASE_SERVICE_ACCOUNT_FILE");
+  const sourceCredential = readCredential("SOURCE_FIREBASE_SERVICE_ACCOUNT_JSON", "SOURCE_FIREBASE_SERVICE_ACCOUNT_FILE", true);
   const destinationCredential = readCredential("DEST_FIREBASE_SERVICE_ACCOUNT_JSON", "DEST_FIREBASE_SERVICE_ACCOUNT_FILE");
   const sourceApp = createApp("migration-source", sourceCredential);
   const destinationApp = createApp("migration-destination", destinationCredential);
