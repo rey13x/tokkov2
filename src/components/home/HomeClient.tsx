@@ -229,7 +229,7 @@ export default function HomeClient() {
 
   const chooseCategory = (category: string) => {
     closeMenu();
-    router.push(`/koleksi?category=${encodeURIComponent(category)}`);
+    router.push(`/koleksi/${category.toLowerCase().replace(/[^a-z0-9]/g, "")}`);
   };
 
   const onStartOrderGuide = () => {

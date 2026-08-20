@@ -13,16 +13,21 @@ import { fetchStoreData } from "@/lib/store-client";
 import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
 
-export default function KoleksiPage() {
+export function categoryToSlug(category: string) {
+  return category.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+type KoleksiPageProps = {
+  category?: string;
+};
+
+export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
   const router = useRouter();
   const { data: session, status } = useSession();
   const { isMaintenanceEnabled } = useMaintenanceMode();
   const stickyRef = useRef<HTMLElement | null>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
-  const initialCategory =
-    typeof window === "undefined"
-      ? "Semua"
-      : new URLSearchParams(window.location.search).get("category") ?? "Semua";
+  const initialCategory = category ?? "Semua";
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [query, setQuery] = useState("");
@@ -52,7 +57,7 @@ export default function KoleksiPage() {
 
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = products.filter((product) => {
-    const byCategory = activeCategory === "Semua" || product.category === activeCategory;
+    const byCategory = activeCategory === "Semua" || categoryToSlug(product.category) === activeCategory;
     const text = `${product.name} ${product.shortDescription} ${product.category}`.toLowerCase();
     const byQuery = normalizedQuery.length === 0 || text.includes(normalizedQuery);
     return byCategory && byQuery;
@@ -74,7 +79,8 @@ export default function KoleksiPage() {
     }
 
     if (status === "unauthenticated") {
-      router.push(`/auth?redirect=${encodeURIComponent(`/koleksi?category=${activeCategory}`)}`);
+      const categoryPath = activeCategory === "Semua" ? "/koleksi" : `/koleksi/${categoryToSlug(activeCategory)}`;
+      router.push(`/auth?redirect=${encodeURIComponent(categoryPath)}`);
       return;
     }
 
@@ -150,9 +156,14 @@ export default function KoleksiPage() {
               <button
                 key={category}
                 type="button"
-                onClick={() => setActiveCategory(category)}
+                onClick={() => {
+                  setActiveCategory(category);
+                  router.push(category === "Semua" ? "/koleksi" : `/koleksi/${categoryToSlug(category)}`);
+                }}
                 className={`${styles.categoryChip} ${
-                  activeCategory === category ? styles.categoryChipActive : ""
+                  (activeCategory === category || categoryToSlug(activeCategory) === categoryToSlug(category))
+                    ? styles.categoryChipActive
+                    : ""
                 }`}
               >
                 {category}
