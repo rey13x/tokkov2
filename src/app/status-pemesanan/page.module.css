@@ -303,6 +303,8 @@
   border-radius: 20px;
   overflow: hidden;
   background: #eef2fb;
+  display: grid;
+  place-items: center;
 }
 
 .popupQrImage {

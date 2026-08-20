@@ -26,9 +26,6 @@ function getSafeRedirect(pathname: string | null) {
   if (pathname.startsWith("/auth")) {
     return "/";
   }
-  if (pathname.startsWith("/paygate")) {
-    return "/";
-  }
   return pathname;
 }
 
@@ -120,6 +117,7 @@ export default function AuthPage() {
   const [isRequestingCode, setIsRequestingCode] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [redirectTarget, setRedirectTarget] = useState("/");
+  const [redirectReady, setRedirectReady] = useState(false);
   const [deviceId, setDeviceId] = useState("");
   const canUseGoogleSignIn = googleUiEnabled;
 
@@ -129,6 +127,7 @@ export default function AuthPage() {
     }
     const params = new URLSearchParams(window.location.search);
     setRedirectTarget(getSafeRedirect(params.get("redirect")));
+    setRedirectReady(true);
     const authError = params.get("error");
     if (authError) {
       setError(getAuthErrorMessage(authError));
@@ -155,14 +154,14 @@ export default function AuthPage() {
   }, [redirectTarget]);
 
   useEffect(() => {
-    if (status !== "authenticated") {
+    if (status !== "authenticated" || !redirectReady) {
       return;
     }
 
     resolveRedirectAfterAuth()
       .then((target) => router.replace(target))
       .catch(() => router.replace(redirectTarget));
-  }, [status, router, redirectTarget, resolveRedirectAfterAuth]);
+  }, [status, redirectReady, router, redirectTarget, resolveRedirectAfterAuth]);
 
   const onSignIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

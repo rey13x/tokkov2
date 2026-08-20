@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import type { CallBackProps, Step } from "react-joyride";
+// @ts-expect-error - qrcode.react does not ship complete React 19 types in this project.
+import QRCode from "qrcode.react";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
@@ -961,7 +963,14 @@ export default function StatusPemesananPage() {
             <h2>QRIS Pembayaran</h2>
             <p className={styles.popupMeta}>Order: {activePaymentOrder.id}</p>
             <div className={styles.popupQrWrap}>
-              {activePaymentOrder.qrImage ? (
+              {activePaymentOrder.qrCode ? (
+                <QRCode
+                  value={activePaymentOrder.qrCode}
+                  size={260}
+                  level="H"
+                  includeMargin
+                />
+              ) : activePaymentOrder.qrImage ? (
                 <Image
                   src={activePaymentOrder.qrImage}
                   alt="QRIS Pembayaran"

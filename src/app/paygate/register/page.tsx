@@ -1,9 +1,5 @@
 import { redirect } from "next/navigation";
-import PayGatePanel from "@/components/payment/PayGatePanel";
-import { getServerAuthSession } from "@/server/auth";
 
-export default async function PayGateRegisterPage() {
-  const session = await getServerAuthSession();
-  if (!session?.user?.id) redirect("/auth");
-  return <PayGatePanel routeMode="register" />;
+export default function PayGateRegisterPage() {
+  redirect("/auth?redirect=/paygate");
 }

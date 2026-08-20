@@ -1,5 +1,5 @@
 import { getFirebaseFirestore } from "./firebase-admin";
-import { getRamashopAccountByUserId, callRamashopApi } from "@/server/integrations/ramashop";
+import crypto from "crypto";
 
 // QR Code validity: standard 5 minutes (300 seconds)
 export const QR_CODE_VALIDITY_SECONDS = 300;
@@ -33,57 +33,46 @@ export interface PaymentVerificationResponse {
   whatsappLink?: string; // Link untuk WhatsApp notification
 }
 
+function getPayGateStaticQr() {
+  const qrString = process.env.PAYGATE_STATIC_QRIS?.trim();
+  if (!qrString) {
+    throw new Error("PAYGATE_STATIC_QRIS belum dikonfigurasi.");
+  }
+  return qrString;
+}
+
 /**
  * Check account balance
  */
 export async function checkBalance(userId: string): Promise<{ balance: number; status: string }> {
-  try {
-    const account = await getRamashopAccountByUserId(userId);
-    if (!account) throw new Error("PayGate akun ini belum aktif.");
-    const response = await callRamashopApi(userId, "/balance", "GET");
-    if (response.status !== 200 || !response.data) throw new Error("Gagal memuat saldo PayGate.");
-    const data = response.data;
-    return {
-      balance: data.data?.balance || 0,
-      status: data.status,
-    };
-  } catch (error) {
-    console.error("Error checking balance:", error);
-    throw error;
-  }
+  void userId;
+  return { balance: 0, status: "internal" };
 }
 
 /**
- * Create dynamic QRIS for payment using Rama Shop API
+ * Create a local PayGate transaction using the merchant's static QRIS.
  */
 export async function createDynamicQRCode(
   payload: CreateQRPayload & { userId: string },
 ): Promise<QRCodeResponse> {
   try {
-    const acct = await getRamashopAccountByUserId(payload.userId);
-    if (!acct) {
-      throw new Error("PayGate akun ini belum aktif. Aktifkan PayGate dulu sebelum membuat QRIS.");
-    }
-
-    const res = await callRamashopApi(payload.userId, "/deposit/create", "POST", {
-      amount: Math.round(payload.amount),
-      method: "qris",
-      reference: payload.orderId,
-    });
-    if (!res || res.status !== 200 || !res.data) {
-      throw new Error("Ramashop API returned error when creating deposit");
-    }
-    const data = res.data;
+    void payload.userId;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + QR_CODE_VALIDITY_SECONDS * 1000);
+    const transactionId = `PG-${crypto.randomUUID()}`;
+    const qrString = getPayGateStaticQr();
+    const uniqueCode = crypto.randomInt(100, 1000);
+    const totalAmount = Math.round(payload.amount) + uniqueCode;
     return {
-      depositId: data.data?.depositId,
-      qrString: data.data?.qrString || data.data?.qr_string,
-      qrImage: data.data?.qrImage,
-      amount: data.data?.amount,
-      totalAmount: data.data?.totalAmount,
-      uniqueCode: data.data?.uniqueCode,
+      depositId: transactionId,
+      qrString,
+      qrImage: "",
+      amount: Math.round(payload.amount),
+      totalAmount,
+      uniqueCode,
       expiresIn: QR_CODE_VALIDITY_SECONDS,
-      createdAt: new Date().toISOString(),
-      expiredAt: data.data?.expiredAt,
+      createdAt: now.toISOString(),
+      expiredAt: expiresAt.toISOString(),
     };
   } catch (error) {
     console.error("Error creating QRIS QR Code:", error);
@@ -92,44 +81,22 @@ export async function createDynamicQRCode(
 }
 
 /**
- * Verify payment status using Rama Shop API
+ * Verify payment status from the local order state. A trusted detector/admin
+ * changes the order to paid through the internal webhook.
  */
 export async function verifyPaymentStatus(
   depositId: string,
   userId: string,
 ): Promise<PaymentVerificationResponse> {
   try {
-    const acct = await getRamashopAccountByUserId(userId);
-    if (!acct) {
-      throw new Error("PayGate akun ini belum aktif.");
+    const order = await getOrderByTransactionId(depositId);
+    void userId;
+    if (!order) return { status: "failed" };
+    if (order.status === "paid") {
+      return { status: "success", amount: Number(order.total), paidAmount: Number(order.paidAmount ?? order.total) };
     }
-
-    const res = await callRamashopApi(userId, `/deposit/status/${depositId}`, "GET");
-    if (res && res.status === 200 && res.data) {
-      const data = res.data;
-      const depositStatus = data.data?.status;
-
-      if (depositStatus === "success") {
-        return {
-          status: "success",
-          amount: data.data?.amount,
-          paidAmount: data.data?.paid_amount,
-          createdAt: data.data?.created_at,
-        };
-      }
-
-      if (depositStatus === "expired") {
-        return { status: "expired" };
-      }
-
-      if (depositStatus === "already") {
-        return { status: "success", amount: data.data?.amount };
-      }
-
-      return { status: "pending", amount: data.data?.amount };
-    }
-
-    throw new Error("Ramashop API returned error when verifying deposit");
+    if (order.status === "expired") return { status: "expired" };
+    return { status: "pending", amount: Number(order.total) };
 
   } catch (error) {
     console.error("Error verifying payment status:", error);
@@ -253,6 +220,14 @@ export async function getOrderById(orderId: string) {
     console.error("Error fetching order:", error);
     throw error;
   }
+}
+
+export async function getOrderByTransactionId(transactionId: string) {
+  const db = getFirebaseFirestore();
+  if (!db) throw new Error("Firebase is not configured");
+  const snapshot = await db.collection("orders").where("depositId", "==", transactionId).limit(1).get();
+  const order = snapshot.docs[0];
+  return order ? { id: order.id, ...order.data() } : null;
 }
 
 /**

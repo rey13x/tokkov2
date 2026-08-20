@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
 import WaitLoading from "@/components/ui/WaitLoading";
 import {
@@ -68,7 +68,7 @@ type DepositQr = {
   expiresAt?: number;
 };
 
-type ModalView = "menu" | "deposit" | "topup" | "apiKey" | "qris" | null;
+type ModalView = "menu" | "deposit" | "topup" | "apiKey" | "qris" | "logout" | null;
 type PayGateAuthMode = "register" | "login";
 type TransactionFilter = "all" | "deposit" | "withdrawal";
 type PayGateRouteMode = "entry" | PayGateAuthMode | "dashboard";
@@ -213,13 +213,8 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
   const loadPayGate = useCallback(async () => {
     const loadSeq = ++loadSeqRef.current;
     setError("");
-    if (routeMode === "login" || routeMode === "register") {
-      setPaygateAuthMode(routeMode);
-      setLoading(false);
-      return;
-    }
-    if (!payGateSessionKey || window.localStorage.getItem(payGateSessionKey) !== "active") {
-      router.replace("/paygate/login");
+    if (!sessionUserId) {
+      router.replace("/auth?redirect=/paygate");
       return;
     }
     try {
@@ -243,7 +238,12 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
       }
 
       if (loadSeq !== loadSeqRef.current) return;
-      setAccount(accountJson.account ?? null);
+      setAccount(accountJson.account ?? {
+        id: sessionUserId,
+        userId: sessionUserId,
+        username: session?.user?.name || session?.user?.email || "Akun Tokko",
+        email: session?.user?.email || "",
+      });
       setBalance(typeof accountJson.balance === "number" ? accountJson.balance : null);
       setApiKeys(keyJson.ok ? keyJson.apiKeys ?? [] : []);
       setTransactions(transactionJson.ok ? transactionJson.transactions?.items ?? transactionJson.transactions ?? [] : []);
@@ -254,7 +254,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
       if (loadSeq !== loadSeqRef.current) return;
       setLoading(false);
     }
-  }, [routeMode, router, payGateSessionKey]);
+  }, [router, session, sessionUserId]);
 
   useEffect(() => {
     loadSeqRef.current += 1;
@@ -273,12 +273,9 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
       setPaygatePassword("");
       setTransactionFilter("all");
       setLoading(true);
-      if (routeMode === "login" || routeMode === "register") {
-        setPaygateAuthMode(routeMode);
-      }
       void loadPayGate();
     });
-  }, [loadPayGate, routeMode, sessionUserId]);
+  }, [loadPayGate, sessionUserId]);
 
   useEffect(() => {
     if (!depositQr?.expiresAt) return;
@@ -464,9 +461,8 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
     setPaygatePassword("");
     setPaygateAuthMode("login");
     if (payGateSessionKey) window.localStorage.removeItem(payGateSessionKey);
-    setNotice("Kamu sudah keluar dari PayGate");
+    await signOut({ callbackUrl: "/auth" });
     setError("");
-    router.replace("/paygate/login");
   }
 
   function goHome() {
@@ -503,7 +499,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
             <motion.button type="button" className={styles.actionButton} onClick={goHome} whileHover={hoverLift} whileTap={tapPress}>
               <FiHome /> <span>Home</span>
             </motion.button>
-            <motion.button type="button" className={styles.actionButton} onClick={handleLogout} whileHover={hoverLift} whileTap={tapPress}>
+            <motion.button type="button" className={styles.actionButton} onClick={() => openModal("logout")} whileHover={hoverLift} whileTap={tapPress}>
               <FiLogOut /> <span>Logout</span>
             </motion.button>
             <motion.button type="button" className={styles.iconButton} onClick={() => openModal("menu")} aria-label="Buka menu" whileHover={hoverLift} whileTap={tapPress}>
@@ -518,7 +514,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
         {notice ? <motion.p key="paygate-notice" className={styles.noticeText} role="status" aria-live="polite" initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ opacity: 0 }}>{notice}</motion.p> : null}
       </AnimatePresence>
 
-      {!account ? (
+      {sessionUserId ? (
         <motion.section className={`${styles.setupPanel} ${styles.authPanel}`} initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
           <div className={styles.authBanner} aria-hidden="true">
             {Array.from({ length: 9 }).map((_, index) => (
@@ -763,6 +759,23 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
                       <strong>API Documentation</strong>
                       <small>Integration guide</small>
                     </span>
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {modal === "logout" ? (
+              <>
+                <h2>Keluar dari akun?</h2>
+                <p className={styles.logoutMessage}>
+                  Kamu akan keluar dari PayGate dan akun Tokko sekaligus.
+                </p>
+                <div className={styles.logoutActions}>
+                  <button type="button" className={styles.secondaryButton} onClick={goHome}>
+                    Kembali ke Beranda
+                  </button>
+                  <button type="button" className={styles.primaryButton} onClick={() => void handleLogout()}>
+                    Ya, keluar
                   </button>
                 </div>
               </>

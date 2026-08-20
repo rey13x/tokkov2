@@ -3,11 +3,11 @@ import { getServerAuthSession } from "@/server/auth";
 import ApiCodeBlock from "./ApiCodeBlock";
 import styles from "./page.module.css";
 
-const baseUrl = "https://ramashop.my.id/api/public";
+const baseUrl = "https://domain-kamu.com/api/payments";
 
 export default async function PayGateApiDocumentationPage() {
   const session = await getServerAuthSession();
-  if (!session?.user?.id) redirect("/paygate/login");
+  if (!session?.user?.id) redirect("/auth?redirect=/paygate/DokumentasiApi");
 
   return (
     <main className={styles.page}>
@@ -18,7 +18,7 @@ export default async function PayGateApiDocumentationPage() {
             <p className={styles.eyebrow}>PAYGATE API</p>
             <h1>Dokumentasi API</h1>
             <p className={styles.lead}>
-              Integrasikan deposit QRIS, saldo, dan riwayat transaksi ke aplikasi kamu dengan API PayGate.
+              Buat transaksi QRIS, pantau status pembayaran, dan hubungkan detector pembayaran ke PayGate kamu.
             </p>
           </div>
           <div className={styles.heroBadge}>v1 &middot; REST API</div>
@@ -27,86 +27,79 @@ export default async function PayGateApiDocumentationPage() {
         <section className={styles.introGrid}>
           <article><strong>Integrasi cepat</strong><span>Endpoint sederhana untuk implementasi langsung.</span></article>
           <article><strong>Aman</strong><span>Gunakan API key di setiap permintaan.</span></article>
-          <article><strong>Real-time</strong><span>Cek status deposit QRIS kapan saja.</span></article>
+            <article><strong>Webhook</strong><span>Detector mengirim pembayaran berhasil secara aman.</span></article>
         </section>
 
         <section className={styles.section}>
           <p className={styles.kicker}>01 &middot; Mulai</p>
-          <h2>Autentikasi</h2>
-          <p>Semua permintaan API memerlukan API key dari dashboard PayGate. Jangan bagikan key atau menyimpannya di repository publik.</p>
-          <ApiCodeBlock code={`X-API-Key: your_api_key_here`} language="Header" />
+          <h2>Konfigurasi server</h2>
+          <p>PayGate internal menggunakan QRIS statis dan webhook bertanda tangan. Semua secret hanya boleh berada di server.</p>
+          <ApiCodeBlock code={`PAYGATE_STATIC_QRIS=isi_string_qris_merchant
+PAYGATE_WEBHOOK_SECRET=secret_panjang_acak`} language="Environment" />
           <ol className={styles.steps}>
-            <li>Login ke dashboard PayGate.</li>
-            <li>Buka menu <strong>API Key</strong>.</li>
-            <li>Generate dan simpan API key dengan aman.</li>
+            <li>Masukkan QRIS merchant ke environment production.</li>
+            <li>Buat secret acak panjang untuk webhook.</li>
+            <li>Gunakan secret yang sama hanya pada server detector.</li>
           </ol>
         </section>
 
         <section className={styles.section}>
-          <p className={styles.kicker}>02 &middot; Endpoint</p>
-          <h2>Base URL</h2>
-          <ApiCodeBlock code={baseUrl} language="URL" />
-
-          <div className={styles.endpoint}>
-            <div className={styles.endpointTitle}><span className={styles.method}>GET</span><h3> Cek saldo</h3></div>
-            <p>Mengambil saldo akun saat ini.</p>
-            <ApiCodeBlock code={`curl -H "X-API-Key: your_api_key_here" \\\n  ${baseUrl}/balance`} language="cURL" />
-            <ApiCodeBlock code={`{
-  "success": true,
-  "data": {
-    "balance": 50000,
-    "username": "john_doe",
-    "email": "john@example.com"
-  }
-}`} language="JSON response" />
-          </div>
-
-          <div className={styles.endpoint}>
-            <div className={styles.endpointTitle}><span className={styles.methodPost}>POST</span><h3> Buat deposit QRIS</h3></div>
-            <p>Buat deposit baru. Nominal minimal adalah Rp 100 dan sistem dapat menambahkan kode unik.</p>
-            <ApiCodeBlock code={`fetch("${baseUrl}/deposit/create", {
-  method: "POST",
-  headers: {
-    "X-API-Key": "YOUR_API_KEY",
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({ amount: 10000, method: "qris" })
-})
-  .then((response) => response.json())
-  .then(console.log);`} language="JavaScript" />
-            <ApiCodeBlock code={`{
-  "success": true,
-  "data": {
-    "depositId": "DEP1234567890",
-    "amount": 10000,
-    "uniqueCode": 73,
-    "totalAmount": 10073,
-    "qrString": "00020101021126670016...",
-    "status": "pending",
-    "expiredAt": "2026-01-01T13:00:00.000Z"
-  }
-}`} language="JSON response" />
-          </div>
-
-          <div className={styles.endpoint}>
-            <div className={styles.endpointTitle}><span className={styles.method}>GET</span><h3> Cek status deposit</h3></div>
-            <p>Status dapat berupa <strong>pending</strong>, <strong>success</strong>, atau <strong>already</strong>.</p>
-            <ApiCodeBlock code={`fetch("${baseUrl}/deposit/status/DEP1234567890", {
-  headers: { "X-API-Key": "YOUR_API_KEY" }
-})
-  .then((response) => response.json())
-  .then(console.log);`} language="JavaScript" />
-          </div>
-
-          <div className={styles.endpoint}>
-            <div className={styles.endpointTitle}><span className={styles.method}>GET</span><h3> Riwayat transaksi</h3></div>
-            <p>Mengambil riwayat deposit dan transaksi akun.</p>
-            <ApiCodeBlock code={`curl -H "X-API-Key: your_api_key_here" \\\n  ${baseUrl}/history`} language="cURL" />
-          </div>
+          <p className={styles.kicker}>02 &middot; Alur transaksi</p>
+          <h2>PayGate QRIS internal</h2>
+          <p>Checkout membuat order dan transaction ID lokal, menampilkan QRIS merchant, lalu menunggu event dari detector pembayaran.</p>
+          <ApiCodeBlock code={`POST /api/payments/create-qr
+POST /api/payments/verify
+POST /api/payments/webhook/paygate`} language="Routes" />
         </section>
 
         <section className={styles.section}>
-          <p className={styles.kicker}>03 &middot; Status</p>
+          <p className={styles.kicker}>03 &middot; Kode Penggunaan</p>
+          <h2>Webhook pembayaran internal</h2>
+          <p>
+            QRIS statis ditampilkan ke pembeli. Service detector kamu mengirim event ketika mutasi pembayaran terdeteksi.
+            Server memeriksa signature, mencocokkan nominal, mengubah order menjadi sukses, lalu mengirim Telegram.
+          </p>
+          <ApiCodeBlock code={`POST ${baseUrl}/webhook/paygate
+Header: X-PayGate-Signature: HMAC_SHA256(raw_body, PAYGATE_WEBHOOK_SECRET)
+Content-Type: application/json`} language="Webhook" />
+          <ApiCodeBlock code={`{
+  "transactionId": "PG-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "amount": 25000,
+  "status": "paid",
+  "paidAt": "2026-08-20T12:30:00.000Z"
+}`} language="JSON payload" />
+          <ApiCodeBlock code={`import crypto from "node:crypto";
+
+const payload = {
+  transactionId: "PG-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  amount: 25000,
+  status: "paid",
+  paidAt: new Date().toISOString()
+};
+const rawBody = JSON.stringify(payload);
+const signature = crypto
+  .createHmac("sha256", process.env.PAYGATE_WEBHOOK_SECRET)
+  .update(rawBody)
+  .digest("hex");
+
+await fetch("https://domain-kamu.com/api/payments/webhook/paygate", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-PayGate-Signature": signature
+  },
+  body: rawBody
+});`} language="Node.js detector" />
+          <ol className={styles.steps}>
+            <li>Pasang `PAYGATE_STATIC_QRIS` di environment server.</li>
+            <li>Pasang `PAYGATE_WEBHOOK_SECRET` yang sama di server dan detector.</li>
+            <li>Ambil `transactionId` dari order yang sedang menunggu pembayaran.</li>
+            <li>Kirim event `paid` hanya setelah pembayaran benar-benar terdeteksi.</li>
+          </ol>
+        </section>
+
+        <section className={styles.section}>
+          <p className={styles.kicker}>04 &middot; Status</p>
           <h2>Kode HTTP</h2>
           <div className={styles.statusGrid}>
             <span><b>200</b><small>OK &middot; Berhasil</small></span>

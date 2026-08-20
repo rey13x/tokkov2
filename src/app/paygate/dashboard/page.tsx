@@ -4,6 +4,6 @@ import { getServerAuthSession } from "@/server/auth";
 
 export default async function PayGateDashboardPage() {
   const session = await getServerAuthSession();
-  if (!session?.user?.id) redirect("/auth");
+  if (!session?.user?.id) redirect("/auth?redirect=/paygate/dashboard");
   return <PayGatePanel routeMode="dashboard" />;
 }

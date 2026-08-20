@@ -6,7 +6,7 @@ export default async function PayGatePage() {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/auth");
+    redirect("/auth?redirect=/paygate");
   }
 
   return <PayGatePanel routeMode="entry" />;

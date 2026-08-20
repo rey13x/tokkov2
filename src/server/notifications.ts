@@ -126,6 +126,24 @@ export async function sendTelegramOrderNotification(payload: {
   await sendTelegramMessage(text);
 }
 
+export async function sendTelegramPaymentSuccessNotification(payload: {
+  orderId: string;
+  transactionId: string;
+  amount: number;
+  userName?: string;
+  userEmail?: string;
+}) {
+  await sendTelegramMessage([
+    "Pembayaran Berhasil!",
+    `Order ID: ${payload.orderId}`,
+    `Transaction ID: ${payload.transactionId}`,
+    `Nama: ${payload.userName || "-"}`,
+    `Email: ${payload.userEmail || "-"}`,
+    `Jumlah: Rp ${payload.amount.toLocaleString("id-ID")}`,
+    `Waktu: ${formatAuditDate()}`,
+  ].join("\n"));
+}
+
 export async function sendTelegramActivityNotification(payload: {
   event: string;
   actorName: string;
