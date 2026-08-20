@@ -1,5 +1,5 @@
 import { getServerAuthSession } from "@/server/auth";
-import { findUserById, updateUserById } from "@/server/db";
+import { findUserByEmail, findUserById, updateUserById } from "@/server/db";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -20,13 +20,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current user
-    const user = await findUserById(session.user.id);
+    const user =
+      (session.user.id === "dev-admin-hardcoded"
+        ? await findUserByEmail("digitalawanku2@gmail.com")
+        : await findUserById(session.user.id)) ??
+      (session.user.email ? await findUserByEmail(session.user.email) : null);
     if (!user) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
     // Update user avatar
-    const updated = await updateUserById(session.user.id, {
+    const updated = await updateUserById(user.id, {
       avatarUrl: photoUrl,
     });
 

@@ -1,8 +1,17 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import styles from "./SiteFooter.module.css";
 
 export default function SiteFooter() {
+  const pathname = usePathname();
+
+  if (pathname === "/paygate" || pathname.startsWith("/paygate/")) {
+    return null;
+  }
+
   return (
     <footer className={styles.footer}>
       <div className={styles.inner}>

@@ -418,10 +418,7 @@ export default function BookSpiritClient() {
             ) : (
               <div className={styles.gifBox} aria-hidden="true">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/assets/maintenancelogo.jpg"
-                  alt="Maintenance"
-                />
+                <img src="/assets/maintenancelogo.jpg" alt="Tokko" />
               </div>
             )}
           </div>

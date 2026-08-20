@@ -154,6 +154,9 @@ export default function StatusPemesananPage() {
   const [isClearingHistory, setIsClearingHistory] = useState(false);
   const [isPreparingPaymentOrderId, setIsPreparingPaymentOrderId] = useState<string | null>(null);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+  const [paymentCheckNotice, setPaymentCheckNotice] = useState("");
+  const [paymentCheckError, setPaymentCheckError] = useState("");
+  const [isPaymentCheckGlitching, setIsPaymentCheckGlitching] = useState(false);
   const [paymentSecondsLeft, setPaymentSecondsLeft] = useState<number | null>(null);
   const [statusTutorialStage, setStatusTutorialStage] = useState<OnboardingStage | null>(null);
 
@@ -579,6 +582,10 @@ export default function StatusPemesananPage() {
     const order = displayOrders.find((item) => item.id === orderId);
     if (!order) return;
 
+    setPaymentCheckNotice("");
+    setPaymentCheckError("");
+    setIsPaymentCheckGlitching(false);
+
     if (order.qrCode || order.qrImage) {
       setActivePaymentOrderId(orderId);
       return;
@@ -636,7 +643,12 @@ export default function StatusPemesananPage() {
     }
 
     setIsCheckingPayment(true);
+    setPaymentCheckNotice("");
+    setPaymentCheckError("");
+    setIsPaymentCheckGlitching(true);
+    window.setTimeout(() => setIsPaymentCheckGlitching(false), 700);
     setError("");
+    setSuccess("");
     try {
       const response = await fetch("/api/payments/verify", {
         method: "POST",
@@ -652,14 +664,14 @@ export default function StatusPemesananPage() {
         setOrders((current) => current.map((item) => item.id === result.order?.id ? result.order : item));
       }
       if (result.status === "success") {
-        setSuccess("Pembayaran kamu sudah masuk! Struknya sekarang bisa dibuka ya.");
+        setPaymentCheckNotice("Pembayaran sudah masuk. Struknya sekarang bisa dibuka ya.");
       } else if (result.status === "expired") {
         setError("QRIS-nya sudah kedaluwarsa. Buat pembayaran baru ya.");
       } else {
-        setSuccess("Belum masuk ya. Kalau sudah bayar, tunggu sebentar lalu cek lagi.");
+        setPaymentCheckNotice("Belum masuk ya. Kalau sudah bayar, tunggu sebentar lalu cek lagi.");
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Status pembayaran belum bisa dicek ya.");
+      setPaymentCheckError(error instanceof Error ? error.message : "Status pembayaran belum bisa dicek ya.");
     } finally {
       setIsCheckingPayment(false);
     }
@@ -1162,7 +1174,19 @@ export default function StatusPemesananPage() {
       />
       <header className={styles.header}>
         <div className={styles.brandWrap}>
-          <Image src="/assets/logo.png" alt="Tokko" width={42} height={42} className={styles.logo} priority />
+          <button
+            type="button"
+            className={styles.profileButton}
+            onClick={() => router.push("/profil")}
+            title="Buka profil"
+            aria-label="Buka profil"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={session?.user?.image || "/assets/maintenancelogo.jpg"}
+              alt="Profil"
+            />
+          </button>
           <div>
             <h1 data-onboarding="status-page-title">Status Pemesanan</h1>
             <p>Riwayat transaksi akun kamu</p>
@@ -1428,11 +1452,18 @@ export default function StatusPemesananPage() {
           <section className={styles.popupCard} onClick={(event) => event.stopPropagation()}>
             <h2>QRIS Pembayaran</h2>
             <p className={styles.popupMeta}>Order: {activePaymentOrder.id}</p>
-            <p className={styles.popupNotice}>
-              {activePaymentOrder.status === "paid"
+            <p className={`${styles.popupNotice} ${activePaymentOrder.status !== "paid" ? styles.popupNoticePending : ""} ${
+              isPaymentCheckGlitching ? styles.popupNoticeGlitch : ""
+            }`}>
+              {paymentCheckNotice || (activePaymentOrder.status === "paid"
                 ? "Pembayaran sudah masuk. Terima kasih ya."
-                : "Belum masuk ya. Kalau sudah bayar, tunggu sebentar lalu cek lagi."}
+                : "Belum masuk ya. Kalau sudah bayar, tunggu sebentar lalu cek lagi.")}
             </p>
+            {paymentCheckError ? (
+              <p className={`${styles.popupNotice} ${styles.popupNoticeError} ${isPaymentCheckGlitching ? styles.popupNoticeGlitch : ""}`}>
+                {paymentCheckError}
+              </p>
+            ) : null}
             {paymentSecondsLeft !== null ? (
               <p className={styles.popupCountdown}>
                 Sisa waktu QRIS: {Math.floor(paymentSecondsLeft / 60)}:{String(paymentSecondsLeft % 60).padStart(2, "0")}
@@ -1471,7 +1502,7 @@ export default function StatusPemesananPage() {
             </p>
             <button
               type="button"
-              className={styles.popupCloseButton}
+              className={`${styles.popupCloseButton} ${isCheckingPayment ? styles.popupButtonGlitch : ""}`}
               onClick={onCheckPayment}
               disabled={isCheckingPayment}
               id="status-payment-close-button"

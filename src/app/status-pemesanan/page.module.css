@@ -44,6 +44,30 @@
   font-size: 0.78rem;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profileButton {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #d8dce5;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.profileButton img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .clearHistoryIconButton,
 .modalCloseButton {
   display: inline-flex;
@@ -681,6 +705,19 @@
   text-align: center;
 }
 
+.popupNoticeGlitch {
+  animation: popupGlitch 0.7s steps(2, end) both;
+}
+
+.popupNoticePending {
+  color: #b42318;
+}
+
+.popupNoticeError {
+  color: #b42318;
+  font-weight: 700;
+}
+
 .popupQrWrap {
   position: relative;
   width: 100%;
@@ -729,6 +766,26 @@
   color: #ffffff;
   font-size: 0.86rem;
   cursor: pointer;
+}
+
+.popupButtonGlitch {
+  animation: popupButtonShake 0.7s ease-in-out both;
+}
+
+@keyframes popupGlitch {
+  0%, 100% { transform: translateX(0); text-shadow: none; }
+  15% { transform: translateX(-3px); text-shadow: 2px 0 #ef4444; }
+  30% { transform: translateX(3px); text-shadow: -2px 0 #7f1d1d; }
+  45% { transform: translateX(-2px); text-shadow: 1px 0 #ef4444; }
+  60% { transform: translateX(2px); text-shadow: none; }
+}
+
+@keyframes popupButtonShake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-4px); }
+  30% { transform: translateX(4px); }
+  45% { transform: translateX(-3px); }
+  60% { transform: translateX(3px); }
 }
 
 .emptyText {

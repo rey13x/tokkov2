@@ -129,7 +129,7 @@ export default function KoleksiPage() {
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={session.user.image || "/assets/logo.png"}
+                    src={session.user.image || "/assets/maintenancelogo.jpg"}
                     alt="Profil"
                     style={{
                       borderRadius: "50%",
@@ -140,10 +140,7 @@ export default function KoleksiPage() {
               ) : (
                 <div className={styles.gifBox} aria-hidden="true">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="https://media.giphy.com/media/13HgwGsXF0aiGY/giphy.gif"
-                    alt=""
-                  />
+                  <img src="/assets/maintenancelogo.jpg" alt="Tokko" />
                 </div>
               )}
             </div>

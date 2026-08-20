@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { createPortal, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 // @ts-ignore - qrcode.react doesn't have type definitions
@@ -110,7 +110,7 @@ export function PaymentQRModal({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -230,6 +230,7 @@ export function PaymentQRModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

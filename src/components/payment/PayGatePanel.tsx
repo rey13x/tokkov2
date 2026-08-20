@@ -8,6 +8,7 @@ import Image from "next/image";
 import WaitLoading from "@/components/ui/WaitLoading";
 import {
   FiArrowDownLeft,
+  FiArrowLeft,
   FiArrowRight,
   FiBookOpen,
   FiCheckCircle,
@@ -84,7 +85,6 @@ const walletOptions = ["Astrapay", "DANA", "GoPay", "OVO", "ShopeePay"];
 function formatRupiah(value: number | null | undefined) {
   return `Rp ${Number(value ?? 0).toLocaleString("id-ID")}`;
 }
-
 function formatDate(value: number | string | null | undefined) {
   if (!value) return "-";
   const date = typeof value === "number" ? new Date(value) : new Date(value);
@@ -137,7 +137,6 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
   const [apiKeys, setApiKeys] = useState<PayGateApiKey[]>([]);
   const [transactions, setTransactions] = useState<PayGateTransaction[]>([]);
   const [loading, setLoading] = useState(routeMode !== "entry");
-  const [splashDone, setSplashDone] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [submittingDeposit, setSubmittingDeposit] = useState(false);
   const [checkingDeposit, setCheckingDeposit] = useState(false);
@@ -159,19 +158,6 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
   const [paygateEmail, setPaygateEmail] = useState("");
   const [paygatePassword, setPaygatePassword] = useState("");
   const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>("all");
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSplashDone(true), 5000);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!splashDone || routeMode !== "entry") {
-      return;
-    }
-
-    router.replace("/");
-  }, [routeMode, router, splashDone]);
 
   const primaryApiKey = apiKeys[0] ?? null;
   const visibleApiKey = showApiKey ? primaryApiKey?.key || primaryApiKey?.maskedKey : primaryApiKey?.maskedKey;
@@ -481,12 +467,29 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
     router.push("/");
   }
 
-  if (!splashDone) {
-    return <PayGateSplashScreen />;
-  }
-
   if (routeMode === "entry") {
-    return null;
+    return (
+      <main className={styles.entryPage} aria-labelledby="paygate-title">
+        <section className={styles.entryContent}>
+          <div className={styles.entryIcon} aria-hidden="true">
+            <Image
+              src="/assets/maintenancelogo.jpg"
+              alt="Tokko"
+              width={112}
+              height={112}
+              className={styles.entryLogo}
+              priority
+            />
+          </div>
+          <h1 id="paygate-title">PayGate</h1>
+          <p>Hi Tokkers! Layanan PayGate ( Payment Gateaway ) segera hadir...</p>
+          <button type="button" className={styles.entryButton} onClick={goHome}>
+            <FiArrowLeft />
+            Kembali
+          </button>
+        </section>
+      </main>
+    );
   }
 
   if (loading) {
@@ -964,23 +967,4 @@ function LoadingScreen() {
   );
 }
 
-function PayGateSplashScreen() {
-  return (
-    <main className={styles.splashPage} aria-label="Payment Gateaway">
-      <div className={styles.splashContent}>
-        <div className={styles.splashLogoWrap}>
-          <Image
-            src="/assets/maintenancelogo.jpg"
-            alt="Tokko logo"
-            width={104}
-            height={104}
-            className={styles.splashLogo}
-            priority
-          />
-        </div>
-        <h1>Payment Gateaway</h1>
-        <p>Segera Hadir</p>
-      </div>
-    </main>
-  );
-}
+export {};
