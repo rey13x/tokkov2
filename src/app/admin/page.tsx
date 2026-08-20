@@ -441,6 +441,91 @@ function AdminManagementSection() {
     }
   };
 
+  const saveHeroBackgroundOrder = async (orderedBackgrounds: typeof heroBackgrounds) => {
+    const normalized = orderedBackgrounds
+      .map((background, index) => ({
+        ...background,
+        sortOrder: index,
+      }))
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+
+    await Promise.all(
+      normalized.map((background) =>
+        fetch("/api/admin/hero-backgrounds", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(background),
+        }),
+      ),
+    );
+
+    const refreshed = await fetch("/api/admin/hero-backgrounds", { cache: "no-store" });
+    if (refreshed.ok) {
+      const nextData = await refreshed.json();
+      setHeroBackgrounds(nextData.backgrounds || []);
+    }
+  };
+
+  const onReorderHeroBackground = async (draggedId: string, targetId: string) => {
+    const ordered = [...heroBackgrounds].sort((a, b) => a.sortOrder - b.sortOrder);
+    const draggedIndex = ordered.findIndex((background) => background.id === draggedId);
+    const targetIndex = ordered.findIndex((background) => background.id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
+      return;
+    }
+
+    const updated = [...ordered];
+    const [moved] = updated.splice(draggedIndex, 1);
+    updated.splice(targetIndex, 0, moved);
+    setHeroBackgrounds(updated);
+    await saveHeroBackgroundOrder(updated);
+    setMessage("Urutan foto hero berhasil diperbarui.");
+  };
+
+  const onResetHeroBackgrounds = async () => {
+    if (!window.confirm("Reset semua foto hero ke default?")) {
+      return;
+    }
+
+    try {
+      const currentItems = [...heroBackgrounds].sort((a, b) => a.sortOrder - b.sortOrder);
+      await Promise.all(
+        currentItems.map((background) =>
+          fetch(`/api/admin/hero-backgrounds?id=${encodeURIComponent(background.id)}`, {
+            method: "DELETE",
+          }),
+        ),
+      );
+
+      const defaultBackground = {
+        id: "bg-default",
+        label: "Background Default",
+        url: "/assets/backgroundv2.png",
+        duration: 8000,
+        sortOrder: 0,
+      };
+
+      const response = await fetch("/api/admin/hero-backgrounds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(defaultBackground),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal reset foto hero.");
+      }
+
+      setHeroBackgrounds([defaultBackground]);
+      setHeroBackgroundForm({ id: "", label: "", url: "", duration: 8000, sortOrder: 0 });
+      setHeroBackgroundEditId(null);
+      setMessage("Foto hero telah direset ke default.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal reset foto hero.");
+    }
+  };
+
   const handleAddAdmin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
@@ -2964,15 +3049,54 @@ function AdminManagementSection() {
             <div style={{ marginTop: "20px", padding: "16px", backgroundColor: "#f8faff", borderRadius: "10px", border: "1px solid #dfe9ff" }}>
               <h3 style={{ margin: "0 0 12px", fontSize: "1rem" }}>📸 Foto Hero Homepage</h3>
               <form className={styles.form} onSubmit={onSaveHeroBackground}>
-                <input
-                  type="text"
-                  value={heroBackgroundForm.label}
-                  onChange={(event) =>
-                    setHeroBackgroundForm((current) => ({ ...current, label: event.target.value }))
-                  }
-                  placeholder="Label foto (contoh: Hero 1)"
-                  required
-                />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    {heroBackgroundForm.url ? (
+                      <div
+                        style={{
+                          border: "1px solid #dfe7f7",
+                          borderRadius: "12px",
+                          overflow: "hidden",
+                          background: "#fff",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        <img
+                          src={heroBackgroundForm.url}
+                          alt={heroBackgroundForm.label || "Preview foto hero"}
+                          style={{
+                            width: "100%",
+                            height: 180,
+                            objectFit: "cover",
+                            display: "block",
+                            background: "#eef2ff",
+                          }}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                  <input
+                    type="text"
+                    value={heroBackgroundForm.label}
+                    onChange={(event) =>
+                      setHeroBackgroundForm((current) => ({ ...current, label: event.target.value }))
+                    }
+                    placeholder="Label foto (contoh: Hero 1)"
+                    required
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    value={heroBackgroundForm.sortOrder}
+                    onChange={(event) =>
+                      setHeroBackgroundForm((current) => ({
+                        ...current,
+                        sortOrder: Number(event.target.value || 0),
+                      }))
+                    }
+                    placeholder="Urutan"
+                  />
+                </div>
                 <input
                   type="url"
                   value={heroBackgroundForm.url}
@@ -2996,18 +3120,15 @@ function AdminManagementSection() {
                     }
                     placeholder="Durasi (ms)"
                   />
-                  <input
-                    type="number"
-                    min={0}
-                    value={heroBackgroundForm.sortOrder}
-                    onChange={(event) =>
-                      setHeroBackgroundForm((current) => ({
-                        ...current,
-                        sortOrder: Number(event.target.value || 0),
-                      }))
-                    }
-                    placeholder="Urutan"
-                  />
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <button
+                      type="button"
+                      style={{ backgroundColor: "#6c757d", width: "100%" }}
+                      onClick={onResetHeroBackgrounds}
+                    >
+                      Reset Default
+                    </button>
+                  </div>
                 </div>
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                   <button type="submit">
@@ -3035,6 +3156,21 @@ function AdminManagementSection() {
                   [...heroBackgrounds].sort((a, b) => a.sortOrder - b.sortOrder).map((background) => (
                     <div
                       key={background.id}
+                      draggable
+                      onDragStart={() => {
+                        if (typeof window !== "undefined") {
+                          window.sessionStorage.setItem("draggedHeroBackgroundId", background.id);
+                        }
+                      }}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={async () => {
+                        const draggedId = window.sessionStorage.getItem("draggedHeroBackgroundId") || "";
+                        if (!draggedId || draggedId === background.id) {
+                          return;
+                        }
+                        await onReorderHeroBackground(draggedId, background.id);
+                        window.sessionStorage.removeItem("draggedHeroBackgroundId");
+                      }}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -3044,6 +3180,7 @@ function AdminManagementSection() {
                         borderRadius: "8px",
                         backgroundColor: "#fff",
                         border: "1px solid #e5e7eb",
+                        cursor: "grab",
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
