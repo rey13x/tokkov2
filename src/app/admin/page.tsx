@@ -483,6 +483,19 @@ function AdminManagementSection() {
     setMessage("Urutan foto hero berhasil diperbarui.");
   };
 
+  const onSetHeroBackgroundPrimary = async (backgroundId: string) => {
+    const ordered = [...heroBackgrounds].sort((a, b) => a.sortOrder - b.sortOrder);
+    const target = ordered.find((background) => background.id === backgroundId);
+    if (!target) {
+      return;
+    }
+
+    const updated = [target, ...ordered.filter((background) => background.id !== backgroundId)];
+    setHeroBackgrounds(updated);
+    await saveHeroBackgroundOrder(updated);
+    setMessage(`"${target.label}" dipakai sebagai foto utama.`);
+  };
+
   const onResetHeroBackgrounds = async () => {
     if (!window.confirm("Reset semua foto hero ke default?")) {
       return;
@@ -3203,7 +3216,10 @@ function AdminManagementSection() {
                           <small style={{ color: "#666", wordBreak: "break-all" }}>{background.url}</small>
                         </div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <button type="button" onClick={() => onSetHeroBackgroundPrimary(background.id)}>
+                          {heroBackgrounds[0]?.id === background.id ? "Utama" : "Jadikan Utama"}
+                        </button>
                         <button type="button" onClick={() => onEditHeroBackground(background)}>
                           Edit
                         </button>
