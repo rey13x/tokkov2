@@ -26,6 +26,11 @@ import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import { HERO_BACKGROUND_URLS, HERO_CONFIG, getPhotoDuration } from "@/data/hero-backgrounds";
 import { CART_UPDATED_EVENT, getCartCount } from "@/lib/cart";
+import {
+  STATUS_NOTIFICATION_EVENT,
+  readStatusNotificationCount,
+  rememberOrderStatuses,
+} from "@/lib/status-notifications";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import {
   ONBOARDING_BOOT_QUERY_KEY,
@@ -123,6 +128,7 @@ export default function HomeClient() {
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
   const [cartCount, setCartCount] = useState(0);
   const [isCartBouncing, setIsCartBouncing] = useState(false);
+  const [statusNotificationCount, setStatusNotificationCount] = useState(0);
   const [products, setProducts] = useState<HomeProduct[]>([]);
   const [informations, setInformations] = useState<HomeInformation[]>([]);
   const [testimonials, setTestimonials] = useState<HomeTestimonial[]>([]);
@@ -398,6 +404,7 @@ export default function HomeClient() {
   useEffect(() => {
     const syncState = () => {
       setCartCount(getCartCount());
+      setStatusNotificationCount(readStatusNotificationCount());
       if (sessionStatus !== "authenticated") {
         setProfileAvatarPreview("");
         return;
@@ -414,6 +421,9 @@ export default function HomeClient() {
 
     const onFocus = () => syncState();
     const onStorage = () => syncState();
+    const onStatusNotificationUpdated = () => {
+      setStatusNotificationCount(readStatusNotificationCount());
+    };
     const onCartUpdated = () => {
       syncState();
       setIsCartBouncing(true);
@@ -423,11 +433,39 @@ export default function HomeClient() {
     window.addEventListener("focus", onFocus);
     window.addEventListener("storage", onStorage);
     window.addEventListener(CART_UPDATED_EVENT, onCartUpdated);
+    window.addEventListener(STATUS_NOTIFICATION_EVENT, onStatusNotificationUpdated);
 
     return () => {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(CART_UPDATED_EVENT, onCartUpdated);
+      window.removeEventListener(STATUS_NOTIFICATION_EVENT, onStatusNotificationUpdated);
+    };
+  }, [sessionStatus]);
+
+  useEffect(() => {
+    if (sessionStatus !== "authenticated") {
+      return;
+    }
+
+    let active = true;
+    const checkOrderStatuses = async () => {
+      try {
+        const response = await fetch("/api/orders", { cache: "no-store" });
+        if (!response.ok || !active) return;
+        const data = (await response.json()) as { orders?: Array<{ id: string; status: string }> };
+        rememberOrderStatuses(data.orders ?? []);
+        setStatusNotificationCount(readStatusNotificationCount());
+      } catch {
+        // Status polling is best effort and should not interrupt the home page.
+      }
+    };
+
+    void checkOrderStatuses();
+    const timer = window.setInterval(() => void checkOrderStatuses(), 15_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
     };
   }, [sessionStatus]);
 
@@ -1079,6 +1117,9 @@ export default function HomeClient() {
             >
               <FiMenu />
               <span className={styles.menuFabLabel}>Menu</span>
+              {statusNotificationCount > 0 ? (
+                <b className={styles.menuNotificationBadge}>{statusNotificationCount}+</b>
+              ) : null}
             </button>,
             document.body,
           )

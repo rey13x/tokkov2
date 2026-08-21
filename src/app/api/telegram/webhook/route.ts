@@ -8,6 +8,7 @@ import {
 } from "@/server/payment";
 import {
   createProduct,
+  getOrderById as getStoreOrderById,
   getFirestoreOrNull,
   listOrdersWithItems,
   recordDonationTotals,
@@ -488,7 +489,7 @@ export async function POST(request: Request) {
     if (action !== "sent" || !orderId) {
       return NextResponse.json({ ok: false, error: "Callback pengiriman tidak valid." }, { status: 400 });
     }
-    const order = await getOrderById(orderId);
+    const order = await getStoreOrderById(orderId);
     if (!order) return NextResponse.json({ ok: false, error: "Order tidak ditemukan." }, { status: 404 });
     const updatedOrder = await updateStoreOrderStatus(orderId, "sent");
     if (!updatedOrder || updatedOrder.status !== "sent") {

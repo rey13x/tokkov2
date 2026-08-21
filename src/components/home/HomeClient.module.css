@@ -1107,6 +1107,30 @@
   white-space: nowrap;
 }
 
+.menuNotificationBadge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: #2166f3;
+  color: #ffffff;
+  font-size: 0.62rem;
+  line-height: 1;
+  animation: menuNotificationBounce 360ms cubic-bezier(0.2, 1.35, 0.4, 1);
+}
+
+@keyframes menuNotificationBounce {
+  0% { opacity: 0; transform: scale(0.45) translateY(6px); }
+  60% { opacity: 1; transform: scale(1.14) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 /* Portrait: keep the fab anchored to the right edge */
 @media (orientation: portrait) and (max-width: 920px) {
   .menuFab {

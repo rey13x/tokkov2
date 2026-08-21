@@ -13,6 +13,7 @@ import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import { captureReceiptAsImage } from "@/lib/receipt-capture";
+import { clearStatusNotifications, rememberOrderStatuses } from "@/lib/status-notifications";
 import {
   ONBOARDING_STAGE,
   ONBOARDING_TUTORIAL_ORDER_ID,
@@ -206,6 +207,10 @@ export default function StatusPemesananPage() {
   const summaryCardRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    clearStatusNotifications();
+  }, []);
+
+  useEffect(() => {
     if (isLoading || typeof window === "undefined") {
       return;
     }
@@ -237,12 +242,11 @@ export default function StatusPemesananPage() {
 
     const data = (await response.json()) as { orders?: OrderSummary[] };
     const nextOrders = data.orders ?? [];
+    rememberOrderStatuses(nextOrders, false);
     nextOrders.forEach((order) => {
       const previousStatus = knownPaymentStatusesRef.current[order.id];
       if (previousStatus && previousStatus !== "paid" && order.status === "paid") {
-        window.setTimeout(() => {
-            setPaymentSuccessPopup({ orderId: order.id, amount: Number(order.totalAmount || order.total || 0) });
-        }, 4000);
+        setPaymentSuccessPopup({ orderId: order.id, amount: Number(order.totalAmount || order.total || 0) });
       }
       knownPaymentStatusesRef.current[order.id] = order.status;
     });
@@ -405,7 +409,7 @@ export default function StatusPemesananPage() {
       loadOrders().catch(() => {});
       loadJobApplications();
       syncPendingPaymentStatuses().catch(() => {});
-    }, 8000);
+    }, 2000);
 
     return () => window.clearInterval(timer);
   }, [loadOrders, loadJobApplications, status, syncPendingPaymentStatuses]);
