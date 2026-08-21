@@ -2,7 +2,6 @@ import { promises as fs } from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
-import sharp from "sharp";
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
 import { getAdminIdentity } from "@/server/admin";
@@ -79,15 +78,13 @@ export async function buildReceiptPdf(input: {
     const logoPath = path.join(process.cwd(), "public", "assets", "maintenancelogo.jpg");
     const signaturePath = path.join(process.cwd(), "public", "assets", "TTD Dev.jpeg");
     const logo = await fs.readFile(logoPath);
-    const roundLogo = await sharp(logo)
-      .resize(84, 84, { fit: "cover" })
-      .composite([{ input: Buffer.from("<svg width=\"84\" height=\"84\"><circle cx=\"42\" cy=\"42\" r=\"42\" fill=\"white\"/></svg>"), blend: "dest-in" }])
-      .png()
-      .toBuffer();
 
     doc.rect(0, 0, pageWidth, pageHeight).fill("#050505");
     doc.lineWidth(12).strokeColor("#7d2bbd").rect(10, 10, pageWidth - 20, pageHeight - 20).stroke();
-    doc.image(roundLogo, pageWidth - 122, 42, { width: 84, height: 84 });
+    doc.save();
+    doc.circle(pageWidth - 80, 84, 42).clip();
+    doc.image(logo, pageWidth - 122, 42, { width: 84, height: 84 });
+    doc.restore();
     doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(21).text("TOKKO MARKETPLACE", 0, 52, { width: pageWidth, align: "center" });
     doc.fillColor("#d33d91").font("Helvetica-Bold").fontSize(38).text("Sertifikat", 0, 92, { width: pageWidth, align: "center" });
     doc.fillColor("#ffffff").font("Helvetica").fontSize(18).text("Terima kasih kepada:", 0, 185, { width: pageWidth, align: "center" });
