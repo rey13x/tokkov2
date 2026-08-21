@@ -260,6 +260,11 @@
   color: #b3223b;
 }
 
+.statusPreOrderText {
+  color: #9a6700;
+  font-size: 0.68rem;
+}
+
 .orderMeta {
   display: grid;
   gap: 2px;

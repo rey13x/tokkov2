@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
+import sharp from "sharp";
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
 import { getAdminIdentity } from "@/server/admin";
@@ -28,6 +29,7 @@ function formatDateLabel(iso: string) {
 }
 
 function statusLabel(status: string) {
+  if (status === "cancelled") return "Sudah Bayar (Pre-Order)";
   if (status === "paid" || ["done", "delivered", "sent"].includes(status)) return "Sudah Bayar";
   if (["error", "rejected", "declined", "failed", "cancelled"].includes(status)) return "Belum Bayar";
   return "Sedang diproses";
@@ -56,16 +58,64 @@ export async function buildReceiptPdf(input: {
     productDuration: string;
     quantity: number;
     unitPrice: number;
+    productType?: string;
+    donationName?: string;
+    donationMessage?: string;
   }>;
   total: number;
 }) {
+  const donation = input.items.find((item) => item.productType === "donation");
   const doc = new PDFDocument({
-    size: [420, 920],
+    size: donation ? "A4" : [420, 920],
     margins: { top: 28, left: 28, right: 28, bottom: 28 },
   });
 
   const chunks: Buffer[] = [];
   doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+
+  if (donation) {
+    const pageWidth = 595;
+    const pageHeight = 842;
+    const logoPath = path.join(process.cwd(), "public", "assets", "maintenancelogo.jpg");
+    const signaturePath = path.join(process.cwd(), "public", "assets", "TTD Dev.jpeg");
+    const logo = await fs.readFile(logoPath);
+    const roundLogo = await sharp(logo)
+      .resize(84, 84, { fit: "cover" })
+      .composite([{ input: Buffer.from("<svg width=\"84\" height=\"84\"><circle cx=\"42\" cy=\"42\" r=\"42\" fill=\"white\"/></svg>"), blend: "dest-in" }])
+      .png()
+      .toBuffer();
+
+    doc.rect(0, 0, pageWidth, pageHeight).fill("#050505");
+    doc.lineWidth(12).strokeColor("#7d2bbd").rect(10, 10, pageWidth - 20, pageHeight - 20).stroke();
+    doc.image(roundLogo, pageWidth - 122, 42, { width: 84, height: 84 });
+    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(21).text("TOKKO MARKETPLACE", 0, 52, { width: pageWidth, align: "center" });
+    doc.fillColor("#d33d91").font("Helvetica-Bold").fontSize(38).text("Sertifikat", 0, 92, { width: pageWidth, align: "center" });
+    doc.fillColor("#ffffff").font("Helvetica").fontSize(18).text("Terima kasih kepada:", 0, 185, { width: pageWidth, align: "center" });
+    doc.fillColor("#d33d91").font("Helvetica-Bold").fontSize(26).text(donation.donationName || input.userName || "Donatur", 40, 225, { width: pageWidth - 80, align: "center" });
+    doc.fillColor("#ffffff").font("Helvetica").fontSize(14).text(
+      `Atas donasi yang telah diberikan untuk bantuan ${donation.productName} dengan nominal sebesar:`,
+      65, 300, { width: pageWidth - 130, align: "center" },
+    );
+    doc.fillColor("#d33d91").font("Helvetica-Bold").fontSize(29).text(`Rp ${donation.unitPrice.toLocaleString("id-ID")}`, 0, 370, { width: pageWidth, align: "center" });
+    doc.strokeColor("#ffffff").lineWidth(2).moveTo(185, 415).lineTo(410, 415).stroke();
+    if (donation.donationMessage) {
+      doc.fillColor("#bdbdbd").font("Helvetica-Oblique").fontSize(12).text(`"${donation.donationMessage}"`, 90, 455, { width: pageWidth - 180, align: "center" });
+    }
+    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(15).text("Founder Tokko Marketplace", 0, 590, { width: pageWidth, align: "center" });
+    try {
+      const signature = await fs.readFile(signaturePath);
+      doc.image(signature, 242, 620, { fit: [110, 55] });
+    } catch {
+      // Signature is optional.
+    }
+    doc.fillColor("#ffffff").font("Helvetica").fontSize(14).text("Raihaan Bagastiam Pratama", 0, 690, { width: pageWidth, align: "center" });
+    doc.fontSize(10).text("tokkomarketplace.shop", 0, 790, { width: pageWidth, align: "center" });
+    doc.end();
+    return await new Promise<Buffer>((resolve, reject) => {
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
+    });
+  }
 
   const logoPath = path.join(process.cwd(), "public", "assets", "maintenancelogo.jpg");
   try {
@@ -250,6 +300,9 @@ export async function GET(_request: Request, context: { params: Params }) {
         productDuration: item.productDuration,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        productType: item.productType,
+        donationName: item.donationName,
+        donationMessage: item.donationMessage,
       })),
       total,
     };

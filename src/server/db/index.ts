@@ -782,6 +782,12 @@ export async function ensureDatabase() {
       await run(
         "ALTER TABLE order_items ADD COLUMN product_duration TEXT NOT NULL DEFAULT ''",
       ).catch(() => {});
+      await run(
+        "ALTER TABLE order_items ADD COLUMN donation_name TEXT",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE order_items ADD COLUMN donation_message TEXT",
+      ).catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS email_verifications (
@@ -2175,6 +2181,8 @@ export async function createOrder(input: {
     unitPrice: number;
     productType?: "jual_beli" | "pekerjaan" | "donation" | "lms";
     donationAmount?: number;
+    donationName?: string;
+    donationMessage?: string;
   }>;
 }) {
   await ensureDatabase();
@@ -2195,8 +2203,8 @@ export async function createOrder(input: {
   for (const item of input.items) {
     await run(
       `INSERT INTO order_items
-        (id, order_id, product_id, product_name, product_duration, quantity, unit_price)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (id, order_id, product_id, product_name, product_duration, quantity, unit_price, donation_name, donation_message)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         randomId(),
         id,
@@ -2205,6 +2213,8 @@ export async function createOrder(input: {
         item.productDuration,
         item.quantity,
         item.unitPrice,
+        item.donationName ?? null,
+        item.donationMessage ?? null,
       ],
     );
   }
@@ -2372,6 +2382,8 @@ export async function listOrderItemsByOrderId(orderId: string) {
       quantity: Number(data.quantity),
       unitPrice: Number(data.unit_price),
       productType: String(data.product_type ?? "jual_beli") as StoreOrderItem["productType"],
+      donationName: String(data.donation_name ?? "").trim() || undefined,
+      donationMessage: String(data.donation_message ?? "").trim() || undefined,
     } satisfies StoreOrderItem;
   });
 }

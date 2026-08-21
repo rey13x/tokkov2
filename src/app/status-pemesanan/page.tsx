@@ -40,7 +40,7 @@ function statusGroup(status: string) {
 
 function statusLabel(status: string) {
   if (status === "cancelled") {
-    return "Dibatalkan";
+    return "Sudah Bayar";
   }
   if (statusGroup(status) === "paid") {
     return "Sudah Bayar";
@@ -55,7 +55,7 @@ function statusLabel(status: string) {
 }
 
 function statusClass(status: string) {
-  if (["paid", "done", "delivered", "sent"].includes(status)) {
+  if (["paid", "done", "delivered", "sent", "cancelled"].includes(status)) {
     return styles.statusDone;
   }
   if (statusGroup(status) === "error") {
@@ -80,6 +80,15 @@ function ReceiptIcon() {
         d="M7 3h10a2 2 0 0 1 2 2v15l-2.2-1.3L14.5 20l-2.5-1.3L9.5 20 7.2 18.7 5 20V5a2 2 0 0 1 2-2Zm0 2v11h10V5H7Zm1.5 2h7v1.6h-7V7Zm0 3h7v1.6h-7V10Z"
         fill="currentColor"
       />
+    </svg>
+  );
+}
+
+function CertificateIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 3h14v14H5z" />
+      <path d="M8 7h8M8 10h6M9 17l-1 4 4-2 4 2-1-4" />
     </svg>
   );
 }
@@ -144,6 +153,7 @@ export default function StatusPemesananPage() {
   const [isTutorialMode, setIsTutorialMode] = useState(false);
   const [activePaymentOrderId, setActivePaymentOrderId] = useState<string | null>(null);
   const [showTutorialReceiptModal, setShowTutorialReceiptModal] = useState(false);
+  const [certificatePreview, setCertificatePreview] = useState<{ url: string; orderId: string } | null>(null);
   const [cancelReasonDrafts, setCancelReasonDrafts] = useState<Record<string, string>>({});
   const [isCancelSubmittingOrderId, setIsCancelSubmittingOrderId] = useState<string | null>(null);
   const [confirmationNotes, setConfirmationNotes] = useState<Record<string, string>>({});
@@ -491,7 +501,7 @@ export default function StatusPemesananPage() {
 
   const donationHistory = useMemo(
     () => displayOrders
-      .filter((order) => order.status === "paid")
+      .filter((order) => ["paid", "sent"].includes(order.status))
       .flatMap((order) => (order.items ?? [])
         .filter((item) => item.productType === "donation")
         .map((item) => ({
@@ -600,10 +610,22 @@ export default function StatusPemesananPage() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(url);
+      const order = displayOrders.find((item) => item.id === orderId);
+      if (order?.items?.some((item) => item.productType === "donation")) {
+        setCertificatePreview({ url, orderId });
+      } else {
+        URL.revokeObjectURL(url);
+      }
     } catch {
       setError("Struk belum berhasil diunduh. Coba lagi sebentar.");
     }
+  };
+
+  const closeCertificatePreview = () => {
+    if (certificatePreview) {
+      URL.revokeObjectURL(certificatePreview.url);
+    }
+    setCertificatePreview(null);
   };
 
   const onCancelJobApplication = async (applicationId: string) => {
@@ -1329,7 +1351,11 @@ export default function StatusPemesananPage() {
           <div className={styles.donationHistoryList}>
             {donationHistory.map(({ order, item, amount }) => (
               <div key={`${order.id}-${item.productId}`} className={styles.donationHistoryItem}>
-                <span>{item.productName}</span>
+                <span>
+                  <strong>{item.productName}</strong>
+                  <small>{item.donationName || order.userName}</small>
+                  {item.donationMessage ? <small>{item.donationMessage}</small> : null}
+                </span>
                 <strong>{formatRupiah(amount)}</strong>
                 <small>{new Date(order.createdAt).toLocaleString("id-ID")}</small>
               </div>
@@ -1433,6 +1459,7 @@ export default function StatusPemesananPage() {
                 <span className={styles.orderDate}>{new Date(order.createdAt).toLocaleString("id-ID")}</span>
                 <span className={`${styles.statusBadge} ${statusClass(order.status)}`}>
                   {statusLabel(order.status)}
+                  {order.status === "cancelled" ? <small className={styles.statusPreOrderText}> (Pre-Order)</small> : null}
                 </span>
               </div>
               <div className={styles.orderMeta}>
@@ -1504,12 +1531,12 @@ export default function StatusPemesananPage() {
                     type="button"
                     className={styles.receiptIconButton}
                     onClick={() => onDownloadReceipt(order.id)}
-                    title="Buka struk pembayaran"
-                    aria-label={`Buka struk pembayaran order ${order.id}`}
+                    title={order.items?.some((item) => item.productType === "donation") ? "Buka sertifikat donasi" : "Buka struk pembayaran"}
+                    aria-label={`${order.items?.some((item) => item.productType === "donation") ? "Buka sertifikat donasi" : "Buka struk pembayaran"} order ${order.id}`}
                     data-onboarding={isOnboardingTargetOrder ? "status-receipt-icon" : undefined}
                     id={isOnboardingTargetOrder ? `status-receipt-icon-${order.id}` : undefined}
                   >
-                    <ReceiptIcon />
+                    {order.items?.some((item) => item.productType === "donation") ? <CertificateIcon /> : <ReceiptIcon />}
                   </button>
                 ) : null}
                 {order.status === "process" && (
@@ -1647,6 +1674,32 @@ export default function StatusPemesananPage() {
             >
               Balik ke Troli
             </button>
+          </section>
+        </div>
+      ) : null}
+
+      {certificatePreview ? (
+        <div className={styles.popupOverlay}>
+          <section className={styles.popupCard} style={{ width: "min(92vw, 680px)" }}>
+            <h2>Sertifikat Donasi</h2>
+            <p className={styles.popupMeta}>Order: {certificatePreview.orderId}</p>
+            <iframe
+              title="Sertifikat donasi"
+              src={certificatePreview.url}
+              style={{ width: "100%", height: "min(68vh, 720px)", border: "1px solid #ddd", background: "#111" }}
+            />
+            <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+              <a
+                href={certificatePreview.url}
+                download={`sertifikat-donasi-${certificatePreview.orderId}.pdf`}
+                className={styles.popupCloseButton}
+              >
+                Unduh PDF
+              </a>
+              <button type="button" className={styles.popupCloseButton} onClick={closeCertificatePreview}>
+                Tutup
+              </button>
+            </div>
           </section>
         </div>
       ) : null}

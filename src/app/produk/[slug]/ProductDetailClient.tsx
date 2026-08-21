@@ -45,6 +45,8 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
   const [quantity, setQuantity] = useState(1);
   const [donationAmount, setDonationAmount] = useState("");
+  const [donationName, setDonationName] = useState("");
+  const [donationMessage, setDonationMessage] = useState("");
   const [donationError, setDonationError] = useState("");
   const [added, setAdded] = useState(false);
   const [isRedirectingToCart, setIsRedirectingToCart] = useState(false);
@@ -166,7 +168,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
     hasHandledPendingRef.current = true;
     try {
-      const pending = JSON.parse(raw) as { slug?: string; quantity?: number; donationAmount?: number; redirectToCart?: boolean };
+      const pending = JSON.parse(raw) as { slug?: string; quantity?: number; donationAmount?: number; donationName?: string; donationMessage?: string; redirectToCart?: boolean };
       if (pending.slug !== product.slug) {
         return;
       }
@@ -174,7 +176,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       const safeQty = Math.min(99, Math.max(1, Number(pending.quantity ?? 1)));
       window.sessionStorage.removeItem(PENDING_CART_ACTION_KEY);
       const timer = window.setTimeout(() => {
-        addToCart(product.slug, safeQty, pending.donationAmount);
+        addToCart(product.slug, safeQty, pending.donationAmount, pending.donationName, pending.donationMessage);
         setAdded(true);
         if (pending.redirectToCart) {
           router.push("/troli");
@@ -222,7 +224,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           "Kalau bukan tutorial, kamu bakal diarahkan ke login/daftar. Untuk tutorial ini, langkah login kita lewati dulu ya.",
         );
       }
-      addToCart(product.slug, quantity, safeDonationAmount);
+      addToCart(product.slug, quantity, safeDonationAmount, donationName, donationMessage);
       setAdded(true);
       if (redirectToCart) {
         setIsRedirectingToCart(true);
@@ -241,6 +243,8 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             slug: product.slug,
             quantity,
             donationAmount: safeDonationAmount,
+            donationName,
+            donationMessage,
             redirectToCart,
           }),
         );
@@ -249,7 +253,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       return;
     }
 
-    addToCart(product.slug, quantity, safeDonationAmount);
+    addToCart(product.slug, quantity, safeDonationAmount, donationName, donationMessage);
     setAdded(true);
     if (redirectToCart) {
       window.setTimeout(() => {
@@ -437,6 +441,22 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             <>
               <p className={styles.price}>Terkumpul {formatRupiah(product.donationTotal ?? 0)}</p>
               <label className={styles.donationField}>
+                <span>Nama</span>
+                <input
+                  type="text"
+                  value={donationName}
+                  onChange={(event) => setDonationName(event.target.value)}
+                  placeholder="Digunakan untuk Sertifikat"
+                  aria-label="Nama untuk sertifikat donasi"
+                />
+                <span>Harapan kamu Donasi disini:</span>
+                <textarea
+                  value={donationMessage}
+                  onChange={(event) => setDonationMessage(event.target.value)}
+                  placeholder="Tulis harapan kamu di sini"
+                  aria-label="Harapan donasi"
+                  rows={3}
+                />
                 <span>Mau Donasi berapa?</span>
                 <div className={styles.donationInputWrap}>
                   <span>Rp</span>

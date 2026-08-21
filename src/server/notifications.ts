@@ -1,7 +1,8 @@
 import { promises as fs } from "fs";
 import path from "path";
+import sharp from "sharp";
+import QRCode from "qrcode";
 import { getFirebaseAdminApp, getFirebaseFirestore } from "@/server/firebase-admin";
-import { buildReceiptPdf } from "@/app/api/orders/[id]/receipt/route";
 import { getOrderById, listOrderItemsByOrderId } from "@/server/store-data";
 
 const exportDir = path.join(process.cwd(), "storage", "exports");
@@ -18,6 +19,7 @@ export function escapeTelegramHtml(value: string | number | undefined | null) {
 }
 
 export function telegramStatusLabel(status: string) {
+  if (status === "cancelled") return "Pre-order";
   if (status === "paid") return "Sudah Bayar";
   if (["done", "delivered", "sent"].includes(status)) return "Sudah Bayar";
   if (["error", "rejected", "declined", "failed", "cancelled"].includes(status)) return "Belum Bayar";
@@ -124,6 +126,105 @@ function maskPhone(value: string) {
   return clean.length > 4 ? `${clean.slice(0, 2)}***${clean.slice(-2)}` : "***";
 }
 
+function escapeSvg(value: string | number | undefined | null) {
+  return String(value ?? "-")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+async function buildReceiptPhoto(input: {
+  orderId: string;
+  userName: string;
+  userEmail: string;
+  userPhone: string;
+  createdAt: string;
+  depositId?: string;
+  paidAt?: string;
+  items: Array<{ productName: string; productDuration: string; quantity: number; unitPrice: number; productType?: string; donationName?: string; donationMessage?: string }>;
+  total: number;
+}) {
+  const donation = input.items.find((item) => item.productType === "donation");
+  if (donation) {
+    const logoPath = path.join(process.cwd(), "public", "assets", "maintenancelogo.jpg");
+    const signaturePath = path.join(process.cwd(), "public", "assets", "TTD Dev.jpeg");
+    const logoData = (await fs.readFile(logoPath)).toString("base64");
+    let signatureData = "";
+    try {
+      signatureData = (await fs.readFile(signaturePath)).toString("base64");
+    } catch {
+      signatureData = "";
+    }
+    return `<svg width="595" height="842" xmlns="http://www.w3.org/2000/svg">
+      <defs><clipPath id="cert-logo"><circle cx="530" cy="82" r="42" /></clipPath></defs>
+      <rect width="595" height="842" fill="#050505"/><rect x="10" y="10" width="575" height="822" fill="none" stroke="#7d2bbd" stroke-width="12"/>
+      <image href="data:image/jpeg;base64,${logoData}" x="488" y="40" width="84" height="84" preserveAspectRatio="xMidYMid slice" clip-path="url(#cert-logo)"/>
+      <g opacity="0.5"><image href="data:image/jpeg;base64,${logoData}" x="177" y="301" width="240" height="240" preserveAspectRatio="xMidYMid slice"/></g>
+      <style>.white{fill:#fff;font-family:Helvetica}.pink{fill:#d33d91;font-family:Helvetica}.muted{fill:#bdbdbd;font-family:Helvetica}</style>
+      <text x="297" y="72" text-anchor="middle" class="white" font-size="21" font-weight="700">TOKKO MARKETPLACE</text>
+      <text x="297" y="125" text-anchor="middle" class="pink" font-size="40" font-weight="700">Sertifikat</text>
+      <text x="297" y="215" text-anchor="middle" class="white" font-size="18">Terima kasih kepada:</text>
+      <text x="297" y="270" text-anchor="middle" class="pink" font-size="27" font-weight="700">${escapeSvg(donation.donationName || input.userName || "Donatur")}</text>
+      <text x="90" y="342" class="white" font-size="14">Atas donasi yang telah diberikan untuk bantuan</text>
+      <text x="297" y="374" text-anchor="middle" class="pink" font-size="20" font-weight="700">${escapeSvg(donation.productName)}</text>
+      <text x="297" y="414" text-anchor="middle" class="white" font-size="14">dengan nominal sebesar:</text>
+      <text x="297" y="465" text-anchor="middle" class="pink" font-size="29" font-weight="700">Rp ${escapeSvg(donation.unitPrice.toLocaleString("id-ID"))}</text>
+      <line x1="185" y1="490" x2="410" y2="490" stroke="#fff" stroke-width="2"/>
+      ${donation.donationMessage ? `<text x="297" y="535" text-anchor="middle" class="muted" font-size="13">&quot;${escapeSvg(donation.donationMessage)}&quot;</text>` : ""}
+      <text x="297" y="625" text-anchor="middle" class="white" font-size="15" font-weight="700">Founder Tokko Marketplace</text>
+      <image href="data:image/jpeg;base64,${signatureData}" x="242" y="650" width="110" height="55" preserveAspectRatio="xMidYMid meet"/>
+      <text x="297" y="730" text-anchor="middle" class="white" font-size="14">Raihaan Bagastiam Pratama</text>
+      <text x="297" y="800" text-anchor="middle" class="white" font-size="10">tokkomarketplace.shop</text>
+    </svg>`;
+  }
+  const logoPath = path.join(process.cwd(), "public", "assets", "maintenancelogo.jpg");
+  const logoData = (await fs.readFile(logoPath)).toString("base64");
+  const receiptOrigin = (process.env.NEXTAUTH_URL?.trim() || "https://www.tokkomarketplace.shop").replace(/\/$/, "");
+  const qrData = await QRCode.toDataURL(`${receiptOrigin}/status-pemesanan?order=${encodeURIComponent(input.orderId)}`, {
+    errorCorrectionLevel: "H",
+    margin: 1,
+    width: 120,
+  });
+  const itemLines = input.items.flatMap((item, index) => [
+    `<text x="32" y="${270 + index * 54}" class="item bold">${index + 1}. ${escapeSvg(item.productName)}</text>`,
+    `<text x="44" y="${290 + index * 54}" class="item">${item.quantity} x Rp ${escapeSvg(item.unitPrice.toLocaleString("id-ID"))} = Rp ${escapeSvg(Number(item.quantity * item.unitPrice).toLocaleString("id-ID"))}</text>`,
+    item.productDuration ? `<text x="44" y="${310 + index * 54}" class="item">Durasi: ${escapeSvg(item.productDuration)}</text>` : "",
+  ]).join("");
+  const itemHeight = input.items.length * 54;
+  const totalY = 310 + itemHeight;
+  const height = totalY + 210;
+
+  return `<svg width="420" height="${height}" xmlns="http://www.w3.org/2000/svg">
+    <defs><clipPath id="watermark-circle"><circle cx="210" cy="${Math.round(height / 2)}" r="112" /></clipPath></defs>
+    <rect width="420" height="${height}" fill="white"/>
+    <image href="data:image/jpeg;base64,${logoData}" x="182" y="20" width="56" height="56" preserveAspectRatio="xMidYMid slice"/>
+    <g opacity="0.4"><image href="data:image/jpeg;base64,${logoData}" x="90" y="${Math.round(height / 2) - 112}" width="240" height="240" preserveAspectRatio="xMidYMid slice" clip-path="url(#watermark-circle)"/></g>
+    <style>.title{font:700 15px Helvetica}.subtitle{font:700 11px Helvetica}.meta,.item{font:12px Courier}.bold{font-weight:700}.line{stroke:#222;stroke-width:1}</style>
+    <text x="210" y="100" text-anchor="middle" class="title">TOKKO MARKETPLACE</text>
+    <text x="210" y="122" text-anchor="middle" class="subtitle">Struk Pembayaran</text>
+    <text x="32" y="155" class="meta">Order ID : ${escapeSvg(input.orderId)}</text>
+    <text x="32" y="173" class="meta">Tanggal  : ${escapeSvg(formatAuditDate(input.createdAt))}</text>
+    <text x="32" y="191" class="meta">Akun     : ${escapeSvg(input.userName)}</text>
+    <text x="32" y="209" class="meta">Email    : ${escapeSvg(input.userEmail)}</text>
+    <text x="32" y="227" class="meta">No. HP   : ${escapeSvg(input.userPhone || "-")}</text>
+    <line x1="32" y1="242" x2="388" y2="242" class="line" stroke-dasharray="4 4"/>
+    ${itemLines}
+    <line x1="32" y1="${totalY - 16}" x2="388" y2="${totalY - 16}" class="line" stroke-dasharray="4 4"/>
+    <text x="32" y="${totalY + 10}" class="item">Subtotal : ${escapeSvg(input.total.toLocaleString("id-ID"))}</text>
+    <text x="32" y="${totalY + 30}" class="item">Pajak    : 500</text>
+    <text x="32" y="${totalY + 52}" class="item bold">TOTAL    : ${escapeSvg(input.total.toLocaleString("id-ID"))}</text>
+    <text x="32" y="${totalY + 78}" class="item bold">PEMBAYARAN BERHASIL</text>
+    ${input.depositId ? `<text x="32" y="${totalY + 96}" class="item">Ref: ${escapeSvg(input.depositId)}</text>` : ""}
+    ${input.paidAt ? `<text x="32" y="${totalY + 114}" class="item">Dibayar: ${escapeSvg(formatAuditDate(input.paidAt))}</text>` : ""}
+    <image href="${qrData}" x="32" y="${height - 125}" width="100" height="100"/>
+    <text x="150" y="${height - 95}" class="item bold">Founder</text>
+    <text x="150" y="${height - 75}" class="item">Raihaan Bagastiam Pratama</text>
+    <text x="210" y="${height - 22}" text-anchor="middle" class="item">Terima kasih sudah berbelanja di Tokko Marketplace.</text>
+  </svg>`;
+}
+
 async function sendTelegramReceipt(
   orderId: string,
   chatId: string,
@@ -149,7 +250,7 @@ async function sendTelegramReceipt(
 
   const items = await listOrderItemsByOrderId(orderId);
   const total = Number(order.totalAmount ?? order.total ?? 0);
-  const pdf = await buildReceiptPdf({
+  const receiptInput = {
     orderId: order.id,
     userName: order.userName,
     userEmail: order.userEmail,
@@ -163,17 +264,23 @@ async function sendTelegramReceipt(
       productDuration: item.productDuration,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
+      productType: item.productType,
+      donationName: item.donationName,
+      donationMessage: item.donationMessage,
     })),
     total,
-  });
+  };
+  const receiptPhoto = await sharp(Buffer.from(await buildReceiptPhoto(receiptInput)))
+    .png()
+    .toBuffer();
 
   const form = new FormData();
   form.append("chat_id", chatId);
   form.append("caption", options.caption || `🧾 <b>Struk pembayaran ${escapeTelegramHtml(orderId)}</b>`);
   form.append("parse_mode", "HTML");
-  form.append("document", new Blob([new Uint8Array(pdf)], { type: "application/pdf" }), `struk-${orderId}.pdf`);
+  form.append("photo", new Blob([new Uint8Array(receiptPhoto)], { type: "image/png" }), `struk-${orderId}.png`);
 
-  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendDocument`, {
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
     method: "POST",
     body: form,
     cache: "no-store",
@@ -199,6 +306,25 @@ export async function sendTelegramPaymentChannelNotification(payload: {
 
   const order = await getOrderById(payload.orderId);
   if (!order) return false;
+  const items = await listOrderItemsByOrderId(payload.orderId);
+  const donation = items.find((item) => item.productType === "donation");
+  if (donation) {
+    const donationCaption = [
+      "💙 <b>DONASI MASUK</b>",
+      "",
+      `<b>Username</b>: ${escapeTelegramHtml(order.userName)}`,
+      `<b>Email</b>: ${escapeTelegramHtml(maskEmail(order.userEmail))}`,
+      `<b>No. Telepon</b>: ${escapeTelegramHtml(maskPhone(order.userPhone))}`,
+      "",
+      `<b>Atas donasi yang diberikan untuk bantuan</b> ${escapeTelegramHtml(donation.productName)} dengan nominal sebesar: <b>Rp ${donation.unitPrice.toLocaleString("id-ID")}</b>`,
+      "",
+      "tokkomarketplace.shop",
+    ].join("\n");
+    return sendTelegramReceipt(payload.orderId, channelId, {
+      notifiedField: "telegramDonationChannelNotifiedAt",
+      caption: donationCaption,
+    });
+  }
   const accountText = [
     `Nama: ${escapeTelegramHtml(order.userName)}`,
     `Email: ${escapeTelegramHtml(maskEmail(order.userEmail))}`,
@@ -227,7 +353,7 @@ export async function appendOrderToCsv(payload: {
   userEmail: string;
   userPhone: string;
   total: number;
-  items: Array<{ productName: string; quantity: number; unitPrice: number }>;
+  items: Array<{ productName: string; quantity: number; unitPrice: number; productType?: string }>;
 }) {
   const rows = payload.items.map((item) =>
     [
@@ -273,8 +399,9 @@ export async function sendTelegramOrderNotification(payload: {
   userEmail: string;
   userPhone: string;
   total: number;
-  items: Array<{ productName: string; quantity: number; unitPrice: number }>;
+  items: Array<{ productName: string; quantity: number; unitPrice: number; productType?: string }>;
 }) {
+  const isDonation = payload.items.some((item) => item.productType === "donation");
   const lines = payload.items
     .map(
       (item, index) =>
@@ -283,12 +410,12 @@ export async function sendTelegramOrderNotification(payload: {
     .join("\n");
 
   const text = [
-    "📣 <b>ORDERAN MASUK</b>",
+    isDonation ? "💙 <b>DONASI MASUK</b>" : "📣 <b>ORDERAN MASUK</b>",
     "",
     `<b>Order ID</b>  : <tg-spoiler>${escapeTelegramHtml(payload.orderId)}</tg-spoiler>`,
-    `<b>Nama</b>      : <tg-spoiler>${escapeTelegramHtml(payload.userName)}</tg-spoiler>`,
-    `<b>Email</b>     : <tg-spoiler>${escapeTelegramHtml(payload.userEmail)}</tg-spoiler>`,
-    `<b>No. HP</b>    : <tg-spoiler>${escapeTelegramHtml(payload.userPhone || "-")}</tg-spoiler>`,
+    isDonation
+      ? `<b>Username</b> : ${escapeTelegramHtml(payload.userName)}\n<b>Email</b>    : ${escapeTelegramHtml(maskEmail(payload.userEmail))}\n<b>No. HP</b>   : ${escapeTelegramHtml(maskPhone(payload.userPhone || "-"))}`
+      : `<b>Nama</b>      : <tg-spoiler>${escapeTelegramHtml(payload.userName)}</tg-spoiler>\n<b>Email</b>     : <tg-spoiler>${escapeTelegramHtml(payload.userEmail)}</tg-spoiler>\n<b>No. HP</b>    : <tg-spoiler>${escapeTelegramHtml(payload.userPhone || "-")}</tg-spoiler>`,
     `<b>Waktu</b>     : ${escapeTelegramHtml(formatAuditDate())}`,
     "",
     "<b>Detail Produk</b>",
@@ -301,6 +428,8 @@ export async function sendTelegramOrderNotification(payload: {
     inline_keyboard: [[
       { text: "Sudah Bayar", callback_data: `payment:paid:${payload.orderId}` },
       { text: "Belum Bayar", callback_data: `payment:pending:${payload.orderId}` },
+      { text: "Pre-order", callback_data: `payment:preorder:${payload.orderId}` },
+      { text: "Pre-order", callback_data: `payment:preorder:${payload.orderId}` },
     ]],
   });
 

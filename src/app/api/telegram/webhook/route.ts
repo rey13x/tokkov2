@@ -102,7 +102,7 @@ async function clearTrackedTelegramMessages(chatId: string) {
   const snapshot = await state?.get().catch(() => null);
   const ids = Array.isArray(snapshot?.data()?.botMessageIds) ? snapshot.data()?.botMessageIds : [];
   for (const id of ids) await deleteTelegramMessage(chatId, Number(id));
-  await state?.set({ botMessageIds: [], menuMessageId: null, addProductPending: false, updatedAt: Date.now() }, { merge: true });
+  await state?.set({ botMessageIds: [], menuMessageId: null, addProductPending: false, senderWaiting: false, senderMessageId: null, senderConfirmationMessageId: null, updatedAt: Date.now() }, { merge: true });
 }
 
 async function sendTelegramMenu(chatId: string, replaceMessageId?: number) {
@@ -128,6 +128,8 @@ async function sendTelegramMenu(chatId: string, replaceMessageId?: number) {
       { text: "🛠️ Maintenance", url: `${adminUrl}?section=maintenanceSettings` },
     ], [
       { text: "📑 Rekap Pesanan", callback_data: "menu:recap" },
+    ], [
+      { text: "📢 Sender ke Channel", callback_data: "menu:sender" },
     ], [
       { text: "🧹 Bersihkan Chat Bot", callback_data: "menu:clear" },
     ], [
@@ -261,6 +263,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
 
+  const state = await getBotState(chatId);
+  const currentState = await state?.get().catch(() => null);
+  const senderState = currentState?.data() as {
+    senderWaiting?: boolean;
+    senderMessageId?: number;
+    senderConfirmationMessageId?: number;
+  } | undefined;
+  const hasSenderContent = Boolean(
+    message && (message.text || message.caption || message.photo?.length),
+  );
+
+  if (message && hasSenderContent && !message.text?.trim().startsWith("/")) {
+    if (senderState?.senderWaiting || senderState?.senderMessageId) {
+      await deleteTelegramMessage(chatId, senderState.senderConfirmationMessageId);
+      const confirmation = await telegramRequest("sendMessage", {
+        chat_id: chatId,
+        text: "Pesan diterima. Mau ubah dulu atau langsung kirim ke channel?",
+        reply_markup: { inline_keyboard: [[
+          { text: "✏️ Edit", callback_data: "sender:edit" },
+          { text: "📤 Kirim", callback_data: "sender:send" },
+        ]] },
+      });
+      await state?.set({
+        senderWaiting: false,
+        senderMessageId: message.message_id ?? null,
+        senderConfirmationMessageId: confirmation?.result?.message_id ?? null,
+        updatedAt: Date.now(),
+      }, { merge: true });
+      return NextResponse.json({ ok: true, senderPreview: true });
+    }
+  }
+
   if (message?.text) {
     const command = message.text.trim();
     if (command === "/start" || command === "/menu") {
@@ -278,7 +312,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, addProduct: true });
     }
 
-    const state = await getBotState(chatId);
     const pending = await state?.get().catch(() => null);
     if (pending?.data()?.addProductPending) {
       await telegramRequest("sendMessage", {
@@ -355,6 +388,55 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, menu: "refresh" });
   }
 
+  if (callback.data === "menu:sender") {
+    await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Kirim pesan untuk dipreview." });
+    await deleteTelegramMessage(chatId, callback.message.message_id);
+    const prompt = await telegramRequest("sendMessage", {
+      chat_id: chatId,
+      text: "📢 <b>Sender ke Channel</b>\n\nKirim teks, foto, atau media lain sekarang. Bot akan menampilkan konfirmasi sebelum mengirim ke @tokkomarketplace.",
+      parse_mode: "HTML",
+    });
+    await state?.set({ senderWaiting: true, senderMessageId: null, senderConfirmationMessageId: prompt?.result?.message_id ?? null, updatedAt: Date.now() }, { merge: true });
+    return NextResponse.json({ ok: true, sender: true });
+  }
+
+  if (callback.data === "sender:edit") {
+    await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Kirim pesan pengganti." });
+    await deleteTelegramMessage(chatId, callback.message.message_id);
+    const prompt = await telegramRequest("sendMessage", {
+      chat_id: chatId,
+      text: "✏️ Kirim pesan pengganti sekarang.",
+    });
+    await state?.set({ senderWaiting: true, senderConfirmationMessageId: prompt?.result?.message_id ?? null, updatedAt: Date.now() }, { merge: true });
+    return NextResponse.json({ ok: true, senderEdit: true });
+  }
+
+  if (callback.data === "sender:send") {
+    const sourceMessageId = Number(senderState?.senderMessageId ?? 0);
+    if (!sourceMessageId) {
+      await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Belum ada pesan untuk dikirim.", show_alert: true });
+      return NextResponse.json({ ok: false, error: "Sender message missing" }, { status: 400 });
+    }
+    const channelId = process.env.TELEGRAM_PAYMENT_CHANNEL_ID?.trim();
+    if (!channelId) {
+      await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Channel belum dikonfigurasi.", show_alert: true });
+      return NextResponse.json({ ok: false, error: "Channel missing" }, { status: 500 });
+    }
+    const copied = await telegramRequest("copyMessage", {
+      chat_id: channelId,
+      from_chat_id: chatId,
+      message_id: sourceMessageId,
+    });
+    await deleteTelegramMessage(chatId, callback.message.message_id);
+    await state?.set({ senderWaiting: false, senderMessageId: null, senderConfirmationMessageId: null, updatedAt: Date.now() }, { merge: true });
+    if (!copied?.ok) {
+      await telegramRequest("sendMessage", { chat_id: chatId, text: "❌ Pesan gagal dikirim ke channel." });
+      return NextResponse.json({ ok: false, error: "Copy failed" }, { status: 502 });
+    }
+    await telegramRequest("sendMessage", { chat_id: chatId, text: "✅ Sukses dikirim!\n@tokkomarketplace" });
+    return NextResponse.json({ ok: true, senderSent: true });
+  }
+
   if (callback.data === "menu:clear") {
     await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Membersihkan pesan bot..." });
     await clearTrackedTelegramMessages(chatId);
@@ -405,7 +487,7 @@ export async function POST(request: Request) {
   }
 
   const [, action, orderId] = callback.data.split(":");
-  if (!orderId || !["paid", "pending"].includes(action)) {
+  if (!orderId || !["paid", "pending", "preorder"].includes(action)) {
     return NextResponse.json({ ok: false, error: "Callback tidak valid." }, { status: 400 });
   }
 
@@ -420,6 +502,17 @@ export async function POST(request: Request) {
       reply_markup: { inline_keyboard: [] },
     });
     return NextResponse.json({ ok: true, status: "pending" });
+  }
+
+  if (action === "preorder") {
+    await updateStoreOrderStatus(orderId, "cancelled");
+    await telegramRequest("editMessageReplyMarkup", {
+      chat_id: chatId,
+      message_id: callback.message.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+    await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Order ditandai Pre-order." });
+    return NextResponse.json({ ok: true, status: "preorder", orderId });
   }
 
   const order = await getOrderById(orderId);

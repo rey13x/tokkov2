@@ -9,7 +9,7 @@ import FlexibleMedia from "@/components/media/FlexibleMedia";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
-import { readCart, removeFromCart, updateCartQuantity } from "@/lib/cart";
+import { readCart, removeFromCart, updateCartQuantity, updateDonationAmount, updateDonationDetails } from "@/lib/cart";
 import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
 import {
   ONBOARDING_STAGE,
@@ -28,6 +28,8 @@ type CartLine = {
   quantity: number;
   selected: boolean;
   donationAmount?: number;
+  donationName?: string;
+  donationMessage?: string;
 };
 
 type JobApplication = {
@@ -59,6 +61,8 @@ function getInitialCartLines(): CartLine[] {
     quantity: entry.quantity,
     selected: true,
     donationAmount: entry.donationAmount,
+    donationName: entry.donationName,
+    donationMessage: entry.donationMessage,
   }));
 }
 
@@ -88,6 +92,7 @@ export default function CartPage() {
     qrImageUrl: string;
     amount: number;
   } | null>(null);
+  const [openDonationSlug, setOpenDonationSlug] = useState<string | null>(null);
 
   const isClient = useSyncExternalStore(
     () => () => {},
@@ -279,6 +284,12 @@ export default function CartPage() {
     removeFromCart(slug);
   };
 
+  const updateDonationField = (slug: string, field: "donationName" | "donationMessage", value: string) => {
+    setCartLines((current) => current.map((item) => item.slug === slug ? { ...item, [field]: value } : item));
+    const item = cartLines.find((line) => line.slug === slug);
+    updateDonationDetails(slug, field === "donationName" ? value : item?.donationName ?? "", field === "donationMessage" ? value : item?.donationMessage ?? "");
+  };
+
   const toggleSelected = (slug: string) => {
     setCartLines((current) =>
       current.map((item) =>
@@ -334,6 +345,12 @@ export default function CartPage() {
       setError("Pilih dulu minimal satu produk yang mau dibeli ya.");
       return;
     }
+    const incompleteDonation = selected.find((item) => item.product.productType === "donation" && (!item.donationName?.trim() || !item.donationMessage?.trim() || !item.donationAmount));
+    if (incompleteDonation) {
+      setOpenDonationSlug(incompleteDonation.slug);
+      setError("Isi Nama, Harapan, dan nominal donasi terlebih dahulu.");
+      return;
+    }
 
     if (!paymentConsent) {
       setError("Centang persetujuan pembayaran dan pastikan stok sudah ditanyakan dulu ya.");
@@ -375,6 +392,8 @@ export default function CartPage() {
             productId: item.product.id,
             quantity: item.quantity,
             donationAmount: item.product.productType === "donation" ? item.donationAmount : undefined,
+            donationName: item.product.productType === "donation" ? item.donationName : undefined,
+            donationMessage: item.product.productType === "donation" ? item.donationMessage : undefined,
           })),
         }),
       });
@@ -396,7 +415,7 @@ export default function CartPage() {
 
       // Step 2: Generate dynamic QRIS QR code
       try {
-        const qrResponse = await fetch("/api/payments/create-qr", {
+        const qrResponse = await fetch(`/api/payments/orders/${encodeURIComponent(orderId)}/qris`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -666,6 +685,47 @@ export default function CartPage() {
                       </button>
                     </div>
                     <p className={styles.metaLine}>{item.product.category}</p>
+                    {item.product.productType === "donation" ? (
+                      <div style={{ marginTop: 10 }}>
+                        <button
+                          type="button"
+                          className={styles.actionButton}
+                          onClick={() => setOpenDonationSlug(openDonationSlug === item.slug ? null : item.slug)}
+                        >
+                          {openDonationSlug === item.slug ? "Tutup Data Diri" : "Isi Data Diri"}
+                        </button>
+                        {openDonationSlug === item.slug ? (
+                          <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                            <input
+                              type="text"
+                              value={item.donationName ?? ""}
+                              onChange={(event) => updateDonationField(item.slug, "donationName", event.target.value)}
+                              placeholder="Username / Nama untuk sertifikat"
+                              aria-label="Username atau nama donatur"
+                            />
+                            <textarea
+                              value={item.donationMessage ?? ""}
+                              onChange={(event) => updateDonationField(item.slug, "donationMessage", event.target.value)}
+                              placeholder="Harapan kamu Donasi disini:"
+                              aria-label="Harapan donasi"
+                              rows={3}
+                            />
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={item.donationAmount?.toLocaleString("id-ID") ?? ""}
+                              onChange={(event) => {
+                                const amount = Number(event.target.value.replace(/\D/g, ""));
+                                setCartLines((current) => current.map((line) => line.slug === item.slug ? { ...line, donationAmount: amount } : line));
+                                updateDonationAmount(item.slug, amount);
+                              }}
+                              placeholder="Nominal donasi"
+                              aria-label="Nominal donasi"
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className={styles.actionCol}>

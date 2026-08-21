@@ -32,6 +32,7 @@ function escapeReceiptText(value: string) {
 }
 
 function statusLabel(status: string) {
+  if (status === "cancelled") return "Sudah Bayar (Pre-Order)";
   if (status === "paid") return "Sudah Bayar";
   if (["done", "delivered", "sent"].includes(status)) return "Sudah Bayar";
   if (["error", "rejected", "declined", "failed"].includes(status)) return "Belum Bayar";

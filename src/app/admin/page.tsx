@@ -151,6 +151,9 @@ function parseRupiahInput(value: string) {
 }
 
 function statusOrderLabel(status: string) {
+  if (status === "cancelled") {
+    return "Sudah Bayar";
+  }
   if (["done", "delivered", "sent", "paid"].includes(status)) {
     return "Sudah Bayar";
   }
@@ -2761,7 +2764,10 @@ function AdminManagementSection() {
                     <span>
                       {formatRupiah(order.total)} - {new Date(order.createdAt).toLocaleString("id-ID")}
                     </span>
-                    <span>Status: {statusOrderLabel(order.status)}</span>
+                    <span>
+                      Status: {statusOrderLabel(order.status)}
+                      {order.status === "cancelled" ? <strong style={{ color: "#9a6700" }}> (Pre-Order)</strong> : null}
+                    </span>
                     <span>Request Batal: {cancelRequestStatusLabel(order.cancelRequestStatus)}</span>
                     {order.cancelRequestReason ? (
                       <span>Alasan: {order.cancelRequestReason}</span>

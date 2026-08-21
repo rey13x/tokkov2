@@ -248,6 +248,8 @@ export type OrderItemInput = {
   productId: string;
   quantity: number;
   donationAmount?: number;
+  donationName?: string;
+  donationMessage?: string;
 };
 
 export type OrderSummary = {
@@ -295,6 +297,8 @@ export type StoreOrderItem = {
   unitPrice: number;
   productType?: ProductType;
   donationAmount?: number;
+  donationName?: string;
+  donationMessage?: string;
 };
 
 // PortfolioItem type used in admin and server modules

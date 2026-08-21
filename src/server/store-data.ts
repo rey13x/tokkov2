@@ -1386,6 +1386,8 @@ export async function createOrder(input: {
     unitPrice: number;
     productType?: "jual_beli" | "pekerjaan" | "donation" | "lms";
     donationAmount?: number;
+    donationName?: string;
+    donationMessage?: string;
   }>;
 }) {
   const firestore = getFirestoreOrNull();
@@ -1575,7 +1577,7 @@ export async function listOrders(limit = 100) {
 export async function listOrderItemsByOrderId(orderId: string) {
   const firestore = getFirestoreOrNull();
   if (!firestore) {
-    return listOrderItemsByOrderIdDb(orderId);
+    return (await listOrderItemsByOrderIdDb(orderId)) as StoreOrderItem[];
   }
 
   try {
@@ -1587,7 +1589,7 @@ export async function listOrderItemsByOrderId(orderId: string) {
     const data = doc.data() as Record<string, unknown>;
     const rawItems = Array.isArray(data.items) ? data.items : [];
 
-    return rawItems.map((item, index) => {
+    return rawItems.map((item, index): StoreOrderItem => {
       const typed = item as Record<string, unknown>;
       return {
         id: `${orderId}-${index + 1}`,
@@ -1599,6 +1601,8 @@ export async function listOrderItemsByOrderId(orderId: string) {
         unitPrice: Number(typed.unitPrice ?? 0),
         productType: typed.productType as StoreOrderItem["productType"],
         donationAmount: Number(typed.donationAmount ?? 0) || undefined,
+        donationName: String(typed.donationName ?? "").trim() || undefined,
+        donationMessage: String(typed.donationMessage ?? "").trim() || undefined,
       } satisfies StoreOrderItem;
     });
   } catch (error) {
@@ -1607,7 +1611,7 @@ export async function listOrderItemsByOrderId(orderId: string) {
       "Failed to read order items from Firestore. Falling back to local database.",
       error,
     );
-    return listOrderItemsByOrderIdDb(orderId);
+    return (await listOrderItemsByOrderIdDb(orderId)) as StoreOrderItem[];
   }
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
-import { createQRCodeForExistingOrder } from "@/server/payment";
+import { createDynamicQRCode } from "@/server/payment";
+import { getOrderById, updateOrderPayment } from "@/server/store-data";
 
 export async function POST(
   _request: NextRequest,
@@ -13,7 +14,35 @@ export async function POST(
     }
 
     const { orderId } = await params;
-    const qrResponse = await createQRCodeForExistingOrder(orderId, session.user.id);
+    const order = await getOrderById(orderId);
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+    if (order.userId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (["paid", "sent"].includes(order.status)) {
+      return NextResponse.json({ error: "Order ini sudah dibayar." }, { status: 409 });
+    }
+
+    const qrResponse = await createDynamicQRCode({
+      userId: session.user.id,
+      orderId,
+      amount: Math.round(order.total),
+      description: `Pembayaran Tokko - Order ${orderId}`,
+      customerName: order.userName,
+      customerEmail: order.userEmail,
+      customerPhone: order.userPhone,
+    });
+    await updateOrderPayment(orderId, {
+      paymentMethod: "dynamic_qris",
+      qrCode: qrResponse.qrString,
+      qrImage: qrResponse.qrImage,
+      totalAmount: qrResponse.totalAmount,
+      uniqueCode: qrResponse.uniqueCode,
+      depositId: qrResponse.depositId,
+      paymentExpiresAt: qrResponse.expiredAt,
+    });
 
     return NextResponse.json({
       success: true,

@@ -23,6 +23,8 @@ const createOrderSchema = z.object({
         productId: z.string().min(1),
         quantity: z.number().int().min(1).max(99),
         donationAmount: z.number().int().min(1).optional(),
+        donationName: z.string().max(120).optional(),
+        donationMessage: z.string().max(500).optional(),
       }),
     )
     .min(1),
@@ -75,6 +77,8 @@ export async function POST(request: Request) {
       unitPrice: number;
       productType: "jual_beli" | "pekerjaan" | "donation" | "lms";
       donationAmount?: number;
+      donationName?: string;
+      donationMessage?: string;
     }> = [];
 
     for (const item of payload.items) {
@@ -92,6 +96,12 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+      if (product.productType === "donation" && (!item.donationName?.trim() || !item.donationMessage?.trim())) {
+        return NextResponse.json(
+          { message: `Nama dan harapan donasi untuk ${product.name} wajib diisi.` },
+          { status: 400 },
+        );
+      }
 
       enrichedItems.push({
         productId: product.id,
@@ -103,6 +113,8 @@ export async function POST(request: Request) {
           : product.price,
         productType: product.productType,
         donationAmount: product.productType === "donation" ? item.donationAmount : undefined,
+        donationName: product.productType === "donation" ? item.donationName?.trim() : undefined,
+        donationMessage: product.productType === "donation" ? item.donationMessage?.trim() : undefined,
       });
     }
 
@@ -129,6 +141,7 @@ export async function POST(request: Request) {
           productName: item.productName,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          productType: item.productType,
         })),
       }),
       sendTelegramOrderNotification({

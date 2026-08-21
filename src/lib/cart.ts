@@ -6,6 +6,8 @@ export type CartEntry = {
   slug: string;
   quantity: number;
   donationAmount?: number;
+  donationName?: string;
+  donationMessage?: string;
 };
 
 function clampQuantity(value: number) {
@@ -35,6 +37,8 @@ export function readCart(): CartEntry[] {
           typeof item.donationAmount === "number" && Number.isFinite(item.donationAmount)
             ? Math.max(0, Math.round(item.donationAmount))
             : undefined,
+        donationName: typeof item.donationName === "string" ? item.donationName.trim() : undefined,
+        donationMessage: typeof item.donationMessage === "string" ? item.donationMessage.trim() : undefined,
       }));
   } catch {
     return [];
@@ -49,7 +53,7 @@ export function saveCart(items: CartEntry[]) {
   localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
 }
 
-export function addToCart(slug: string, quantity: number, donationAmount?: number) {
+export function addToCart(slug: string, quantity: number, donationAmount?: number, donationName?: string, donationMessage?: string) {
   const cart = readCart();
   const existing = cart.find((item) => item.slug === slug);
 
@@ -57,6 +61,8 @@ export function addToCart(slug: string, quantity: number, donationAmount?: numbe
     if (donationAmount !== undefined) {
       existing.quantity = 1;
       existing.donationAmount = Math.max(0, Math.round(existing.donationAmount ?? 0) + donationAmount);
+      existing.donationName = donationName?.trim() || existing.donationName;
+      existing.donationMessage = donationMessage?.trim() || existing.donationMessage;
     } else {
       existing.quantity = clampQuantity(existing.quantity + quantity);
     }
@@ -73,6 +79,8 @@ export function addToCart(slug: string, quantity: number, donationAmount?: numbe
     quantity: clampQuantity(quantity),
     donationAmount:
       donationAmount === undefined ? undefined : Math.max(0, Math.round(donationAmount)),
+    donationName: donationName?.trim() || undefined,
+    donationMessage: donationMessage?.trim() || undefined,
   });
   saveCart(cart);
   if (typeof window !== "undefined") {
@@ -91,6 +99,29 @@ export function updateCartQuantity(slug: string, quantity: number) {
 
   target.quantity = clampQuantity(quantity);
   saveCart(cart);
+}
+
+export function updateDonationDetails(slug: string, donationName: string, donationMessage: string) {
+  const cart = readCart();
+  const target = cart.find((item) => item.slug === slug);
+  if (!target) return;
+  target.donationName = donationName.trim();
+  target.donationMessage = donationMessage.trim();
+  saveCart(cart);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(CART_UPDATED_EVENT));
+  }
+}
+
+export function updateDonationAmount(slug: string, donationAmount: number) {
+  const cart = readCart();
+  const target = cart.find((item) => item.slug === slug);
+  if (!target) return;
+  target.donationAmount = Math.max(0, Math.round(donationAmount));
+  saveCart(cart);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(CART_UPDATED_EVENT));
+  }
 }
 
 export function removeFromCart(slug: string) {
