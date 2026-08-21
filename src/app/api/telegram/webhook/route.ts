@@ -100,7 +100,7 @@ async function sendTelegramMenu(chatId: string, replaceMessageId?: number) {
         { text: "🛒 Order", url: `${adminUrl}?section=orders` },
       ], [
         { text: "📦 Produk", url: `${adminUrl}?section=products` },
-        { text: "➕ Tambah Produk", url: `${adminUrl}?section=products&action=create` },
+        { text: "➕ Tambah Produk", callback_data: "product:start" },
       ], [
         { text: "💬 Testimoni", url: `${adminUrl}?section=testimonials` },
         { text: "📖 Book Story", url: `${adminUrl}?section=bookStories` },
@@ -303,6 +303,17 @@ export async function POST(request: Request) {
     });
     await sendTelegramMenu(chatId, callback.message.message_id);
     return NextResponse.json({ ok: true, menu: "refresh" });
+  }
+
+  if (callback.data === "product:start") {
+    await getBotState(chatId)?.set({ addProductPending: true, updatedAt: Date.now() }, { merge: true });
+    await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Kirim foto + caption produk." });
+    await telegramRequest("sendMessage", {
+      chat_id: chatId,
+      text: "📦 <b>Tambah Produk</b>\n\nKirim foto produk dengan caption:\n\n<code>Nama: Paket Premium\nKategori: Digital\nHarga: 15000\nDeskripsi: Deskripsi minimal 6 karakter\nRingkas: Kalimat singkat\nDurasi: 30 hari\nTipe: jual_beli</code>\n\nWajib: Nama, Kategori, Harga, Deskripsi. Maksimal foto 450KB.",
+      parse_mode: "HTML",
+    });
+    return NextResponse.json({ ok: true, productWizard: true });
   }
 
   if (callback.data === "menu:recap") {
