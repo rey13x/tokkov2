@@ -1,33 +1,167 @@
 .ticker {
+  position: relative;
   display: inline-block;
   min-width: 7ch;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  color: #278c48;
-  background: linear-gradient(110deg, #278c48 0%, #278c48 28%, #b7e9c1 42%, #ffffff 50%, #b7e9c1 58%, #278c48 72%, #278c48 100%);
-  background-size: 280% 100%;
-  background-position: -120% 0;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: donationShimmer 3.6s cubic-bezier(0.22, 0.8, 0.35, 1) infinite;
+  color: #142b52;
+}
+
+.ticker > span {
+  color: #142b52;
+}
+
+.brandMark {
+  position: absolute;
+  top: -1.1rem;
+  right: -1.1rem;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #142b52;
+  cursor: pointer;
+  z-index: 3;
+}
+
+.brandMark img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.brandMarkEntering {
+  animation: brandMarkCycle 5s ease-in-out infinite;
+}
+
+.brandMarkExiting {
+  animation: brandMarkPopOut 460ms cubic-bezier(0.55, 0, 0.8, 0.2) both;
+}
+
+@keyframes brandMarkCycle {
+  0% { opacity: 0; transform: scale(0.15) rotate(-18deg); }
+  8% { opacity: 1; transform: scale(1.16) rotate(7deg); }
+  15% { opacity: 1; transform: scale(0.9) rotate(-3deg); }
+  22%, 78% { opacity: 1; transform: scale(1) rotate(0); }
+  84% { transform: scale(1.1) rotate(-8deg); }
+  90% { transform: scale(0.94) rotate(7deg); }
+  96% { transform: scale(1.04) rotate(-3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes brandMarkPopOut {
+  0% { opacity: 1; transform: scale(1) rotate(0); }
+  35% { opacity: 1; transform: scale(1.12) rotate(-8deg); }
+  100% { opacity: 0; transform: scale(0.1) rotate(18deg); }
+}
+
+.particleField {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #315d9b;
+}
+
+.particle {
+  position: absolute;
+  display: block;
+  font-size: 0.72em;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0;
+  animation-name: donationParticlePop;
+  animation-timing-function: cubic-bezier(0.2, 1.35, 0.4, 1);
+  animation-iteration-count: infinite;
+  --particle-rotate: 0deg;
+}
+
+.particleFieldDone .particle {
+  animation-play-state: paused;
+  opacity: 0;
+}
+
+@keyframes donationParticlePop {
+  0%, 100% {
+    opacity: 0;
+    transform: translate3d(0, 5px, 0) scale(0.2) rotate(var(--particle-rotate));
+  }
+
+  22% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1.12) rotate(calc(var(--particle-rotate) + 18deg));
+  }
+
+  48% {
+    opacity: 0.82;
+    transform: translate3d(0, -2px, 0) scale(0.88) rotate(calc(var(--particle-rotate) - 12deg));
+  }
+
+  70% {
+    opacity: 0.35;
+    transform: translate3d(0, -6px, 0) scale(0.62) rotate(calc(var(--particle-rotate) + 22deg));
+  }
 }
 
 .tickerSlow {
-  animation-duration: 4.2s;
+  animation-duration: 6.2s;
 }
 
-@keyframes donationShimmer {
-  0% {
-    background-position: -120% 0;
+.tickerBounce {
+  animation: tickerTargetBounce 650ms cubic-bezier(0.2, 1.35, 0.4, 1);
+}
+
+.tickerShimmer {
+  color: #142b52;
+  background: linear-gradient(
+    110deg,
+    #142b52 0%,
+    #142b52 35%,
+    #6f9ed8 46%,
+    #dceaff 50%,
+    #6f9ed8 54%,
+    #142b52 65%,
+    #142b52 100%
+  );
+  background-size: 300% 100%;
+  background-position: 150% 0;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: tickerShimmerSweep 5.8s linear infinite;
+}
+
+.tickerShimmer > span {
+  color: transparent;
+  background: inherit;
+  background-size: inherit;
+  background-position: inherit;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.tickerShimmerSlow {
+  animation-duration: 6.8s;
+}
+
+@keyframes tickerShimmerSweep {
+  from {
+    background-position: 150% 0;
   }
 
-  58% {
-    background-position: 120% 0;
+  to {
+    background-position: -150% 0;
   }
+}
 
-  72%,
-  100% {
-    background-position: 120% 0;
-  }
+@keyframes tickerTargetBounce {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18); }
+  58% { transform: scale(0.96); }
+  78% { transform: scale(1.07); }
+  100% { transform: scale(1); }
 }
