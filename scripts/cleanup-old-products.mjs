@@ -11,9 +11,9 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Load service account
-const serviceAccountPath = path.join(process.cwd(), "service-account.json");
-if (!fs.existsSync(serviceAccountPath)) {
-  console.error("❌ service-account.json tidak ditemukan!");
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_FILE;
+if (!serviceAccountPath || !fs.existsSync(serviceAccountPath)) {
+  console.error("❌ FIREBASE_SERVICE_ACCOUNT_FILE tidak ditemukan!");
   process.exit(1);
 }
 

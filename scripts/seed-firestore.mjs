@@ -6,7 +6,8 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Initialize Firebase Admin
-const serviceAccountPath = path.join(__dirname, "../service-account.json");
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_FILE;
+if (!serviceAccountPath) throw new Error("FIREBASE_SERVICE_ACCOUNT_FILE wajib diisi.");
 const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
 
 admin.initializeApp({

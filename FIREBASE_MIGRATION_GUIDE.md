@@ -13,7 +13,7 @@ Public web config target:
 - App ID: `1:916208995900:web:4cea547611e7dc8b273d39`
 - Storage bucket: `tokkov2-a4603.firebasestorage.app`
 
-Config public sudah diperbarui di local environment dan `.env.vercel.example`. Credential Admin lama dari `tokko-ramadhan` sengaja tidak dipasangkan ke project baru karena private key dan project harus berasal dari service account yang sama.
+Config public sudah diperbarui di local environment dan `.env.vercel.example`. Credential Admin lama sengaja tidak dipasangkan ke project baru karena private key dan project harus berasal dari service account yang sama.
 
 Tokko tidak memakai Firebase sebagai database transaksi utama.
 
@@ -79,7 +79,7 @@ FIREBASE_PRIVATE_KEY_ID   # optional
 FIREBASE_CLIENT_ID        # optional
 ```
 
-Server juga mencoba membaca file lokal `service-account.json`. File ini tidak boleh masuk repository atau deployment artifact publik. Gunakan Vercel Environment Variables untuk production.
+Server membaca `FIREBASE_SERVICE_ACCOUNT_FILE` hanya untuk local development, atau `FIREBASE_SERVICE_ACCOUNT_JSON`/credential variables di Vercel. File credential tidak boleh masuk repository atau deployment artifact publik.
 
 ### Related non-Firebase variables
 
@@ -290,7 +290,7 @@ Script migrasi tidak menghapus data destination. Default-nya dry run.
 Isi credential terpisah di environment, jangan di file tracked:
 
 ```bash
-export SOURCE_FIREBASE_SERVICE_ACCOUNT_FILE=/secure/old-tokko-ramadhan.json
+export SOURCE_FIREBASE_SERVICE_ACCOUNT_FILE=/secure/retired-project-service-account.json
 export DEST_FIREBASE_SERVICE_ACCOUNT_FILE=/secure/new-tokkov2-a4603.json
 MIGRATION_MODE=firestore npm run migrate:firebase
 MIGRATION_WRITE=true MIGRATION_MODE=firestore npm run migrate:firebase

@@ -2,7 +2,9 @@ import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';
 
-const serviceAccount = JSON.parse(fs.readFileSync('./service-account.json', 'utf8'));
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_FILE;
+if (!serviceAccountPath) throw new Error('FIREBASE_SERVICE_ACCOUNT_FILE wajib diisi.');
+const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
 initializeApp({ credential: cert(serviceAccount) });
 const db = getFirestore();
 
