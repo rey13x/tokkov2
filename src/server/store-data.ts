@@ -71,7 +71,7 @@ const HOMEPAGE_CONFIG_META_KEY = "homepageConfig";
 
 let firestoreUnavailable = false;
 
-function getFirestoreOrNull() {
+export function getFirestoreOrNull() {
   if (firestoreUnavailable) {
     return null;
   }

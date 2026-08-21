@@ -1598,8 +1598,12 @@ function AdminManagementSection() {
 
         setAuthState("allowed");
         const requestedSection = new URLSearchParams(window.location.search).get("section");
+        const requestedAction = new URLSearchParams(window.location.search).get("action");
         if (sidebarItems.some((item) => item.id === requestedSection)) {
           setActiveSection(requestedSection as AdminSection);
+        }
+        if (requestedSection === "products" && requestedAction === "create") {
+          resetProductForm();
         }
         await Promise.allSettled([
           loadProducts(),
