@@ -269,7 +269,8 @@ async function sendTelegramReceipt(
     })),
     total,
   };
-  const { default: sharp } = await import("sharp");
+  const loadSharp = new Function("return import('sharp')") as () => Promise<{ default: typeof import("sharp").default }>;
+  const { default: sharp } = await loadSharp();
   const receiptPhoto = await sharp(Buffer.from(await buildReceiptPhoto(receiptInput)))
     .png()
     .toBuffer();

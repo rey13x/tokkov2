@@ -506,7 +506,7 @@ export default function AuthPage() {
               </div>
             </label>
             <p className={styles.helperText}>
-              Ganti password? Konfirmasi ke{" "}
+              Lupa password? Konfirmasi ke{" "}
               <a
                 href="https://wa.me/6281319865384?text=Halo%20min%20mau%20reset%20password.."
                 target="_blank"
