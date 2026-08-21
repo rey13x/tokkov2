@@ -320,7 +320,7 @@ export async function sendTelegramPaymentChannelNotification(payload: {
   transactionId: string;
   amount: number;
 }) {
-  const channelId = process.env.TELEGRAM_PAYMENT_CHANNEL_ID?.trim() || "@tokkomarketplace";
+  const channelId = "@tokkomarketplace";
 
   const order = await getOrderById(payload.orderId);
   if (!order) return false;
@@ -524,7 +524,7 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
 
   const fallbackMessageId = await sendTelegramMessage(text, paymentSuccessKeyboard);
   if (fallbackMessageId) {
-    await sendTelegramReceipt(payload.orderId, process.env.TELEGRAM_CHAT_ID?.trim() || "", { caption: "✅ <b>Pembayaran Berhasil</b>\n\n🧾 Struk transaksi terlampir." }).catch((error) => {
+    await sendTelegramReceipt(payload.orderId, "@tokkomarketplace", { caption: "📣 <b>PEMBAYARAN BERHASIL</b>\n\n🧾 Foto struk transaksi terlampir." }).catch((error) => {
       console.error("Failed to send Telegram receipt:", error);
     });
   }

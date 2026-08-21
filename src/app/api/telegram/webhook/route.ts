@@ -490,7 +490,15 @@ export async function POST(request: Request) {
     }
     const order = await getOrderById(orderId);
     if (!order) return NextResponse.json({ ok: false, error: "Order tidak ditemukan." }, { status: 404 });
-    await updateStoreOrderStatus(orderId, "sent");
+    const updatedOrder = await updateStoreOrderStatus(orderId, "sent");
+    if (!updatedOrder || updatedOrder.status !== "sent") {
+      await telegramRequest("answerCallbackQuery", {
+        callback_query_id: callback.id,
+        text: "Status belum berhasil disimpan. Coba klik lagi.",
+        show_alert: true,
+      });
+      return NextResponse.json({ ok: false, error: "Status order gagal diubah menjadi sent." }, { status: 500 });
+    }
     void notifyNativeUsers({
       userId: order.userId,
       title: "Status pesanan berubah",

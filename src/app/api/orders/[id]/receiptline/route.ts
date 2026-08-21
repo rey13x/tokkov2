@@ -64,7 +64,7 @@ body{margin:0;background:#edf0f4;color:#111;font-family:Georgia,"Times New Roman
       "</style>",
       "body{font-family:Arial,\"Helvetica Neue\",sans-serif}.brand img{width:96px;height:96px;border-radius:50%;object-fit:cover}.brand h1{font-family:Arial,\"Helvetica Neue\",sans-serif;font-weight:800}.qr{width:210px;height:210px}.qr svg{width:210px;height:210px}</style>",
     );
-    return new NextResponse(styledHtml, { headers: { "Content-Type": "text/html; charset=utf-8", "Content-Disposition": `inline; filename="struk-${order.id}.html"`, "Cache-Control": "no-store" } });
+    return new NextResponse(styledHtml, { headers: { "Content-Type": "text/html; charset=utf-8", "Content-Disposition": `attachment; filename="struk-${order.id}.html"`, "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("ReceiptLine receipt failed:", error);
     return NextResponse.json({ message: "Gagal membuat struk." }, { status: 500 });
