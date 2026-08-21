@@ -320,11 +320,7 @@ export async function sendTelegramPaymentChannelNotification(payload: {
   transactionId: string;
   amount: number;
 }) {
-  const channelId = process.env.TELEGRAM_PAYMENT_CHANNEL_ID?.trim();
-  if (!channelId) {
-    console.warn("Payment channel notification skipped: TELEGRAM_PAYMENT_CHANNEL_ID is missing.");
-    return false;
-  }
+  const channelId = process.env.TELEGRAM_PAYMENT_CHANNEL_ID?.trim() || "@tokkomarketplace";
 
   const order = await getOrderById(payload.orderId);
   if (!order) return false;
@@ -351,19 +347,17 @@ export async function sendTelegramPaymentChannelNotification(payload: {
       caption: donationCaption,
     });
   }
-  const accountText = [
-    `Nama: **${escapeTelegramHtml(order.userName)}**`,
-    `Email: **${escapeTelegramHtml(maskEmail(order.userEmail))}**`,
-    `No. HP: **${escapeTelegramHtml(maskPhone(order.userPhone))}**`,
-  ].join("\n");
   const caption = [
     "📣 <b>PEMBAYARAN BERHASIL</b>",
     "",
-    `<b>Order ID</b>: <code>${escapeTelegramHtml(payload.orderId)}</code>`,
-    `<b>Jumlah</b>: Rp ${payload.amount.toLocaleString("id-ID")}`,
-    `<b>Transaksi</b>: <code>${escapeTelegramHtml(payload.transactionId)}</code>`,
+    `<b>Order ID</b>     : <tg-spoiler>${escapeTelegramHtml(payload.orderId)}</tg-spoiler>`,
+    `<b>Jumlah</b>       : Rp ${payload.amount.toLocaleString("id-ID")}`,
+    `<b>Transaksi</b>   : <tg-spoiler>${escapeTelegramHtml(payload.transactionId)}</tg-spoiler>`,
     "",
-    `<b>Informasi Account</b>\n<tg-spoiler>${accountText}</tg-spoiler>`,
+    "<b>Informasi Akun</b>",
+    "Nama           : <tg-spoiler>***</tg-spoiler>",
+    "Email          : <tg-spoiler>***</tg-spoiler>",
+    "No. HP         : <tg-spoiler>***</tg-spoiler>",
   ].join("\n");
 
   return sendTelegramReceipt(payload.orderId, channelId, {
@@ -616,9 +610,17 @@ export async function sendTelegramActivityNotification(payload: {
   ];
 
   const orderId = details.find((detail) => detail.toLowerCase().startsWith("order id:"))?.split(":").slice(1).join(":").trim();
-  await sendTelegramMessage(lines.join("\n"), orderId ? {
-    inline_keyboard: [[{ text: "Buka Order Admin", url: buildAdminOrderUrl(orderId) }]],
-  } : undefined);
+  const reminderKeyboard = orderId && payload.event === "order_reminder"
+    ? {
+        inline_keyboard: [[
+          { text: "Buka Order Admin", url: buildAdminOrderUrl(orderId) },
+          { text: "Sudah dikirim", callback_data: `delivery:sent:${orderId}` },
+        ]],
+      }
+    : orderId
+      ? { inline_keyboard: [[{ text: "Buka Order Admin", url: buildAdminOrderUrl(orderId) }]] }
+      : undefined;
+  await sendTelegramMessage(lines.join("\n"), reminderKeyboard);
 }
 
 function buildAdminOrderUrl(orderId: string) {

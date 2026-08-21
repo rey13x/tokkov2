@@ -123,6 +123,15 @@ function PaymentIcon() {
   );
 }
 
+function BellIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M6 10a6 6 0 0 1 12 0v4l2 2H4l2-2v-4Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M10 19h4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function TrashIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -602,7 +611,7 @@ export default function StatusPemesananPage() {
     [displayOrders],
   );
 
-  const onDownloadReceipt = async (orderId: string, downloadImmediately = false) => {
+  const onDownloadReceipt = async (orderId: string, downloadImmediately = true) => {
     const onboardingState = getOnboardingState();
     if (
       onboardingState.active &&
@@ -637,8 +646,6 @@ export default function StatusPemesananPage() {
       const order = displayOrders.find((item) => item.id === orderId);
       if (order?.items?.some((item) => item.productType === "donation")) {
         setCertificatePreview({ url, orderId });
-      } else {
-        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
     } catch {
       setError("Struk belum berhasil diunduh. Coba lagi sebentar.");
@@ -650,7 +657,7 @@ export default function StatusPemesananPage() {
     const { orderId } = paymentSuccessPopup;
     setPaymentSuccessPopup(null);
     try {
-      await onDownloadReceipt(orderId, true);
+      await onDownloadReceipt(orderId);
       window.history.replaceState({}, "", "/status-pemesanan");
       await loadOrders();
     } catch {
@@ -663,6 +670,7 @@ export default function StatusPemesananPage() {
       URL.revokeObjectURL(receiptPreview.url);
     }
     setReceiptPreview(null);
+    window.history.replaceState({}, "", "/status-pemesanan");
   };
 
   const downloadReceiptPreview = () => {
@@ -1625,7 +1633,7 @@ export default function StatusPemesananPage() {
                       title={(reminderCooldowns[order.id] ?? 0) > 0 ? `Tunggu ${reminderCooldowns[order.id]} detik` : "Ingatkan admin"}
                       aria-label="Ingatkan admin"
                     >
-                      <span aria-hidden="true">♟</span>
+                      <BellIcon />
                     </button>
                   </div>
                 </div>

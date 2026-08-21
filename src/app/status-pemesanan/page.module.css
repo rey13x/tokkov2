@@ -345,16 +345,18 @@
   background: #10131a;
   color: #fff;
   cursor: pointer;
-  font-size: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.reminderButton::before {
-  content: "🔔";
-  font-size: 18px;
+.reminderButton svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.8;
 }
 
-.reminderButtonActive::before {
-  display: inline-block;
+.reminderButtonActive svg {
   animation: reminderShake 0.55s ease-in-out 2;
 }
 
