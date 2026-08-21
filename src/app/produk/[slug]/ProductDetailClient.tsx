@@ -47,6 +47,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const [donationAmount, setDonationAmount] = useState("");
   const [donationName, setDonationName] = useState("");
   const [donationMessage, setDonationMessage] = useState("");
+  const [isDonationDataOpen, setIsDonationDataOpen] = useState(false);
   const [donationError, setDonationError] = useState("");
   const [added, setAdded] = useState(false);
   const [isRedirectingToCart, setIsRedirectingToCart] = useState(false);
@@ -201,7 +202,13 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     }
 
     const safeDonationAmount = product.productType === "donation" ? requestedDonationAmount : undefined;
+    if (product.productType === "donation" && (!donationName.trim() || !donationMessage.trim())) {
+      setIsDonationDataOpen(true);
+      setDonationError("Isi nama dan harapan donasi terlebih dahulu.");
+      return;
+    }
     if (product.productType === "donation" && (!safeDonationAmount || safeDonationAmount < 1)) {
+      setIsDonationDataOpen(true);
       setDonationError("Masukkan nominal donasi terlebih dahulu.");
       return;
     }
@@ -440,40 +447,50 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           {product.productType === "donation" ? (
             <>
               <p className={styles.price}>Terkumpul {formatRupiah(product.donationTotal ?? 0)}</p>
-              <label className={styles.donationField}>
-                <span>Nama</span>
-                <input
-                  type="text"
-                  value={donationName}
-                  onChange={(event) => setDonationName(event.target.value)}
-                  placeholder="Digunakan untuk Sertifikat"
-                  aria-label="Nama untuk sertifikat donasi"
-                />
-                <span>Harapan kamu Donasi disini:</span>
-                <textarea
-                  value={donationMessage}
-                  onChange={(event) => setDonationMessage(event.target.value)}
-                  placeholder="Tulis harapan kamu di sini"
-                  aria-label="Harapan donasi"
-                  rows={3}
-                />
-                <span>Mau Donasi berapa?</span>
-                <div className={styles.donationInputWrap}>
-                  <span>Rp</span>
+              <button
+                type="button"
+                className={styles.orderButton}
+                onClick={() => setIsDonationDataOpen((current) => !current)}
+                aria-expanded={isDonationDataOpen}
+              >
+                {isDonationDataOpen ? "Tutup Data Diri" : "Isi Data Diri"}
+              </button>
+              {isDonationDataOpen ? (
+                <label className={styles.donationField}>
+                  <span>Nama</span>
                   <input
                     type="text"
-                    inputMode="numeric"
-                    value={donationAmount}
-                    onChange={(event) => {
-                      setDonationError("");
-                      const digits = event.target.value.replace(/\D/g, "");
-                      setDonationAmount(digits ? Number(digits).toLocaleString("id-ID") : "");
-                    }}
-                    placeholder="Masukkan nominal"
-                    aria-label="Nominal donasi"
+                    value={donationName}
+                    onChange={(event) => setDonationName(event.target.value)}
+                    placeholder="Digunakan untuk Sertifikat"
+                    aria-label="Nama untuk sertifikat donasi"
                   />
-                </div>
-              </label>
+                  <span>Harapan kamu Donasi disini:</span>
+                  <textarea
+                    value={donationMessage}
+                    onChange={(event) => setDonationMessage(event.target.value)}
+                    placeholder="Tulis harapan kamu di sini"
+                    aria-label="Harapan donasi"
+                    rows={3}
+                  />
+                  <span>Mau Donasi berapa?</span>
+                  <div className={styles.donationInputWrap}>
+                    <span>Rp</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={donationAmount}
+                      onChange={(event) => {
+                        setDonationError("");
+                        const digits = event.target.value.replace(/\D/g, "");
+                        setDonationAmount(digits ? Number(digits).toLocaleString("id-ID") : "");
+                      }}
+                      placeholder="Masukkan nominal"
+                      aria-label="Nominal donasi"
+                    />
+                  </div>
+                </label>
+              ) : null}
               {donationError ? <p className={styles.donationError}>{donationError}</p> : null}
               <button
                 type="button"
