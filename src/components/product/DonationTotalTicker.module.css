@@ -13,6 +13,10 @@
   animation: donationShimmer 3s ease-in-out infinite;
 }
 
+.tickerSlow {
+  animation-duration: 8s;
+}
+
 @keyframes donationShimmer {
   0% {
     background-position: 50% 0;

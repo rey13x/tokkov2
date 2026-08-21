@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import type { CallBackProps, Step } from "react-joyride";
 import { gsap } from "gsap";
 import ProductCarousel from "@/components/product/ProductCarousel";
+import DonationTotalTicker from "@/components/product/DonationTotalTicker";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
@@ -438,7 +439,9 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           <p className={styles.description}>{product.description}</p>
           {product.productType === "donation" ? (
             <>
-              <p className={styles.price}>Terkumpul {formatRupiah(product.donationTotal ?? 0)}</p>
+              <p className={styles.price}>
+                <DonationTotalTicker amount={product.donationTotal ?? 0} slow />
+              </p>
               <label className={styles.donationNameField}>
                 <span>Jumlah Donasi</span>
                 <input
