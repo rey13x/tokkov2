@@ -3,4 +3,22 @@
   min-width: 7ch;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  color: #278c48;
+  background: linear-gradient(110deg, #278c48 35%, #9bd8aa 48%, #278c48 61%);
+  background-size: 220% 100%;
+  background-position: 120% 0;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: donationShimmer 4.5s ease-in-out infinite;
+}
+
+@keyframes donationShimmer {
+  0%, 55% {
+    background-position: 120% 0;
+  }
+
+  100% {
+    background-position: -120% 0;
+  }
 }
