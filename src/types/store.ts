@@ -277,8 +277,12 @@ export type OrderSummary = {
   qrReference?: string; // Reference ID from payment gateway
   transactionId?: string; // Transaction ID after payment
   paidAt?: string; // Payment timestamp
+  paidAmount?: number;
   receiptUrl?: string; // Generated receipt file URL
   downloadUrl?: string; // File download URL for digital products
+  telegramMessageId?: number;
+  telegramChatId?: string;
+  telegramMessageUpdatedAt?: number;
 };
 
 export type StoreOrderItem = {

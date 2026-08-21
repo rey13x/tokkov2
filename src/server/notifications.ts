@@ -1,6 +1,8 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { getFirebaseAdminApp } from "@/server/firebase-admin";
+import { getFirebaseAdminApp, getFirebaseFirestore } from "@/server/firebase-admin";
+import { buildReceiptPdf } from "@/app/api/orders/[id]/receipt/route";
+import { getOrderById, listOrderItemsByOrderId } from "@/server/store-data";
 
 const exportDir = path.join(process.cwd(), "storage", "exports");
 const csvFile = path.join(exportDir, "orders.csv");
@@ -46,13 +48,13 @@ function formatAuditDate(dateInput?: string | number | Date) {
 async function sendTelegramMessage(
   text: string,
   replyMarkup?: { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> },
-) : Promise<boolean> {
+) : Promise<number | null> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!botToken || !chatId) {
     console.error("Telegram notification skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.");
-    return false;
+    return null;
   }
 
   try {
@@ -70,13 +72,101 @@ async function sendTelegramMessage(
     });
     if (!response.ok) {
       console.error("Telegram sendMessage failed:", response.status);
-      return false;
+      return null;
     }
-    return true;
+    const payload = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+      result?: { message_id?: number };
+    } | null;
+    return payload?.ok && typeof payload.result?.message_id === "number"
+      ? payload.result.message_id
+      : null;
   } catch (error) {
     console.error("Telegram sendMessage failed:", error);
+    return null;
+  }
+}
+
+async function editTelegramMessage(chatId: string, messageId: number, text: string) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!botToken) return false;
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+        reply_markup: { inline_keyboard: [] },
+      }),
+      cache: "no-store",
+    });
+    return response.ok;
+  } catch (error) {
+    console.error("Telegram editMessageText failed:", error);
     return false;
   }
+}
+
+async function sendTelegramReceipt(orderId: string, chatId: string) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!botToken) return false;
+
+  const firestore = getFirebaseFirestore();
+  const order = await getOrderById(orderId);
+  if (!order) return false;
+  let existingReceiptSentAt: unknown = null;
+  if (firestore) {
+    try {
+      const snapshot = await firestore.collection("orders").doc(orderId).get();
+      existingReceiptSentAt = snapshot.exists ? snapshot.data()?.telegramReceiptNotifiedAt : null;
+    } catch {
+      existingReceiptSentAt = null;
+    }
+  }
+  if (existingReceiptSentAt) return true;
+
+  const items = await listOrderItemsByOrderId(orderId);
+  const total = Number(order.totalAmount ?? order.total ?? 0);
+  const pdf = await buildReceiptPdf({
+    orderId: order.id,
+    userName: order.userName,
+    userEmail: order.userEmail,
+    userPhone: order.userPhone,
+    status: "paid",
+    createdAt: order.createdAt,
+    depositId: order.depositId,
+    paidAt: order.paidAt,
+    items: items.map((item) => ({
+      productName: item.productName,
+      productDuration: item.productDuration,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    })),
+    total,
+  });
+
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  form.append("caption", `🧾 <b>Struk pembayaran ${escapeTelegramHtml(orderId)}</b>`);
+  form.append("parse_mode", "HTML");
+  form.append("document", new Blob([new Uint8Array(pdf)], { type: "application/pdf" }), `struk-${orderId}.pdf`);
+
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendDocument`, {
+    method: "POST",
+    body: form,
+    cache: "no-store",
+  });
+  if (!response.ok) return false;
+
+  await firestore?.collection("orders").doc(orderId).set({
+    telegramReceiptNotifiedAt: Date.now(),
+  }, { merge: true });
+  return true;
 }
 
 export async function appendOrderToCsv(payload: {
@@ -156,12 +246,27 @@ export async function sendTelegramOrderNotification(payload: {
     `<b>Total</b>     : Rp ${payload.total.toLocaleString("id-ID")}`,
   ].join("\n");
 
-  await sendTelegramMessage(text, {
+  const messageId = await sendTelegramMessage(text, {
     inline_keyboard: [[
       { text: "Sudah Bayar", callback_data: `payment:paid:${payload.orderId}` },
       { text: "Belum Bayar", callback_data: `payment:pending:${payload.orderId}` },
     ]],
   });
+
+  if (messageId) {
+    try {
+      const firestore = getFirebaseFirestore();
+      await firestore?.collection("orders").doc(payload.orderId).set({
+        telegramMessageId: messageId,
+        telegramChatId: process.env.TELEGRAM_CHAT_ID?.trim() || "",
+        telegramMessageUpdatedAt: Date.now(),
+      }, { merge: true });
+    } catch (error) {
+      console.error("Failed to persist Telegram order message state:", error);
+    }
+  }
+
+  return messageId;
 }
 
 export async function sendTelegramPaymentSuccessNotification(payload: {
@@ -171,7 +276,7 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
   userName?: string;
   userEmail?: string;
 }) {
-  await sendTelegramMessage([
+  const text = [
     "✅ <b>PEMBAYARAN BERHASIL</b>",
     "",
     `<b>Order ID</b>      : <tg-spoiler>${escapeTelegramHtml(payload.orderId)}</tg-spoiler>`,
@@ -181,7 +286,34 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
     `<b>Jumlah</b>        : Rp ${payload.amount.toLocaleString("id-ID")}`,
     `<b>Status</b>        : ${telegramStatusLabel("paid")}`,
     `<b>Waktu</b>         : ${escapeTelegramHtml(formatAuditDate())}`,
-  ].join("\n"));
+  ].join("\n");
+
+  try {
+    const firestore = getFirebaseFirestore();
+    const orderSnapshot = await firestore?.collection("orders").doc(payload.orderId).get();
+    const orderData = orderSnapshot?.exists ? orderSnapshot.data() : undefined;
+    const messageId = Number(orderData?.telegramMessageId ?? 0);
+    const chatId = String(orderData?.telegramChatId ?? process.env.TELEGRAM_CHAT_ID ?? "").trim();
+    if (messageId && chatId && await editTelegramMessage(chatId, messageId, text)) {
+      await firestore?.collection("orders").doc(payload.orderId).set({
+        telegramMessageUpdatedAt: Date.now(),
+        telegramPaymentNotifiedAt: Date.now(),
+      }, { merge: true });
+      await sendTelegramReceipt(payload.orderId, chatId).catch((error) => {
+        console.error("Failed to send Telegram receipt:", error);
+      });
+      return;
+    }
+  } catch (error) {
+    console.error("Failed to update Telegram payment message:", error);
+  }
+
+  const fallbackMessageId = await sendTelegramMessage(text);
+  if (fallbackMessageId) {
+    await sendTelegramReceipt(payload.orderId, process.env.TELEGRAM_CHAT_ID?.trim() || "").catch((error) => {
+      console.error("Failed to send Telegram receipt:", error);
+    });
+  }
 }
 
 export async function sendTelegramPaymentReviewNotification(payload: {

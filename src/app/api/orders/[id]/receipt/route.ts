@@ -42,7 +42,7 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#039;");
 }
 
-async function buildReceiptPdf(input: {
+export async function buildReceiptPdf(input: {
   orderId: string;
   userName: string;
   userEmail: string;

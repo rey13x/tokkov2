@@ -6,7 +6,9 @@ import {
   updateOrderStatus,
 } from "@/server/payment";
 import { recordDonationTotals, updateOrderStatus as updateStoreOrderStatus } from "@/server/store-data";
-import { telegramStatusLabel } from "@/server/notifications";
+import {
+  sendTelegramPaymentSuccessNotification,
+} from "@/server/notifications";
 
 export const runtime = "nodejs";
 
@@ -35,16 +37,26 @@ async function telegramRequest(method: string, body: Record<string, unknown>) {
 }
 
 async function sendTelegramMenu(chatId: string) {
+  const adminUrl = `${process.env.NEXTAUTH_URL?.trim() || "https://tokkov2.vercel.app"}/admin`;
   await telegramRequest("sendMessage", {
     chat_id: chatId,
-    text: "📋 <b>MENU ADMIN TOKKO</b>\n\nPilih aksi yang tersedia:",
+    text: "📋 <b>MENU ADMIN TOKKO</b>\n\nPilih halaman yang mau dibuka:",
     parse_mode: "HTML",
     reply_markup: {
       inline_keyboard: [[
-        { text: "📣 Aktivitas Terbaru", callback_data: "menu:activity" },
-        { text: "💳 Status Pembayaran", callback_data: "menu:payment" },
+        { text: "📊 Ringkasan", url: `${adminUrl}?section=overview` },
+        { text: "🛒 Order", url: `${adminUrl}?section=orders` },
       ], [
-        { text: "🛠️ Buka Dashboard", url: `${process.env.NEXTAUTH_URL?.trim() || "https://tokkov2.vercel.app"}/admin` },
+        { text: "📦 Produk", url: `${adminUrl}?section=products` },
+        { text: "➕ Tambah Produk", url: `${adminUrl}?section=products&action=create` },
+      ], [
+        { text: "💬 Testimoni", url: `${adminUrl}?section=testimonials` },
+        { text: "📖 Book Story", url: `${adminUrl}?section=bookStories` },
+      ], [
+        { text: "💳 Pembayaran QRIS", url: `${adminUrl}?section=paymentSettings` },
+        { text: "🛠️ Maintenance", url: `${adminUrl}?section=maintenanceSettings` },
+      ], [
+        { text: "🔄 Refresh Menu", callback_data: "menu:refresh" },
       ]],
     },
   });
@@ -91,6 +103,15 @@ export async function POST(request: Request) {
       text: "Notifikasi aktivitas dan order dikirim otomatis ke chat ini.",
     });
     return NextResponse.json({ ok: true, menu: callback.data });
+  }
+
+  if (callback.data === "menu:refresh") {
+    await telegramRequest("answerCallbackQuery", {
+      callback_query_id: callback.id,
+      text: "Menu diperbarui.",
+    });
+    await sendTelegramMenu(chatId);
+    return NextResponse.json({ ok: true, menu: "refresh" });
   }
 
   if (!callback.data.startsWith("payment:")) {
@@ -157,10 +178,12 @@ export async function POST(request: Request) {
     callback_query_id: callback.id,
     text: "Pembayaran ditandai berhasil.",
   });
-  await telegramRequest("sendMessage", {
-    chat_id: chatId,
-    text: `✅ <b>Pembayaran dikonfirmasi</b>\n\nOrder: <tg-spoiler>${order.id}</tg-spoiler>\nStatus web: ${telegramStatusLabel("sent")}\nStruk tersedia di halaman status pemesanan.`,
-    parse_mode: "HTML",
+  await sendTelegramPaymentSuccessNotification({
+    orderId: order.id,
+    transactionId: order.depositId || order.id,
+    amount: Number(order.totalAmount ?? order.total ?? 0),
+    userName: order.userName,
+    userEmail: order.userEmail,
   });
 
   return NextResponse.json({ ok: true, status: "sent", orderId: order.id });

@@ -1597,6 +1597,10 @@ function AdminManagementSection() {
         setSession(payload);
 
         setAuthState("allowed");
+        const requestedSection = new URLSearchParams(window.location.search).get("section");
+        if (sidebarItems.some((item) => item.id === requestedSection)) {
+          setActiveSection(requestedSection as AdminSection);
+        }
         await Promise.allSettled([
           loadProducts(),
           loadInformations(),
