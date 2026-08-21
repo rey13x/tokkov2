@@ -1,6 +1,5 @@
 import { promises as fs } from "fs";
 import path from "path";
-import sharp from "sharp";
 import QRCode from "qrcode";
 import { getFirebaseAdminApp, getFirebaseFirestore } from "@/server/firebase-admin";
 import { getOrderById, listOrderItemsByOrderId } from "@/server/store-data";
@@ -270,6 +269,7 @@ async function sendTelegramReceipt(
     })),
     total,
   };
+  const { default: sharp } = await import("sharp");
   const receiptPhoto = await sharp(Buffer.from(await buildReceiptPhoto(receiptInput)))
     .png()
     .toBuffer();
