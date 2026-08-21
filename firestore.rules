@@ -326,6 +326,39 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Application configuration. Public reads are intentional; all writes stay admin-only.
+    match /paymentSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /maintenanceSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /appMeta/{metaId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Reactions are user-owned records. The server still remains the authority for
+    // aggregate counts and can write through the Admin SDK.
+    match /commentReactions/{reactionId} {
+      allow read: if true;
+      allow create, update: if signedIn() &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Migrated oversized fields are internal migration artifacts, never public data.
+    match /_migrationLargeFields/{fieldId} {
+      allow read, write: if isAdmin();
+
+      match /chunks/{chunkId} {
+        allow read, write: if isAdmin();
+      }
+    }
+
     // --- GLOBAL DENY ---
     // Catch-all: Deny any access to documents not explicitly allowed above
     match /{document=**} {
