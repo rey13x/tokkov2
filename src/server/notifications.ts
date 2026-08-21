@@ -156,26 +156,26 @@ async function buildReceiptPhoto(input: {
     } catch {
       signatureData = "";
     }
-    return `<svg width="595" height="842" xmlns="http://www.w3.org/2000/svg">
-      <defs><clipPath id="cert-logo"><circle cx="530" cy="82" r="42" /></clipPath></defs>
-      <rect width="595" height="842" fill="#050505"/><rect x="10" y="10" width="575" height="822" fill="none" stroke="#7d2bbd" stroke-width="12"/>
-      <image href="data:image/jpeg;base64,${logoData}" x="488" y="40" width="84" height="84" preserveAspectRatio="xMidYMid slice" clip-path="url(#cert-logo)"/>
-      <g opacity="0.5"><image href="data:image/jpeg;base64,${logoData}" x="177" y="301" width="240" height="240" preserveAspectRatio="xMidYMid slice"/></g>
-      <style>.white{fill:#fff;font-family:Helvetica}.pink{fill:#d33d91;font-family:Helvetica}.muted{fill:#bdbdbd;font-family:Helvetica}</style>
-      <text x="297" y="72" text-anchor="middle" class="white" font-size="21" font-weight="700">TOKKO MARKETPLACE</text>
-      <text x="297" y="125" text-anchor="middle" class="pink" font-size="40" font-weight="700">Sertifikat</text>
-      <text x="297" y="215" text-anchor="middle" class="white" font-size="18">Terima kasih kepada:</text>
-      <text x="297" y="270" text-anchor="middle" class="pink" font-size="27" font-weight="700">${escapeSvg(donation.donationName || input.userName || "Donatur")}</text>
-      <text x="90" y="342" class="white" font-size="14">Atas donasi yang telah diberikan untuk bantuan</text>
-      <text x="297" y="374" text-anchor="middle" class="pink" font-size="20" font-weight="700">${escapeSvg(donation.productName)}</text>
-      <text x="297" y="414" text-anchor="middle" class="white" font-size="14">dengan nominal sebesar:</text>
-      <text x="297" y="465" text-anchor="middle" class="pink" font-size="29" font-weight="700">Rp ${escapeSvg(donation.unitPrice.toLocaleString("id-ID"))}</text>
-      <line x1="185" y1="490" x2="410" y2="490" stroke="#fff" stroke-width="2"/>
-      ${donation.donationMessage ? `<text x="297" y="535" text-anchor="middle" class="muted" font-size="13">&quot;${escapeSvg(donation.donationMessage)}&quot;</text>` : ""}
-      <text x="297" y="625" text-anchor="middle" class="white" font-size="15" font-weight="700">Founder Tokko Marketplace</text>
-      <image href="data:image/jpeg;base64,${signatureData}" x="242" y="650" width="110" height="55" preserveAspectRatio="xMidYMid meet"/>
-      <text x="297" y="730" text-anchor="middle" class="white" font-size="14">Raihaan Bagastiam Pratama</text>
-      <text x="297" y="800" text-anchor="middle" class="white" font-size="10">tokkomarketplace.shop</text>
+    return `<svg width="842" height="595" xmlns="http://www.w3.org/2000/svg">
+      <defs><clipPath id="cert-logo"><circle cx="790" cy="82" r="42" /></clipPath></defs>
+      <rect width="842" height="595" fill="#ffffff"/><rect x="10" y="10" width="822" height="575" fill="none" stroke="#ffffff" stroke-width="12"/>
+      <image href="data:image/jpeg;base64,${logoData}" x="748" y="40" width="84" height="84" preserveAspectRatio="xMidYMid slice" clip-path="url(#cert-logo)"/>
+      <g opacity="0.1"><image href="data:image/jpeg;base64,${logoData}" x="301" y="178" width="240" height="240" preserveAspectRatio="xMidYMid slice"/></g>
+      <style>.white{fill:#111;font-family:Helvetica}.pink{fill:#111;font-family:Helvetica}.muted{fill:#666;font-family:Helvetica}</style>
+      <text x="421" y="72" text-anchor="middle" class="white" font-size="21" font-weight="700">TOKKO MARKETPLACE</text>
+      <text x="421" y="125" text-anchor="middle" class="pink" font-size="40" font-weight="700">Sertifikat</text>
+      <text x="421" y="165" text-anchor="middle" class="white" font-size="18">Terima kasih kepada:</text>
+      <text x="421" y="205" text-anchor="middle" class="pink" font-size="27" font-weight="700">${escapeSvg(donation.donationName || input.userName || "Donatur")}</text>
+      <text x="421" y="275" text-anchor="middle" class="white" font-size="14">Atas donasi yang telah diberikan untuk bantuan</text>
+      <text x="421" y="307" text-anchor="middle" class="pink" font-size="20" font-weight="700">${escapeSvg(donation.productName)}</text>
+      <text x="421" y="347" text-anchor="middle" class="white" font-size="14">dengan nominal sebesar:</text>
+      <text x="421" y="385" text-anchor="middle" class="pink" font-size="29" font-weight="700">Rp ${escapeSvg(donation.unitPrice.toLocaleString("id-ID"))}</text>
+      <line x1="310" y1="405" x2="532" y2="405" stroke="#fff" stroke-width="2"/>
+      ${donation.donationMessage ? `<text x="421" y="435" text-anchor="middle" class="muted" font-size="13">&quot;${escapeSvg(donation.donationMessage)}&quot;</text>` : ""}
+      <text x="421" y="485" text-anchor="middle" class="white" font-size="15" font-weight="700">Founder Tokko Marketplace</text>
+      <image href="data:image/jpeg;base64,${signatureData}" x="366" y="490" width="110" height="55" preserveAspectRatio="xMidYMid meet"/>
+      <text x="421" y="565" text-anchor="middle" class="white" font-size="14">Raihaan Bagastiam Pratama</text>
+      <text x="421" y="585" text-anchor="middle" class="white" font-size="10">tokkomarketplace.shop</text>
     </svg>`;
   }
   const logoPath = path.join(process.cwd(), "public", "assets", "maintenancelogo.jpg");

@@ -73,40 +73,42 @@ export async function buildReceiptPdf(input: {
   doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 
   if (donation) {
-    const pageWidth = 595;
-    const pageHeight = 842;
+    const pageWidth = 842;
+    const pageHeight = 595;
     const logoPath = path.join(process.cwd(), "public", "assets", "maintenancelogo.jpg");
     const signaturePath = path.join(process.cwd(), "public", "assets", "TTD Dev.jpeg");
     const logo = await fs.readFile(logoPath);
 
-    doc.rect(0, 0, pageWidth, pageHeight).fill("#050505");
-    doc.lineWidth(12).strokeColor("#7d2bbd").rect(10, 10, pageWidth - 20, pageHeight - 20).stroke();
+    doc.rect(0, 0, pageWidth, pageHeight).fill("#ffffff");
+    doc.lineWidth(12).strokeColor("#ffffff").rect(10, 10, pageWidth - 20, pageHeight - 20).stroke();
+    doc.opacity(0.1).image(logo, 301, 178, { width: 240, height: 240 });
+    doc.opacity(1);
     doc.save();
     doc.circle(pageWidth - 80, 84, 42).clip();
     doc.image(logo, pageWidth - 122, 42, { width: 84, height: 84 });
     doc.restore();
-    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(21).text("TOKKO MARKETPLACE", 0, 52, { width: pageWidth, align: "center" });
-    doc.fillColor("#d33d91").font("Helvetica-Bold").fontSize(38).text("Sertifikat", 0, 92, { width: pageWidth, align: "center" });
-    doc.fillColor("#ffffff").font("Helvetica").fontSize(18).text("Terima kasih kepada:", 0, 185, { width: pageWidth, align: "center" });
-    doc.fillColor("#d33d91").font("Helvetica-Bold").fontSize(26).text(donation.donationName || input.userName || "Donatur", 40, 225, { width: pageWidth - 80, align: "center" });
-    doc.fillColor("#ffffff").font("Helvetica").fontSize(14).text(
+    doc.fillColor("#111111").font("Helvetica-Bold").fontSize(21).text("TOKKO MARKETPLACE", 0, 52, { width: pageWidth, align: "center" });
+    doc.fillColor("#111111").font("Helvetica-Bold").fontSize(38).text("Sertifikat", 0, 92, { width: pageWidth, align: "center" });
+    doc.fillColor("#111111").font("Helvetica").fontSize(18).text("Terima kasih kepada:", 0, 165, { width: pageWidth, align: "center" });
+    doc.fillColor("#111111").font("Helvetica-Bold").fontSize(26).text(donation.donationName || input.userName || "Donatur", 40, 205, { width: pageWidth - 80, align: "center" });
+    doc.fillColor("#111111").font("Helvetica").fontSize(14).text(
       `Atas donasi yang telah diberikan untuk bantuan ${donation.productName} dengan nominal sebesar:`,
-      65, 300, { width: pageWidth - 130, align: "center" },
+      80, 275, { width: pageWidth - 160, align: "center" },
     );
-    doc.fillColor("#d33d91").font("Helvetica-Bold").fontSize(29).text(`Rp ${donation.unitPrice.toLocaleString("id-ID")}`, 0, 370, { width: pageWidth, align: "center" });
-    doc.strokeColor("#ffffff").lineWidth(2).moveTo(185, 415).lineTo(410, 415).stroke();
+    doc.fillColor("#111111").font("Helvetica-Bold").fontSize(29).text(`Rp ${donation.unitPrice.toLocaleString("id-ID")}`, 0, 345, { width: pageWidth, align: "center" });
+    doc.strokeColor("#ffffff").lineWidth(2).moveTo(310, 385).lineTo(532, 385).stroke();
     if (donation.donationMessage) {
-      doc.fillColor("#bdbdbd").font("Helvetica-Oblique").fontSize(12).text(`"${donation.donationMessage}"`, 90, 455, { width: pageWidth - 180, align: "center" });
+      doc.fillColor("#666666").font("Helvetica-Oblique").fontSize(12).text(`"${donation.donationMessage}"`, 160, 415, { width: pageWidth - 320, align: "center" });
     }
-    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(15).text("Founder Tokko Marketplace", 0, 590, { width: pageWidth, align: "center" });
+    doc.fillColor("#111111").font("Helvetica-Bold").fontSize(15).text("Founder Tokko Marketplace", 0, 465, { width: pageWidth, align: "center" });
     try {
       const signature = await fs.readFile(signaturePath);
-      doc.image(signature, 242, 620, { fit: [110, 55] });
+      doc.image(signature, 366, 480, { fit: [110, 55] });
     } catch {
       // Signature is optional.
     }
-    doc.fillColor("#ffffff").font("Helvetica").fontSize(14).text("Raihaan Bagastiam Pratama", 0, 690, { width: pageWidth, align: "center" });
-    doc.fontSize(10).text("tokkomarketplace.shop", 0, 790, { width: pageWidth, align: "center" });
+    doc.fillColor("#111111").font("Helvetica").fontSize(14).text("Raihaan Bagastiam Pratama", 0, 550, { width: pageWidth, align: "center" });
+    doc.fontSize(10).text("tokkomarketplace.shop", 0, 575, { width: pageWidth, align: "center" });
     doc.end();
     return await new Promise<Buffer>((resolve, reject) => {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
