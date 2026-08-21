@@ -525,32 +525,9 @@ export async function POST(request: Request) {
   }
 
   const [, action, orderId] = callback.data.split(":");
-  if (!orderId || !["paid", "pending", "preorder"].includes(action)) {
+  const messageId = callback.message?.message_id;
+  if (!orderId || !messageId || !["paid", "pending", "preorder"].includes(action)) {
     return NextResponse.json({ ok: false, error: "Callback tidak valid." }, { status: 400 });
-  }
-
-  if (action === "pending") {
-    await telegramRequest("answerCallbackQuery", {
-      callback_query_id: callback.id,
-      text: "Order tetap menunggu pembayaran.",
-    });
-    await telegramRequest("editMessageReplyMarkup", {
-      chat_id: chatId,
-      message_id: callback.message.message_id,
-      reply_markup: { inline_keyboard: [] },
-    });
-    return NextResponse.json({ ok: true, status: "pending" });
-  }
-
-  if (action === "preorder") {
-    await updateStoreOrderStatus(orderId, "cancelled");
-    await telegramRequest("editMessageReplyMarkup", {
-      chat_id: chatId,
-      message_id: callback.message.message_id,
-      reply_markup: { inline_keyboard: [] },
-    });
-    await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Order ditandai Pre-order." });
-    return NextResponse.json({ ok: true, status: "preorder", orderId });
   }
 
   const order = await getOrderById(orderId);
@@ -563,6 +540,57 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Order tidak ditemukan." }, { status: 404 });
   }
 
+  if (action === "pending") {
+    await telegramRequest("answerCallbackQuery", {
+      callback_query_id: callback.id,
+      text: "Order tetap menunggu pembayaran.",
+    });
+    await telegramRequest("editMessageReplyMarkup", {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: { inline_keyboard: [] },
+    });
+    return NextResponse.json({ ok: true, status: "pending" });
+  }
+
+  if (action === "preorder") {
+    await updateOrderStatus(orderId, "paid", {
+      depositId: order.depositId || order.id,
+      paidAmount: Number(order.totalAmount ?? order.total ?? 0),
+      paymentNotes: generatePaymentNotes({
+        depositId: order.depositId || order.id,
+        amount: Number(order.totalAmount ?? order.total ?? 0),
+        method: "konfirmasi Telegram admin - Pre-Order",
+        timestamp: new Date().toISOString(),
+      }),
+    });
+    const updatedOrder = await updateStoreOrderStatus(orderId, "paid", "Pre-Order");
+    if (!updatedOrder || updatedOrder.status !== "paid") {
+      await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Status Pre-Order gagal disimpan. Coba lagi.", show_alert: true });
+      return NextResponse.json({ ok: false, error: "Status Pre-Order gagal disimpan." }, { status: 500 });
+    }
+    if (await isDonationOrder(order)) {
+      await recordDonationTotals(orderId);
+    }
+    await telegramRequest("editMessageReplyMarkup", {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: { inline_keyboard: [] },
+    });
+    await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Sudah Bayar | Pre-Order" });
+    await sendTelegramPaymentSuccessNotification({
+      orderId,
+      transactionId: order.depositId || order.id,
+      amount: Number(order.totalAmount ?? order.total ?? 0),
+      userName: order.userName,
+      userEmail: order.userEmail,
+      preOrder: true,
+    });
+    return NextResponse.json({ ok: true, status: "preorder", orderId });
+  }
+
+  const donationOrder = await isDonationOrder(order);
+  const nextStatus = donationOrder ? "sent" : "paid";
   if (!['paid', 'sent'].includes(order.status)) {
     const amount = Number(order.totalAmount ?? order.total ?? 0);
     await updateOrderStatus(order.id, "paid", {
@@ -576,14 +604,25 @@ export async function POST(request: Request) {
       }),
     });
 
-    if (await isDonationOrder(order)) {
+    const savedOrder = await getOrderById(order.id);
+    if (!savedOrder || savedOrder.status !== "paid") {
+      await telegramRequest("answerCallbackQuery", {
+        callback_query_id: callback.id,
+        text: "Status pembayaran belum tersimpan. Coba klik lagi.",
+        show_alert: true,
+      });
+      return NextResponse.json({ ok: false, error: "Status pembayaran gagal disimpan." }, { status: 500 });
+    }
+
+    if (donationOrder) {
       await recordDonationTotals(order.id);
+      await updateStoreOrderStatus(order.id, "sent");
     }
   }
 
   await telegramRequest("editMessageReplyMarkup", {
     chat_id: chatId,
-    message_id: callback.message.message_id,
+    message_id: messageId,
     reply_markup: { inline_keyboard: [] },
   });
 
@@ -599,5 +638,5 @@ export async function POST(request: Request) {
     userEmail: order.userEmail,
   });
 
-  return NextResponse.json({ ok: true, status: "sent", orderId: order.id });
+  return NextResponse.json({ ok: true, status: nextStatus, orderId: order.id });
 }

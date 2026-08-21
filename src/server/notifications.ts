@@ -79,7 +79,8 @@ async function sendTelegramMessage(
       cache: "no-store",
     });
     if (!response.ok) {
-      console.error("Telegram sendMessage failed:", response.status);
+      const errorBody = await response.text().catch(() => "");
+      console.error("Telegram sendMessage failed:", response.status, errorBody);
       return null;
     }
     const payload = (await response.json().catch(() => null)) as {
@@ -127,14 +128,32 @@ async function editTelegramMessage(
 
 function maskEmail(value: string) {
   const [local = "", domain = ""] = value.split("@", 2);
-  if (!local || !domain) return "***";
+  if (!local || !domain) return "tersembunyi";
   const dot = domain.indexOf(".");
-  return `${local.slice(0, 1)}***@${domain.slice(0, 1)}***${dot >= 0 ? domain.slice(dot) : ""}`;
+  return `${local.slice(0, 1)}...@${domain.slice(0, 1)}...${dot >= 0 ? domain.slice(dot) : ""}`;
 }
 
 function maskPhone(value: string) {
   const clean = value.trim();
-  return clean.length > 4 ? `${clean.slice(0, 2)}***${clean.slice(-2)}` : "***";
+  return clean.length > 4 ? `${clean.slice(0, 2)}...${clean.slice(-2)}` : "tersembunyi";
+}
+
+function maskChannelEmail(value: string) {
+  const [local = "", domain = ""] = value.split("@", 2);
+  if (!local || !domain) return "*****@*****.***";
+  const visibleStart = local.slice(0, 1);
+  const visibleEnd = local.length > 3 ? local.slice(-2) : "";
+  return `${visibleStart}${"*".repeat(Math.max(3, local.length - visibleStart.length - visibleEnd.length))}${visibleEnd}@${domain}`;
+}
+
+function maskChannelPhone(value: string) {
+  const clean = value.trim();
+  return clean.length > 4 ? `${clean.slice(0, 2)}${"*".repeat(Math.max(4, clean.length - 4))}${clean.slice(-2)}` : "*****";
+}
+
+function maskChannelIdentifier(value: string) {
+  const clean = value.trim();
+  return clean.length > 8 ? `${clean.slice(0, 4)}****${clean.slice(-4)}` : `****${clean || "ID"}`;
 }
 
 function escapeSvg(value: string | number | undefined | null) {
@@ -160,7 +179,7 @@ async function buildReceiptPhoto(input: {
   const donation = input.items.find((item) => item.productType === "donation");
   if (donation) {
     const logoPath = path.join(process.cwd(), "public", "assets", "maintenancelogo.jpg");
-    const signaturePath = path.join(process.cwd(), "public", "assets", "TTD Dev.jpeg");
+    const signaturePath = path.join(process.cwd(), "public", "assets", "TTDev-trans.png");
     const logoData = (await fs.readFile(logoPath)).toString("base64");
     let signatureData = "";
     try {
@@ -191,7 +210,7 @@ async function buildReceiptPhoto(input: {
     </svg>`;
   }
   const logoPath = path.join(process.cwd(), "public", "assets", "maintenancelogo.jpg");
-  const signaturePath = path.join(process.cwd(), "public", "assets", "TTD Dev.jpeg");
+  const signaturePath = path.join(process.cwd(), "public", "assets", "TTDev-trans.png");
   const logoData = (await fs.readFile(logoPath)).toString("base64");
   let signatureData = "";
   try {
@@ -340,11 +359,13 @@ export async function sendTelegramPaymentChannelNotification(payload: {
     const donation = enrichedItems.find((item) => item.productType === "donation");
     if (donation) {
       const donationCaption = [
-        "💙 <b>DONASI MASUK</b>",
+        "✅ <b>PEMBAYARAN BERHASIL | DONASI MASUK</b>",
         "",
+        `<b>Order ID</b>: <tg-spoiler>${escapeTelegramHtml(maskChannelIdentifier(payload.orderId))}</tg-spoiler>  <b>Transaksi</b>: <tg-spoiler>${escapeTelegramHtml(maskChannelIdentifier(payload.transactionId))}</tg-spoiler>`,
+        `<b>Waktu</b>: ${escapeTelegramHtml(formatAuditDate())}`,
         `<b>Username</b>: ${escapeTelegramHtml(order.userName)}`,
-        `<b>Email</b>: ${escapeTelegramHtml(maskEmail(order.userEmail))}`,
-        `<b>No. Telepon</b>: ${escapeTelegramHtml(maskPhone(order.userPhone))}`,
+        `<b>Email</b>: ${escapeTelegramHtml(maskChannelEmail(order.userEmail))}`,
+        `<b>No. Telepon</b>: ${escapeTelegramHtml(maskChannelPhone(order.userPhone))}`,
         "",
         `<b>Atas donasi yang diberikan untuk bantuan</b> ${escapeTelegramHtml(donation.productName)} dengan nominal sebesar: <b>Rp ${donation.unitPrice.toLocaleString("id-ID")}</b>`,
         "",
@@ -384,14 +405,15 @@ export async function sendTelegramPaymentChannelNotification(payload: {
     const caption = [
       "📣 <b>PEMBAYARAN BERHASIL</b>",
       "",
-      `<b>Order ID</b>     : <tg-spoiler>${escapeTelegramHtml(payload.orderId)}</tg-spoiler>`,
+      `<b>Order ID</b>     : <tg-spoiler>${escapeTelegramHtml(maskChannelIdentifier(payload.orderId))}</tg-spoiler>`,
+      `<b>Transaksi</b>   : <tg-spoiler>${escapeTelegramHtml(maskChannelIdentifier(payload.transactionId))}</tg-spoiler>`,
+      `<b>Waktu</b>       : ${escapeTelegramHtml(formatAuditDate())}`,
       `<b>Jumlah</b>       : Rp ${payload.amount.toLocaleString("id-ID")}`,
-      `<b>Transaksi</b>   : <tg-spoiler>${escapeTelegramHtml(payload.transactionId)}</tg-spoiler>`,
       "",
       "<b>Informasi Akun</b>",
-      "Nama           : <tg-spoiler>***</tg-spoiler>",
-      "Email          : <tg-spoiler>***</tg-spoiler>",
-      "No. HP         : <tg-spoiler>***</tg-spoiler>",
+        `Nama           : ${escapeTelegramHtml(order.userName)}`,
+        `Email          : ${escapeTelegramHtml(maskChannelEmail(order.userEmail))}`,
+        `No. HP         : ${escapeTelegramHtml(maskChannelPhone(order.userPhone))}`,
     ].join("\n");
 
     // prepare channel redirect button
@@ -495,8 +517,8 @@ export async function sendTelegramOrderNotification(payload: {
     "",
     `<b>Order ID</b>  : ${escapeTelegramHtml(payload.orderId)}`,
     isDonation
-      ? `<b>Username</b> : ${escapeTelegramHtml(payload.userName)}\n<b>Email</b>    : ${escapeTelegramHtml(maskEmail(payload.userEmail))}\n<b>No. HP</b>   : ${escapeTelegramHtml(maskPhone(payload.userPhone || "-"))}`
-      : `<b>Nama</b>      : ${escapeTelegramHtml(payload.userName)}\n<b>Email</b>     : ${escapeTelegramHtml(payload.userEmail)}\n<b>No. HP</b>    : ${escapeTelegramHtml(payload.userPhone || "-")}`,
+      ? `<b>Username</b> : <tg-spoiler>${escapeTelegramHtml(payload.userName)}</tg-spoiler>\n<b>Email</b>    : <tg-spoiler>${escapeTelegramHtml(maskEmail(payload.userEmail))}</tg-spoiler>\n<b>No. HP</b>   : <tg-spoiler>${escapeTelegramHtml(maskPhone(payload.userPhone || "-"))}</tg-spoiler>`
+      : `<b>Nama</b>      : <tg-spoiler>${escapeTelegramHtml(payload.userName)}</tg-spoiler>\n<b>Email</b>     : <tg-spoiler>${escapeTelegramHtml(payload.userEmail)}</tg-spoiler>\n<b>No. HP</b>    : <tg-spoiler>${escapeTelegramHtml(payload.userPhone || "-")}</tg-spoiler>`,
     `<b>Waktu</b>     : ${escapeTelegramHtml(formatAuditDate())}`,
     "",
     "<b>Detail Produk</b>",
@@ -533,6 +555,7 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
   orderId: string;
   transactionId: string;
   amount: number;
+  preOrder?: boolean;
   userName?: string;
   userEmail?: string;
 }) {
@@ -552,7 +575,7 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
     `<b>Nama</b>          : <tg-spoiler>${escapeTelegramHtml(payload.userName)}</tg-spoiler>`,
     `<b>Email</b>         : <tg-spoiler>${escapeTelegramHtml(payload.userEmail)}</tg-spoiler>`,
     `<b>Jumlah</b>        : Rp ${payload.amount.toLocaleString("id-ID")}`,
-    `<b>Status</b>        : ${telegramStatusLabel("paid")}`,
+    `<b>Status</b>        : ${payload.preOrder ? "Sudah Bayar | Pre-Order" : telegramStatusLabel("paid")}`,
     `<b>Waktu</b>         : ${escapeTelegramHtml(formatAuditDate())}`,
   ].join("\n");
   const adminOrderUrl = buildAdminOrderUrl(payload.orderId);

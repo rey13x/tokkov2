@@ -176,7 +176,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       const safeQty = Math.min(99, Math.max(1, Number(pending.quantity ?? 1)));
       window.sessionStorage.removeItem(PENDING_CART_ACTION_KEY);
       const timer = window.setTimeout(() => {
-        addToCart(product.slug, safeQty, pending.donationAmount, undefined, pending.donationMessage);
+        addToCart(product.slug, safeQty, pending.donationAmount, undefined);
         setAdded(true);
         if (pending.redirectToCart) {
           router.push("/troli");
@@ -244,7 +244,6 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             quantity,
             donationAmount: safeDonationAmount,
             donationName: "",
-            donationMessage: "",
             redirectToCart,
           }),
         );
@@ -440,7 +439,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           {product.productType === "donation" ? (
             <>
               <p className={styles.price}>
-                <DonationTotalTicker amount={product.donationTotal ?? 0} slow />
+                <DonationTotalTicker amount={product.donationTotal ?? 0} slow showCelebration />
               </p>
               <label className={styles.donationNameField}>
                 <span>Jumlah Donasi</span>
@@ -451,10 +450,10 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                   onChange={(event) => {
                     setDonationError("");
                     const digits = event.target.value.replace(/\D/g, "");
-                    setDonationAmount(digits ? Number(digits).toLocaleString("id-ID") : "");
+                    setDonationAmount(formatRupiah(digits ? Number(digits) : 0));
                   }}
-                  placeholder="Masukkan Jumlah Donasi"
                   aria-label="Jumlah donasi"
+                  placeholder="Rp 0"
                 />
               </label>
               {donationError ? <p className={styles.donationError}>{donationError}</p> : null}

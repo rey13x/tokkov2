@@ -104,9 +104,9 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      if (product.productType === "donation" && (!item.donationName?.trim() || !item.donationMessage?.trim())) {
+      if (product.productType === "donation" && !item.donationName?.trim()) {
         return NextResponse.json(
-          { message: `Nama dan harapan donasi untuk ${product.name} wajib diisi.` },
+          { message: `Nama sertifikat untuk ${product.name} wajib diisi.` },
           { status: 400 },
         );
       }
@@ -136,6 +136,19 @@ export async function POST(request: Request) {
 
     const createdAt = new Date().toISOString();
 
+    const telegramNotification = sendTelegramOrderNotification({
+      orderId: created.id,
+      userName: session.user.username || session.user.name || "User",
+      userEmail: session.user.email ?? "-",
+      userPhone: session.user.phone ?? "",
+      total: created.total,
+      items: enrichedItems,
+    }).catch((notificationError) => {
+      console.error("Telegram order notification failed:", notificationError);
+      return null;
+    });
+    await telegramNotification;
+
     void Promise.allSettled([
       updateUserLastActive(session.user.id),
       appendOrderToCsv({
@@ -151,14 +164,6 @@ export async function POST(request: Request) {
           unitPrice: item.unitPrice,
           productType: item.productType,
         })),
-      }),
-      sendTelegramOrderNotification({
-        orderId: created.id,
-        userName: session.user.username || session.user.name || "User",
-        userEmail: session.user.email ?? "-",
-        userPhone: session.user.phone ?? "",
-        total: created.total,
-        items: enrichedItems,
       }),
       pushOrderMetric({
         orderId: created.id,

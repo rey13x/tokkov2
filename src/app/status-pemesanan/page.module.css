@@ -131,6 +131,88 @@
   gap: 12px;
 }
 
+.donationHistoryTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.donationCertificateButton {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #10131a;
+  border-radius: 50%;
+  background: #10131a;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.donationCertificateButton:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.donationCertificateButton svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+}
+
+.donationCertificateParticles {
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+}
+
+.donationCertificateParticles i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c9a227;
+  opacity: 0;
+  animation: donationCertificatePop 9s ease-in-out infinite;
+}
+
+.donationCertificateParticles i:nth-child(1) {
+  top: 0;
+  left: 50%;
+}
+
+.donationCertificateParticles i:nth-child(2) {
+  right: 0;
+  top: 50%;
+  animation-delay: 1.3s;
+}
+
+.donationCertificateParticles i:nth-child(3) {
+  bottom: 0;
+  left: 50%;
+  animation-delay: 2.6s;
+}
+
+@keyframes donationCertificatePop {
+  0%, 44%, 100% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+
+  16%, 30% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+
+  40% {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+}
+
 .donationHistoryHeader h2 {
   margin: 0;
   font-size: 1rem;
@@ -630,6 +712,9 @@
 .selectAllHistoryButton {
   width: 100%;
   margin-bottom: 8px;
+  border-color: #10131a;
+  background: #10131a;
+  color: #ffffff;
 }
 
 .selectAllHistoryButton:disabled {
@@ -753,6 +838,7 @@
   display: grid;
   place-items: center;
   padding: 16px;
+  overflow: hidden;
 }
 
 .popupCard {
@@ -763,6 +849,62 @@
   padding: 14px;
   display: grid;
   gap: 5px;
+}
+
+.certificatePopupCard {
+  width: min(92vw, 760px);
+  height: min(calc(100dvh - 32px), 720px);
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  padding: 12px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-self: center;
+}
+
+.receiptPopupCard {
+  width: min(92vw, 560px);
+  height: min(calc(100dvh - 32px), 720px);
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  padding: 12px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-self: center;
+}
+
+.certificatePopupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.certificatePopupHeader h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.certificatePreviewFrame {
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid #d8dce5;
+  background: #10131a;
+  display: grid;
+  place-items: center;
+}
+
+.certificatePreviewFrame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.certificatePopupActions {
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
 }
 
 .popupCardEntering {
@@ -938,6 +1080,7 @@
   background: #121828;
   color: #ffffff;
   font-size: 0.86rem;
+  font-weight: 800;
   cursor: pointer;
 }
 
@@ -989,16 +1132,21 @@
 }
 
 .receiptPreviewCanvas {
-  width: min(680px, 100%);
+  width: min(430px, 100%);
+  min-height: 0;
+  max-height: calc(100dvh - 116px);
   margin: 0 auto;
   display: flex;
   justify-content: center;
+  overflow: hidden;
 }
 
 .receiptPreviewCanvas img {
   display: block;
   width: 100%;
   height: auto;
+  max-height: 100%;
+  object-fit: contain;
   background: #ffffff;
   box-shadow: 0 12px 34px rgba(16, 19, 26, 0.16);
 }

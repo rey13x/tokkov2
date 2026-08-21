@@ -1,9 +1,9 @@
-export async function captureReceiptAsImage(orderId: string): Promise<Blob> {
-  return captureReceiptAsImageFallback(orderId);
+export async function captureReceiptAsImage(orderId: string, historyCertificate = false): Promise<Blob> {
+  return captureReceiptAsImageFallback(orderId, historyCertificate);
 }
 
 // Original image capture as fallback only
-async function captureReceiptAsImageFallback(orderId: string): Promise<Blob> {
+async function captureReceiptAsImageFallback(orderId: string, historyCertificate: boolean): Promise<Blob> {
   const html2canvas = (await import("html2canvas")).default;
 
   // Create a temporary iframe to load the receipt
@@ -27,7 +27,7 @@ async function captureReceiptAsImageFallback(orderId: string): Promise<Blob> {
     }
     
     // Fetch receipt HTML
-    const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/receiptline`, {
+    const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/receiptline${historyCertificate ? "?history=1" : ""}`, {
       cache: "no-store",
       credentials: "include",
     });
@@ -42,26 +42,13 @@ async function captureReceiptAsImageFallback(orderId: string): Promise<Blob> {
     iframeDoc.write(html);
     iframeDoc.close();
     
-    // Wait for iframe to fully load with more robust checking
-    await new Promise((resolve) => {
-      let attempts = 0;
-      const maxAttempts = 50;
-      
-      const checkLoaded = () => {
-        attempts++;
-        const readyState = (iframeDoc as any).readyState;
-        const bodyExists = iframeDoc.body && iframeDoc.body.children.length > 0;
-        
-        if ((readyState === "complete" || readyState === "interactive") && bodyExists) {
-          resolve(null);
-        } else if (attempts < maxAttempts) {
-          setTimeout(checkLoaded, 100);
-        } else {
-          resolve(null); // Timeout but continue anyway
-        }
-      };
-      
-      checkLoaded();
+    await new Promise<void>((resolve) => {
+      if (iframeDoc.readyState === "complete" || iframeDoc.readyState === "interactive") {
+        resolve();
+        return;
+      }
+      iframe.addEventListener("load", () => resolve(), { once: true });
+      setTimeout(resolve, 1500);
     });
     
     // Wait for images, fonts and styles to fully render
@@ -72,7 +59,7 @@ async function captureReceiptAsImageFallback(orderId: string): Promise<Blob> {
           image.addEventListener("load", () => resolve(), { once: true });
           image.addEventListener("error", () => resolve(), { once: true });
         })));
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolve) => setTimeout(resolve, 50));
     
     // Get the receipt container from iframe
     const receiptContainer = iframeDoc.querySelector(".receipt");
@@ -111,6 +98,55 @@ async function captureReceiptAsImageFallback(orderId: string): Promise<Blob> {
     if (document.body.contains(iframe)) {
       document.body.removeChild(iframe);
     }
+  }
+}
+
+export async function createPdfFromJpeg(jpeg: Blob): Promise<Blob> {
+  const bytes = new Uint8Array(await jpeg.arrayBuffer());
+  const imageUrl = URL.createObjectURL(jpeg);
+  try {
+    const image = new Image();
+    image.src = imageUrl;
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("Gagal membaca gambar sertifikat."));
+    });
+    const pageWidth = 841.89;
+    const pageHeight = 595.28;
+    const objects = [
+      "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n",
+      "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n",
+      `3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im 4 0 R >> >> /Contents 5 0 R >> endobj\n`,
+      `4 0 obj << /Type /XObject /Subtype /Image /Width ${image.naturalWidth} /Height ${image.naturalHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bytes.length} >>\nstream\n`,
+      "",
+      "endstream\nendobj\n",
+    ];
+    const content = `q\n${pageWidth} 0 0 ${pageHeight} 0 0 cm\n/Im Do\nQ\n`;
+    objects[4] = `5 0 obj << /Length ${content.length} >>\nstream\n${content}endstream\nendobj\n`;
+    const encoder = new TextEncoder();
+    const header = encoder.encode("%PDF-1.4\n%\xFF\xFF\xFF\xFF\n");
+    const chunks: Uint8Array[] = [header];
+    const offsets = [0];
+    let length = header.length;
+    const pushText = (text: string) => {
+      const chunk = encoder.encode(text);
+      offsets.push(length);
+      chunks.push(chunk);
+      length += chunk.length;
+    };
+    pushText(objects[0]); pushText(objects[1]); pushText(objects[2]);
+    const imageHeader = encoder.encode(objects[3]);
+    offsets.push(length); chunks.push(imageHeader); length += imageHeader.length;
+    chunks.push(bytes); length += bytes.length;
+    pushText(objects[5]);
+    const xrefOffset = length;
+    let xref = `xref\n0 6\n0000000000 65535 f \n`;
+    for (let index = 1; index <= 5; index += 1) xref += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
+    xref += `trailer << /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+    pushText(xref);
+    return new Blob(chunks as BlobPart[], { type: "application/pdf" });
+  } finally {
+    URL.revokeObjectURL(imageUrl);
   }
 }
 

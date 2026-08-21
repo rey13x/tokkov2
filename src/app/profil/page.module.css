@@ -1,8 +1,17 @@
 .phoneHint {
-  margin: -8px 0 4px;
+  margin: 0;
   color: #d92d20;
   font-size: 0.78rem;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.fieldLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  width: max-content;
 }
 .page {
   min-height: 100vh;

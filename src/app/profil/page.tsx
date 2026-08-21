@@ -426,7 +426,10 @@ export default function ProfilePage() {
             </label>
 
             <label className={styles.field}>
-              No Telepon <span style={{ color: "#d92d20" }}>*</span>
+              <span className={styles.fieldLabel}>
+                No Telepon <span style={{ color: "#d92d20" }}>*</span>
+                <span className={styles.phoneHint}>*Pastikan menggunakan Nomor Whatsapp aktif ya!</span>
+              </span>
               <input
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
@@ -435,7 +438,6 @@ export default function ProfilePage() {
                 required
               />
             </label>
-            <p className={styles.phoneHint}>*Pastikan menggunakan Nomor Whatsapp aktif ya!</p>
 
             {canUseEmailOtp ? (
               <>

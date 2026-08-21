@@ -296,6 +296,23 @@
   border-color: #10131a;
 }
 
+.donationTextInputInvalid {
+  border-color: #b3223b;
+  animation: donationInputShake 420ms ease-in-out;
+}
+
+.donationTextInputInvalid::placeholder {
+  color: #b3223b;
+}
+
+@keyframes donationInputShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+
 .removeButton {
   border: none;
   background: transparent;
@@ -633,8 +650,16 @@
   }
 
   .header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header .backLink {
+    margin-left: auto;
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding-inline: 12px;
   }
 
   .cartItem {

@@ -84,6 +84,7 @@ export default function CartPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [paymentConsent, setPaymentConsent] = useState(false);
+  const [invalidDonationNameSlug, setInvalidDonationNameSlug] = useState<string | null>(null);
   const [isCartTutorialRunning, setIsCartTutorialRunning] = useState(false);
   const [cartTutorialStage, setCartTutorialStage] = useState<OnboardingStage | null>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
@@ -287,6 +288,7 @@ export default function CartPage() {
   };
 
   const updateDonationField = (slug: string, value: string) => {
+    setInvalidDonationNameSlug(null);
     setCartLines((current) => current.map((item) => item.slug === slug ? { ...item, donationName: value } : item));
     const item = cartLines.find((line) => line.slug === slug);
     updateDonationDetails(slug, value, item?.donationMessage ?? "");
@@ -347,9 +349,14 @@ export default function CartPage() {
       setError("Pilih dulu minimal satu produk yang mau dibeli ya.");
       return;
     }
-    const incompleteDonation = selected.find((item) => item.product.productType === "donation" && (!item.donationName?.trim() || !item.donationAmount));
+    const incompleteDonation = selected.find((item) => item.product.productType === "donation" && (!item.donationName?.trim() || !item.donationAmount || item.donationAmount < 1));
     if (incompleteDonation) {
-      setError("Isi nama sertifikat dan pastikan nominal donasi sudah tersedia terlebih dahulu.");
+      if (!incompleteDonation.donationName?.trim()) {
+        setInvalidDonationNameSlug(incompleteDonation.slug);
+      }
+      setError(!incompleteDonation.donationAmount || incompleteDonation.donationAmount < 1
+        ? "Nominal donasi minimal Rp 1."
+        : "Isi nama untuk sertifikat terlebih dahulu.");
       return;
     }
 
@@ -556,7 +563,7 @@ export default function CartPage() {
       {isClient && !isStoreLoading && !isJobApplicationsLoading && detailedItems.length === 0 && freelanceJobApplications.length === 0 ? (
         <section className={styles.emptyState}>
           <h2>Troli masih kosong</h2>
-          <p>Pilih produk dulu dari halaman katalog.</p>
+          <p>Pilih Produknya dulu ya</p>
           <button
             type="button"
             className={`${styles.actionButton} ${styles.actionPrimary}`}
@@ -694,10 +701,11 @@ export default function CartPage() {
                       <div className={styles.donationDetails}>
                             <input
                               type="text"
-                              className={styles.donationTextInput}
+                              inputMode="text"
+                              className={`${styles.donationTextInput}${invalidDonationNameSlug === item.slug ? ` ${styles.donationTextInputInvalid}` : ""}`}
                               value={item.donationName ?? ""}
                               onChange={(event) => updateDonationField(item.slug, event.target.value)}
-                              placeholder="Username / Nama untuk sertifikat"
+                              placeholder="Masukkan nama kamu untuk Sertifikat"
                               aria-label="Username atau nama donatur"
                             />
                       </div>
@@ -753,7 +761,9 @@ export default function CartPage() {
                 onChange={(event) => setPaymentConsent(event.target.checked)}
               />
               <span>
-                <strong>Demi kesediaan STOK, Saya setuju apabila Produk saya diarahkan ke Pre-Order atau pengembalian Uang</strong>
+                <strong>{hasSelectedDonation
+                  ? "Saya ikhlas dalam menyumbangkan selisih Dana saya ke Donasi ini."
+                  : "Demi kesediaan STOK, Saya setuju apabila Produk saya diarahkan ke Pre-Order atau pengembalian Uang"}</strong>
               </span>
             </label>
             <button

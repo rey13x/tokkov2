@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
-import { deleteOrder, getOrderById, getFirestoreOrNull } from "@/server/store-data";
+import { deleteOrder, getOrderById } from "@/server/store-data";
 
 const deletableStatuses = new Set([
   "process",
@@ -10,6 +10,7 @@ const deletableStatuses = new Set([
   "done",
   "delivered",
   "sent",
+  "paid",
   "error",
   "rejected",
   "declined",
@@ -49,12 +50,9 @@ export async function DELETE(request: Request) {
     const skippedIds: string[] = [];
     const ownEmail = (session.user.email ?? "").toLowerCase();
 
-    const isAdmin = session.user.role === "admin";
-    const firestore = getFirestoreOrNull();
-
     for (const id of requestedIds) {
       const order = await getOrderById(id);
-      if (!order || (!isAdmin && order.userEmail.toLowerCase() !== ownEmail)) {
+      if (!order || order.userEmail.toLowerCase() !== ownEmail) {
         skippedIds.push(id);
         continue;
       }
@@ -64,54 +62,23 @@ export async function DELETE(request: Request) {
         continue;
       }
 
-      // If the caller is an admin, keep original delete behavior
-      if (isAdmin) {
-        if (await deleteOrder(id)) {
-          deletedIds.push(id);
-        } else {
-          skippedIds.push(id);
-        }
-        continue;
-      }
-
-      // Non-admin user: attempt to soft-hide the order for this user when Firestore is available
-      if (firestore) {
-        try {
-          const ref = firestore.collection("orders").doc(id);
-          const doc = await ref.get();
-          if (!doc.exists) {
-            skippedIds.push(id);
-            continue;
-          }
-
-          const data = doc.data() as Record<string, unknown>;
-          const existing = Array.isArray(data.hiddenForUsers)
-            ? (data.hiddenForUsers as string[])
-            : Array.isArray(data.hidden_for_users)
-              ? (data.hidden_for_users as string[])
-              : [];
-
-          const userId = session.user.id;
-          if (!existing.includes(userId)) {
-            const next = [...existing, userId];
-            await ref.update({ hiddenForUsers: next, updatedAt: Date.now() });
-          }
-
-          // Report as "deleted" for the front-end so it disappears from user's list
-          deletedIds.push(id);
-        } catch (err) {
-          console.error("Failed to hide order for user in Firestore:", err);
-          skippedIds.push(id);
-        }
-        continue;
-      }
-
-      // Fallback: no Firestore available — preserve previous behavior and delete
       if (await deleteOrder(id)) {
-        deletedIds.push(id);
+        const remainingOrder = await getOrderById(id);
+        if (remainingOrder) {
+          skippedIds.push(id);
+        } else {
+          deletedIds.push(id);
+        }
       } else {
         skippedIds.push(id);
       }
+    }
+
+    if (skippedIds.length > 0) {
+      return NextResponse.json(
+        { success: false, message: `${skippedIds.length} riwayat belum berhasil dihapus.`, deletedIds, skippedIds },
+        { status: 409 },
+      );
     }
 
     return NextResponse.json({ success: true, deletedIds, skippedIds });

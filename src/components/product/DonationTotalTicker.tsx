@@ -8,9 +8,10 @@ import styles from "./DonationTotalTicker.module.css";
 type DonationTotalTickerProps = {
   amount: number;
   slow?: boolean;
+  showCelebration?: boolean;
 };
 
-export default function DonationTotalTicker({ amount, slow = false }: DonationTotalTickerProps) {
+export default function DonationTotalTicker({ amount, slow = false, showCelebration = false }: DonationTotalTickerProps) {
   const target = Math.max(0, Math.round(Number(amount) || 0));
   const [completedTarget, setCompletedTarget] = useState<number | null>(null);
   const [shimmerTarget, setShimmerTarget] = useState<number | null>(null);
@@ -74,7 +75,7 @@ export default function DonationTotalTicker({ amount, slow = false }: DonationTo
   return (
     <span className={className} aria-label={`Terkumpul ${formatRupiah(target)}`}>
       Terkumpul Rp <NumberTicker key={tickerKey} value={target} reverse className={numberClassName} onComplete={handleTickerComplete} />
-      {completedTarget === target || logoExiting ? (
+      {showCelebration && (completedTarget === target || logoExiting) ? (
         <button
           type="button"
           className={`${styles.brandMark} ${logoExiting ? styles.brandMarkExiting : styles.brandMarkEntering}`}
@@ -86,23 +87,25 @@ export default function DonationTotalTicker({ amount, slow = false }: DonationTo
           <img src="/assets/maintenancelogo.jpg" alt="" />
         </button>
       ) : null}
-      <span className={`${styles.particleField}${completedTarget === target ? ` ${styles.particleFieldDone}` : ""}`} aria-hidden="true">
-        {particles.map((particle, index) => (
-          <i
-            key={index}
-            className={styles.particle}
-            style={{
-              left: particle.left,
-              top: particle.top,
-              animationDelay: particle.delay,
-              animationDuration: particle.duration,
-              ["--particle-rotate" as string]: particle.rotate,
-            } as CSSProperties}
-          >
-            +
-          </i>
-        ))}
-      </span>
+      {showCelebration ? (
+        <span className={`${styles.particleField}${completedTarget === target ? ` ${styles.particleFieldDone}` : ""}`} aria-hidden="true">
+          {particles.map((particle, index) => (
+            <i
+              key={index}
+              className={styles.particle}
+              style={{
+                left: particle.left,
+                top: particle.top,
+                animationDelay: particle.delay,
+                animationDuration: particle.duration,
+                ["--particle-rotate" as string]: particle.rotate,
+              } as CSSProperties}
+            >
+              +
+            </i>
+          ))}
+        </span>
+      ) : null}
     </span>
   );
 }

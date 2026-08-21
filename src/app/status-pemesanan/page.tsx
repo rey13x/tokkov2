@@ -12,7 +12,7 @@ import QRCode from "qrcode.react";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
-import { captureReceiptAsImage } from "@/lib/receipt-capture";
+import { captureReceiptAsImage, createPdfFromJpeg } from "@/lib/receipt-capture";
 import { clearStatusNotifications, rememberOrderStatuses } from "@/lib/status-notifications";
 import {
   ONBOARDING_STAGE,
@@ -182,9 +182,10 @@ export default function StatusPemesananPage() {
   const [isTutorialMode, setIsTutorialMode] = useState(false);
   const [activePaymentOrderId, setActivePaymentOrderId] = useState<string | null>(null);
   const [showTutorialReceiptModal, setShowTutorialReceiptModal] = useState(false);
-  const [certificatePreview, setCertificatePreview] = useState<{ url: string; orderId: string } | null>(null);
+  const [certificatePreview, setCertificatePreview] = useState<{ url: string; orderId: string; history: boolean } | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<{ url: string; orderId: string } | null>(null);
   const [cancelReasonDrafts, setCancelReasonDrafts] = useState<Record<string, string>>({});
+  const [cancelReasonValidationOrderId, setCancelReasonValidationOrderId] = useState<string | null>(null);
   const [isCancelSubmittingOrderId, setIsCancelSubmittingOrderId] = useState<string | null>(null);
   const [confirmationNotes, setConfirmationNotes] = useState<Record<string, string>>({});
   const [isConfirmationSubmittingOrderId, setIsConfirmationSubmittingOrderId] = useState<string | null>(null);
@@ -197,6 +198,8 @@ export default function StatusPemesananPage() {
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [isClearingHistory, setIsClearingHistory] = useState(false);
   const [isPreparingPaymentOrderId, setIsPreparingPaymentOrderId] = useState<string | null>(null);
+  const [isPreparingReceiptOrderId, setIsPreparingReceiptOrderId] = useState<string | null>(null);
+  const [isPreparingHistoryCertificate, setIsPreparingHistoryCertificate] = useState(false);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [paymentCheckCooldown, setPaymentCheckCooldown] = useState(30);
   const [paymentSuccessPopup, setPaymentSuccessPopup] = useState<{ amount: number; orderId: string } | null>(null);
@@ -245,13 +248,20 @@ export default function StatusPemesananPage() {
     rememberOrderStatuses(nextOrders, false);
     nextOrders.forEach((order) => {
       const previousStatus = knownPaymentStatusesRef.current[order.id];
-      if (previousStatus && previousStatus !== "paid" && order.status === "paid") {
+      const paymentCompleted = ["paid", "sent"].includes(order.status);
+      const wasPaymentPending = previousStatus && !["paid", "sent"].includes(previousStatus);
+      if (wasPaymentPending && paymentCompleted) {
         setPaymentSuccessPopup({ orderId: order.id, amount: Number(order.totalAmount || order.total || 0) });
+        window.setTimeout(() => {
+          void onDownloadReceipt(order.id);
+          setPaymentSuccessPopup(null);
+          window.setTimeout(() => router.push("/troli"), 5000);
+        }, 900);
       }
       knownPaymentStatusesRef.current[order.id] = order.status;
     });
     setOrders(nextOrders);
-  }, [status]);
+  }, [router, status]);
 
   const loadJobApplications = useCallback(async () => {
     if (status !== "authenticated") {
@@ -534,21 +544,17 @@ export default function StatusPemesananPage() {
     return [tutorialOrder, ...withoutTutorial];
   }, [orders, isTutorialMode, tutorialOrder]);
 
-  const donationHistory = useMemo(
+  const donationTotal = useMemo(
     () => displayOrders
       .filter((order) => ["paid", "sent"].includes(order.status))
-      .flatMap((order) => (order.items ?? [])
-        .filter((item) => item.productType === "donation")
-        .map((item) => ({
-          order,
-          item,
-          amount: item.donationAmount ?? item.unitPrice * item.quantity,
-        }))),
+      .flatMap((order) => order.items ?? [])
+      .filter((item) => item.productType === "donation")
+      .reduce((total, item) => total + (item.donationAmount ?? item.unitPrice * item.quantity), 0),
     [displayOrders],
   );
 
   const historyCandidates = useMemo(
-    () => displayOrders.filter((order) => statusGroup(order.status) !== "paid"),
+    () => displayOrders,
     [displayOrders],
   );
 
@@ -584,13 +590,16 @@ export default function StatusPemesananPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderIds: selectedHistoryIds, status: historyFilter }),
       });
-      const result = (await response.json()) as { message?: string; deletedIds?: string[] };
+      const result = (await response.json()) as { message?: string; deletedIds?: string[]; skippedIds?: string[] };
       if (!response.ok) {
-        throw new Error(result.message ?? "Gagal membersihkan riwayat pemesanan.");
+        throw new Error(result.message ?? "Sebagian riwayat belum berhasil dihapus.");
       }
 
       const deletedIds = result.deletedIds ?? [];
-      setOrders((current) => current.filter((order) => !deletedIds.includes(order.id)));
+      if (deletedIds.length !== selectedHistoryIds.length) {
+        throw new Error("Tidak semua riwayat berhasil dihapus. Silakan coba lagi.");
+      }
+      await loadOrders();
       setSelectedHistoryIds([]);
       setShowHistoryCleaner(false);
       setSuccess(`${deletedIds.length} riwayat pemesanan berhasil dihapus.`);
@@ -615,7 +624,7 @@ export default function StatusPemesananPage() {
     [displayOrders],
   );
 
-  const onDownloadReceipt = async (orderId: string, downloadImmediately = true) => {
+  const onDownloadReceipt = async (orderId: string, downloadImmediately = false) => {
     const onboardingState = getOnboardingState();
     if (
       onboardingState.active &&
@@ -632,11 +641,19 @@ export default function StatusPemesananPage() {
       setSuccess("Mode tutorial: ini simulasi struk, tidak ada data yang disimpan.");
       return;
     }
+    setIsPreparingReceiptOrderId(orderId);
     try {
-      const blob = await captureReceiptAsImage(orderId);
-      const url = URL.createObjectURL(blob);
       const order = displayOrders.find((item) => item.id === orderId);
       const isDonation = Boolean(order?.items?.some((item) => item.productType === "donation"));
+      if (isDonation) {
+        const blob = await captureReceiptAsImage(orderId);
+        const url = URL.createObjectURL(blob);
+        setCertificatePreview({ url, orderId, history: false });
+        return;
+      }
+
+      const blob = await captureReceiptAsImage(orderId);
+      const url = URL.createObjectURL(blob);
       if (downloadImmediately) {
         const link = document.createElement("a");
         link.href = url;
@@ -648,7 +665,7 @@ export default function StatusPemesananPage() {
       if (isDonation) {
         setCertificatePreview((current) => {
           if (current) URL.revokeObjectURL(current.url);
-          return { url, orderId };
+          return { url, orderId, history: false };
         });
       } else {
         setReceiptPreview((current) => {
@@ -658,6 +675,28 @@ export default function StatusPemesananPage() {
       }
     } catch {
       setError("Struk belum berhasil diunduh. Coba lagi sebentar.");
+    } finally {
+      setIsPreparingReceiptOrderId(null);
+    }
+  };
+
+  const openDonationHistoryCertificate = async () => {
+    const donationOrder = displayOrders.find((order) =>
+      ["paid", "sent"].includes(order.status) && order.items?.some((item) => item.productType === "donation"),
+    );
+    if (!donationOrder) {
+      setError("Belum ada riwayat donasi yang bisa dibuatkan sertifikat.");
+      return;
+    }
+    setIsPreparingHistoryCertificate(true);
+    try {
+      const blob = await captureReceiptAsImage(donationOrder.id, true);
+      const url = URL.createObjectURL(blob);
+      setCertificatePreview({ url, orderId: donationOrder.id, history: true });
+    } catch {
+      setError("Sertifikat riwayat donasi belum berhasil dibuat.");
+    } finally {
+      setIsPreparingHistoryCertificate(false);
     }
   };
 
@@ -669,6 +708,7 @@ export default function StatusPemesananPage() {
       await onDownloadReceipt(orderId);
       window.history.replaceState({}, "", "/status-pemesanan");
       await loadOrders();
+      window.setTimeout(() => router.push("/troli"), 5000);
     } catch {
       setError("Struk belum berhasil dibuat. Coba klik ikon struk lagi.");
     }
@@ -692,11 +732,38 @@ export default function StatusPemesananPage() {
     link.remove();
   };
 
+  const openExpandedPreview = (preview: { url: string; title: string; downloadName: string }) => {
+    const previewWindow = window.open("", "_blank");
+    if (!previewWindow) {
+      return;
+    }
+    const safeTitle = preview.title.replace(/[&<>"']/g, "");
+    previewWindow.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeTitle}</title><style>body{margin:0;min-height:100vh;background:#eef0f4;font-family:Arial,sans-serif;display:grid;place-items:center;padding:72px 18px 24px;box-sizing:border-box}img{display:block;width:min(900px,100%);height:auto;box-shadow:0 12px 34px #10131a29;background:#fff}.actions{position:fixed;top:16px;right:16px;z-index:2;display:flex;gap:8px}.actions button{border:0;border-radius:999px;padding:11px 18px;background:#10131a;color:#fff;font-size:14px;font-weight:800;cursor:pointer}</style></head><body><div class="actions"><button onclick="window.location.href='/status-pemesanan'">Kembali</button><button onclick="downloadFile()">Simpan</button></div><img src="${preview.url}" alt="${safeTitle}"><script>function downloadFile(){const a=document.createElement('a');a.href=${JSON.stringify(preview.url)};a.download=${JSON.stringify(preview.downloadName)};a.click()}</script></body></html>`);
+    previewWindow.document.close();
+  };
+
   const closeCertificatePreview = () => {
     if (certificatePreview) {
       URL.revokeObjectURL(certificatePreview.url);
     }
     setCertificatePreview(null);
+  };
+
+  const downloadCertificateFiles = async () => {
+    if (!certificatePreview) return;
+    const imageResponse = await fetch(certificatePreview.url);
+    const jpeg = await imageResponse.blob();
+    const pdf = await createPdfFromJpeg(jpeg);
+    for (const [blob, extension] of [[jpeg, "jpg"], [pdf, "pdf"]] as const) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `sertifikat-donasi-${certificatePreview.history ? "semua-" : ""}${certificatePreview.orderId}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
   };
 
   const onCancelJobApplication = async (applicationId: string) => {
@@ -869,6 +936,9 @@ export default function StatusPemesananPage() {
       ...current,
       [orderId]: value,
     }));
+    if (value.trim().length >= 5 && cancelReasonValidationOrderId === orderId) {
+      setCancelReasonValidationOrderId(null);
+    }
 
     if (
       countWords(value) >= 5 &&
@@ -884,6 +954,9 @@ export default function StatusPemesananPage() {
       ...current,
       [orderId]: value,
     }));
+    if (value.trim().length >= 5 && cancelReasonValidationOrderId === orderId) {
+      setCancelReasonValidationOrderId(null);
+    }
   };
 
   const onSendConfirmationViaWhatsapp = async (order: OrderSummary) => {
@@ -1064,9 +1137,9 @@ export default function StatusPemesananPage() {
   };
 
   const onCancelTransaction = async (order: OrderSummary) => {
-    const reason = (cancelReasonDrafts[order.id] ?? "").trim();
+    const reason = (confirmationNotes[order.id] ?? "").trim();
     if (reason.length < 5) {
-      setError("Tulis alasan pembatalan minimal 5 karakter terlebih dahulu.");
+      setCancelReasonValidationOrderId(order.id);
       return;
     }
     if (!window.confirm("Yakin ingin membatalkan transaksi ini?\n\nOrder akan tetap tersimpan dengan status Dibatalkan.")) {
@@ -1454,26 +1527,38 @@ export default function StatusPemesananPage() {
 
       <section className={styles.donationHistorySection} aria-labelledby="donation-history-title">
         <div className={styles.donationHistoryHeader}>
-          <h2 id="donation-history-title">Riwayat Donasi</h2>
-          <strong>{formatRupiah(donationHistory.reduce((total, entry) => total + entry.amount, 0))}</strong>
-        </div>
-        {donationHistory.length > 0 ? (
-          <div className={styles.donationHistoryList}>
-            {donationHistory.map(({ order, item, amount }) => (
-              <div key={`${order.id}-${item.productId}`} className={styles.donationHistoryItem}>
-                <span>
-                  <strong>{item.productName}</strong>
-                  <small>{item.donationName || order.userName}</small>
-                  {item.donationMessage ? <small>{item.donationMessage}</small> : null}
+          <div className={styles.donationHistoryTitle}>
+            <button
+              type="button"
+              className={styles.donationCertificateButton}
+              onClick={() => void openDonationHistoryCertificate()}
+              disabled={isPreparingHistoryCertificate || !displayOrders.some((order) => order.items?.some((item) => item.productType === "donation"))}
+              title="Buka sertifikat semua donasi"
+              aria-label="Buka sertifikat semua donasi"
+            >
+              {!isPreparingHistoryCertificate ? (
+                <span className={styles.donationCertificateParticles} aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
                 </span>
-                <strong>{formatRupiah(amount)}</strong>
-                <small>{new Date(order.createdAt).toLocaleString("id-ID")}</small>
+              ) : null}
+              {isPreparingHistoryCertificate ? <span className={styles.buttonSpinner} aria-label="Menyiapkan sertifikat riwayat" /> : <CertificateIcon />}
+            </button>
+            <h2 id="donation-history-title">Riwayat Donasi</h2>
+          </div>
+          <strong>{formatRupiah(donationTotal)}</strong>
+        </div>
+        <div className={styles.donationHistoryList}>
+          {displayOrders.flatMap((order) => (order.items ?? [])
+            .filter((item) => item.productType === "donation")
+            .map((item) => ({ order, item }))).map(({ order, item }) => (
+              <div key={`${order.id}-${item.id}`} className={styles.donationHistoryItem}>
+                <strong>{formatRupiah(item.donationAmount ?? item.unitPrice)}</strong>
+                <small>{new Date(order.createdAt).toLocaleDateString("id-ID")} · {item.donationName || order.userName}</small>
               </div>
             ))}
-          </div>
-        ) : (
-          <p className={styles.donationHistoryEmpty}>Belum ada Riwayat Donasi, Yuk donasi sekarang</p>
-        )}
+        </div>
       </section>
 
       {isLoading ? <WaitLoading centered /> : null}
@@ -1514,15 +1599,20 @@ export default function StatusPemesananPage() {
         </div>
       , document.body) : null}
       {receiptPreview && typeof document !== "undefined" ? createPortal(
-        <div className={styles.receiptPreviewOverlay} role="dialog" aria-modal="true" aria-label="Preview struk">
-          <div className={styles.receiptPreviewToolbar}>
-            <button type="button" className={styles.receiptPreviewButton} onClick={closeReceiptPreview}>Kembali</button>
-            <button type="button" className={styles.receiptPreviewButton} onClick={downloadReceiptPreview}>Unduh</button>
-          </div>
-          <div className={styles.receiptPreviewCanvas}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={receiptPreview.url} alt={`Preview struk ${receiptPreview.orderId}`} />
-          </div>
+        <div className={styles.popupOverlay} role="dialog" aria-modal="true" aria-label="Preview struk">
+          <section className={`${styles.popupCard} ${styles.receiptPopupCard}`}>
+            <div className={styles.certificatePopupHeader}>
+              <h2>Struk Pembayaran</h2>
+              <button type="button" className={styles.popupCloseIcon} onClick={closeReceiptPreview} aria-label="Tutup struk">×</button>
+            </div>
+            <div className={styles.receiptPreviewCanvas}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={receiptPreview.url} alt={`Preview struk ${receiptPreview.orderId}`} />
+            </div>
+            <div className={styles.certificatePopupActions}>
+              <button type="button" className={styles.popupCloseButton} onClick={() => openExpandedPreview({ url: receiptPreview.url, title: "Preview Struk", downloadName: `struk-${receiptPreview.orderId}.jpg` })}>Perbesar Struk</button>
+            </div>
+          </section>
         </div>,
         document.body,
       ) : null}
@@ -1618,7 +1708,7 @@ export default function StatusPemesananPage() {
                     onInput={(event) =>
                       onChangeConfirmationNotes(order.id, (event.target as HTMLTextAreaElement).value)
                     }
-                    placeholder="Tulis catatan atau komentar (opsional)"
+                    placeholder={cancelReasonValidationOrderId === order.id ? "Tulis alasan pembatalan minimal 5 karakter terlebih dahulu." : "Tulis catatan atau komentar (opsional)"}
                     spellCheck={false}
                     data-onboarding={isOnboardingTargetOrder ? "status-cancel-reason" : undefined}
                     id={isOnboardingTargetOrder ? `status-cancel-reason-${order.id}` : undefined}
@@ -1670,12 +1760,15 @@ export default function StatusPemesananPage() {
                       type="button"
                       className={`${styles.receiptIconButton} ${order.status === "sent" ? styles.shippedReceiptIconButton : ""}`}
                       onClick={() => onDownloadReceipt(order.id)}
+                      disabled={isPreparingReceiptOrderId === order.id}
                       title={order.items?.some((item) => item.productType === "donation") ? "Buka sertifikat donasi" : "Buka struk pembayaran"}
                       aria-label={`${order.items?.some((item) => item.productType === "donation") ? "Buka sertifikat donasi" : "Buka struk pembayaran"} order ${order.id}`}
                       data-onboarding={isOnboardingTargetOrder ? "status-receipt-icon" : undefined}
                       id={isOnboardingTargetOrder ? `status-receipt-icon-${order.id}` : undefined}
                     >
-                      {order.items?.some((item) => item.productType === "donation") ? <CertificateIcon /> : <ReceiptIcon />}
+                      {isPreparingReceiptOrderId === order.id
+                        ? <span className={styles.buttonSpinner} aria-label="Menyiapkan sertifikat atau struk" />
+                        : order.items?.some((item) => item.productType === "donation") ? <CertificateIcon /> : <ReceiptIcon />}
                     </button>
                     {order.status === "sent" ? (
                       <Link
@@ -1689,20 +1782,6 @@ export default function StatusPemesananPage() {
                     ) : null}
                   </>
                 ) : null}
-                {order.status === "process" && (
-                  <button
-                    type="button"
-                    className={styles.cancelTransactionButton}
-                    onClick={() => onCancelTransaction(order)}
-                    disabled={isDeletingOrderId === order.id}
-                    title="Batalkan transaksi dan QRIS"
-                    aria-label={`Batalkan transaksi dan QRIS order ${order.id}`}
-                  >
-                    {isDeletingOrderId === order.id ? (
-                      <span className={styles.buttonSpinner} aria-label="Membatalkan transaksi" />
-                    ) : "✕"}
-                  </button>
-                )}
               </div>
             </article>
           );
@@ -1828,30 +1907,25 @@ export default function StatusPemesananPage() {
         </div>
       ) : null}
 
-      {certificatePreview ? (
+      {certificatePreview && typeof document !== "undefined" ? createPortal(
         <div className={styles.popupOverlay}>
-          <section className={styles.popupCard} style={{ width: "min(92vw, 680px)" }}>
-            <h2>Sertifikat Donasi</h2>
-            <p className={styles.popupMeta}>Order: {certificatePreview.orderId}</p>
-            <iframe
-              title="Sertifikat donasi"
-              src={certificatePreview.url}
-              style={{ width: "100%", height: "min(68vh, 720px)", border: "1px solid #ddd", background: "#111" }}
-            />
-            <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-              <a
-                href={certificatePreview.url}
-                download={`sertifikat-donasi-${certificatePreview.orderId}.jpg`}
-                className={styles.popupCloseButton}
-              >
-                Unduh PDF
-              </a>
-              <button type="button" className={styles.popupCloseButton} onClick={closeCertificatePreview}>
-                Tutup
+          <section className={`${styles.popupCard} ${styles.certificatePopupCard}`}>
+            <div className={styles.certificatePopupHeader}>
+              <h2>Sertifikat Donasi</h2>
+              <button type="button" className={styles.popupCloseIcon} onClick={closeCertificatePreview} aria-label="Tutup sertifikat">×</button>
+            </div>
+            <div className={styles.certificatePreviewFrame}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={certificatePreview.url} alt={`Preview sertifikat donasi ${certificatePreview.orderId}`} />
+            </div>
+            <div className={styles.certificatePopupActions}>
+              <button type="button" className={styles.popupCloseButton} onClick={() => openExpandedPreview({ url: certificatePreview.url, title: "Preview Sertifikat Donasi", downloadName: `sertifikat-donasi-${certificatePreview.orderId}.jpg` })}>
+                Perbesar Sertifikat
               </button>
             </div>
           </section>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </main>
   );

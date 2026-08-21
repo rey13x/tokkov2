@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
 import { createDynamicQRCode } from "@/server/payment";
-import { getOrderById, updateOrderPayment } from "@/server/store-data";
+import { getOrderById, listOrderItemsByOrderId, updateOrderPayment } from "@/server/store-data";
+
+const ORDER_TAX_AMOUNT = 500;
 
 export async function POST(
   _request: NextRequest,
@@ -25,10 +27,23 @@ export async function POST(
       return NextResponse.json({ error: "Order ini sudah dibayar." }, { status: 409 });
     }
 
+    const items = await listOrderItemsByOrderId(orderId);
+    const calculatedSubtotal = items.reduce((sum, item) => {
+      const unitPrice = item.productType === "donation"
+        ? item.donationAmount ?? item.unitPrice
+        : item.unitPrice;
+      return sum + unitPrice * item.quantity;
+    }, 0);
+    const calculatedTaxableSubtotal = items
+      .filter((item) => item.productType !== "donation")
+      .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    const calculatedTotal = calculatedSubtotal + (calculatedTaxableSubtotal > 0 ? ORDER_TAX_AMOUNT : 0);
+    const paymentAmount = Math.round(calculatedTotal > 0 ? calculatedTotal : order.total);
+
     const qrResponse = await createDynamicQRCode({
       userId: session.user.id,
       orderId,
-      amount: Math.round(order.total),
+      amount: paymentAmount,
       description: `Pembayaran Tokko - Order ${orderId}`,
       customerName: order.userName,
       customerEmail: order.userEmail,
