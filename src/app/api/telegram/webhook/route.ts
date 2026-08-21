@@ -111,33 +111,51 @@ async function sendTelegramMenu(chatId: string, replaceMessageId?: number) {
     const old = await state?.get().catch(() => null);
     replaceMessageId = Number(old?.data()?.menuMessageId ?? 0) || undefined;
   }
-  await deleteTelegramMessage(chatId, replaceMessageId);
   const adminUrl = `${process.env.NEXTAUTH_URL?.trim() || "https://tokkov2.vercel.app"}/admin`;
+  const text = `${greeting()} 👋\n\n<i>${motivations[Math.floor(Math.random() * motivations.length)]}</i>\n\n📋 <b>MENU ADMIN TOKKO</b>\nPilih aksi:`;
+  const replyMarkup = {
+    inline_keyboard: [[
+      { text: "📊 Ringkasan", url: `${adminUrl}?section=overview` },
+      { text: "🛒 Order", url: `${adminUrl}?section=orders` },
+    ], [
+      { text: "📦 Produk", url: `${adminUrl}?section=products` },
+      { text: "➕ Tambah Produk", callback_data: "product:start" },
+    ], [
+      { text: "💬 Testimoni", url: `${adminUrl}?section=testimonials` },
+      { text: "📖 Book Story", url: `${adminUrl}?section=bookStories` },
+    ], [
+      { text: "💳 Pembayaran QRIS", url: `${adminUrl}?section=paymentSettings` },
+      { text: "🛠️ Maintenance", url: `${adminUrl}?section=maintenanceSettings` },
+    ], [
+      { text: "📑 Rekap Pesanan", callback_data: "menu:recap" },
+    ], [
+      { text: "🧹 Bersihkan Chat Bot", callback_data: "menu:clear" },
+    ], [
+      { text: "🔄 Refresh Menu", callback_data: "menu:refresh" },
+    ]],
+  };
+
+  if (replaceMessageId) {
+    const edited = await telegramRequest("editMessageText", {
+      chat_id: chatId,
+      message_id: replaceMessageId,
+      text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      reply_markup: replyMarkup,
+    });
+    if (edited?.ok) {
+      await state?.set({ menuMessageId: replaceMessageId, updatedAt: Date.now() }, { merge: true });
+      return;
+    }
+    await deleteTelegramMessage(chatId, replaceMessageId);
+  }
+
   const response = await telegramRequest("sendMessage", {
     chat_id: chatId,
-    text: `${greeting()} 👋\n\n<i>${motivations[Math.floor(Math.random() * motivations.length)]}</i>\n\n📋 <b>MENU ADMIN TOKKO</b>\nPilih aksi:`,
+    text,
     parse_mode: "HTML",
-    reply_markup: {
-      inline_keyboard: [[
-        { text: "📊 Ringkasan", url: `${adminUrl}?section=overview` },
-        { text: "🛒 Order", url: `${adminUrl}?section=orders` },
-      ], [
-        { text: "📦 Produk", url: `${adminUrl}?section=products` },
-        { text: "➕ Tambah Produk", callback_data: "product:start" },
-      ], [
-        { text: "💬 Testimoni", url: `${adminUrl}?section=testimonials` },
-        { text: "📖 Book Story", url: `${adminUrl}?section=bookStories` },
-      ], [
-        { text: "💳 Pembayaran QRIS", url: `${adminUrl}?section=paymentSettings` },
-        { text: "🛠️ Maintenance", url: `${adminUrl}?section=maintenanceSettings` },
-      ], [
-        { text: "📑 Rekap Pesanan", callback_data: "menu:recap" },
-      ], [
-        { text: "🧹 Bersihkan Chat Bot", callback_data: "menu:clear" },
-      ], [
-        { text: "🔄 Refresh Menu", callback_data: "menu:refresh" },
-      ]],
-    },
+    reply_markup: replyMarkup,
   });
   if (response?.result?.message_id) {
     await state?.set({ menuMessageId: response.result.message_id, updatedAt: Date.now() }, { merge: true });
