@@ -92,6 +92,9 @@ export function getFirebaseAdminApp() {
  * Returns null when Firebase is not configured
  */
 export function getFirebaseFirestore() {
+  if ((process.env.DATABASE_PROVIDER?.trim().toLowerCase() || "turso") !== "firebase") {
+    return null;
+  }
   initializeFirebase();
   return _firestore;
 }
