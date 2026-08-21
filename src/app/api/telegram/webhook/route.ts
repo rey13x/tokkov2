@@ -48,10 +48,15 @@ async function telegramRequest(method: string, body: Record<string, unknown>) {
   if (!response.ok) {
     console.error(`Telegram ${method} failed:`, response.status);
   }
-  return (await response.json().catch(() => null)) as {
+  const result = (await response.json().catch(() => null)) as {
     ok?: boolean;
     result?: { message_id?: number; file_path?: string };
   } | null;
+  const chatId = String(body.chat_id ?? "");
+  if (method === "sendMessage" && result?.result?.message_id && chatId) {
+    await rememberTelegramMessage(chatId, result.result.message_id);
+  }
+  return result;
 }
 
 function greeting() {
@@ -82,6 +87,24 @@ function getBotState(chatId: string) {
   return getFirestoreOrNull()?.collection("telegramBotState").doc(chatId);
 }
 
+async function rememberTelegramMessage(chatId: string, messageId: number) {
+  const state = getBotState(chatId);
+  if (!state) return;
+  const snapshot = await state.get().catch(() => null);
+  const ids = Array.isArray(snapshot?.data()?.botMessageIds)
+    ? snapshot?.data()?.botMessageIds.filter((id: unknown) => Number.isInteger(id)).slice(-99)
+    : [];
+  await state.set({ botMessageIds: [...ids, messageId], updatedAt: Date.now() }, { merge: true }).catch(() => {});
+}
+
+async function clearTrackedTelegramMessages(chatId: string) {
+  const state = getBotState(chatId);
+  const snapshot = await state?.get().catch(() => null);
+  const ids = Array.isArray(snapshot?.data()?.botMessageIds) ? snapshot.data()?.botMessageIds : [];
+  for (const id of ids) await deleteTelegramMessage(chatId, Number(id));
+  await state?.set({ botMessageIds: [], menuMessageId: null, addProductPending: false, updatedAt: Date.now() }, { merge: true });
+}
+
 async function sendTelegramMenu(chatId: string, replaceMessageId?: number) {
   const state = await getBotState(chatId);
   if (!replaceMessageId) {
@@ -109,6 +132,8 @@ async function sendTelegramMenu(chatId: string, replaceMessageId?: number) {
         { text: "🛠️ Maintenance", url: `${adminUrl}?section=maintenanceSettings` },
       ], [
         { text: "📑 Rekap Pesanan", callback_data: "menu:recap" },
+      ], [
+        { text: "🧹 Bersihkan Chat Bot", callback_data: "menu:clear" },
       ], [
         { text: "🔄 Refresh Menu", callback_data: "menu:refresh" },
       ]],
@@ -253,14 +278,19 @@ export async function POST(request: Request) {
     const state = await getBotState(chatId);
     const pending = await state?.get().catch(() => null);
     if (!pending?.data()?.addProductPending) return NextResponse.json({ ok: true, ignored: true });
+    const progress = await telegramRequest("sendMessage", {
+      chat_id: chatId,
+      text: "⏳ Foto diterima. Sedang memvalidasi dan menyimpan produk ke Firestore...",
+    });
     try {
       const parsed = parseProductCaption(message.caption);
-      const photo = message.photo[message.photo.length - 1];
+      const photo = message.photo[0];
       if (!photo.file_id) throw new Error("Foto tidak valid.");
       const fileInfo = await telegramRequest("getFile", { file_id: photo.file_id });
       const filePath = fileInfo?.result?.file_path;
       if (!filePath) throw new Error("Foto Telegram tidak dapat diambil.");
-      const imageResponse = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${filePath}`);
+      const imageResponse = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${filePath}`, { signal: AbortSignal.timeout(15000) });
+      if (!imageResponse.ok) throw new Error("Foto Telegram gagal diunduh.");
       const image = new Uint8Array(await imageResponse.arrayBuffer());
       if (image.byteLength > 450 * 1024) throw new Error("Foto terlalu besar. Maksimal 450KB.");
       const product = await createProduct({
@@ -269,12 +299,14 @@ export async function POST(request: Request) {
       });
       if (!product) throw new Error("Produk gagal disimpan ke Firestore.");
       await state?.set({ addProductPending: false, updatedAt: Date.now() }, { merge: true });
+      await deleteTelegramMessage(chatId, progress?.result?.message_id);
       await telegramRequest("sendMessage", {
         chat_id: chatId,
         text: `✅ <b>Produk berhasil ditambahkan</b>\n\nNama: ${parsed.name}\nHarga: Rp ${parsed.price.toLocaleString("id-ID")}\nID: <code>${product.id}</code>`,
         parse_mode: "HTML",
       });
     } catch (error) {
+      await deleteTelegramMessage(chatId, progress?.result?.message_id);
       await telegramRequest("sendMessage", {
         chat_id: chatId,
         text: `❌ ${error instanceof Error ? error.message : "Format salah atau produk gagal disimpan."}`,
@@ -303,6 +335,13 @@ export async function POST(request: Request) {
     });
     await sendTelegramMenu(chatId, callback.message.message_id);
     return NextResponse.json({ ok: true, menu: "refresh" });
+  }
+
+  if (callback.data === "menu:clear") {
+    await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Membersihkan pesan bot..." });
+    await clearTrackedTelegramMessages(chatId);
+    await deleteTelegramMessage(chatId, callback.message.message_id);
+    return NextResponse.json({ ok: true, cleared: true });
   }
 
   if (callback.data === "product:start") {
