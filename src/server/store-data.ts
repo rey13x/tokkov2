@@ -1712,6 +1712,18 @@ export async function getOrderById(id: string) {
       cancelRequestReason: String(data.cancelRequestReason ?? ""),
       cancelRequestedAt: toOptionalIso(data.cancelRequestedAt),
       cancelConfirmedAt: toOptionalIso(data.cancelConfirmedAt),
+      // Support both camelCase and snake_case fields for backward compatibility
+      hiddenForUsers: (() => {
+        try {
+          const val = data.hiddenForUsers ?? data.hidden_for_users;
+          if (!val) return [] as string[];
+          if (typeof val === "string") return JSON.parse(val) as string[];
+          if (Array.isArray(val)) return val.map((it) => String(it));
+          return [] as string[];
+        } catch {
+          return [] as string[];
+        }
+      })(),
       createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
     } satisfies OrderSummary;
   } catch (error) {

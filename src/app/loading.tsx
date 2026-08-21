@@ -6,8 +6,8 @@ export default function AppLoading() {
       style={{
         minHeight: "60vh",
         display: "grid",
-        placeItems: "center",
-        padding: "20px",
+        placeItems: "start center",
+        padding: "24px 20px 40px",
       }}
     >
       <WaitLoading />

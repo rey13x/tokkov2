@@ -54,12 +54,14 @@ function formatAuditDate(dateInput?: string | number | Date) {
 async function sendTelegramMessage(
   text: string,
   replyMarkup?: TelegramReplyMarkup,
+  targetChatId?: string,
 ) : Promise<number | null> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const defaultChatId = process.env.TELEGRAM_CHAT_ID;
+  const chatId = (targetChatId || defaultChatId)?.toString();
 
   if (!botToken || !chatId) {
-    console.error("Telegram notification skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.");
+    console.error("Telegram notification skipped: TELEGRAM_BOT_TOKEN or chat id is missing.");
     return null;
   }
 
@@ -244,7 +246,7 @@ async function buildReceiptPhoto(input: {
 async function sendTelegramReceipt(
   orderId: string,
   chatId: string,
-  options: { notifiedField?: string; caption?: string } = {},
+  options: { notifiedField?: string; caption?: string; replyMarkup?: TelegramReplyMarkup } = {},
 ) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
   if (!botToken) return false;
@@ -302,6 +304,11 @@ async function sendTelegramReceipt(
   form.append("parse_mode", "HTML");
   form.append("photo", new Blob([new Uint8Array(receiptPhoto)], { type: "image/png" }), `struk-${orderId}.png`);
 
+  // append reply_markup if provided
+  if (options.replyMarkup) {
+    form.append("reply_markup", JSON.stringify(options.replyMarkup));
+  }
+
   const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
     method: "POST",
     body: form,
@@ -322,48 +329,102 @@ export async function sendTelegramPaymentChannelNotification(payload: {
 }) {
   const channelId = "@tokkomarketplace";
 
-  const order = await getOrderById(payload.orderId);
-  if (!order) return false;
-  const items = await listOrderItemsByOrderId(payload.orderId);
-  const enrichedItems = await Promise.all(items.map(async (item) => ({
-    ...item,
-    productType: item.productType || (await getProductById(item.productId))?.productType,
-  })));
-  const donation = enrichedItems.find((item) => item.productType === "donation");
-  if (donation) {
-    const donationCaption = [
-      "💙 <b>DONASI MASUK</b>",
-      "",
-      `<b>Username</b>: ${escapeTelegramHtml(order.userName)}`,
-      `<b>Email</b>: ${escapeTelegramHtml(maskEmail(order.userEmail))}`,
-      `<b>No. Telepon</b>: ${escapeTelegramHtml(maskPhone(order.userPhone))}`,
-      "",
-      `<b>Atas donasi yang diberikan untuk bantuan</b> ${escapeTelegramHtml(donation.productName)} dengan nominal sebesar: <b>Rp ${donation.unitPrice.toLocaleString("id-ID")}</b>`,
-      "",
-      "tokkomarketplace.shop",
-    ].join("\n");
-    return sendTelegramReceipt(payload.orderId, channelId, {
-      notifiedField: "telegramDonationChannelNotifiedAt",
-      caption: donationCaption,
-    });
-  }
-  const caption = [
-    "📣 <b>PEMBAYARAN BERHASIL</b>",
-    "",
-    `<b>Order ID</b>     : <tg-spoiler>${escapeTelegramHtml(payload.orderId)}</tg-spoiler>`,
-    `<b>Jumlah</b>       : Rp ${payload.amount.toLocaleString("id-ID")}`,
-    `<b>Transaksi</b>   : <tg-spoiler>${escapeTelegramHtml(payload.transactionId)}</tg-spoiler>`,
-    "",
-    "<b>Informasi Akun</b>",
-    "Nama           : <tg-spoiler>***</tg-spoiler>",
-    "Email          : <tg-spoiler>***</tg-spoiler>",
-    "No. HP         : <tg-spoiler>***</tg-spoiler>",
-  ].join("\n");
+  try {
+    const order = await getOrderById(payload.orderId);
+    if (!order) return false;
+    const items = await listOrderItemsByOrderId(payload.orderId);
+    const enrichedItems = await Promise.all(items.map(async (item) => ({
+      ...item,
+      productType: item.productType || (await getProductById(item.productId))?.productType,
+    })));
+    const donation = enrichedItems.find((item) => item.productType === "donation");
+    if (donation) {
+      const donationCaption = [
+        "💙 <b>DONASI MASUK</b>",
+        "",
+        `<b>Username</b>: ${escapeTelegramHtml(order.userName)}`,
+        `<b>Email</b>: ${escapeTelegramHtml(maskEmail(order.userEmail))}`,
+        `<b>No. Telepon</b>: ${escapeTelegramHtml(maskPhone(order.userPhone))}`,
+        "",
+        `<b>Atas donasi yang diberikan untuk bantuan</b> ${escapeTelegramHtml(donation.productName)} dengan nominal sebesar: <b>Rp ${donation.unitPrice.toLocaleString("id-ID")}</b>`,
+        "",
+        "tokkomarketplace.shop",
+      ].join("\n");
 
-  return sendTelegramReceipt(payload.orderId, channelId, {
-    notifiedField: "telegramPaymentChannelNotifiedAt",
-    caption,
-  });
+      // prepare channel redirect button
+      const channelButton: TelegramReplyMarkup = { inline_keyboard: [[{ text: "Tokko Marketplace", url: "https://tokkov2.vercel.app" }]] };
+
+      // Retry sending receipt up to 3 times to ensure channel delivery
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const sent = await sendTelegramReceipt(payload.orderId, channelId, {
+            notifiedField: "telegramDonationChannelNotifiedAt",
+            caption: donationCaption,
+            replyMarkup: channelButton,
+          });
+          if (sent) return true;
+        } catch (err) {
+          console.error(`Attempt ${attempt} - failed to send donation receipt to channel:`, err);
+        }
+        // small delay before retry
+        await new Promise((r) => setTimeout(r, 500));
+      }
+
+      console.error(`Failed to send donation receipt to channel @tokkomarketplace for order ${payload.orderId} after retries.`);
+      // Fallback: send text message to channel with redirect button
+      const fallbackText = donationCaption;
+      const fallbackSent = await sendTelegramMessage(fallbackText, channelButton, channelId).catch(() => null);
+      if (fallbackSent) return true;
+
+      // Notify admin chat so manual intervention is possible
+      await sendTelegramMessage(`⚠️ Gagal mengirim struk donasi ke channel untuk order ${payload.orderId}. Mohon cek manual.`).catch(() => {});
+      return false;
+    }
+
+    const caption = [
+      "📣 <b>PEMBAYARAN BERHASIL</b>",
+      "",
+      `<b>Order ID</b>     : <tg-spoiler>${escapeTelegramHtml(payload.orderId)}</tg-spoiler>`,
+      `<b>Jumlah</b>       : Rp ${payload.amount.toLocaleString("id-ID")}`,
+      `<b>Transaksi</b>   : <tg-spoiler>${escapeTelegramHtml(payload.transactionId)}</tg-spoiler>`,
+      "",
+      "<b>Informasi Akun</b>",
+      "Nama           : <tg-spoiler>***</tg-spoiler>",
+      "Email          : <tg-spoiler>***</tg-spoiler>",
+      "No. HP         : <tg-spoiler>***</tg-spoiler>",
+    ].join("\n");
+
+    // prepare channel redirect button
+    const channelButton: TelegramReplyMarkup = { inline_keyboard: [[{ text: "Tokko Marketplace", url: "https://tokkov2.vercel.app" }]] };
+
+    // Retry sending receipt up to 3 times to ensure channel delivery
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const sent = await sendTelegramReceipt(payload.orderId, channelId, {
+          notifiedField: "telegramPaymentChannelNotifiedAt",
+          caption,
+          replyMarkup: channelButton,
+        });
+        if (sent) return true;
+      } catch (err) {
+        console.error(`Attempt ${attempt} - failed to send payment receipt to channel:`, err);
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    console.error(`Failed to send payment receipt to channel @tokkomarketplace for order ${payload.orderId} after retries.`);
+    // Fallback: send text message to channel with redirect button
+    const fallbackText = caption;
+    const fallbackSent = await sendTelegramMessage(fallbackText, channelButton, channelId).catch(() => null);
+    if (fallbackSent) return true;
+
+    await sendTelegramMessage(`⚠️ Gagal mengirim struk pembayaran ke channel untuk order ${payload.orderId}. Mohon cek manual.`).catch(() => {});
+    return false;
+  } catch (error) {
+    console.error("Error in sendTelegramPaymentChannelNotification:", error);
+    await sendTelegramMessage(`⚠️ Error saat mengirim struk ke channel untuk order ${payload.orderId}. Mohon cek log.`).catch(() => {});
+    return false;
+  }
 }
 
 export async function appendOrderToCsv(payload: {
@@ -703,6 +764,13 @@ export async function notifyNativeUsers(payload: {
   url: string;
   userId?: string;
 }) {
+  // Jika ingin mengandalkan notifikasi Telegram saja (mis. Firebase web push dimatikan di device),
+  // aktifkan var env DISABLE_FIREBASE_NOTIFICATIONS=1 atau TELEGRAM_ONLY_NOTIFICATIONS=1
+  if (process.env.DISABLE_FIREBASE_NOTIFICATIONS === "1" || process.env.TELEGRAM_ONLY_NOTIFICATIONS === "1") {
+    console.info("Skipping Firebase web push notifications because DISABLE_FIREBASE_NOTIFICATIONS / TELEGRAM_ONLY_NOTIFICATIONS is set.");
+    return 0;
+  }
+
   try {
     const subscribers = await listUsersWithPushSubscription();
     const targets = payload.userId

@@ -12,6 +12,7 @@ import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import { addToCart } from "@/lib/cart";
 import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
+import { getProductPath } from "@/lib/product-routing";
 import {
   ONBOARDING_STAGE,
   advanceOnboarding,
@@ -45,9 +46,6 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
   const [quantity, setQuantity] = useState(1);
   const [donationAmount, setDonationAmount] = useState("");
-  const [donationName, setDonationName] = useState("");
-  const [donationMessage, setDonationMessage] = useState("");
-  const [isDonationDataOpen, setIsDonationDataOpen] = useState(false);
   const [donationError, setDonationError] = useState("");
   const [added, setAdded] = useState(false);
   const [isRedirectingToCart, setIsRedirectingToCart] = useState(false);
@@ -177,7 +175,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       const safeQty = Math.min(99, Math.max(1, Number(pending.quantity ?? 1)));
       window.sessionStorage.removeItem(PENDING_CART_ACTION_KEY);
       const timer = window.setTimeout(() => {
-        addToCart(product.slug, safeQty, pending.donationAmount, pending.donationName, pending.donationMessage);
+        addToCart(product.slug, safeQty, pending.donationAmount, undefined, pending.donationMessage);
         setAdded(true);
         if (pending.redirectToCart) {
           router.push("/troli");
@@ -202,14 +200,8 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     }
 
     const safeDonationAmount = product.productType === "donation" ? requestedDonationAmount : undefined;
-    if (product.productType === "donation" && (!donationName.trim() || !donationMessage.trim())) {
-      setIsDonationDataOpen(true);
-      setDonationError("Isi nama dan harapan donasi terlebih dahulu.");
-      return;
-    }
     if (product.productType === "donation" && (!safeDonationAmount || safeDonationAmount < 1)) {
-      setIsDonationDataOpen(true);
-      setDonationError("Masukkan nominal donasi terlebih dahulu.");
+      setDonationError("Masukkan jumlah donasi terlebih dahulu.");
       return;
     }
 
@@ -231,7 +223,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           "Kalau bukan tutorial, kamu bakal diarahkan ke login/daftar. Untuk tutorial ini, langkah login kita lewati dulu ya.",
         );
       }
-      addToCart(product.slug, quantity, safeDonationAmount, donationName, donationMessage);
+      addToCart(product.slug, quantity, safeDonationAmount);
       setAdded(true);
       if (redirectToCart) {
         setIsRedirectingToCart(true);
@@ -250,17 +242,17 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             slug: product.slug,
             quantity,
             donationAmount: safeDonationAmount,
-            donationName,
-            donationMessage,
+            donationName: "",
+            donationMessage: "",
             redirectToCart,
           }),
         );
       }
-      router.push(`/auth?redirect=${encodeURIComponent(`/produk/${product.slug}`)}`);
+      router.push(`/auth?redirect=${encodeURIComponent(getProductPath(product))}`);
       return;
     }
 
-    addToCart(product.slug, quantity, safeDonationAmount, donationName, donationMessage);
+    addToCart(product.slug, quantity, safeDonationAmount);
     setAdded(true);
     if (redirectToCart) {
       window.setTimeout(() => {
@@ -447,50 +439,21 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           {product.productType === "donation" ? (
             <>
               <p className={styles.price}>Terkumpul {formatRupiah(product.donationTotal ?? 0)}</p>
-              <button
-                type="button"
-                className={styles.orderButton}
-                onClick={() => setIsDonationDataOpen((current) => !current)}
-                aria-expanded={isDonationDataOpen}
-              >
-                {isDonationDataOpen ? "Tutup Data Diri" : "Isi Data Diri"}
-              </button>
-              {isDonationDataOpen ? (
-                <label className={styles.donationField}>
-                  <span>Nama</span>
-                  <input
-                    type="text"
-                    value={donationName}
-                    onChange={(event) => setDonationName(event.target.value)}
-                    placeholder="Digunakan untuk Sertifikat"
-                    aria-label="Nama untuk sertifikat donasi"
-                  />
-                  <span>Harapan kamu Donasi disini:</span>
-                  <textarea
-                    value={donationMessage}
-                    onChange={(event) => setDonationMessage(event.target.value)}
-                    placeholder="Tulis harapan kamu di sini"
-                    aria-label="Harapan donasi"
-                    rows={3}
-                  />
-                  <span>Mau Donasi berapa?</span>
-                  <div className={styles.donationInputWrap}>
-                    <span>Rp</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={donationAmount}
-                      onChange={(event) => {
-                        setDonationError("");
-                        const digits = event.target.value.replace(/\D/g, "");
-                        setDonationAmount(digits ? Number(digits).toLocaleString("id-ID") : "");
-                      }}
-                      placeholder="Masukkan nominal"
-                      aria-label="Nominal donasi"
-                    />
-                  </div>
-                </label>
-              ) : null}
+              <label className={styles.donationNameField}>
+                <span>Jumlah Donasi</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={donationAmount}
+                  onChange={(event) => {
+                    setDonationError("");
+                    const digits = event.target.value.replace(/\D/g, "");
+                    setDonationAmount(digits ? Number(digits).toLocaleString("id-ID") : "");
+                  }}
+                  placeholder="Masukkan Jumlah Donasi"
+                  aria-label="Jumlah donasi"
+                />
+              </label>
               {donationError ? <p className={styles.donationError}>{donationError}</p> : null}
               <button
                 type="button"
@@ -594,7 +557,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                   <span style={{ color: "#d32f2f", fontWeight: "500" }}>Posisi ini sudah penuh</span>
                 ) : status === "unauthenticated" ? (
                   <>
-                    Anda harus <Link href={`/auth?redirect=${encodeURIComponent(`/produk/${product.slug}`)}`} style={{ color: "#4a5fe3", textDecoration: "underline" }}>login terlebih dahulu</Link> untuk melamar pekerjaan ini.
+                    Anda harus <Link href={`/auth?redirect=${encodeURIComponent(getProductPath(product))}`} style={{ color: "#4a5fe3", textDecoration: "underline" }}>login terlebih dahulu</Link> untuk melamar pekerjaan ini.
                   </>
                 ) : (
                   <>Klik tombol Saya mau untuk melamar pekerjaan ini.</>

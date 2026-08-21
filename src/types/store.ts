@@ -285,6 +285,8 @@ export type OrderSummary = {
   telegramMessageId?: number;
   telegramChatId?: string;
   telegramMessageUpdatedAt?: number;
+  // Per-user hidden list: when a user hides/clears history, their userId is stored here
+  hiddenForUsers?: string[];
 };
 
 export type StoreOrderItem = {

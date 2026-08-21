@@ -1,0 +1,6 @@
+.ticker {
+  display: inline-block;
+  min-width: 7ch;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

@@ -962,7 +962,7 @@ const tapPress = { scale: 0.97, transition: { duration: 0.12 } } as const;
 function LoadingScreen() {
   return (
     <main className={styles.loadingPage}>
-      <WaitLoading centered text="Pastikan Internet kamu Stabil..." />
+      <WaitLoading centered />
     </main>
   );
 }

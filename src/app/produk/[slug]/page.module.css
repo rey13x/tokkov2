@@ -202,35 +202,35 @@
   font-size: 0.78rem;
 }
 
-.donationField {
+.donationNameField {
   display: grid;
-  gap: 8px;
+  gap: 6px;
+  margin: 2px 0 4px;
   color: #11151f;
   font-weight: 700;
 }
 
-.donationInputWrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 52px;
-  padding: 0 16px;
-  border: 1px solid #cfd5e2;
-  border-radius: 14px;
-  background: #ffffff;
-}
-
-.donationInputWrap span {
-  color: #5d667a;
-}
-
-.donationInputWrap input {
-  width: 100%;
-  border: 0;
+.donationNameField input {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #aeb6c5;
+  border-radius: 8px;
   outline: 0;
-  background: transparent;
+  overflow-x: auto;
+  scrollbar-width: none;
+  width: 100%;
+  background: #ffffff;
   color: #11151f;
   font: inherit;
+}
+
+.donationNameField input::-webkit-scrollbar {
+  display: none;
+}
+
+.donationNameField input:focus {
+  border-color: #11151f;
 }
 
 .donationError {

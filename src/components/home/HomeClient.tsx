@@ -509,7 +509,7 @@ export default function HomeClient() {
   useEffect(() => {
     let mounted = true;
 
-    fetchStoreData()
+    const loadStoreData = () => fetchStoreData()
       .then((data) => {
         if (!mounted) {
           return;
@@ -524,6 +524,9 @@ export default function HomeClient() {
         // keep the homepage usable even if the store API is slow or unavailable
       });
 
+    void loadStoreData();
+    const refreshTimer = window.setInterval(loadStoreData, 30_000);
+
     void Promise.allSettled([
       fetchSessionCached(PUBLIC_DATA_CACHE_KEY.heroBackgrounds, "/api/hero-backgrounds", { cache: "no-store" }),
       fetchSessionCached(PUBLIC_DATA_CACHE_KEY.portfolio, "/api/portfolio", { cache: "no-store" }),
@@ -532,6 +535,7 @@ export default function HomeClient() {
 
     return () => {
       mounted = false;
+      window.clearInterval(refreshTimer);
     };
   }, []);
 
@@ -663,7 +667,7 @@ export default function HomeClient() {
     const menuFab = menuFabRef.current;
     const menuIcon = menuFab.querySelector<HTMLElement>("svg");
     const menuLabel = menuFab.querySelector<HTMLElement>(`.${styles.menuFabLabel}`);
-    const isCompact = window.matchMedia("(orientation: portrait) and (max-width: 920px)").matches;
+    const isCompact = window.matchMedia("(orientation: portrait) and (max-width: 1200px)").matches;
     const targetWidth = isCompact ? 46 : 156;
 
     gsap.set(menuFab, { width: isCompact ? 46 : 48, paddingLeft: 0, paddingRight: 0 });
@@ -1005,6 +1009,7 @@ export default function HomeClient() {
                   advanceOnboarding(ONBOARDING_STAGE.PRODUCT_ADD_TO_CART);
                 }
               }}
+              showCartIcon={false}
             />
           ))}
         </div>
@@ -1148,7 +1153,7 @@ export default function HomeClient() {
                   type="button"
                   className={styles.menuFounderLink}
                   data-menu-item
-                  onClick={() => { window.open('https://s.id/RaihaanBP', '_blank'); closeMenu(); }}
+                  onClick={() => { window.open('https://byrai-three.vercel.app', '_blank'); closeMenu(); }}
                 >
                   <span
                     className={styles.menuFounderText}
@@ -1200,7 +1205,7 @@ export default function HomeClient() {
                   type="button"
                   className={styles.menuFounderLink}
                   data-menu-item
-                  onClick={() => { window.open('https://s.id/RaihaanBP', '_blank'); closeMenu(); }}
+                  onClick={() => { window.open('https://byrai-three.vercel.app', '_blank'); closeMenu(); }}
                 >
                   <span
                     className={styles.menuFounderText}

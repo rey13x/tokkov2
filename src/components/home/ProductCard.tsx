@@ -2,11 +2,13 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { FiChevronRight, FiShoppingCart } from "react-icons/fi";
+import { FiChevronRight, FiShoppingCart, FiAward } from "react-icons/fi";
 import type { StoreProduct } from "@/types/store";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import DonationTotalTicker from "@/components/product/DonationTotalTicker";
 import { formatRupiah } from "@/data/products";
 import { addToCart } from "@/lib/cart";
+import { getProductPath } from "@/lib/product-routing";
 import styles from "./HomeClient.module.css";
 
 interface ProductCardProps {
@@ -14,6 +16,7 @@ interface ProductCardProps {
   index: number;
   onboardingStage?: string;
   onClick?: () => void;
+  showCartIcon?: boolean; // when false, hide the cart/donation icon (used on homepage)
 }
 
 const ProductCard = memo(function ProductCard({
@@ -21,6 +24,7 @@ const ProductCard = memo(function ProductCard({
   index,
   onboardingStage,
   onClick,
+  showCartIcon = true,
 }: ProductCardProps) {
   const [tapCount, setTapCount] = useState(0);
   const [isBouncing, setIsBouncing] = useState(false);
@@ -57,7 +61,7 @@ const ProductCard = memo(function ProductCard({
   return (
     <article key={product.id} className={styles.productShell} data-card="product">
       <Link
-        href={`/produk/${product.slug}`}
+        href={getProductPath(product)}
         className={styles.productCard}
         data-onboarding={onboardingStage}
         onClick={onClick}
@@ -77,7 +81,7 @@ const ProductCard = memo(function ProductCard({
           <div>
             <p>{product.name}</p>
             {product.productType === "donation" ? (
-              <span>Terkumpul {formatRupiah(product.donationTotal ?? 0)}</span>
+              <DonationTotalTicker amount={product.donationTotal ?? 0} />
             ) : (
               <span>{formatRupiah(product.price)}</span>
             )}
@@ -87,19 +91,21 @@ const ProductCard = memo(function ProductCard({
           </i>
         </div>
       </Link>
-      <button
-        type="button"
-        className={`${styles.productCartButton} ${isBouncing ? styles.productCartButtonBouncing : ""}`}
-        onClick={onAddToCart}
-        aria-label={`Tambah ${product.name} ke troli`}
-      >
-        <FiShoppingCart />
-        {tapCount > 0 ? (
-          <b key={tapCount} className={isBadgeExiting ? styles.productCartBadgeExiting : ""}>
-            {tapCount}+
-          </b>
-        ) : null}
-      </button>
+      {showCartIcon ? (
+        <button
+          type="button"
+          className={`${styles.productCartButton} ${isBouncing ? styles.productCartButtonBouncing : ""}`}
+          onClick={onAddToCart}
+          aria-label={`Tambah ${product.name} ke troli`}
+        >
+          {product.productType === "donation" ? <FiAward /> : <FiShoppingCart /> }
+          {tapCount > 0 ? (
+            <b key={tapCount} className={isBadgeExiting ? styles.productCartBadgeExiting : ""}>
+              {tapCount}+
+            </b>
+          ) : null}
+        </button>
+      ) : null}
     </article>
   );
 });

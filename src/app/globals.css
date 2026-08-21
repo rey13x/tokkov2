@@ -110,3 +110,21 @@ select {
 :root.dark-mode a {
   color: #e0e0e0;
 }
+
+/* Hide native browser scrollbar slider (keep scrolling functionality).
+   This removes the default gray scrollbar across pages while preserving animations.
+   - scrollbar-width: none for Firefox
+   - -ms-overflow-style: none for IE/Edge legacy
+   - ::-webkit-scrollbar width/height 0 for WebKit-based browsers (Chrome, Safari)
+*/
+html, body, #smooth-wrapper, #smooth-content, * {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}

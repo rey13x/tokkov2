@@ -9,7 +9,7 @@ import FlexibleMedia from "@/components/media/FlexibleMedia";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
-import { readCart, removeFromCart, updateCartQuantity, updateDonationAmount, updateDonationDetails } from "@/lib/cart";
+import { readCart, removeFromCart, updateCartQuantity, updateDonationDetails } from "@/lib/cart";
 import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
 import {
   ONBOARDING_STAGE,
@@ -92,7 +92,6 @@ export default function CartPage() {
     qrImageUrl: string;
     amount: number;
   } | null>(null);
-  const [openDonationSlug, setOpenDonationSlug] = useState<string | null>(null);
 
   const isClient = useSyncExternalStore(
     () => () => {},
@@ -268,6 +267,9 @@ export default function CartPage() {
     .reduce((total, item) => total + item.lineTotal, 0);
   const tax = taxableSubtotal > 0 ? TAX_AMOUNT : 0;
   const total = subtotal + tax;
+  const hasSelectedDonation = detailedItems.some(
+    (item) => item.selected && item.product.productType === "donation",
+  );
 
   const changeQuantity = (slug: string, nextQuantity: number) => {
     const safeQuantity = Math.min(99, Math.max(1, nextQuantity));
@@ -284,10 +286,10 @@ export default function CartPage() {
     removeFromCart(slug);
   };
 
-  const updateDonationField = (slug: string, field: "donationName" | "donationMessage", value: string) => {
-    setCartLines((current) => current.map((item) => item.slug === slug ? { ...item, [field]: value } : item));
+  const updateDonationField = (slug: string, value: string) => {
+    setCartLines((current) => current.map((item) => item.slug === slug ? { ...item, donationName: value } : item));
     const item = cartLines.find((line) => line.slug === slug);
-    updateDonationDetails(slug, field === "donationName" ? value : item?.donationName ?? "", field === "donationMessage" ? value : item?.donationMessage ?? "");
+    updateDonationDetails(slug, value, item?.donationMessage ?? "");
   };
 
   const toggleSelected = (slug: string) => {
@@ -345,10 +347,9 @@ export default function CartPage() {
       setError("Pilih dulu minimal satu produk yang mau dibeli ya.");
       return;
     }
-    const incompleteDonation = selected.find((item) => item.product.productType === "donation" && (!item.donationName?.trim() || !item.donationMessage?.trim() || !item.donationAmount));
+    const incompleteDonation = selected.find((item) => item.product.productType === "donation" && (!item.donationName?.trim() || !item.donationAmount));
     if (incompleteDonation) {
-      setOpenDonationSlug(incompleteDonation.slug);
-      setError("Isi Nama, Harapan, dan nominal donasi terlebih dahulu.");
+      setError("Isi nama sertifikat dan pastikan nominal donasi sudah tersedia terlebih dahulu.");
       return;
     }
 
@@ -538,6 +539,13 @@ export default function CartPage() {
       />
       
       <header className={styles.header}>
+        <Link href="/profil" className={styles.profileShortcut} aria-label="Buka profil" title="Buka profil">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/maintenancelogo.jpg"
+            alt="Logo Tokko"
+          />
+        </Link>
         <h1>Troli</h1>
         <Link href="/" className={styles.backLink}>
           Kembali belanja
@@ -683,44 +691,15 @@ export default function CartPage() {
                     </div>
                     <p className={styles.metaLine}>{item.product.category}</p>
                     {item.product.productType === "donation" ? (
-                      <div style={{ marginTop: 10 }}>
-                        <button
-                          type="button"
-                          className={styles.actionButton}
-                          onClick={() => setOpenDonationSlug(openDonationSlug === item.slug ? null : item.slug)}
-                        >
-                          {openDonationSlug === item.slug ? "Tutup Data Diri" : "Isi Data Diri"}
-                        </button>
-                        {openDonationSlug === item.slug ? (
-                          <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                      <div className={styles.donationDetails}>
                             <input
                               type="text"
+                              className={styles.donationTextInput}
                               value={item.donationName ?? ""}
-                              onChange={(event) => updateDonationField(item.slug, "donationName", event.target.value)}
+                              onChange={(event) => updateDonationField(item.slug, event.target.value)}
                               placeholder="Username / Nama untuk sertifikat"
                               aria-label="Username atau nama donatur"
                             />
-                            <textarea
-                              value={item.donationMessage ?? ""}
-                              onChange={(event) => updateDonationField(item.slug, "donationMessage", event.target.value)}
-                              placeholder="Harapan kamu Donasi disini:"
-                              aria-label="Harapan donasi"
-                              rows={3}
-                            />
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={item.donationAmount?.toLocaleString("id-ID") ?? ""}
-                              onChange={(event) => {
-                                const amount = Number(event.target.value.replace(/\D/g, ""));
-                                setCartLines((current) => current.map((line) => line.slug === item.slug ? { ...line, donationAmount: amount } : line));
-                                updateDonationAmount(item.slug, amount);
-                              }}
-                              placeholder="Nominal donasi"
-                              aria-label="Nominal donasi"
-                            />
-                          </div>
-                        ) : null}
                       </div>
                     ) : null}
                   </div>
@@ -774,7 +753,7 @@ export default function CartPage() {
                 onChange={(event) => setPaymentConsent(event.target.checked)}
               />
               <span>
-                <strong>Pembayaran menggunakan Sistem Otomatis, Demi keamanan STOK, Saya setuju apabila Produk saya diarahkan ke Pre-Order atau pengembalian Uang</strong>
+                <strong>Demi kesediaan STOK, Saya setuju apabila Produk saya diarahkan ke Pre-Order atau pengembalian Uang</strong>
               </span>
             </label>
             <button
@@ -784,7 +763,7 @@ export default function CartPage() {
               onClick={onCheckout}
               data-onboarding="cart-checkout"
             >
-              {isCheckoutLoading ? <ButtonLoading /> : "Beli Sekarang"}
+              {isCheckoutLoading ? <ButtonLoading /> : hasSelectedDonation ? "Donasi Sekarang" : "Beli Sekarang"}
             </button>
 
             <button

@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FiChevronRight } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import DonationTotalTicker from "@/components/product/DonationTotalTicker";
 import { formatRupiah } from "@/data/products";
 import { addToCart } from "@/lib/cart";
 import { categoryToSlug } from "@/lib/category";
 import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
+import { getProductPath } from "@/lib/product-routing";
 import { fetchStoreData } from "@/lib/store-client";
 import WaitLoading from "@/components/ui/WaitLoading";
 import type { StoreProduct } from "@/types/store";
@@ -74,7 +76,7 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
 
     if (product.productType === "pekerjaan") {
       // For jobs, navigate to product detail page instead
-      router.push(`/produk/${product.slug}`);
+      router.push(getProductPath(product));
       return;
     }
 
@@ -179,7 +181,7 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
         <section className={styles.productGrid}>
           {filtered.map((product) => (
             <article key={product.id} className={styles.productShell}>
-              <Link href={`/produk/${product.slug}`} className={styles.productCard}>
+              <Link href={getProductPath(product)} className={styles.productCard}>
                 <div className={styles.productImageWrap}>
                   <FlexibleMedia
                     src={product.imageUrl}
@@ -189,7 +191,7 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
                     sizes="(max-width: 760px) 44vw, (max-width: 1140px) 30vw, 20vw"
                     unoptimized
                   />
-                  {product.productType === "jual_beli" && (
+                  {product.productType !== "pekerjaan" && (
                     <button
                       type="button"
                       className={styles.cartIconOverlay}
@@ -209,7 +211,11 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
                 <div className={styles.floatingMeta}>
                   <div>
                     <p>{product.name}</p>
-                    <span>{formatRupiah(product.price)}</span>
+                    {product.productType === "donation" ? (
+                      <DonationTotalTicker amount={product.donationTotal ?? 0} />
+                    ) : (
+                      <span>{formatRupiah(product.price)}</span>
+                    )}
                   </div>
                   <i>
                     <FiChevronRight />

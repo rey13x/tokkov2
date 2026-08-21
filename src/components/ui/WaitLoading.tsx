@@ -5,21 +5,25 @@ import styles from "./WaitLoading.module.css";
 type WaitLoadingProps = {
   centered?: boolean;
   viewport?: boolean;
-  text?: string;
+  text?: string | undefined;
 };
+
+const DEFAULT_LOADING_TEXT = "Lagi ngambil data, Pastiin internet kamu ada...";
 
 export default function WaitLoading({
   centered = false,
   viewport = false,
-  text = "Pastikan Internet kamu Stabil...",
+  text,
 }: WaitLoadingProps) {
   const className = viewport ? styles.viewport : centered ? styles.centered : undefined;
 
+  const displayText = text ?? DEFAULT_LOADING_TEXT;
+
   return (
     <div className={className}>
-      <div className={styles.pill} role="status" aria-live="polite" aria-label={text}>
+      <div className={styles.pill} role="status" aria-live="polite" aria-label={displayText}>
         <span className={styles.spinner} aria-hidden="true" />
-        <span>{text}</span>
+        {displayText ? <span>{displayText}</span> : null}
       </div>
     </div>
   );

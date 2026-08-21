@@ -261,8 +261,13 @@ export async function POST(request: Request) {
   }
 
   const chatId = String(incomingChatId);
-  if (!configuredChatId || chatId !== configuredChatId) {
-    return NextResponse.json({ ok: false }, { status: 403 });
+  // Jika TELEGRAM_CHAT_ID dikonfigurasi, batasi hanya untuk pesan masuk biasa.
+  // Callback query (tekanan tombol) bisa berasal dari channel atau forwarded message,
+  // sehingga tidak perlu menolak mereka hanya karena chat ID berbeda.
+  if (configuredChatId) {
+    if (!callback && chatId !== configuredChatId) {
+      return NextResponse.json({ ok: false }, { status: 403 });
+    }
   }
 
   const state = await getBotState(chatId);

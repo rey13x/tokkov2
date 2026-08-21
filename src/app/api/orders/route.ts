@@ -43,9 +43,17 @@ export async function GET() {
     return NextResponse.json({ orders });
   }
 
-  const filtered = orders.filter(
-    (order) => order.userEmail.toLowerCase() === (session.user.email ?? "").toLowerCase(),
-  );
+  // For normal users: only return orders that belong to them AND are not hidden for this user
+  const myEmail = (session.user.email ?? "").toLowerCase();
+  const myUserId = session.user.id;
+  const filtered = orders.filter((order) => {
+    if (order.userEmail.toLowerCase() !== myEmail) return false;
+    // If order has hiddenForUsers and includes this user id, exclude it
+    const hiddenList = (order as any).hiddenForUsers as string[] | undefined;
+    if (Array.isArray(hiddenList) && hiddenList.includes(myUserId)) return false;
+    return true;
+  });
+
   return NextResponse.json({ orders: filtered });
 }
 

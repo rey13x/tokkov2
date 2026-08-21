@@ -72,7 +72,7 @@ export default function InformasiDetailClient({ id }: Props) {
     return (
       <main className={styles.page}>
         <div className={styles.loadingContainer}>
-          <p style={{ textAlign: 'center' }}>Pastikan Internet kamu Stabil...</p>
+          <p style={{ textAlign: 'center' }}>Lagi ngambil data, Pastiin internet kamu ada...</p>
         </div>
       </main>
     );

@@ -635,21 +635,26 @@ export default function StatusPemesananPage() {
     try {
       const blob = await captureReceiptAsImage(orderId);
       const url = URL.createObjectURL(blob);
+      const order = displayOrders.find((item) => item.id === orderId);
+      const isDonation = Boolean(order?.items?.some((item) => item.productType === "donation"));
       if (downloadImmediately) {
         const link = document.createElement("a");
         link.href = url;
-        link.download = `struk-${orderId}.jpg`;
+        link.download = `${isDonation ? "sertifikat-donasi" : "struk"}-${orderId}.jpg`;
         document.body.appendChild(link);
         link.click();
         link.remove();
       }
-      setReceiptPreview((current) => {
-        if (current) URL.revokeObjectURL(current.url);
-        return { url, orderId };
-      });
-      const order = displayOrders.find((item) => item.id === orderId);
-      if (order?.items?.some((item) => item.productType === "donation")) {
-        setCertificatePreview({ url, orderId });
+      if (isDonation) {
+        setCertificatePreview((current) => {
+          if (current) URL.revokeObjectURL(current.url);
+          return { url, orderId };
+        });
+      } else {
+        setReceiptPreview((current) => {
+          if (current) URL.revokeObjectURL(current.url);
+          return { url, orderId };
+        });
       }
     } catch {
       setError("Struk belum berhasil diunduh. Coba lagi sebentar.");
@@ -1836,7 +1841,7 @@ export default function StatusPemesananPage() {
             <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
               <a
                 href={certificatePreview.url}
-                download={`sertifikat-donasi-${certificatePreview.orderId}.pdf`}
+                download={`sertifikat-donasi-${certificatePreview.orderId}.jpg`}
                 className={styles.popupCloseButton}
               >
                 Unduh PDF
