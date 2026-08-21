@@ -406,13 +406,18 @@ export default function CartPage() {
           }),
         });
 
-        const qrResult = (await qrResponse.json().catch(() => null)) as { qrCode?: string; qrImage?: string } | null;
+        const qrResult = (await qrResponse.json().catch(() => null)) as {
+          qrCode?: string;
+          qrImage?: string;
+          error?: string;
+          details?: string;
+        } | null;
         if (!qrResponse.ok || (!qrResult?.qrCode && !qrResult?.qrImage)) {
-          throw new Error("Server lagi sibuk, coba lagi nanti ya!");
+          throw new Error(qrResult?.details || qrResult?.error || "QRIS belum berhasil dibuat.");
         }
       } catch (qrError) {
         console.warn("Error generating dynamic QRIS:", qrError);
-        setError("Server lagi sibuk, coba lagi nanti ya!");
+        setError(qrError instanceof Error ? qrError.message : "QRIS belum berhasil dibuat.");
         return;
       }
 
@@ -429,7 +434,7 @@ export default function CartPage() {
       router.push(`/status-pemesanan?highlight=${encodeURIComponent(orderId)}&pay=1`);
     } catch (err) {
       console.error("Checkout error:", err);
-      setError("Server lagi sibuk, coba lagi nanti ya!");
+      setError(err instanceof Error ? err.message : "Gagal memproses pesanan.");
     } finally {
       setIsCheckoutLoading(false);
     }
