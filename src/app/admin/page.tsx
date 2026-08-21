@@ -5999,7 +5999,7 @@ function AdminManagementSection() {
                   Belum ada user yang mendaftar.
                 </p>
               ) : (
-                <table className={styles.table} style={{ width: "100%", borderCollapse: "collapse" }}>
+                <table className={`${styles.table} ${styles.usersTable}`} style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #ddd" }}>
                       <th style={{ padding: "8px", textAlign: "left" }}>Username</th>

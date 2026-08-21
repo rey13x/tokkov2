@@ -1,17 +1,30 @@
 .phoneHint {
   margin: 0;
   color: #d92d20;
-  font-size: 0.78rem;
+  flex: 1 1 auto;
+  font-size: clamp(0.52rem, 1.6vw, 0.78rem);
   font-weight: 600;
+  min-width: 0;
   white-space: nowrap;
 }
 
 .fieldLabel {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 3px;
+  flex-wrap: nowrap;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.fieldLabel > :first-child {
   white-space: nowrap;
-  width: max-content;
+  flex: 0 0 auto;
+}
+
+.field {
+  min-width: 0;
 }
 .page {
   min-height: 100vh;
@@ -189,6 +202,9 @@
 }
 
 .field input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #d7dce7;
   border-radius: 12px;
   height: 46px;
@@ -308,6 +324,13 @@
 .accountMeta {
   color: #59627c;
   font-size: 0.83rem;
+}
+
+.accountMeta a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }
 
 .disabledInfo {

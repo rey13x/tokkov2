@@ -158,6 +158,10 @@ export default function ProfilePage() {
     event.preventDefault();
     setError("");
     setMessage("");
+    if (phone.trim().length < 8) {
+      setError("Nomor WhatsApp wajib diisi minimal 8 angka sebelum profil diperbarui.");
+      return;
+    }
     setIsSaving(true);
 
     try {
@@ -428,7 +432,7 @@ export default function ProfilePage() {
             <label className={styles.field}>
               <span className={styles.fieldLabel}>
                 No Telepon <span style={{ color: "#d92d20" }}>*</span>
-                <span className={styles.phoneHint}>*Pastikan menggunakan Nomor Whatsapp aktif ya!</span>
+                <span className={styles.phoneHint}>Pastikan menggunakan Nomor Whatsapp aktif ya!</span>
               </span>
               <input
                 value={phone}
