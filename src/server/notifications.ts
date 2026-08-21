@@ -112,18 +112,35 @@ async function editTelegramMessage(chatId: string, messageId: number, text: stri
   }
 }
 
-async function sendTelegramReceipt(orderId: string, chatId: string) {
+function maskEmail(value: string) {
+  const [local = "", domain = ""] = value.split("@", 2);
+  if (!local || !domain) return "***";
+  const dot = domain.indexOf(".");
+  return `${local.slice(0, 1)}***@${domain.slice(0, 1)}***${dot >= 0 ? domain.slice(dot) : ""}`;
+}
+
+function maskPhone(value: string) {
+  const clean = value.trim();
+  return clean.length > 4 ? `${clean.slice(0, 2)}***${clean.slice(-2)}` : "***";
+}
+
+async function sendTelegramReceipt(
+  orderId: string,
+  chatId: string,
+  options: { notifiedField?: string; caption?: string } = {},
+) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
   if (!botToken) return false;
 
   const firestore = getFirebaseFirestore();
   const order = await getOrderById(orderId);
   if (!order) return false;
+  const notifiedField = options.notifiedField || "telegramReceiptNotifiedAt";
   let existingReceiptSentAt: unknown = null;
   if (firestore) {
     try {
       const snapshot = await firestore.collection("orders").doc(orderId).get();
-      existingReceiptSentAt = snapshot.exists ? snapshot.data()?.telegramReceiptNotifiedAt : null;
+      existingReceiptSentAt = snapshot.exists ? snapshot.data()?.[notifiedField] : null;
     } catch {
       existingReceiptSentAt = null;
     }
@@ -152,7 +169,7 @@ async function sendTelegramReceipt(orderId: string, chatId: string) {
 
   const form = new FormData();
   form.append("chat_id", chatId);
-  form.append("caption", `🧾 <b>Struk pembayaran ${escapeTelegramHtml(orderId)}</b>`);
+  form.append("caption", options.caption || `🧾 <b>Struk pembayaran ${escapeTelegramHtml(orderId)}</b>`);
   form.append("parse_mode", "HTML");
   form.append("document", new Blob([new Uint8Array(pdf)], { type: "application/pdf" }), `struk-${orderId}.pdf`);
 
@@ -164,9 +181,43 @@ async function sendTelegramReceipt(orderId: string, chatId: string) {
   if (!response.ok) return false;
 
   await firestore?.collection("orders").doc(orderId).set({
-    telegramReceiptNotifiedAt: Date.now(),
+    [notifiedField]: Date.now(),
   }, { merge: true });
   return true;
+}
+
+export async function sendTelegramPaymentChannelNotification(payload: {
+  orderId: string;
+  transactionId: string;
+  amount: number;
+}) {
+  const channelId = process.env.TELEGRAM_PAYMENT_CHANNEL_ID?.trim();
+  if (!channelId) {
+    console.warn("Payment channel notification skipped: TELEGRAM_PAYMENT_CHANNEL_ID is missing.");
+    return false;
+  }
+
+  const order = await getOrderById(payload.orderId);
+  if (!order) return false;
+  const accountText = [
+    `Nama: ${escapeTelegramHtml(order.userName)}`,
+    `Email: ${escapeTelegramHtml(maskEmail(order.userEmail))}`,
+    `No. HP: ${escapeTelegramHtml(maskPhone(order.userPhone))}`,
+  ].join("\n");
+  const caption = [
+    "✅ <b>PEMBAYARAN SUKSES</b>",
+    "",
+    `<b>Order ID</b>: <code>${escapeTelegramHtml(payload.orderId)}</code>`,
+    `<b>Jumlah</b>: Rp ${payload.amount.toLocaleString("id-ID")}`,
+    `<b>Transaksi</b>: <code>${escapeTelegramHtml(payload.transactionId)}</code>`,
+    "",
+    `<b>Informasi Account</b>\n<tg-spoiler>${accountText}</tg-spoiler>`,
+  ].join("\n");
+
+  return sendTelegramReceipt(payload.orderId, channelId, {
+    notifiedField: "telegramPaymentChannelNotifiedAt",
+    caption,
+  });
 }
 
 export async function appendOrderToCsv(payload: {
@@ -276,6 +327,14 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
   userName?: string;
   userEmail?: string;
 }) {
+  await sendTelegramPaymentChannelNotification({
+    orderId: payload.orderId,
+    transactionId: payload.transactionId,
+    amount: payload.amount,
+  }).catch((error) => {
+    console.error("Failed to send Telegram payment channel notification:", error);
+  });
+
   const text = [
     "✅ <b>PEMBAYARAN BERHASIL</b>",
     "",
