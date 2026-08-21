@@ -2,7 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import QRCode from "qrcode";
 import { getFirebaseAdminApp, getFirebaseFirestore } from "@/server/firebase-admin";
-import { getOrderById, listOrderItemsByOrderId } from "@/server/store-data";
+import { getOrderById, getProductById, listOrderItemsByOrderId } from "@/server/store-data";
 
 const exportDir = path.join(process.cwd(), "storage", "exports");
 const csvFile = path.join(exportDir, "orders.csv");
@@ -248,6 +248,10 @@ async function sendTelegramReceipt(
   if (existingReceiptSentAt) return true;
 
   const items = await listOrderItemsByOrderId(orderId);
+  const enrichedItems = await Promise.all(items.map(async (item) => ({
+    ...item,
+    productType: item.productType || (await getProductById(item.productId))?.productType,
+  })));
   const total = Number(order.totalAmount ?? order.total ?? 0);
   const receiptInput = {
     orderId: order.id,
@@ -258,7 +262,7 @@ async function sendTelegramReceipt(
     createdAt: order.createdAt,
     depositId: order.depositId,
     paidAt: order.paidAt,
-    items: items.map((item) => ({
+    items: enrichedItems.map((item) => ({
       productName: item.productName,
       productDuration: item.productDuration,
       quantity: item.quantity,
@@ -308,7 +312,11 @@ export async function sendTelegramPaymentChannelNotification(payload: {
   const order = await getOrderById(payload.orderId);
   if (!order) return false;
   const items = await listOrderItemsByOrderId(payload.orderId);
-  const donation = items.find((item) => item.productType === "donation");
+  const enrichedItems = await Promise.all(items.map(async (item) => ({
+    ...item,
+    productType: item.productType || (await getProductById(item.productId))?.productType,
+  })));
+  const donation = enrichedItems.find((item) => item.productType === "donation");
   if (donation) {
     const donationCaption = [
       "💙 <b>DONASI MASUK</b>",
@@ -413,10 +421,10 @@ export async function sendTelegramOrderNotification(payload: {
   const text = [
     isDonation ? "💙 <b>DONASI MASUK</b>" : "📣 <b>ORDERAN MASUK</b>",
     "",
-    `<b>Order ID</b>  : <tg-spoiler>${escapeTelegramHtml(payload.orderId)}</tg-spoiler>`,
+    `<b>Order ID</b>  : ${escapeTelegramHtml(payload.orderId)}`,
     isDonation
       ? `<b>Username</b> : ${escapeTelegramHtml(payload.userName)}\n<b>Email</b>    : ${escapeTelegramHtml(maskEmail(payload.userEmail))}\n<b>No. HP</b>   : ${escapeTelegramHtml(maskPhone(payload.userPhone || "-"))}`
-      : `<b>Nama</b>      : <tg-spoiler>${escapeTelegramHtml(payload.userName)}</tg-spoiler>\n<b>Email</b>     : <tg-spoiler>${escapeTelegramHtml(payload.userEmail)}</tg-spoiler>\n<b>No. HP</b>    : <tg-spoiler>${escapeTelegramHtml(payload.userPhone || "-")}</tg-spoiler>`,
+      : `<b>Nama</b>      : ${escapeTelegramHtml(payload.userName)}\n<b>Email</b>     : ${escapeTelegramHtml(payload.userEmail)}\n<b>No. HP</b>    : ${escapeTelegramHtml(payload.userPhone || "-")}`,
     `<b>Waktu</b>     : ${escapeTelegramHtml(formatAuditDate())}`,
     "",
     "<b>Detail Produk</b>",
@@ -429,7 +437,6 @@ export async function sendTelegramOrderNotification(payload: {
     inline_keyboard: [[
       { text: "Sudah Bayar", callback_data: `payment:paid:${payload.orderId}` },
       { text: "Belum Bayar", callback_data: `payment:pending:${payload.orderId}` },
-      { text: "Pre-order", callback_data: `payment:preorder:${payload.orderId}` },
       { text: "Pre-order", callback_data: `payment:preorder:${payload.orderId}` },
     ]],
   });

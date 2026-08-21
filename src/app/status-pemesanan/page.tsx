@@ -1002,6 +1002,12 @@ export default function StatusPemesananPage() {
   const activePaymentOrder = displayOrders.find((order) => order.id === activePaymentOrderId) ?? null;
 
   useEffect(() => {
+    if (activePaymentOrder && ["paid", "sent", "cancelled"].includes(activePaymentOrder.status)) {
+      setActivePaymentOrderId(null);
+    }
+  }, [activePaymentOrder]);
+
+  useEffect(() => {
     if (!success) {
       return;
     }
