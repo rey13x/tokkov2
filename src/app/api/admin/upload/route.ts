@@ -1,36 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/server/admin";
-import { getFirebaseStorageBucket } from "@/server/firebase-admin";
 
 export const runtime = "nodejs";
 const MAX_UPLOAD_SIZE_BYTES = 8 * 1024 * 1024;
 // Firestore document has ~1 MiB limit; keep inline media far below that.
 const MAX_INLINE_FILE_SIZE_BYTES = 450 * 1024;
 
-function sanitizeFileName(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9.-]+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 120);
-}
-
 function toInlineDataUrl(file: File, buffer: Buffer) {
   const mimeType = file.type || "application/octet-stream";
   return `data:${mimeType};base64,${buffer.toString("base64")}`;
-}
-
-function inferExtensionByMimeType(mimeType: string) {
-  if (mimeType.startsWith("image/")) {
-    return mimeType.replace("image/", "").replace(/[^a-z0-9]/gi, "") || "jpg";
-  }
-  if (mimeType.startsWith("audio/")) {
-    return mimeType.replace("audio/", "").replace(/[^a-z0-9]/gi, "") || "mp3";
-  }
-  if (mimeType.startsWith("video/")) {
-    return mimeType.replace("video/", "").replace(/[^a-z0-9]/gi, "") || "mp4";
-  }
-  return "bin";
 }
 
 export async function POST(request: Request) {
@@ -42,9 +20,6 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file");
-    const folderRaw = String(formData.get("folder") ?? "media");
-    const folder = folderRaw.replace(/[^a-z0-9/_-]+/gi, "").slice(0, 50) || "media";
-
     if (!(file instanceof File)) {
       return NextResponse.json({ message: "File tidak ditemukan." }, { status: 400 });
     }
@@ -67,38 +42,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const fileUploadEnabled = process.env.FILE_UPLOAD_ENABLED === "true";
-    const bucket = getFirebaseStorageBucket() as any;
-    if (!fileUploadEnabled || !bucket) {
-      if (buffer.length > MAX_INLINE_FILE_SIZE_BYTES) {
-        return NextResponse.json(
-          {
-            message:
-              "Ukuran file terlalu besar untuk mode inline. Maksimal 450KB atau aktifkan upload bucket.",
-          },
-          { status: 400 },
-        );
-      }
-      return NextResponse.json({ url: toInlineDataUrl(file, buffer) });
+    if (buffer.length > MAX_INLINE_FILE_SIZE_BYTES) {
+      return NextResponse.json(
+        { message: "Ukuran file terlalu besar untuk Firestore. Maksimal 450KB." },
+        { status: 400 },
+      );
     }
 
-    const extensionFromName = file.name.includes(".") ? file.name.split(".").pop() : "";
-    const cleanExtension = (extensionFromName ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const extension = cleanExtension || inferExtensionByMimeType(file.type);
-    const fileName = sanitizeFileName(file.name.replace(/\.[^/.]+$/, ""));
-    const objectPath = `${folder}/${Date.now()}-${fileName}.${extension}`;
-    const object = bucket.file(objectPath);
-
-    await object.save(buffer, {
-      resumable: false,
-      metadata: {
-        contentType: file.type,
-      },
-    });
-    await object.makePublic();
-
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
-    return NextResponse.json({ url: publicUrl });
+    return NextResponse.json({ url: toInlineDataUrl(file, buffer) });
   } catch {
     return NextResponse.json({ message: "Upload media gagal." }, { status: 500 });
   }

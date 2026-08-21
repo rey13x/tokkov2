@@ -3798,15 +3798,13 @@ function AdminManagementSection() {
               <option value={1}>Bintang 1</option>
             </select>
             <input value={testimonialForm.mediaUrl} readOnly placeholder="URL media testimoni otomatis" />
-            {isFileUploadEnabled ? (
-              <label className={styles.fileField}>
-                Upload Media Testimoni (Foto/Video)
-                <input type="file" accept="image/*,video/*" onChange={onSelectTestimonialMedia} />
-                <small>
-                  {isUploadingTestimonialMedia ? "Uploading..." : "Pilih file media dari device"}
-                </small>
-              </label>
-            ) : null}
+            <label className={styles.fileField}>
+              Upload Foto Testimoni (maksimal 450KB)
+              <input type="file" accept="image/*" onChange={onSelectTestimonialMedia} />
+              <small>
+                {isUploadingTestimonialMedia ? "Memproses foto..." : "Pilih foto dari device"}
+              </small>
+            </label>
             <div className={styles.previewCard}>
               <FlexibleMedia
                 src={testimonialForm.mediaUrl}

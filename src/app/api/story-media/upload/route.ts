@@ -1,17 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
-import { getFirebaseStorageBucket } from "@/server/firebase-admin";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
-const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB max per image
-
-function sanitizeFileName(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9.-]+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 120);
-}
+const MAX_IMAGE_SIZE_BYTES = 450 * 1024;
 
 export const runtime = "nodejs";
 
@@ -40,51 +31,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate file size (2MB max)
+    // Keep the Firestore document safely below its size limit.
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
       return NextResponse.json(
         {
-          message: `Foto terlalu besar (${sizeMB}MB). Maksimal 2MB.`,
+          message: `Foto terlalu besar (${sizeMB}MB). Maksimal 450KB.`,
         },
         { status: 400 }
       );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const extension = file.type === "image/png"
-      ? "png"
-      : file.type === "image/gif"
-        ? "gif"
-        : file.type === "image/webp"
-          ? "webp"
-          : "jpg";
-
-    const fileUploadEnabled = process.env.FILE_UPLOAD_ENABLED === "true";
-    const bucket = getFirebaseStorageBucket() as any;
-
-    let mediaUrl = "";
-
-    if (!fileUploadEnabled || !bucket) {
-      // Firebase not configured: fallback to returning a data URL so uploads still work in dev/local
-      const dataUrl = `data:${file.type};base64,${buffer.toString("base64")}`;
-      mediaUrl = dataUrl;
-    } else {
-      // Upload to Firebase Storage
-      const fileName = sanitizeFileName(file.name.replace(/\.[^/.]+$/, "") || "story-photo");
-      const objectPath = `stories/${session.user.id}/${Date.now()}-${fileName}.${extension}`;
-      const object = bucket.file(objectPath);
-
-      await object.save(buffer, {
-        resumable: false,
-        metadata: {
-          contentType: file.type,
-        },
-      });
-
-      await object.makePublic();
-      mediaUrl = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
-    }
+    const mediaUrl = `data:${file.type};base64,${buffer.toString("base64")}`;
 
     return NextResponse.json({
       url: mediaUrl,

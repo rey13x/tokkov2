@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/admin";
 import { listProfilePhotos, createProfilePhoto, deleteProfilePhoto } from "@/server/db";
-import { getFirebaseStorageBucket } from "@/server/firebase-admin";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
-const MAX_IMAGE_SIZE_BYTES = 1 * 1024 * 1024; // 1MB max per image
-
-function sanitizeFileName(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9.-]+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 120);
-}
+const MAX_IMAGE_SIZE_BYTES = 450 * 1024;
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -81,7 +72,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Validate file size (1MB max)
+      // Keep the Firestore document safely below its size limit.
       if (fileInput.size > MAX_IMAGE_SIZE_BYTES) {
         const sizeMB = (fileInput.size / (1024 * 1024)).toFixed(2);
         return NextResponse.json(
@@ -90,39 +81,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const fileUploadEnabled = process.env.FILE_UPLOAD_ENABLED === "true";
-      const bucket = getFirebaseStorageBucket() as any;
-
-      if (!fileUploadEnabled || !bucket) {
-        return NextResponse.json(
-          { message: "Upload file tidak tersedia. Gunakan URL atau hubungi administrator." },
-          { status: 503 }
-        );
-      }
-
-      // Upload to Firebase Storage
       const buffer = Buffer.from(await fileInput.arrayBuffer());
-      const extension = fileInput.type === "image/png"
-        ? "png"
-        : fileInput.type === "image/gif"
-          ? "gif"
-          : fileInput.type === "image/webp"
-            ? "webp"
-            : "jpg";
-
-      const fileName = sanitizeFileName(fileInput.name.replace(/\.[^/.]+$/, "") || "profile-photo");
-      const objectPath = `profile-photos/${Date.now()}-${fileName}.${extension}`;
-      const object = bucket.file(objectPath);
-
-      await object.save(buffer, {
-        resumable: false,
-        metadata: {
-          contentType: fileInput.type,
-        },
-      });
-
-      await object.makePublic();
-      photoUrl = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
+      photoUrl = `data:${fileInput.type};base64,${buffer.toString("base64")}`;
     } else {
       return NextResponse.json(
         { message: "URL atau file foto diperlukan" },

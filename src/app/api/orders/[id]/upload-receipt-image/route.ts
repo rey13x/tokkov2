@@ -46,61 +46,15 @@ export async function POST(request: Request, context: { params: Params }) {
       return NextResponse.json({ message: "File harus berupa gambar." }, { status: 400 });
     }
 
-    // Validate file size (max 5MB)
-    // Validate file size (max 2MB)
-    if (imageFile.size > 2 * 1024 * 1024) {
-      return NextResponse.json({ message: "Ukuran gambar terlalu besar (max 2MB)." }, { status: 400 });
+    // Keep the Firestore document safely below its size limit.
+    if (imageFile.size > 450 * 1024) {
+      return NextResponse.json({ message: "Ukuran gambar terlalu besar (max 450KB)." }, { status: 400 });
     }
 
-    // Read file buffer
-    const buffer = await imageFile.arrayBuffer();
-
-    // Try to upload to Firebase Storage
-    try {
-      const admin = require("firebase-admin");
-      const { getStorage } = admin;
-
-      // Initialize Firebase if needed
-      let storage = null;
-      try {
-        storage = getStorage();
-      } catch {
-        // Firebase not initialized - must fail, don't return base64
-        return NextResponse.json(
-          { message: "Upload service tidak tersedia. Hubungi administrator." },
-          { status: 503 }
-        );
-      }
-
-      // Create a unique filename
-      const timestamp = Date.now();
-      const filename = `receipts/${orderId}/confirmation-${timestamp}.png`;
-
-      // Upload to Firebase Storage
-      const file = storage.bucket().file(filename);
-      await file.save(Buffer.from(buffer), {
-        metadata: {
-          contentType: imageFile.type,
-          cacheControl: "public, max-age=31536000",
-        },
-      });
-
-      // Generate signed URL (valid for 7 days)
-      const [url] = await file.getSignedUrl({
-        version: "v4",
-        action: "read",
-        expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
-      });
-
-      return NextResponse.json({ imageUrl: url });
-    } catch (storageError) {
-      console.error("Firebase Storage error:", storageError);
-      // Don't fallback to base64 - fail properly
-      return NextResponse.json(
-        { message: "Gagal mengunggah struk. Pastikan file berukuran kurang dari 2MB." },
-        { status: 500 }
-      );
-    }
+    const buffer = Buffer.from(await imageFile.arrayBuffer());
+    return NextResponse.json({
+      imageUrl: `data:${imageFile.type};base64,${buffer.toString("base64")}`,
+    });
   } catch (error) {
     console.error("POST /api/orders/[id]/upload-receipt-image failed:", error);
     return NextResponse.json({ message: "Gagal mengunggah struk." }, { status: 500 });

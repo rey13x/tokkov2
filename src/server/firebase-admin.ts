@@ -6,7 +6,6 @@ export const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 5;
 
 let _adminApp: any = null;
 let _firestore: any = null;
-let _storage: any = null;
 let _initialized = false;
 
 function initializeFirebase() {
@@ -27,6 +26,12 @@ function initializeFirebase() {
       serviceAccountJson = JSON.parse(
         Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString()
       );
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT_FILE) {
+      const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_FILE);
+      if (!fs.existsSync(serviceAccountPath)) {
+        throw new Error(`Firebase service account file tidak ditemukan: ${serviceAccountPath}`);
+      }
+      serviceAccountJson = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
     } else if (
       process.env.FIREBASE_PROJECT_ID &&
       process.env.FIREBASE_CLIENT_EMAIL &&
@@ -44,12 +49,6 @@ function initializeFirebase() {
         token_uri: "https://oauth2.googleapis.com/token",
         auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
       };
-    } else {
-      // Try to load from file
-      const serviceAccountPath = path.join(process.cwd(), "service-account.json");
-      if (fs.existsSync(serviceAccountPath)) {
-        serviceAccountJson = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
-      }
     }
 
     if (!serviceAccountJson) {
@@ -57,16 +56,21 @@ function initializeFirebase() {
       return;
     }
 
+    const expectedProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+    if (expectedProjectId && serviceAccountJson.project_id !== expectedProjectId) {
+      throw new Error(
+        `Firebase project mismatch: client=${expectedProjectId}, admin=${serviceAccountJson.project_id}`,
+      );
+    }
+
     // Reuse the default app when another module initialized Firebase first.
     _adminApp = admin.apps.length > 0
       ? admin.app()
       : admin.initializeApp({
           credential: admin.credential.cert(serviceAccountJson),
-          storageBucket: `${serviceAccountJson.project_id}.appspot.com`,
         });
 
     _firestore = admin.firestore();
-    _storage = admin.storage();
 
     console.log("Firebase Admin initialized successfully");
   } catch (error) {
@@ -90,15 +94,6 @@ export function getFirebaseAdminApp() {
 export function getFirebaseFirestore() {
   initializeFirebase();
   return _firestore;
-}
-
-/**
- * Get Firebase Storage bucket
- * Returns null when Firebase is not configured
- */
-export function getFirebaseStorageBucket() {
-  initializeFirebase();
-  return _storage;
 }
 
 /**
