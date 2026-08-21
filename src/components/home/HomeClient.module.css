@@ -175,6 +175,229 @@
   margin-bottom: 6px;
 }
 
+.mapLoading {
+  min-height: clamp(360px, 56vw, 600px);
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(22, 27, 40, 0.12);
+  border-radius: 20px;
+  background: #eef1f5;
+  color: #5d6675;
+  font-weight: 700;
+}
+
+.section :global(.marketing-map) {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.section :global(.marketing-map-heading) {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.section :global(.marketing-map-eyebrow) {
+  margin: 0 0 5px;
+  color: #d07818;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.section :global(.marketing-map-heading h2) {
+  margin: 0;
+  color: #161b28;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+}
+
+.section :global(.marketing-map-heading > p) {
+  margin: 0 0 2px;
+  color: #697384;
+  font-size: 0.88rem;
+}
+
+.section :global(.marketing-map-controls) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.section :global(.marketing-map-controls button) {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid rgba(22, 27, 40, 0.16);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #273143;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.section :global(.marketing-map-controls button:hover) {
+  border-color: #2670c9;
+  background: #eef6ff;
+  color: #145ba9;
+}
+
+.section :global(.marketing-map-controls button:active) {
+  transform: scale(0.97);
+}
+
+.section :global(.marketing-map-canvas) {
+  position: relative;
+  width: min(100%, 520px);
+  aspect-ratio: 1;
+  height: auto;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(22, 27, 40, 0.13);
+  border-radius: 20px;
+  box-shadow: 0 16px 34px rgba(22, 27, 40, 0.12);
+}
+
+.section :global(.marketing-pin-wrapper) {
+  background: transparent;
+  border: 0;
+}
+
+.section :global(.marketing-pin) {
+  width: 46px;
+  height: 46px;
+  overflow: hidden;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(22, 27, 40, 0.32);
+}
+
+.section :global(.marketing-pin img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.section :global(.marketing-pin-pusat) {
+  width: 56px;
+  height: 56px;
+  border-color: #f0a51a;
+  box-shadow: 0 0 0 3px rgba(240, 165, 26, 0.22), 0 5px 16px rgba(166, 104, 10, 0.38);
+}
+
+.section :global(.marketing-map-controls) {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  left: 14px;
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+
+.section :global(.marketing-map-controls button) {
+  min-width: 84px;
+  border-color: rgba(255, 255, 255, 0.2);
+  background: #ffffff;
+  color: #161b28;
+}
+
+.section :global(.marketing-map-controls button:hover) {
+  border-color: #f0a51a;
+  background: #fff8e8;
+  color: #161b28;
+}
+
+.section :global(.marketing-map-open) {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  left: 14px;
+  z-index: 1000;
+  min-height: 48px;
+  border: 1px solid rgba(22, 27, 40, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #161b28;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.section :global(.marketing-map-open:hover) {
+  background: #ffffff;
+  border-color: #f0a51a;
+}
+
+.section :global(.marketing-map-short-label) {
+  display: none;
+}
+
+@media (max-width: 620px) {
+  .section :global(.marketing-map-heading) {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .section :global(.marketing-map-controls) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .section :global(.marketing-map-controls button) {
+    width: 100%;
+    padding-inline: 8px;
+  }
+
+  .section :global(.marketing-map-canvas) {
+    width: min(100%, 520px);
+    border-radius: 14px;
+  }
+
+  .section :global(.marketing-map-controls) {
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .section :global(.marketing-map-open) {
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+  }
+
+  .section :global(.marketing-map-controls button) {
+    min-width: 0;
+    flex: 1 1 28%;
+    padding-inline: 8px;
+  }
+
+  .section :global(.marketing-map-full-label) {
+    display: none;
+  }
+
+  .section :global(.marketing-map-short-label) {
+    display: inline;
+  }
+}
+
 .storeLoadingBadge {
   position: sticky;
   top: 10px;

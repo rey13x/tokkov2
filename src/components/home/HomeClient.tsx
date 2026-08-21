@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import type { CallBackProps, Step } from "react-joyride";
+import dynamic from "next/dynamic";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
@@ -51,6 +52,11 @@ import type {
   StoreTestimonial,
 } from "@/types/store";
 import styles from "./HomeClient.module.css";
+
+const PetaPemasaranDinamis = dynamic(() => import("@/components/PetaPemasaran"), {
+  ssr: false,
+  loading: () => <div className={styles.mapLoading}>Menyiapkan peta jaringan pemasaran...</div>,
+});
 
 type MenuLayer = "closed" | "main" | "products";
 
@@ -518,7 +524,7 @@ export default function HomeClient() {
         setInformations(data.informations ?? []);
         setTestimonials(data.testimonials ?? []);
         setMarquees(data.marquees ?? []);
-        setStoreDataReady((data.products ?? []).length > 0);
+        setStoreDataReady(true);
       })
       .catch(() => {
         // keep the homepage usable even if the store API is slow or unavailable
@@ -1089,6 +1095,23 @@ export default function HomeClient() {
           />
         ) : null}
 
+      </section>
+      ) : null}
+
+      {storeDataReady ? (
+        <section className={styles.section} data-animate="section">
+          <div className={styles.partnerHeader}>
+            <h2>Tim Marketing</h2>
+          </div>
+          <PetaPemasaranDinamis />
+        </section>
+      ) : null}
+
+      {activeMarquees.length > 0 ? (
+      <section className={styles.section} data-animate="section">
+        <div className={styles.partnerHeader}>
+          <h2>Marquee Partner</h2>
+        </div>
         {activeMarquees.length > 0 ? (
           <PremiumMarquee<HomeMarquee>
             items={activeMarquees}
