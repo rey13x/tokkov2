@@ -2,7 +2,11 @@ import { promises as fs } from "fs";
 import path from "path";
 import QRCode from "qrcode";
 import { getFirebaseAdminApp, getFirebaseFirestore } from "@/server/firebase-admin";
+import { listUsersWithPushSubscription } from "@/server/db";
 import { getOrderById, getProductById, listOrderItemsByOrderId } from "@/server/store-data";
+
+type TelegramInlineButton = { text: string; callback_data?: string; url?: string };
+type TelegramReplyMarkup = { inline_keyboard: TelegramInlineButton[][] };
 
 const exportDir = path.join(process.cwd(), "storage", "exports");
 const csvFile = path.join(exportDir, "orders.csv");
@@ -19,6 +23,7 @@ export function escapeTelegramHtml(value: string | number | undefined | null) {
 
 export function telegramStatusLabel(status: string) {
   if (status === "cancelled") return "Pre-order";
+  if (status === "sent") return "Sudah Bayar (Dikirim)";
   if (status === "paid") return "Sudah Bayar";
   if (["done", "delivered", "sent"].includes(status)) return "Sudah Bayar";
   if (["error", "rejected", "declined", "failed", "cancelled"].includes(status)) return "Belum Bayar";
@@ -48,7 +53,7 @@ function formatAuditDate(dateInput?: string | number | Date) {
 
 async function sendTelegramMessage(
   text: string,
-  replyMarkup?: { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> },
+  replyMarkup?: TelegramReplyMarkup,
 ) : Promise<number | null> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -88,7 +93,12 @@ async function sendTelegramMessage(
   }
 }
 
-async function editTelegramMessage(chatId: string, messageId: number, text: string) {
+async function editTelegramMessage(
+  chatId: string,
+  messageId: number,
+  text: string,
+  replyMarkup?: TelegramReplyMarkup,
+) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
   if (!botToken) return false;
 
@@ -102,7 +112,7 @@ async function editTelegramMessage(chatId: string, messageId: number, text: stri
         text,
         parse_mode: "HTML",
         disable_web_page_preview: true,
-        reply_markup: { inline_keyboard: [] },
+        reply_markup: replyMarkup ?? { inline_keyboard: [] },
       }),
       cache: "no-store",
     });
@@ -179,9 +189,15 @@ async function buildReceiptPhoto(input: {
     </svg>`;
   }
   const logoPath = path.join(process.cwd(), "public", "assets", "maintenancelogo.jpg");
+  const signaturePath = path.join(process.cwd(), "public", "assets", "TTD Dev.jpeg");
   const logoData = (await fs.readFile(logoPath)).toString("base64");
-  const receiptOrigin = (process.env.NEXTAUTH_URL?.trim() || "https://www.tokkomarketplace.shop").replace(/\/$/, "");
-  const qrData = await QRCode.toDataURL(`${receiptOrigin}/status-pemesanan?order=${encodeURIComponent(input.orderId)}`, {
+  let signatureData = "";
+  try {
+    signatureData = (await fs.readFile(signaturePath)).toString("base64");
+  } catch {
+    signatureData = "";
+  }
+  const qrData = await QRCode.toDataURL(`https://tokkov2.vercel.app/#${encodeURIComponent(input.orderId)}`, {
     errorCorrectionLevel: "H",
     margin: 1,
     width: 120,
@@ -193,22 +209,22 @@ async function buildReceiptPhoto(input: {
   ]).join("");
   const itemHeight = input.items.length * 54;
   const totalY = 310 + itemHeight;
-  const height = totalY + 210;
+  const height = totalY + 250;
 
   return `<svg width="420" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    <defs><clipPath id="watermark-circle"><circle cx="210" cy="${Math.round(height / 2)}" r="112" /></clipPath></defs>
+    <defs><clipPath id="logo-circle"><circle cx="210" cy="48" r="34" /></clipPath><clipPath id="watermark-circle"><circle cx="210" cy="${Math.round(height / 2)}" r="112" /></clipPath></defs>
     <rect width="420" height="${height}" fill="white"/>
-    <image href="data:image/jpeg;base64,${logoData}" x="182" y="20" width="56" height="56" preserveAspectRatio="xMidYMid slice"/>
-    <g opacity="0.4"><image href="data:image/jpeg;base64,${logoData}" x="90" y="${Math.round(height / 2) - 112}" width="240" height="240" preserveAspectRatio="xMidYMid slice" clip-path="url(#watermark-circle)"/></g>
+    <image href="data:image/jpeg;base64,${logoData}" x="176" y="14" width="68" height="68" preserveAspectRatio="xMidYMid slice" clip-path="url(#logo-circle)"/>
+    <g opacity="0.1" style="filter:grayscale(1)"><image href="data:image/jpeg;base64,${logoData}" x="90" y="${Math.round(height / 2) - 112}" width="240" height="240" preserveAspectRatio="xMidYMid slice" clip-path="url(#watermark-circle)"/></g>
     <style>.title{font:700 15px Helvetica}.subtitle{font:700 11px Helvetica}.meta,.item{font:12px Courier}.bold{font-weight:700}.line{stroke:#222;stroke-width:1}</style>
-    <text x="210" y="100" text-anchor="middle" class="title">TOKKO MARKETPLACE</text>
-    <text x="210" y="122" text-anchor="middle" class="subtitle">Struk Pembayaran</text>
-    <text x="32" y="155" class="meta">Order ID : ${escapeSvg(input.orderId)}</text>
-    <text x="32" y="173" class="meta">Tanggal  : ${escapeSvg(formatAuditDate(input.createdAt))}</text>
-    <text x="32" y="191" class="meta">Akun     : ${escapeSvg(input.userName)}</text>
-    <text x="32" y="209" class="meta">Email    : ${escapeSvg(input.userEmail)}</text>
-    <text x="32" y="227" class="meta">No. HP   : ${escapeSvg(input.userPhone || "-")}</text>
-    <line x1="32" y1="242" x2="388" y2="242" class="line" stroke-dasharray="4 4"/>
+    <text x="210" y="104" text-anchor="middle" class="title">Tokko Marketplace</text>
+    <text x="210" y="126" text-anchor="middle" class="subtitle">Struk Pembayaran</text>
+    <text x="32" y="159" class="meta">Invoice : #${escapeSvg(input.orderId)}</text>
+    <text x="32" y="177" class="meta">Tanggal : ${escapeSvg(formatAuditDate(input.createdAt))}</text>
+    <text x="32" y="195" class="meta">Akun    : ${escapeSvg(input.userName)}</text>
+    <text x="32" y="213" class="meta">Email   : ${escapeSvg(input.userEmail)}</text>
+    <text x="32" y="231" class="meta">No. HP  : ${escapeSvg(input.userPhone || "-")}</text>
+    <line x1="32" y1="246" x2="388" y2="246" class="line" stroke-dasharray="4 4"/>
     ${itemLines}
     <line x1="32" y1="${totalY - 16}" x2="388" y2="${totalY - 16}" class="line" stroke-dasharray="4 4"/>
     <text x="32" y="${totalY + 10}" class="item">Subtotal : ${escapeSvg(input.total.toLocaleString("id-ID"))}</text>
@@ -217,9 +233,10 @@ async function buildReceiptPhoto(input: {
     <text x="32" y="${totalY + 78}" class="item bold">PEMBAYARAN BERHASIL</text>
     ${input.depositId ? `<text x="32" y="${totalY + 96}" class="item">Ref: ${escapeSvg(input.depositId)}</text>` : ""}
     ${input.paidAt ? `<text x="32" y="${totalY + 114}" class="item">Dibayar: ${escapeSvg(formatAuditDate(input.paidAt))}</text>` : ""}
-    <image href="${qrData}" x="32" y="${height - 125}" width="100" height="100"/>
-    <text x="150" y="${height - 95}" class="item bold">Founder</text>
-    <text x="150" y="${height - 75}" class="item">Raihaan Bagastiam Pratama</text>
+    <image href="${qrData}" x="28" y="${height - 146}" width="130" height="130"/>
+    <text x="220" y="${height - 108}" class="item bold">Founder</text>
+    ${signatureData ? `<image href="data:image/jpeg;base64,${signatureData}" x="205" y="${height - 98}" width="150" height="62" preserveAspectRatio="xMidYMid meet"/>` : ""}
+    <text x="210" y="${height - 20}" class="item">Raihaan Bagastiam Pratama</text>
     <text x="210" y="${height - 22}" text-anchor="middle" class="item">Terima kasih sudah berbelanja di Tokko Marketplace.</text>
   </svg>`;
 }
@@ -335,12 +352,12 @@ export async function sendTelegramPaymentChannelNotification(payload: {
     });
   }
   const accountText = [
-    `Nama: ${escapeTelegramHtml(order.userName)}`,
-    `Email: ${escapeTelegramHtml(maskEmail(order.userEmail))}`,
-    `No. HP: ${escapeTelegramHtml(maskPhone(order.userPhone))}`,
+    `Nama: **${escapeTelegramHtml(order.userName)}**`,
+    `Email: **${escapeTelegramHtml(maskEmail(order.userEmail))}**`,
+    `No. HP: **${escapeTelegramHtml(maskPhone(order.userPhone))}**`,
   ].join("\n");
   const caption = [
-    "✅ <b>PEMBAYARAN SUKSES</b>",
+    "📣 <b>PEMBAYARAN BERHASIL</b>",
     "",
     `<b>Order ID</b>: <code>${escapeTelegramHtml(payload.orderId)}</code>`,
     `<b>Jumlah</b>: Rp ${payload.amount.toLocaleString("id-ID")}`,
@@ -483,6 +500,13 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
     `<b>Status</b>        : ${telegramStatusLabel("paid")}`,
     `<b>Waktu</b>         : ${escapeTelegramHtml(formatAuditDate())}`,
   ].join("\n");
+  const adminOrderUrl = buildAdminOrderUrl(payload.orderId);
+  const paymentSuccessKeyboard = {
+    inline_keyboard: [[
+      { text: "Buka Order Admin", url: adminOrderUrl },
+      { text: "Sudah dikirim", callback_data: `delivery:sent:${payload.orderId}` },
+    ]],
+  };
 
   try {
     const firestore = getFirebaseFirestore();
@@ -490,12 +514,12 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
     const orderData = orderSnapshot?.exists ? orderSnapshot.data() : undefined;
     const messageId = Number(orderData?.telegramMessageId ?? 0);
     const chatId = String(orderData?.telegramChatId ?? process.env.TELEGRAM_CHAT_ID ?? "").trim();
-    if (messageId && chatId && await editTelegramMessage(chatId, messageId, text)) {
+    if (messageId && chatId && await editTelegramMessage(chatId, messageId, text, paymentSuccessKeyboard)) {
       await firestore?.collection("orders").doc(payload.orderId).set({
         telegramMessageUpdatedAt: Date.now(),
         telegramPaymentNotifiedAt: Date.now(),
       }, { merge: true });
-      await sendTelegramReceipt(payload.orderId, chatId).catch((error) => {
+      await sendTelegramReceipt(payload.orderId, chatId, { caption: "✅ <b>Pembayaran Berhasil</b>\n\n🧾 Struk transaksi terlampir." }).catch((error) => {
         console.error("Failed to send Telegram receipt:", error);
       });
       return;
@@ -504,9 +528,9 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
     console.error("Failed to update Telegram payment message:", error);
   }
 
-  const fallbackMessageId = await sendTelegramMessage(text);
+  const fallbackMessageId = await sendTelegramMessage(text, paymentSuccessKeyboard);
   if (fallbackMessageId) {
-    await sendTelegramReceipt(payload.orderId, process.env.TELEGRAM_CHAT_ID?.trim() || "").catch((error) => {
+    await sendTelegramReceipt(payload.orderId, process.env.TELEGRAM_CHAT_ID?.trim() || "", { caption: "✅ <b>Pembayaran Berhasil</b>\n\n🧾 Struk transaksi terlampir." }).catch((error) => {
       console.error("Failed to send Telegram receipt:", error);
     });
   }
@@ -553,6 +577,8 @@ export async function sendTelegramActivityNotification(payload: {
   const allowedEvents = new Set([
     "order_created",
     "order_cancelled",
+    "order_reminder",
+    "admin_order_status_update",
     "payment_check",
     "payment_cancelled",
     "testimonial_comment",
@@ -568,6 +594,8 @@ export async function sendTelegramActivityNotification(payload: {
   const eventTitle: Record<string, string> = {
     order_created: "🛒 <b>ORDERAN BARU</b>",
     order_cancelled: "❌ <b>MEMBATALKAN ORDERAN</b>",
+    order_reminder: "📣 <b>PERMINTAAN PROSES ORDER</b>",
+    admin_order_status_update: "🔄 <b>STATUS ORDER DIPERBARUI</b>",
     payment_check: "💳 <b>CEK TRANSAKSI</b>",
     payment_cancelled: "🚫 <b>MEMBATALKAN PEMBAYARAN</b>",
     testimonial_comment: "💬 <b>KOMENTAR TESTIMONI</b>",
@@ -587,7 +615,15 @@ export async function sendTelegramActivityNotification(payload: {
     ...(details.length > 0 ? ["", ...details.map((detail) => escapeTelegramHtml(detail))] : []),
   ];
 
-  await sendTelegramMessage(lines.join("\n"));
+  const orderId = details.find((detail) => detail.toLowerCase().startsWith("order id:"))?.split(":").slice(1).join(":").trim();
+  await sendTelegramMessage(lines.join("\n"), orderId ? {
+    inline_keyboard: [[{ text: "Buka Order Admin", url: buildAdminOrderUrl(orderId) }]],
+  } : undefined);
+}
+
+function buildAdminOrderUrl(orderId: string) {
+  const origin = (process.env.NEXTAUTH_URL?.trim() || "https://www.tokkomarketplace.shop").replace(/\/$/, "");
+  return `${origin}/admin?section=orders&order=${encodeURIComponent(orderId)}`;
 }
 
 export async function sendTelegramAuthNotification(payload: {
@@ -646,6 +682,8 @@ export async function sendFirebaseWebPushMessage(payload: {
         notification: {
           icon: "/assets/logo.png",
           badge: "/assets/logo.png",
+          requireInteraction: true,
+          tag: payload.data?.event || "tokko-update",
         },
       },
       data: payload.data || {},
@@ -654,6 +692,35 @@ export async function sendFirebaseWebPushMessage(payload: {
   } catch (error) {
     console.error("Failed to send Firebase web push message:", error);
     return false;
+  }
+}
+
+export async function notifyNativeUsers(payload: {
+  title: string;
+  body: string;
+  url: string;
+  userId?: string;
+}) {
+  try {
+    const subscribers = await listUsersWithPushSubscription();
+    const targets = payload.userId
+      ? subscribers.filter((subscriber) => subscriber.id === payload.userId)
+      : subscribers;
+    if (targets.length === 0) return 0;
+
+    const results = await Promise.all(
+      targets.map((subscriber) => sendFirebaseWebPushMessage({
+        token: subscriber.pushSubscription,
+        title: payload.title.startsWith("📣") ? payload.title : `📣 ${payload.title}`,
+        body: payload.body,
+        url: payload.url,
+        data: { url: payload.url },
+      })),
+    );
+    return results.filter(Boolean).length;
+  } catch (error) {
+    console.error("Failed to send automatic native notification:", error);
+    return 0;
   }
 }
 

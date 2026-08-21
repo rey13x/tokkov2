@@ -7,7 +7,7 @@ export default function InformasiPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/book-spirit");
+    router.replace("/testimoni");
   }, [router]);
 
   return null;

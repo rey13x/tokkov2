@@ -974,7 +974,7 @@ export default function HomeClient() {
       ) : null}
 
       {informations.length > 0 ? (
-      <section className={styles.section} data-animate="section" id="book-spirit">
+      <section className={styles.section} data-animate="section" id="testimoni">
         <div className={styles.sectionHead}>
           <h2>Informasi</h2>
         </div>
@@ -1122,7 +1122,7 @@ export default function HomeClient() {
                     <FiChevronRight />
                   </span>
                 </button>
-                <button type="button" onClick={() => router.push("/book-spirit")} data-menu-item>
+                <button type="button" onClick={() => router.push("/testimoni")} data-menu-item>
                   Testimoni
                   <span>
                     <FiChevronRight />

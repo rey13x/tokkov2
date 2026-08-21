@@ -1,11 +1,12 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { FiChevronRight } from "react-icons/fi";
+import { FiChevronRight, FiShoppingCart } from "react-icons/fi";
 import type { StoreProduct } from "@/types/store";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { formatRupiah } from "@/data/products";
+import { addToCart } from "@/lib/cart";
 import styles from "./HomeClient.module.css";
 
 interface ProductCardProps {
@@ -21,6 +22,38 @@ const ProductCard = memo(function ProductCard({
   onboardingStage,
   onClick,
 }: ProductCardProps) {
+  const [tapCount, setTapCount] = useState(0);
+  const [isBouncing, setIsBouncing] = useState(false);
+  const [isBadgeExiting, setIsBadgeExiting] = useState(false);
+  const resetTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (resetTimerRef.current !== null) {
+      window.clearTimeout(resetTimerRef.current);
+    }
+  }, []);
+
+  const onAddToCart = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    addToCart(product.slug, 1, undefined, undefined, undefined, { silent: true });
+    setTapCount((current) => current + 1);
+    setIsBadgeExiting(false);
+    setIsBouncing(false);
+    window.requestAnimationFrame(() => setIsBouncing(true));
+    window.setTimeout(() => setIsBouncing(false), 560);
+    if (resetTimerRef.current !== null) {
+      window.clearTimeout(resetTimerRef.current);
+    }
+    resetTimerRef.current = window.setTimeout(() => {
+      setIsBadgeExiting(true);
+      resetTimerRef.current = window.setTimeout(() => {
+        setTapCount(0);
+        setIsBadgeExiting(false);
+      }, 420);
+    }, 3000);
+  };
+
   return (
     <article key={product.id} className={styles.productShell} data-card="product">
       <Link
@@ -54,6 +87,19 @@ const ProductCard = memo(function ProductCard({
           </i>
         </div>
       </Link>
+      <button
+        type="button"
+        className={`${styles.productCartButton} ${isBouncing ? styles.productCartButtonBouncing : ""}`}
+        onClick={onAddToCart}
+        aria-label={`Tambah ${product.name} ke troli`}
+      >
+        <FiShoppingCart />
+        {tapCount > 0 ? (
+          <b key={tapCount} className={isBadgeExiting ? styles.productCartBadgeExiting : ""}>
+            {tapCount}+
+          </b>
+        ) : null}
+      </button>
     </article>
   );
 });

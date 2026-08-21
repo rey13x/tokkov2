@@ -6,7 +6,7 @@ import {
   deleteAllProducts,
   listAllProducts,
 } from "@/server/store-data";
-import { sendTelegramActivityNotification } from "@/server/notifications";
+import { notifyNativeUsers, sendTelegramActivityNotification } from "@/server/notifications";
 
 const normalizeExternalUrl = (value: unknown) => {
   if (typeof value !== "string") return value;
@@ -94,6 +94,13 @@ export async function POST(request: Request) {
         `ID Produk: ${product?.id ?? "-"}`,
       ],
     });
+      if (product) {
+        void notifyNativeUsers({
+          title: "Produk baru tersedia",
+          body: `${product.name} baru saja ditambahkan ke katalog.`,
+          url: `/produk/${product.slug}`,
+        });
+      }
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {

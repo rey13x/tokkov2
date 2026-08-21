@@ -151,6 +151,9 @@ function parseRupiahInput(value: string) {
 }
 
 function statusOrderLabel(status: string) {
+  if (status === "sent") {
+    return "Sudah Bayar (Dikirim)";
+  }
   if (status === "cancelled") {
     return "Sudah Bayar";
   }
@@ -220,6 +223,7 @@ function AdminManagementSection() {
     const [storyReels, setStoryReels] = useState<StoreStoryReel[]>([]);
     const [orders, setOrders] = useState<OrderSummary[]>([]);
     const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, string>>({});
+    const [orderNoteDrafts, setOrderNoteDrafts] = useState<Record<string, string>>({});
     const [series, setSeries] = useState<Array<{ bucket: string; totalOrders: number }>>([]);
     const [latestOrders, setLatestOrders] = useState<Array<{ id: string; userName: string; total: number; createdAt: string }>>([]);
     const [users, setUsers] = useState<any[]>([]); // Replace any with user type if available
@@ -990,12 +994,21 @@ function AdminManagementSection() {
     }
     const result = (await response.json()) as { orders: OrderSummary[] };
     setOrders(result.orders);
+    setOrderNoteDrafts((current) => {
+      const next = { ...current };
+      for (const order of result.orders) {
+        if (!(order.id in next)) {
+          next[order.id] = order.adminNote ?? "";
+        }
+      }
+      return next;
+    });
     setOrderStatusDrafts((current) => {
       const next = { ...current };
       for (const order of result.orders) {
         if (!next[order.id]) {
-          const normalized =
-            order.status === "done" || order.status === "error" ? order.status : "process";
+            const normalized =
+              ["paid", "done", "error", "sent"].includes(order.status) ? order.status : "process";
           next[order.id] = normalized;
         }
       }
@@ -1964,6 +1977,7 @@ function AdminManagementSection() {
 
   const onSaveOrderStatus = async (orderId: string) => {
     const statusDraft = orderStatusDrafts[orderId] ?? "process";
+    const adminNote = orderNoteDrafts[orderId] ?? orders.find((item) => item.id === orderId)?.adminNote ?? "";
     setError("");
     setMessage("");
 
@@ -1971,7 +1985,7 @@ function AdminManagementSection() {
       const response = await fetch(`/api/admin/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: statusDraft }),
+        body: JSON.stringify({ status: statusDraft, adminNote }),
       });
       const result = (await response.json()) as { message?: string };
       if (!response.ok) {
@@ -2782,6 +2796,18 @@ function AdminManagementSection() {
                         Waktu Konfirmasi: {new Date(order.cancelConfirmedAt).toLocaleString("id-ID")}
                       </span>
                     ) : null}
+                    <label>
+                      Catatan admin
+                      <textarea
+                        value={orderNoteDrafts[order.id] ?? ""}
+                        onChange={(event) =>
+                          setOrderNoteDrafts((current) => ({ ...current, [order.id]: event.target.value }))
+                        }
+                        placeholder="Tulis catatan untuk pemesan..."
+                        maxLength={1000}
+                        rows={2}
+                      />
+                    </label>
                     {order.items && order.items.length > 0 ? (
                       <span>
                         Produk:{" "}
@@ -2801,12 +2827,14 @@ function AdminManagementSection() {
                     onChange={(event) =>
                       setOrderStatusDrafts((current) => ({
                         ...current,
-                        [order.id]: event.target.value as "process" | "done" | "error",
+                        [order.id]: event.target.value as "process" | "paid" | "done" | "error" | "sent",
                       }))
                     }
                   >
                     <option value="process">Sedang diproses</option>
-                    <option value="done">Sudah Bayar</option>
+                    <option value="paid">Sudah Bayar</option>
+                    <option value="done">Sudah Bayar (Selesai)</option>
+                    <option value="sent">Sudah Bayar (Dikirim)</option>
                     <option value="error">Belum Bayar</option>
                   </select>
                   <button type="button" onClick={() => onSaveOrderStatus(order.id)}>

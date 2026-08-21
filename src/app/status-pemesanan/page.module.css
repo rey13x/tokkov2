@@ -326,6 +326,44 @@
   cursor: pointer;
 }
 
+.confirmationActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confirmationActions .adminConfirmationButton {
+  flex: 1;
+}
+
+.reminderButton {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  border: 1px solid #10131a;
+  border-radius: 50%;
+  background: #10131a;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0;
+}
+
+.reminderButton::before {
+  content: "🔔";
+  font-size: 18px;
+}
+
+.reminderButtonActive::before {
+  display: inline-block;
+  animation: reminderShake 0.55s ease-in-out 2;
+}
+
+@keyframes reminderShake {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-16deg); }
+  75% { transform: rotate(16deg); }
+}
+
 .adminConfirmationButton:disabled {
   opacity: 0.65;
   cursor: default;
@@ -344,6 +382,25 @@
   justify-content: center;
 }
 
+.shippedReceiptIconButton,
+.testimonialIconButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid #10131a;
+  background: #10131a;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.orderCard:has(.statusDone) .actionIcons {
+  justify-content: center;
+}
+
 .payIconButton {
   width: 40px;
   height: 40px;
@@ -358,6 +415,11 @@
 }
 
 .receiptIconButton svg {
+  width: 20px;
+  height: 20px;
+}
+
+.testimonialIconButton svg {
   width: 20px;
   height: 20px;
 }
@@ -459,6 +521,31 @@
   color: #5f6780;
   font-size: 0.8rem;
   line-height: 1.4;
+}
+
+.successToastDialog {
+  align-items: flex-start;
+  width: min(520px, 100%);
+  padding: 26px;
+}
+
+.successToastContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.successToastButton {
+  min-width: 78px;
+  min-height: 40px;
+  margin-top: 16px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #10131a;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .historyOverlay {
@@ -858,49 +945,60 @@
   cursor: not-allowed;
 }
 
-.paymentSuccessOverlay {
+.adminNoteText {
+  padding: 10px 12px;
+  border-left: 3px solid #121828;
+  background: #f3f5f8;
+  color: #343d50;
+  white-space: pre-wrap;
+}
+
+.receiptPreviewOverlay {
   position: fixed;
   inset: 0;
-  z-index: 1300;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  background: rgba(12, 16, 26, 0.62);
-  animation: paymentOverlayEnter 0.9s ease both;
+  z-index: 1400;
+  overflow: auto;
+  background: #eef0f4;
+  padding: 78px 18px 28px;
 }
 
-.paymentSuccessCard {
-  width: min(380px, 100%);
-  padding: 24px;
-  border-radius: 22px;
-  background: #fff;
-  text-align: center;
-  animation: paymentSuccessBounce 1.8s cubic-bezier(0.22, 0.8, 0.28, 1) both;
+.receiptPreviewToolbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  background: rgba(238, 240, 244, 0.94);
+  border-bottom: 1px solid #d8dce5;
 }
 
-.paymentSuccessCheck {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 14px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #e5f7ed;
-  color: #16834b;
-  font-size: 2.2rem;
+.receiptPreviewButton {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid #10131a;
+  border-radius: 999px;
+  background: #10131a;
+  color: #ffffff;
+  font-size: 0.86rem;
   font-weight: 800;
-  animation: checkPop 0.7s ease both;
+  cursor: pointer;
 }
 
-.paymentSuccessCard h2 {
-  margin: 0;
-  color: #17233f;
+.receiptPreviewCanvas {
+  width: min(680px, 100%);
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
 }
 
-.paymentSuccessCard p {
-  margin: 12px 0 18px;
-  color: #53627d;
-  line-height: 1.5;
+.receiptPreviewCanvas img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(16, 19, 26, 0.16);
 }
 
 @keyframes paymentPopupEnter {
@@ -914,19 +1012,6 @@
   0% { opacity: 1; transform: scale(1); }
   45% { opacity: 1; transform: scale(0.96); }
   100% { opacity: 0; transform: scale(0.62) translateY(24px); }
-}
-
-@keyframes paymentOverlayEnter {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
-}
-
-@keyframes paymentSuccessBounce {
-  0% { opacity: 0; transform: scale(0.6); }
-  28% { opacity: 1; transform: scale(1.06); }
-  52% { transform: scale(0.96); }
-  74% { transform: scale(1.02); }
-  100% { transform: scale(1); }
 }
 
 .adminConfirmationNotice {

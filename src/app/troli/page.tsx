@@ -551,15 +551,12 @@ export default function CartPage() {
           <p>Pilih produk dulu dari halaman katalog.</p>
           <button
             type="button"
-            className={`${styles.actionButton} ${styles.actionSecondary}`}
+            className={`${styles.actionButton} ${styles.actionPrimary}`}
             onClick={onOpenStatusPage}
             data-onboarding="cart-open-status"
           >
             Lihat Status Pemesanan
           </button>
-          <Link href="/" className={styles.backShop}>
-            Ke katalog
-          </Link>
         </section>
       ) : null}
 

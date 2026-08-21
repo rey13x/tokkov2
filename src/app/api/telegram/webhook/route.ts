@@ -14,6 +14,7 @@ import {
   updateOrderStatus as updateStoreOrderStatus,
 } from "@/server/store-data";
 import {
+  notifyNativeUsers,
   sendTelegramPaymentSuccessNotification,
 } from "@/server/notifications";
 
@@ -482,6 +483,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, recapFile: callback.data });
   }
 
+  if (callback.data.startsWith("delivery:")) {
+    const [, action, orderId] = callback.data.split(":");
+    if (action !== "sent" || !orderId) {
+      return NextResponse.json({ ok: false, error: "Callback pengiriman tidak valid." }, { status: 400 });
+    }
+    const order = await getOrderById(orderId);
+    if (!order) return NextResponse.json({ ok: false, error: "Order tidak ditemukan." }, { status: 404 });
+    await updateStoreOrderStatus(orderId, "sent");
+    void notifyNativeUsers({
+      userId: order.userId,
+      title: "Status pesanan berubah",
+      body: "Pesanan kamu sudah dikirim. Lihat catatan admin di status pemesanan.",
+      url: "/status-pemesanan",
+    });
+    await telegramRequest("editMessageReplyMarkup", {
+      chat_id: chatId,
+      message_id: callback.message?.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+    await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Order ditandai sudah dikirim." });
+    return NextResponse.json({ ok: true, status: "sent", orderId });
+  }
+
   if (!callback.data.startsWith("payment:")) {
     return NextResponse.json({ ok: true, ignored: true });
   }
@@ -541,10 +565,6 @@ export async function POST(request: Request) {
     if (await isDonationOrder(order)) {
       await recordDonationTotals(order.id);
     }
-  }
-
-  if (order.status !== "sent") {
-    await updateStoreOrderStatus(order.id, "sent");
   }
 
   await telegramRequest("editMessageReplyMarkup", {

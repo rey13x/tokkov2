@@ -12,6 +12,7 @@ import QRCode from "qrcode.react";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
+import { captureReceiptAsImage } from "@/lib/receipt-capture";
 import {
   ONBOARDING_STAGE,
   ONBOARDING_TUTORIAL_ORDER_ID,
@@ -26,7 +27,7 @@ import type { OrderSummary } from "@/types/store";
 import styles from "./page.module.css";
 
 function statusGroup(status: string) {
-  if (status === "paid") {
+  if (status === "paid" || status === "cancelled") {
     return "paid";
   }
   if (["done", "delivered", "sent"].includes(status)) {
@@ -39,8 +40,11 @@ function statusGroup(status: string) {
 }
 
 function statusLabel(status: string) {
+  if (status === "sent") {
+    return "Sudah Bayar (Dikirim)";
+  }
   if (status === "cancelled") {
-    return "Sudah Bayar";
+    return "Sudah Bayar (Pre-Order)";
   }
   if (statusGroup(status) === "paid") {
     return "Sudah Bayar";
@@ -80,6 +84,21 @@ function ReceiptIcon() {
         d="M7 3h10a2 2 0 0 1 2 2v15l-2.2-1.3L14.5 20l-2.5-1.3L9.5 20 7.2 18.7 5 20V5a2 2 0 0 1 2-2Zm0 2v11h10V5H7Zm1.5 2h7v1.6h-7V7Zm0 3h7v1.6h-7V10Z"
         fill="currentColor"
       />
+    </svg>
+  );
+}
+
+function TestimonialIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M5 5.5A2.5 2.5 0 0 1 7.5 3h9A2.5 2.5 0 0 1 19 5.5v7a2.5 2.5 0 0 1-2.5 2.5H12l-4.5 3v-3.2A2.5 2.5 0 0 1 5 12.5v-7Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="m9 8 1.2 2.4L13 11l-2.8.6L9 14l-1.2-2.4L5 11l2.8-.6L9 8Z" fill="currentColor" />
     </svg>
   );
 }
@@ -154,10 +173,13 @@ export default function StatusPemesananPage() {
   const [activePaymentOrderId, setActivePaymentOrderId] = useState<string | null>(null);
   const [showTutorialReceiptModal, setShowTutorialReceiptModal] = useState(false);
   const [certificatePreview, setCertificatePreview] = useState<{ url: string; orderId: string } | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<{ url: string; orderId: string } | null>(null);
   const [cancelReasonDrafts, setCancelReasonDrafts] = useState<Record<string, string>>({});
   const [isCancelSubmittingOrderId, setIsCancelSubmittingOrderId] = useState<string | null>(null);
   const [confirmationNotes, setConfirmationNotes] = useState<Record<string, string>>({});
   const [isConfirmationSubmittingOrderId, setIsConfirmationSubmittingOrderId] = useState<string | null>(null);
+  const [isReminderSubmittingOrderId, setIsReminderSubmittingOrderId] = useState<string | null>(null);
+  const [reminderCooldowns, setReminderCooldowns] = useState<Record<string, number>>({});
   const [isDeletingOrderId, setIsDeletingOrderId] = useState<string | null>(null);
   const [showCancellationSuccess, setShowCancellationSuccess] = useState(false);
   const [showHistoryCleaner, setShowHistoryCleaner] = useState(false);
@@ -167,7 +189,7 @@ export default function StatusPemesananPage() {
   const [isPreparingPaymentOrderId, setIsPreparingPaymentOrderId] = useState<string | null>(null);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [paymentCheckCooldown, setPaymentCheckCooldown] = useState(30);
-  const [paymentSuccessPopup, setPaymentSuccessPopup] = useState<{ amount: number } | null>(null);
+  const [paymentSuccessPopup, setPaymentSuccessPopup] = useState<{ amount: number; orderId: string } | null>(null);
   const knownPaymentStatusesRef = useRef<Record<string, string>>({});
   const [isClosingPayment, setIsClosingPayment] = useState(false);
   const [paymentSecondsLeft, setPaymentSecondsLeft] = useState<number | null>(null);
@@ -210,7 +232,7 @@ export default function StatusPemesananPage() {
       const previousStatus = knownPaymentStatusesRef.current[order.id];
       if (previousStatus && previousStatus !== "paid" && order.status === "paid") {
         window.setTimeout(() => {
-          setPaymentSuccessPopup({ amount: Number(order.totalAmount || order.total || 0) });
+            setPaymentSuccessPopup({ orderId: order.id, amount: Number(order.totalAmount || order.total || 0) });
         }, 4000);
       }
       knownPaymentStatusesRef.current[order.id] = order.status;
@@ -580,7 +602,7 @@ export default function StatusPemesananPage() {
     [displayOrders],
   );
 
-  const onDownloadReceipt = async (orderId: string) => {
+  const onDownloadReceipt = async (orderId: string, downloadImmediately = false) => {
     const onboardingState = getOnboardingState();
     if (
       onboardingState.active &&
@@ -598,27 +620,59 @@ export default function StatusPemesananPage() {
       return;
     }
     try {
-      const response = await fetch(`/api/orders/${orderId}/receipt`, { cache: "no-store" });
-      if (!response.ok) {
-        throw new Error("Receipt download failed");
-      }
-      const blob = await response.blob();
+      const blob = await captureReceiptAsImage(orderId);
       const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `struk-${orderId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      if (downloadImmediately) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `struk-${orderId}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+      setReceiptPreview((current) => {
+        if (current) URL.revokeObjectURL(current.url);
+        return { url, orderId };
+      });
       const order = displayOrders.find((item) => item.id === orderId);
       if (order?.items?.some((item) => item.productType === "donation")) {
         setCertificatePreview({ url, orderId });
       } else {
-        URL.revokeObjectURL(url);
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
     } catch {
       setError("Struk belum berhasil diunduh. Coba lagi sebentar.");
     }
+  };
+
+  const onConfirmPaymentPopup = async () => {
+    if (!paymentSuccessPopup) return;
+    const { orderId } = paymentSuccessPopup;
+    setPaymentSuccessPopup(null);
+    try {
+      await onDownloadReceipt(orderId, true);
+      window.history.replaceState({}, "", "/status-pemesanan");
+      await loadOrders();
+    } catch {
+      setError("Struk belum berhasil dibuat. Coba klik ikon struk lagi.");
+    }
+  };
+
+  const closeReceiptPreview = () => {
+    if (receiptPreview) {
+      URL.revokeObjectURL(receiptPreview.url);
+    }
+    setReceiptPreview(null);
+  };
+
+  const downloadReceiptPreview = () => {
+    if (!receiptPreview) return;
+    const link = document.createElement("a");
+    link.href = receiptPreview.url;
+    link.download = `struk-${receiptPreview.orderId}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const closeCertificatePreview = () => {
@@ -755,6 +809,7 @@ export default function StatusPemesananPage() {
       if (result.status === "success") {
         setActivePaymentOrderId(null);
         await loadOrders();
+        await onDownloadReceipt(activePaymentOrder.id);
       } else if (result.status === "expired") {
         setError("QRIS-nya sudah kedaluwarsa. Buat pembayaran baru ya.");
       } else {
@@ -874,6 +929,38 @@ export default function StatusPemesananPage() {
       setIsConfirmationSubmittingOrderId(null);
     }
   };
+
+  const onRemindAdmin = async (order: OrderSummary) => {
+    if ((reminderCooldowns[order.id] ?? 0) > 0) return;
+    setIsReminderSubmittingOrderId(order.id);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await fetch(`/api/orders/${order.id}/remind`, { method: "POST" });
+      const payload = (await response.json()) as { message?: string };
+      if (!response.ok) throw new Error(payload.message ?? "Pengingat gagal dikirim.");
+      setSuccess("Admin sudah diingatkan untuk segera memproses pesanan.");
+      setReminderCooldowns((current) => ({ ...current, [order.id]: 60 }));
+    } catch (reminderError) {
+      setError(reminderError instanceof Error ? reminderError.message : "Pengingat gagal dikirim.");
+    } finally {
+      setIsReminderSubmittingOrderId(null);
+    }
+  };
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setReminderCooldowns((current) => {
+        const next = Object.fromEntries(
+          Object.entries(current)
+            .map(([id, seconds]) => [id, Math.max(0, seconds - 1)])
+              .filter(([, seconds]) => Number(seconds) > 0),
+        );
+        return next;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const onRequestCancelViaWhatsapp = async (order: OrderSummary) => {
     const reason = (cancelReasonDrafts[order.id] ?? "").trim();
@@ -1386,12 +1473,14 @@ export default function StatusPemesananPage() {
         </div>
       , document.body) : null}
       {paymentSuccessPopup && typeof document !== "undefined" ? createPortal(
-        <div className={styles.paymentSuccessOverlay} role="alertdialog" aria-modal="true">
-          <section className={styles.paymentSuccessCard}>
-            <div className={styles.paymentSuccessCheck} aria-hidden="true">✓</div>
-            <h2>Pembayaran Berhasil</h2>
-            <p>Pembayaran sudah <strong>Rp {paymentSuccessPopup.amount.toLocaleString("id-ID")}</strong> kamu dikonfirmasi!</p>
-            <button type="button" className={styles.popupCloseButton} onClick={() => setPaymentSuccessPopup(null)}>OKE!</button>
+        <div className={styles.successToastOverlay} role="alertdialog" aria-modal="true">
+          <section className={`${styles.successToast} ${styles.successToastDialog}`}>
+            <div className={styles.successCheck} aria-hidden="true">✓</div>
+            <div className={styles.successToastContent}>
+              <strong>Pembayaran Berhasil</strong>
+              <p>Pembayaran sudah <b>Rp {paymentSuccessPopup.amount.toLocaleString("id-ID")}</b> kamu dikonfirmasi!</p>
+              <button type="button" className={styles.successToastButton} onClick={() => void onConfirmPaymentPopup()}>OKE!</button>
+            </div>
           </section>
         </div>,
         document.body,
@@ -1407,6 +1496,19 @@ export default function StatusPemesananPage() {
           </div>
         </div>
       , document.body) : null}
+      {receiptPreview && typeof document !== "undefined" ? createPortal(
+        <div className={styles.receiptPreviewOverlay} role="dialog" aria-modal="true" aria-label="Preview struk">
+          <div className={styles.receiptPreviewToolbar}>
+            <button type="button" className={styles.receiptPreviewButton} onClick={closeReceiptPreview}>Kembali</button>
+            <button type="button" className={styles.receiptPreviewButton} onClick={downloadReceiptPreview}>Unduh</button>
+          </div>
+          <div className={styles.receiptPreviewCanvas}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={receiptPreview.url} alt={`Preview struk ${receiptPreview.orderId}`} />
+          </div>
+        </div>,
+        document.body,
+      ) : null}
 
       {showHistoryCleaner && typeof document !== "undefined" ? createPortal(
         <div className={styles.historyOverlay} role="dialog" aria-modal="true" aria-labelledby="history-cleaner-title">
@@ -1487,8 +1589,11 @@ export default function StatusPemesananPage() {
                 {order.cancelRequestStatus === "confirmed" ? (
                   <span>Waktu konfirmasi: {formatStatusDate(order.cancelConfirmedAt)}</span>
                 ) : null}
+                {order.adminNote ? (
+                  <span className={styles.adminNoteText}>Catatan admin: {order.adminNote}</span>
+                ) : null}
               </div>
-              {order.status !== "paid" && order.cancelRequestStatus !== "confirmed" ? (
+                {order.status !== "sent" && order.cancelRequestStatus !== "confirmed" ? (
                 <div className={styles.cancelRequestBox}>
                   <textarea
                     value={confirmationNotes[order.id] ?? ""}
@@ -1501,18 +1606,28 @@ export default function StatusPemesananPage() {
                     data-onboarding={isOnboardingTargetOrder ? "status-cancel-reason" : undefined}
                     id={isOnboardingTargetOrder ? `status-cancel-reason-${order.id}` : undefined}
                   />
-                  <button
-                    type="button"
-                    className={styles.adminConfirmationButton}
-                    disabled={isConfirmationSubmittingOrderId === order.id}
-                    onClick={() => onSendConfirmationViaWhatsapp(order)}
-                    data-onboarding={isOnboardingTargetOrder ? "status-cancel-submit" : undefined}
-                    id={isOnboardingTargetOrder ? `status-cancel-submit-${order.id}` : undefined}
-                  >
-                    {isConfirmationSubmittingOrderId === order.id
-                      ? "Mengirim..."
-                      : "Konfirmasi Pemesanan & Kirim Admin"}
-                  </button>
+                  <div className={styles.confirmationActions}>
+                    <button
+                      type="button"
+                      className={styles.adminConfirmationButton}
+                      disabled={isConfirmationSubmittingOrderId === order.id}
+                      onClick={() => onSendConfirmationViaWhatsapp(order)}
+                      data-onboarding={isOnboardingTargetOrder ? "status-cancel-submit" : undefined}
+                      id={isOnboardingTargetOrder ? `status-cancel-submit-${order.id}` : undefined}
+                    >
+                      {isConfirmationSubmittingOrderId === order.id ? "Mengirim..." : "Konfirmasi Pemesanan & Kirim Admin"}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.reminderButton} ${(isReminderSubmittingOrderId === order.id || (reminderCooldowns[order.id] ?? 0) > 0) ? styles.reminderButtonActive : ""}`}
+                      onClick={() => void onRemindAdmin(order)}
+                      disabled={isReminderSubmittingOrderId === order.id || (reminderCooldowns[order.id] ?? 0) > 0}
+                      title={(reminderCooldowns[order.id] ?? 0) > 0 ? `Tunggu ${reminderCooldowns[order.id]} detik` : "Ingatkan admin"}
+                      aria-label="Ingatkan admin"
+                    >
+                      <span aria-hidden="true">♟</span>
+                    </button>
+                  </div>
                 </div>
               ) : null}
               <div
@@ -1533,17 +1648,29 @@ export default function StatusPemesananPage() {
                   <PaymentIcon />
                 </button> : null}
                 {statusGroup(order.status) === "paid" || statusGroup(order.status) === "done" ? (
-                  <button
-                    type="button"
-                    className={styles.receiptIconButton}
-                    onClick={() => onDownloadReceipt(order.id)}
-                    title={order.items?.some((item) => item.productType === "donation") ? "Buka sertifikat donasi" : "Buka struk pembayaran"}
-                    aria-label={`${order.items?.some((item) => item.productType === "donation") ? "Buka sertifikat donasi" : "Buka struk pembayaran"} order ${order.id}`}
-                    data-onboarding={isOnboardingTargetOrder ? "status-receipt-icon" : undefined}
-                    id={isOnboardingTargetOrder ? `status-receipt-icon-${order.id}` : undefined}
-                  >
-                    {order.items?.some((item) => item.productType === "donation") ? <CertificateIcon /> : <ReceiptIcon />}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className={`${styles.receiptIconButton} ${order.status === "sent" ? styles.shippedReceiptIconButton : ""}`}
+                      onClick={() => onDownloadReceipt(order.id)}
+                      title={order.items?.some((item) => item.productType === "donation") ? "Buka sertifikat donasi" : "Buka struk pembayaran"}
+                      aria-label={`${order.items?.some((item) => item.productType === "donation") ? "Buka sertifikat donasi" : "Buka struk pembayaran"} order ${order.id}`}
+                      data-onboarding={isOnboardingTargetOrder ? "status-receipt-icon" : undefined}
+                      id={isOnboardingTargetOrder ? `status-receipt-icon-${order.id}` : undefined}
+                    >
+                      {order.items?.some((item) => item.productType === "donation") ? <CertificateIcon /> : <ReceiptIcon />}
+                    </button>
+                    {order.status === "sent" ? (
+                      <Link
+                        href="/testimoni"
+                        className={styles.testimonialIconButton}
+                        title="Tulis testimoni"
+                        aria-label={`Tulis testimoni untuk order ${order.id}`}
+                      >
+                        <TestimonialIcon />
+                      </Link>
+                    ) : null}
+                  </>
                 ) : null}
                 {order.status === "process" && (
                   <button

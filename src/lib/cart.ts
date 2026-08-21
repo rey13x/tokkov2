@@ -53,7 +53,14 @@ export function saveCart(items: CartEntry[]) {
   localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
 }
 
-export function addToCart(slug: string, quantity: number, donationAmount?: number, donationName?: string, donationMessage?: string) {
+export function addToCart(
+  slug: string,
+  quantity: number,
+  donationAmount?: number,
+  donationName?: string,
+  donationMessage?: string,
+  options?: { silent?: boolean },
+) {
   const cart = readCart();
   const existing = cart.find((item) => item.slug === slug);
 
@@ -68,7 +75,9 @@ export function addToCart(slug: string, quantity: number, donationAmount?: numbe
     }
     saveCart(cart);
     if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(CART_NOTICE_STORAGE_KEY, "Produk berhasil masuk ke troli.");
+      if (!options?.silent) {
+        window.sessionStorage.setItem(CART_NOTICE_STORAGE_KEY, "Produk berhasil masuk ke troli.");
+      }
       window.dispatchEvent(new CustomEvent(CART_UPDATED_EVENT));
     }
     return;
@@ -84,7 +93,9 @@ export function addToCart(slug: string, quantity: number, donationAmount?: numbe
   });
   saveCart(cart);
   if (typeof window !== "undefined") {
-    window.sessionStorage.setItem(CART_NOTICE_STORAGE_KEY, "Produk berhasil masuk ke troli.");
+    if (!options?.silent) {
+      window.sessionStorage.setItem(CART_NOTICE_STORAGE_KEY, "Produk berhasil masuk ke troli.");
+    }
     window.dispatchEvent(new CustomEvent(CART_UPDATED_EVENT));
   }
 }

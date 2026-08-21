@@ -9,7 +9,12 @@ import {
   generatePaymentNotes,
 } from "@/server/payment";
 import { recordDonationTotals } from "@/server/store-data";
-import { sendTelegramActivityNotification, sendTelegramPaymentReviewNotification } from "@/server/notifications";
+import {
+  sendTelegramActivityNotification,
+  sendTelegramPaymentReviewNotification,
+  sendTelegramPaymentSuccessNotification,
+  notifyNativeUsers,
+} from "@/server/notifications";
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,6 +88,19 @@ export async function POST(request: NextRequest) {
       }
       if (!wasAlreadyPaid) {
         await recordDonationTotals(orderId);
+        void notifyNativeUsers({
+          userId: order.userId,
+          title: "Pembayaran berhasil",
+          body: `Pembayaran order ${order.id} sudah dikonfirmasi.`,
+          url: "/status-pemesanan",
+        });
+        await sendTelegramPaymentSuccessNotification({
+          orderId,
+          transactionId: actualDepositId,
+          amount: Number(paymentStatus.paidAmount || paymentStatus.amount || order.total),
+          userName: String(order.userName || ""),
+          userEmail: String(order.userEmail || ""),
+        });
       }
       
       // Generate WhatsApp notification link after successful payment

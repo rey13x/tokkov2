@@ -1,22 +1,5 @@
-// Get receipt PDF from server (much lighter than image capture)
-export async function getReceiptPdf(orderId: string): Promise<Blob> {
-  const response = await fetch(`/api/orders/${orderId}/receipt`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch receipt PDF");
-  }
-  return response.blob();
-}
-
-// Get receipt as lightweight image (fallback, uses simpler approach)
 export async function captureReceiptAsImage(orderId: string): Promise<Blob> {
-  // Try to get PDF first - it's much lighter and works better
-  try {
-    return await getReceiptPdf(orderId);
-  } catch (pdfError) {
-    console.warn("PDF fetch failed, falling back to image capture:", pdfError);
-    // Fallback to old image capture if PDF fails
-    return captureReceiptAsImageFallback(orderId);
-  }
+  return captureReceiptAsImageFallback(orderId);
 }
 
 // Original image capture as fallback only
@@ -44,7 +27,10 @@ async function captureReceiptAsImageFallback(orderId: string): Promise<Blob> {
     }
     
     // Fetch receipt HTML
-    const response = await fetch(`/api/orders/${orderId}/receipt-image`);
+    const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/receiptline`, {
+      cache: "no-store",
+      credentials: "include",
+    });
     if (!response.ok) {
       throw new Error("Failed to fetch receipt");
     }
@@ -79,7 +65,14 @@ async function captureReceiptAsImageFallback(orderId: string): Promise<Blob> {
     });
     
     // Wait for images, fonts and styles to fully render
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const images = Array.from(iframeDoc.images);
+    await Promise.all(images.map((image) => image.complete
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => {
+          image.addEventListener("load", () => resolve(), { once: true });
+          image.addEventListener("error", () => resolve(), { once: true });
+        })));
+    await new Promise((resolve) => setTimeout(resolve, 250));
     
     // Get the receipt container from iframe
     const receiptContainer = iframeDoc.querySelector(".receipt");
@@ -89,7 +82,7 @@ async function captureReceiptAsImageFallback(orderId: string): Promise<Blob> {
     
     // Capture iframe content using the receipt container for better sizing
     const canvas = await html2canvas(receiptContainer as HTMLElement, {
-      scale: 1,
+      scale: 2,
       backgroundColor: "#ffffff",
       logging: false,
       useCORS: true,
@@ -110,7 +103,7 @@ async function captureReceiptAsImageFallback(orderId: string): Promise<Blob> {
           }
         },
         "image/jpeg",
-        0.7
+        0.9
       );
     });
   } finally {

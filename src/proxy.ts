@@ -23,6 +23,14 @@ function buildCspHeader() {
 }
 
 export function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const orderId = pathname.match(/^\/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/?$/i)?.[1];
+  if (orderId) {
+    const receiptUrl = request.nextUrl.clone();
+    receiptUrl.pathname = `/api/orders/${orderId}/receipt`;
+    return NextResponse.rewrite(receiptUrl);
+  }
+
   const response = NextResponse.next();
   const csp = buildCspHeader();
 

@@ -7,7 +7,7 @@ import {
   isDonationOrder,
 } from "@/server/payment";
 import { recordDonationTotals } from "@/server/store-data";
-import { sendTelegramPaymentSuccessNotification } from "@/server/notifications";
+import { notifyNativeUsers, sendTelegramPaymentSuccessNotification } from "@/server/notifications";
 
 export const runtime = "nodejs";
 
@@ -68,6 +68,12 @@ export async function POST(request: Request) {
     if (await isDonationOrder(order)) {
       await recordDonationTotals(order.id);
     }
+    void notifyNativeUsers({
+      userId: order.userId,
+      title: "Pembayaran berhasil",
+      body: `Pembayaran order ${order.id} sudah dikonfirmasi.`,
+      url: "/status-pemesanan",
+    });
 
     await sendTelegramPaymentSuccessNotification({
       orderId: order.id,

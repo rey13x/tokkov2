@@ -8,6 +8,7 @@ import { FaRegComment } from "react-icons/fa";
 import { MdOutlineShare, MdPhotoCamera } from "react-icons/md";
 import { MdFlagCircle } from "react-icons/md";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import { RatingStars } from "@/components/foundations/rating-stars";
 import WaitLoading from "@/components/ui/WaitLoading";
 import type { BookStory } from "@/types/store";
 import StorySubmissionModal from "./StorySubmissionModal";
@@ -221,7 +222,7 @@ export default function BookSpiritClient() {
 
   const handleShare = async (story: BookStory) => {
     try {
-      const storyUrl = "https://tokkov2.vercel.app/book-spirit";
+      const storyUrl = "https://tokkov2.vercel.app/testimoni";
       const shareText = `\"${story.story.slice(0, 100)}...\" - ${story.userName}\n\nAyo lihat cerita lain dan ceritakan kepuasanmu di Testimoni, dapetin app premium gratis!\n\n${storyUrl}`;
       
       if (navigator.share) {
@@ -444,7 +445,7 @@ export default function BookSpiritClient() {
                   activeRating === rating ? styles.categoryChipActive : ""
                 }`}
               >
-                {"\u2605".repeat(rating)}
+                <RatingStars rating={rating} />
               </button>
             ))}
 
@@ -554,7 +555,7 @@ export default function BookSpiritClient() {
                     {story.rating && story.rating > 0 && (
                       <div className={styles.ratingBadge}>
                         <span className={styles.ratingStars}>
-                          {"★".repeat(story.rating)}{"☆".repeat(5 - story.rating)}
+                          <RatingStars rating={story.rating} />
                         </span>
                       </div>
                     )}

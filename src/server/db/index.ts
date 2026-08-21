@@ -2227,7 +2227,8 @@ export async function createOrder(input: {
 
 export async function updateOrderStatus(
   id: string,
-  status: "process" | "done" | "error" | "sent" | "cancelled",
+  status: "process" | "paid" | "done" | "error" | "sent" | "cancelled",
+  adminNote?: string,
 ) {
   await ensureDatabase();
   const existing = await getOrderById(id);
@@ -2246,10 +2247,12 @@ export async function updateOrderStatus(
          cancel_confirmed_at = CASE
            WHEN ? IN ('process', 'done') THEN NULL
            WHEN ? = 'cancelled' THEN ?
-           ELSE cancel_confirmed_at
+              ELSE cancel_confirmed_at
          END
+              ,admin_note = CASE WHEN ? IS NOT NULL THEN ? ELSE admin_note END
+              ,admin_note_at = CASE WHEN ? IS NOT NULL THEN ? ELSE admin_note_at END
      WHERE id = ?`,
-    [status, status, status, status, status, now(), id],
+            [status, status, status, status, status, adminNote ?? null, adminNote?.trim().slice(0, 1000) ?? "", adminNote ?? null, adminNote !== undefined ? now() : null, now(), id],
   );
 
   return getOrderById(id);

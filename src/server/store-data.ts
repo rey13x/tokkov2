@@ -1468,11 +1468,12 @@ export async function updateOrderPayment(
 
 export async function updateOrderStatus(
   id: string,
-  status: "process" | "done" | "error" | "sent" | "cancelled",
+  status: "process" | "paid" | "done" | "error" | "sent" | "cancelled",
+  adminNote?: string,
 ) {
   const firestore = getFirestoreOrNull();
   if (!firestore) {
-    return updateOrderStatusDb(id, status);
+    return updateOrderStatusDb(id, status, adminNote);
   }
 
   try {
@@ -1484,6 +1485,7 @@ export async function updateOrderStatus(
 
     await ref.update({
       status,
+      ...(adminNote !== undefined ? { adminNote: adminNote.trim().slice(0, 1000), adminNoteAt: now() } : {}),
       ...(status === "process" || status === "done"
         ? {
             cancelRequestStatus: "none",
@@ -1501,7 +1503,7 @@ export async function updateOrderStatus(
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to update order status in Firestore. Falling back to local database.", error);
-    return updateOrderStatusDb(id, status);
+    return updateOrderStatusDb(id, status, adminNote);
   }
 }
 
