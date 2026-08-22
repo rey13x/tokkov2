@@ -60,7 +60,8 @@
 }
 
 .header h1 {
-  white-space: nowrap;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .subtitle,
@@ -198,7 +199,7 @@
 @media (max-width: 620px) {
   .sectionHeading,
   .activityTop { flex-direction: column; align-items: stretch; }
-  .header { align-items: center; gap: 10px; }
+  .header { flex-direction: column; align-items: stretch; gap: 14px; }
   .headerIdentity { gap: 10px; }
   .logoLink,
   .logo { width: 52px; height: 52px; }
@@ -206,6 +207,7 @@
   .header h1 { font-size: clamp(1.45rem, 7.5vw, 2rem); }
   .eyebrow { font-size: 0.58rem; }
   .subtitle { font-size: 0.75rem; }
-  .backLink { align-self: center; }
+  .headerCopy { flex: 1 1 auto; }
+  .backLink { align-self: flex-start; }
   .activityTop > strong { align-self: flex-start; }
 }

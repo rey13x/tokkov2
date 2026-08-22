@@ -920,7 +920,9 @@
 .floatingMeta div {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
+  text-align: left;
 }
 
 .floatingMeta p {
@@ -936,6 +938,11 @@
   font-size: 0.62rem;
   color: #2f9347;
   font-weight: 700;
+}
+
+.floatingMeta :global(.DonationTotalTicker-module__ticker) {
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .floatingMeta i {
