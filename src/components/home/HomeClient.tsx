@@ -189,10 +189,6 @@ export default function HomeClient() {
   const donationTotal = products
     .filter((product) => product.productType === "donation")
     .reduce((total, product) => total + Math.max(0, product.donationTotal ?? 0), 0);
-  const donationActivityAdjustment = donationActivities.reduce(
-    (total, activity) => total + (activity.type === "income" ? activity.amount : -activity.amount),
-    0,
-  );
   const shouldAutoSlideInformations = informations.length > 1;
   const informationCarouselItems = useMemo(
     () =>
@@ -1118,7 +1114,7 @@ export default function HomeClient() {
           </p>
           <div className={styles.donationAmount}>
             <DonationTotalTicker
-              amount={Math.max(0, donationTotal + donationActivityAdjustment)}
+              amount={Math.max(0, donationTotal)}
               slow
               showCelebration
               prefix="Total Terkumpul Rp"
@@ -1131,7 +1127,7 @@ export default function HomeClient() {
       ) : null}
 
       {storeDataReady ? (
-        <section className={styles.section} data-animate="section">
+        <section id="tim-marketing" className={styles.section} data-animate="section">
           <div className={styles.partnerHeader}>
             <h2>Tim Marketing</h2>
           </div>

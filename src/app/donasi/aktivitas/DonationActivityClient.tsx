@@ -43,10 +43,7 @@ export default function DonationActivityClient() {
       return () => window.clearInterval(refreshTimer);
       }, []);
 
-  const total = useMemo(
-    () => productsTotal + activities.reduce((sum, item) => sum + (item.type === "income" ? item.amount : -item.amount), 0),
-    [activities, productsTotal],
-  );
+  const total = useMemo(() => productsTotal, [productsTotal]);
   const filteredActivities = filter === "all" ? activities : activities.filter((activity) => activity.type === filter);
 
   return (

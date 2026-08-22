@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import type { DonationActivity, DonationActivityType } from "@/types/store";
+import type { DonationActivity, DonationActivityType, StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
 
 const labels: Record<DonationActivityType, string> = { income: "Pemasukan", expense: "Pengeluaran", refund: "Pengembalian" };
@@ -13,6 +13,8 @@ const todayInput = () => {
 
 export function AdminDonationActivitiesSection() {
   const [activities, setActivities] = useState<DonationActivity[]>([]);
+  const [donationProducts, setDonationProducts] = useState<StoreProduct[]>([]);
+  const [donationProductId, setDonationProductId] = useState("");
   const [type, setType] = useState<DonationActivityType>("income");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -38,6 +40,14 @@ export function AdminDonationActivitiesSection() {
 
   useEffect(() => {
     void loadActivities();
+    fetch("/api/admin/products", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { products?: StoreProduct[] } | null) => {
+        const products = (data?.products ?? []).filter((product) => product.productType === "donation");
+        setDonationProducts(products);
+        setDonationProductId((current) => current || products[0]?.id || "");
+      })
+      .catch(() => {});
     fetch("/api/me", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
       .then((profile: { phone?: string; username?: string } | null) => {
@@ -86,6 +96,7 @@ export function AdminDonationActivitiesSection() {
           occurredAt: new Date(useToday ? todayInput() : occurredAt).toISOString(),
           actorName,
           actorPhone,
+          donationProductId,
         }),
       });
       const result = (await response.json()) as { message?: string; telegramSent?: boolean; telegramError?: string };
@@ -112,6 +123,14 @@ export function AdminDonationActivitiesSection() {
           <option value="expense">Pengeluaran</option>
           <option value="refund">Pengembalian</option>
         </select>
+        <select value={donationProductId} onChange={(event) => setDonationProductId(event.target.value)} required>
+          <option value="">Pilih card donasi</option>
+          {donationProducts.map((product) => (
+            <option key={product.id} value={product.id}>
+              {product.name} · Saldo Rp {Number(product.donationTotal ?? 0).toLocaleString("id-ID")}
+            </option>
+          ))}
+        </select>
         <input value={amount} onChange={(event) => setAmount(formatAmount(event.target.value))} inputMode="numeric" placeholder="Rp 0" required />
         <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Catatan aktivitas" required />
         <input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} type="url" placeholder="URL foto lampiran (opsional)" />
@@ -130,7 +149,7 @@ export function AdminDonationActivitiesSection() {
         ))}
       </div>
       <div className={styles.list}>
-        {activities.filter((activity) => filter === "all" || activity.type === filter).map((activity) => <div className={styles.listItem} key={activity.id}><strong>{labels[activity.type]} · Rp {activity.amount.toLocaleString("id-ID")}</strong><span>{activity.note}</span><button type="button" className={styles.secondaryButton} onClick={async () => { if (!window.confirm("Hapus aktivitas dan pesan Telegram ini?")) return; const response = await fetch(`/api/admin/donation-activities?id=${encodeURIComponent(activity.id)}`, { method: "DELETE" }); if (response.ok) { setActivities((current) => current.filter((item) => item.id !== activity.id)); } else { setError("Aktivitas gagal dihapus."); } }}>Hapus</button></div>)}
+        {activities.filter((activity) => filter === "all" || activity.type === filter).map((activity) => <div className={styles.listItem} key={activity.id}><strong>{labels[activity.type]} · Rp {activity.amount.toLocaleString("id-ID")}</strong><span>{donationProducts.find((product) => product.id === activity.donationProductId)?.name ?? "Card donasi lama"}</span><span>{activity.note}</span><button type="button" className={styles.secondaryButton} onClick={async () => { if (!window.confirm("Hapus aktivitas dan pesan Telegram ini?")) return; const response = await fetch(`/api/admin/donation-activities?id=${encodeURIComponent(activity.id)}`, { method: "DELETE" }); if (response.ok) { setActivities((current) => current.filter((item) => item.id !== activity.id)); await loadActivities(); } else { setError("Aktivitas gagal dihapus."); } }}>Hapus</button></div>)}
       </div>
     </article>
   );

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
-import { createDonationActivity, deleteDonationActivity, listDonationActivities, updateDonationActivityTelegram } from "@/server/store-data";
+import { createDonationActivity, deleteDonationActivity, getProductById, listDonationActivities, updateDonationActivityTelegram } from "@/server/store-data";
 import { deleteTelegramDonationActivityMessage, sendTelegramDonationActivityNotification } from "@/server/notifications";
 
 const activitySchema = z.object({
@@ -12,6 +12,7 @@ const activitySchema = z.object({
   occurredAt: z.string().datetime(),
   actorName: z.string().min(1).max(120).default("Tokko Marketplace"),
   actorPhone: z.string().min(8).max(30).default("085121579597"),
+  donationProductId: z.string().min(1, "Card donasi wajib dipilih."),
 });
 
 export async function GET() {
@@ -26,11 +27,18 @@ export async function POST(request: Request) {
 
   try {
     const payload = activitySchema.parse(await request.json());
+    const donationProduct = await getProductById(payload.donationProductId);
+    if (!donationProduct || donationProduct.productType !== "donation") {
+      return NextResponse.json({ message: "Card donasi tidak ditemukan." }, { status: 400 });
+    }
     const activity = await createDonationActivity(payload);
     if (!activity) throw new Error("Aktivitas gagal disimpan.");
     let telegramResult: { messageId: number | null; error: string | null };
     try {
-      telegramResult = await sendTelegramDonationActivityNotification(activity);
+      telegramResult = await sendTelegramDonationActivityNotification({
+        ...activity,
+        donationProductName: donationProduct.name,
+      });
     } catch (telegramError) {
       console.error("Telegram donation activity notification failed:", telegramError);
       telegramResult = { messageId: null, error: "Tidak bisa terhubung ke Telegram." };

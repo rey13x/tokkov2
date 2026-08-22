@@ -103,6 +103,7 @@ export async function sendTelegramDonationActivityNotification(payload: {
   occurredAt: string | number | Date;
   actorName: string;
   actorPhone: string;
+  donationProductName?: string;
   imageUrl?: string;
 }) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
@@ -115,6 +116,7 @@ export async function sendTelegramDonationActivityNotification(payload: {
     "",
     `<b>Jenis</b> : ${typeLabel}`,
     `<b>Nominal</b> : Rp ${payload.amount.toLocaleString("id-ID")}`,
+    `<b>Card Donasi</b> : ${escapeTelegramHtml(payload.donationProductName || "-")}`,
     `<b>Catatan</b> : ${escapeTelegramHtml(payload.note || "-")}`,
     `<b>Waktu</b> : ${escapeTelegramHtml(formatAuditDate(payload.occurredAt))}`,
     `<b>Nama</b> : ${escapeTelegramHtml(payload.actorName)}`,
@@ -180,41 +182,6 @@ export async function deleteTelegramDonationActivityMessage(chatId: string | und
     console.error("Telegram donation activity deletion failed:", error);
     return false;
   }
-}
-
-async function sendTelegramChannelPhoto(imageUrl: string | undefined, channelId: string) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
-  if (!botToken || !imageUrl) return false;
-  const publicImageUrl = imageUrl.startsWith("/")
-    ? `${(process.env.NEXTAUTH_URL?.trim() || "https://tokkov2.vercel.app").replace(/\/$/, "")}${imageUrl}`
-    : imageUrl;
-
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      let response: Response;
-      if (publicImageUrl.startsWith("data:")) {
-        const match = publicImageUrl.match(/^data:([^;]+);base64,(.+)$/);
-        if (!match) return false;
-        const form = new FormData();
-        form.append("chat_id", channelId);
-        form.append("photo", new Blob([Buffer.from(match[2], "base64")], { type: match[1] }), "product-image");
-        response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, { method: "POST", body: form, cache: "no-store", signal: AbortSignal.timeout(15000) });
-      } else {
-        response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: channelId, photo: publicImageUrl }),
-          cache: "no-store",
-          signal: AbortSignal.timeout(15000),
-        });
-      }
-      if (response.ok) return true;
-      console.error(`Telegram product photo attempt ${attempt} failed:`, await response.text().catch(() => ""));
-    } catch (error) {
-      console.error(`Telegram product photo attempt ${attempt} failed:`, error);
-    }
-  }
-  return false;
 }
 
 async function editTelegramMessage(
@@ -383,85 +350,6 @@ async function buildReceiptPhoto(input: {
   </svg>`;
 }
 
-async function sendTelegramReceipt(
-  orderId: string,
-  chatId: string,
-  options: { notifiedField?: string; caption?: string; replyMarkup?: TelegramReplyMarkup } = {},
-) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
-  if (!botToken) return false;
-
-  const firestore = getFirebaseFirestore();
-  const order = await getOrderById(orderId);
-  if (!order) return false;
-  const notifiedField = options.notifiedField || "telegramReceiptNotifiedAt";
-  let existingReceiptSentAt: unknown = null;
-  if (firestore) {
-    try {
-      const snapshot = await firestore.collection("orders").doc(orderId).get();
-      existingReceiptSentAt = snapshot.exists ? snapshot.data()?.[notifiedField] : null;
-    } catch {
-      existingReceiptSentAt = null;
-    }
-  }
-  if (existingReceiptSentAt) return true;
-
-  const items = await listOrderItemsByOrderId(orderId);
-  const enrichedItems = await Promise.all(items.map(async (item) => ({
-    ...item,
-    productType: item.productType || (await getProductById(item.productId))?.productType,
-  })));
-  const total = Number(order.totalAmount ?? order.total ?? 0);
-  const receiptInput = {
-    orderId: order.id,
-    userName: order.userName,
-    userEmail: order.userEmail,
-    userPhone: order.userPhone,
-    status: "paid",
-    createdAt: order.createdAt,
-    depositId: order.depositId,
-    paidAt: order.paidAt,
-    items: enrichedItems.map((item) => ({
-      productName: item.productName,
-      productDuration: item.productDuration,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      productType: item.productType,
-      donationName: item.donationName,
-      donationMessage: item.donationMessage,
-    })),
-    total,
-  };
-  const loadSharp = new Function("return import('sharp')") as () => Promise<{ default: typeof import("sharp").default }>;
-  const { default: sharp } = await loadSharp();
-  const receiptPhoto = await sharp(Buffer.from(await buildReceiptPhoto(receiptInput)))
-    .png()
-    .toBuffer();
-
-  const form = new FormData();
-  form.append("chat_id", chatId);
-  form.append("caption", options.caption || `🧾 <b>Struk pembayaran ${escapeTelegramHtml(orderId)}</b>`);
-  form.append("parse_mode", "HTML");
-  form.append("photo", new Blob([new Uint8Array(receiptPhoto)], { type: "image/png" }), `struk-${orderId}.png`);
-
-  // append reply_markup if provided
-  if (options.replyMarkup) {
-    form.append("reply_markup", JSON.stringify(options.replyMarkup));
-  }
-
-  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-    method: "POST",
-    body: form,
-    cache: "no-store",
-  });
-  if (!response.ok) return false;
-
-  await firestore?.collection("orders").doc(orderId).set({
-    [notifiedField]: Date.now(),
-  }, { merge: true });
-  return true;
-}
-
 export async function sendTelegramPaymentChannelNotification(payload: {
   orderId: string;
   transactionId: string;
@@ -497,10 +385,9 @@ export async function sendTelegramPaymentChannelNotification(payload: {
       // prepare channel redirect button
       const channelButton: TelegramReplyMarkup = { inline_keyboard: [[{ text: "Tokko Marketplace", url: "https://tokkov2.vercel.app" }]] };
 
-      const photoSent = await sendTelegramChannelPhoto(donation?.imageUrl, channelId);
       const textSent = await sendTelegramMessage(donationCaption, channelButton, channelId).catch(() => null);
       if (!textSent) {
-        await sendTelegramMessage(`⚠️ Gagal mengirim info donasi ke channel untuk order ${payload.orderId}. Foto: ${photoSent ? "terkirim" : "tidak tersedia/gagal"}.`).catch(() => {});
+        await sendTelegramMessage(`⚠️ Gagal mengirim info donasi ke channel untuk order ${payload.orderId}.`).catch(() => {});
       }
       return Boolean(textSent);
     }
@@ -525,20 +412,9 @@ export async function sendTelegramPaymentChannelNotification(payload: {
     // prepare channel redirect button
     const channelButton: TelegramReplyMarkup = { inline_keyboard: [[{ text: "Tokko Marketplace", url: "https://tokkov2.vercel.app" }]] };
 
-    let receiptSent = false;
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      receiptSent = await sendTelegramReceipt(payload.orderId, channelId, {
-        notifiedField: "telegramPaymentChannelNotifiedAt",
-        caption: "🧾 <b>Struk pembayaran berhasil</b>",
-        replyMarkup: channelButton,
-      }).catch(() => false);
-      if (receiptSent) break;
-    }
-    const textSent = receiptSent
-      ? await sendTelegramMessage(caption, channelButton, channelId).catch(() => null)
-      : null;
+    const textSent = await sendTelegramMessage(caption, channelButton, channelId).catch(() => null);
     if (!textSent) {
-      await sendTelegramMessage(`⚠️ Gagal mengirim struk atau info pembayaran ke channel untuk order ${payload.orderId}.`).catch(() => {});
+      await sendTelegramMessage(`⚠️ Gagal mengirim info pembayaran ke channel untuk order ${payload.orderId}.`).catch(() => {});
     }
     return Boolean(textSent);
   } catch (error) {
@@ -696,21 +572,13 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
         telegramMessageUpdatedAt: Date.now(),
         telegramPaymentNotifiedAt: Date.now(),
       }, { merge: true });
-      await sendTelegramReceipt(payload.orderId, chatId, { caption: "✅ <b>Pembayaran Berhasil</b>\n\n🧾 Struk transaksi terlampir." }).catch((error) => {
-        console.error("Failed to send Telegram receipt:", error);
-      });
       return;
     }
   } catch (error) {
     console.error("Failed to update Telegram payment message:", error);
   }
 
-  const fallbackMessageId = await sendTelegramMessage(text, paymentSuccessKeyboard);
-  if (fallbackMessageId) {
-    await sendTelegramReceipt(payload.orderId, "@tokkomarketplace", { caption: "📣 <b>PEMBAYARAN BERHASIL</b>\n\n🧾 Foto struk transaksi terlampir." }).catch((error) => {
-      console.error("Failed to send Telegram receipt:", error);
-    });
-  }
+  await sendTelegramMessage(text, paymentSuccessKeyboard);
 }
 
 export async function sendTelegramPaymentReviewNotification(payload: {

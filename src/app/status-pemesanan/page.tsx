@@ -676,7 +676,7 @@ export default function StatusPemesananPage() {
       if (downloadImmediately) {
         const link = document.createElement("a");
         link.href = url;
-        link.download = `${isDonation ? "sertifikat-donasi" : "struk"}-${orderId}.jpg`;
+        link.download = `tokkomarketplace-${isDonation ? "sertifikat-donasi" : "struk"}-${orderId}.jpg`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -750,7 +750,7 @@ export default function StatusPemesananPage() {
     if (!receiptPreview) return;
     const link = document.createElement("a");
     link.href = receiptPreview.url;
-    link.download = `struk-${receiptPreview.orderId}.jpg`;
+    link.download = `tokkomarketplace-struk-${receiptPreview.orderId}.jpg`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -782,7 +782,7 @@ export default function StatusPemesananPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `sertifikat-donasi-${certificatePreview.history ? "semua-" : ""}${certificatePreview.orderId}.${extension}`;
+      link.download = `tokkomarketplace-sertifikat-donasi-${certificatePreview.history ? "semua-" : ""}${certificatePreview.orderId}.${extension}`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -1634,7 +1634,7 @@ export default function StatusPemesananPage() {
               <img src={receiptPreview.url} alt={`Preview struk ${receiptPreview.orderId}`} />
             </div>
             <div className={styles.certificatePopupActions}>
-              <button type="button" className={styles.popupCloseButton} onClick={() => openExpandedPreview({ url: receiptPreview.url, title: "Preview Struk", downloadName: `struk-${receiptPreview.orderId}.jpg` })}>Perbesar Struk</button>
+              <button type="button" className={styles.popupCloseButton} onClick={() => openExpandedPreview({ url: receiptPreview.url, title: "Preview Struk", downloadName: `tokkomarketplace-struk-${receiptPreview.orderId}.jpg` })}>Perbesar Struk</button>
             </div>
           </section>
         </div>,
@@ -1957,7 +1957,7 @@ export default function StatusPemesananPage() {
               <img src={certificatePreview.url} alt={`Preview sertifikat donasi ${certificatePreview.orderId}`} />
             </div>
             <div className={styles.certificatePopupActions}>
-              <button type="button" className={styles.popupCloseButton} onClick={() => openExpandedPreview({ url: certificatePreview.url, title: "Preview Sertifikat Donasi", downloadName: `sertifikat-donasi-${certificatePreview.orderId}.jpg` })}>
+              <button type="button" className={styles.popupCloseButton} onClick={() => openExpandedPreview({ url: certificatePreview.url, title: "Preview Sertifikat Donasi", downloadName: `tokkomarketplace-sertifikat-donasi-${certificatePreview.orderId}.jpg` })}>
                 Perbesar Sertifikat
               </button>
             </div>

@@ -138,7 +138,7 @@ export async function GET(_request: Request, context: { params: Params }) {
   @media print{body{background:#fff;padding:0}.receipt{width:100%;border:3px solid #111}}
 </style></head><body><main class="receipt${isHistoryCertificate ? " history-certificate" : ""}"><section class="top"><h2>Tokko Marketplace</h2><h1>SERTIFIKAT DONASI</h1><p>Terima kasih atas dukungan dan kebaikan Anda</p></section><section class="content"><div class="donor"><div class="donor-label">Diberikan kepada</div><div class="donor-name" style="font-size:${donorNameSize}px">${donorName}</div><div class="donation-title">${isHistoryCertificate ? "Atas semua Donasi yang diberikan" : `Atas donasi untuk: ${donationTitle}`}</div><div class="amount">${formatRupiah(donationAmount)}</div></div></section><section class="bottom-row"><div class="brand"><img src="${logoUrl}" alt="Logo Tokko Marketplace"></div><div class="signature"><div class="signature-label">Founder</div><img src="${signatureUrl}" alt="Tanda tangan Founder"><small>Raihaan Bagastiam Pratama</small></div></section></main></body></html>`;
 
-      return new NextResponse(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Content-Disposition": `inline; filename="sertifikat-donasi-${order.id}.html"`, "Cache-Control": "no-store" } });
+      return new NextResponse(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Content-Disposition": `inline; filename="tokkomarketplace-sertifikat-donasi-${order.id}.html"`, "Cache-Control": "no-store" } });
     }
 
     // Non-donation / default receipt
@@ -152,7 +152,7 @@ body{margin:0;background:#edf0f4;color:#111;font-family:Georgia,"Times New Roman
       '<div class="total">TOTAL:',
       `<div class="tax">PAJAK: ${formatRupiah(tax)}</div><div class="total">TOTAL:`,
     );
-    return new NextResponse(styledHtml, { headers: { "Content-Type": "text/html; charset=utf-8", "Content-Disposition": `attachment; filename="struk-${order.id}.html"`, "Cache-Control": "no-store" } });
+    return new NextResponse(styledHtml, { headers: { "Content-Type": "text/html; charset=utf-8", "Content-Disposition": `attachment; filename="tokkomarketplace-struk-${order.id}.html"`, "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("ReceiptLine receipt failed:", error);
     return NextResponse.json({ message: "Gagal membuat struk." }, { status: 500 });

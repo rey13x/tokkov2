@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
+import Link from "next/link";
+import { FiMaximize2 } from "react-icons/fi";
 import "leaflet/dist/leaflet.css";
 
 interface LokasiPemasaran {
@@ -138,7 +140,7 @@ function MapSizeSync() {
   return null;
 }
 
-export default function PetaPemasaran() {
+export default function PetaPemasaran({ fullScreen = false }: { fullScreen?: boolean }) {
   const [petaCenter, setPetaCenter] = useState<[number, number]>([15, 40]);
   const [petaZoom, setPetaZoom] = useState(3);
   const [waktuSekarang, setWaktuSekarang] = useState(() => new Date());
@@ -164,7 +166,7 @@ export default function PetaPemasaran() {
   }, []);
 
   return (
-    <section className="marketing-map" aria-labelledby="marketing-map-title">
+    <section className={`marketing-map${fullScreen ? " marketing-map-fullscreen" : ""}`} aria-labelledby="marketing-map-title">
       <div className="marketing-map-stage">
         <img className="marketing-map-logo" src="https://files.catbox.moe/9qm2ex.jpeg" alt="Tokko Marketplace" />
         <div className="marketing-map-canvas">
@@ -189,10 +191,17 @@ export default function PetaPemasaran() {
             );
           })}
         </MapContainer>
-        <div className="marketing-map-live" aria-label="Peta aktif">
-          <span className="marketing-map-live-dot" />
-          Live
-        </div>
+        {fullScreen ? (
+          <Link href="/#tim-marketing" className="marketing-map-fullscreen-back">Kembali</Link>
+        ) : (
+          <div className="marketing-map-live" aria-label="Peta aktif">
+            <span className="marketing-map-live-dot" />
+            Live
+            <Link href="/peta-pemasaran" className="marketing-map-fullscreen-link" aria-label="Buka peta layar penuh" title="Buka peta layar penuh">
+              <FiMaximize2 aria-hidden="true" />
+            </Link>
+          </div>
+        )}
         </div>
         <div className={`marketing-map-picker ${menuTerbuka ? "marketing-map-picker-open" : ""}`}>
         <div className="marketing-map-controls" aria-label="Pilih wilayah peta">

@@ -92,6 +92,7 @@ export type DonationActivityType = "income" | "expense" | "refund";
 export type DonationActivity = {
   id: string;
   type: DonationActivityType;
+  donationProductId?: string;
   amount: number;
   note: string;
   imageUrl?: string;

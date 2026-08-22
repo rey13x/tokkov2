@@ -96,6 +96,7 @@
 
 .totalPanel {
   display: grid;
+  min-width: 0;
   gap: 8px;
   padding: 24px clamp(18px, 4vw, 44px);
 }
@@ -106,8 +107,21 @@
 }
 
 .totalPanel strong {
+  min-width: 0;
   font-size: clamp(2rem, 6vw, 4.4rem);
   line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 420px) {
+  .totalPanel {
+    padding: 20px 16px;
+  }
+
+  .totalPanel strong,
+  .totalPanel strong span {
+    white-space: normal;
+  }
 }
 
 .activitySection {

@@ -865,11 +865,27 @@ export async function getInformationById(id: string) {
 
 export async function listDonationActivities(): Promise<DonationActivity[]> {
   const firestore = getFirestoreOrNull();
-  if (!firestore) return listDonationActivitiesDb();
+  if (!firestore) {
+    const activities = await listDonationActivitiesDb();
+    const products = (await listProductsDb()).filter((product) => product.productType === "donation");
+    for (const activity of activities) {
+      if (activity.donationProductId) continue;
+      const product = products.find((candidate) => {
+        const name = candidate.name.trim().toLowerCase();
+        return name.length >= 4 && activity.note.toLowerCase().includes(name);
+      });
+      if (!product) continue;
+      const balanceDelta = activity.type === "expense" ? -activity.amount : activity.amount;
+      await run("UPDATE products SET donation_total = MAX(0, donation_total + ?) WHERE id = ?", [balanceDelta, product.id]);
+      await run("UPDATE donation_activities SET donation_product_id = ? WHERE id = ?", [product.id, activity.id]);
+      activity.donationProductId = product.id;
+    }
+    return activities;
+  }
 
   try {
     const snapshot = await firestore.collection("donationActivities").get();
-    return snapshot.docs
+    const activities = snapshot.docs
       .map((doc: { id: string; data: () => unknown }) => {
         const data = doc.data() as Record<string, unknown>;
         return {
@@ -881,12 +897,35 @@ export async function listDonationActivities(): Promise<DonationActivity[]> {
           occurredAt: String(data.occurredAt ?? new Date().toISOString()),
           actorName: String(data.actorName ?? "Tokko Marketplace"),
           actorPhone: String(data.actorPhone ?? "085121579597"),
+          donationProductId: String(data.donationProductId ?? "").trim() || undefined,
           telegramMessageId: Number(data.telegramMessageId ?? 0) || undefined,
           telegramChatId: String(data.telegramChatId ?? "") || undefined,
           createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
         } satisfies DonationActivity;
       })
       .sort((a: DonationActivity, b: DonationActivity) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+    const products = (await listProducts()).filter((product) => product.productType === "donation");
+    for (const activity of activities) {
+      if (activity.donationProductId) continue;
+      const product = products.find((candidate) => {
+        const name = candidate.name.trim().toLowerCase();
+        return name.length >= 4 && activity.note.toLowerCase().includes(name);
+      });
+      if (!product) continue;
+      const balanceDelta = activity.type === "expense" ? -activity.amount : activity.amount;
+      await firestore.runTransaction(async (transaction: any) => {
+        const activityRef = firestore.collection("donationActivities").doc(activity.id);
+        const productRef = firestore.collection("products").doc(product.id);
+        const activitySnapshot = await transaction.get(activityRef);
+        if (activitySnapshot.data()?.donationProductId) return;
+        const productSnapshot = await transaction.get(productRef);
+        const productData = productSnapshot.data() as Record<string, unknown>;
+        transaction.update(productRef, { donationTotal: Math.max(0, Number(productData.donationTotal ?? 0) + balanceDelta), updatedAt: now() });
+        transaction.update(activityRef, { donationProductId: product.id });
+      });
+      activity.donationProductId = product.id;
+    }
+    return activities;
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to list donation activities from Firestore. Falling back to local database.", error);
@@ -902,23 +941,51 @@ export async function createDonationActivity(input: {
   occurredAt: string;
   actorName: string;
   actorPhone: string;
+  donationProductId: string;
 }) {
   const firestore = getFirestoreOrNull();
-  if (!firestore) return createDonationActivityDb(input);
+  const balanceDelta = input.type === "expense" ? -input.amount : input.amount;
+  if (!firestore) {
+    const activity = await createDonationActivityDb(input);
+    await run(
+      "UPDATE products SET donation_total = MAX(0, donation_total + ?) WHERE id = ? AND product_type = 'donation'",
+      [balanceDelta, input.donationProductId],
+    );
+    return activity;
+  }
 
   try {
     const id = crypto.randomUUID();
     const createdAt = now();
-    await firestore.collection("donationActivities").doc(id).set({
-      ...input,
-      amount: Math.max(0, Math.round(input.amount)),
-      imageUrl: resolveMediaUrl(input.imageUrl || ""),
-      createdAt,
+    await firestore.runTransaction(async (transaction: any) => {
+      const productRef = firestore.collection("products").doc(input.donationProductId);
+      const productSnapshot = await transaction.get(productRef);
+      const productData = productSnapshot.data() as Record<string, unknown> | undefined;
+      if (!productSnapshot.exists || productData?.productType !== "donation") {
+        throw new Error("Card donasi tidak ditemukan.");
+      }
+      const currentTotal = Number(productData.donationTotal ?? 0);
+      const nextTotal = currentTotal + balanceDelta;
+      if (nextTotal < 0) {
+        throw new Error("Pengeluaran melebihi saldo card donasi.");
+      }
+      transaction.update(productRef, { donationTotal: nextTotal, updatedAt: createdAt });
+      transaction.set(firestore.collection("donationActivities").doc(id), {
+        ...input,
+        amount: Math.max(0, Math.round(input.amount)),
+        imageUrl: resolveMediaUrl(input.imageUrl || ""),
+        createdAt,
+      });
     });
     return (await listDonationActivities()).find((activity) => activity.id === id) ?? null;
   } catch (error) {
     console.error("Failed to create donation activity in Firestore. Falling back to local database.", error);
-    return createDonationActivityDb(input);
+    const activity = await createDonationActivityDb(input);
+    await run(
+      "UPDATE products SET donation_total = MAX(0, donation_total + ?) WHERE id = ? AND product_type = 'donation'",
+      [balanceDelta, input.donationProductId],
+    );
+    return activity;
   }
 }
 
@@ -935,13 +1002,41 @@ export async function updateDonationActivityTelegram(id: string, messageId: numb
 
 export async function deleteDonationActivity(id: string) {
   const firestore = getFirestoreOrNull();
-  if (!firestore) return deleteDonationActivityDb(id);
+  if (!firestore) {
+    const activity = await listDonationActivitiesDb();
+    const existing = activity.find((item) => item.id === id);
+    const deleted = await deleteDonationActivityDb(id);
+    if (existing?.donationProductId) {
+      const balanceDelta = existing.type === "expense" ? existing.amount : -existing.amount;
+      await run(
+        "UPDATE products SET donation_total = MAX(0, donation_total + ?) WHERE id = ? AND product_type = 'donation'",
+        [balanceDelta, existing.donationProductId],
+      );
+    }
+    return deleted;
+  }
   try {
     const ref = firestore.collection("donationActivities").doc(id);
     const doc = await ref.get();
     if (!doc.exists) return null;
     const data = doc.data() as Record<string, unknown>;
-    await ref.delete();
+    const activityType = String(data.type) as DonationActivityType;
+    const productId = String(data.donationProductId ?? "").trim();
+    const amount = Math.max(0, Number(data.amount ?? 0));
+    if (productId) {
+      const balanceDelta = activityType === "expense" ? amount : -amount;
+      await firestore.runTransaction(async (transaction: any) => {
+        const productRef = firestore.collection("products").doc(productId);
+        const productSnapshot = await transaction.get(productRef);
+        if (productSnapshot.exists) {
+          const productData = productSnapshot.data() as Record<string, unknown>;
+          transaction.update(productRef, { donationTotal: Math.max(0, Number(productData.donationTotal ?? 0) + balanceDelta), updatedAt: now() });
+        }
+        transaction.delete(ref);
+      });
+    } else {
+      await ref.delete();
+    }
     return {
       id,
       type: String(data.type) as DonationActivityType,
@@ -951,13 +1046,22 @@ export async function deleteDonationActivity(id: string) {
       occurredAt: String(data.occurredAt ?? new Date().toISOString()),
       actorName: String(data.actorName ?? "Tokko Marketplace"),
       actorPhone: String(data.actorPhone ?? "085121579597"),
+      donationProductId: productId || undefined,
       telegramMessageId: Number(data.telegramMessageId ?? 0) || undefined,
       telegramChatId: String(data.telegramChatId ?? "") || undefined,
       createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
     } satisfies DonationActivity;
   } catch (error) {
     console.error("Failed to delete donation activity from Firestore. Falling back to local database.", error);
-    return deleteDonationActivityDb(id);
+    const deleted = await deleteDonationActivityDb(id);
+    if (deleted?.donationProductId) {
+      const balanceDelta = deleted.type === "expense" ? deleted.amount : -deleted.amount;
+      await run(
+        "UPDATE products SET donation_total = MAX(0, donation_total + ?) WHERE id = ? AND product_type = 'donation'",
+        [balanceDelta, deleted.donationProductId],
+      );
+    }
+    return deleted;
   }
 }
 

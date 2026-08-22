@@ -457,9 +457,23 @@
   animation: marketingLivePulse 1.5s ease-in-out infinite;
 }
 
+.section :global(.marketing-map-fullscreen-link) {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  color: #17365d;
+  text-decoration: none;
+}
+
+.section :global(.marketing-map-fullscreen-link svg) {
+  width: 15px;
+  height: 15px;
+}
+
 @keyframes marketingLivePulse {
-  0%, 100% { opacity: 0.35; transform: scale(0.78); }
-  50% { opacity: 1; transform: scale(1.12); }
+  0%, 100% { opacity: 0.65; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.04); }
 }
 
 @media (max-width: 620px) {
@@ -1110,10 +1124,7 @@
 
 .donationHeader p {
   font-weight: 700;
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
 }
 
 .donationHint {
@@ -1132,7 +1143,7 @@
 
 .donationWatermark {
   position: absolute;
-  inset: -20%;
+  inset: 0;
   z-index: 1;
   color: #142b52;
   display: grid;
@@ -1165,9 +1176,13 @@
 }
 
 .donationAmount {
+  min-width: 0;
+  max-width: 100%;
   color: #142b52;
   font-size: clamp(1.55rem, 3.4vw, 2.35rem);
   font-weight: 800;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .donationAmount :global(.DonationTotalTicker-module__ticker) {
@@ -1294,12 +1309,13 @@
 
 .partnerHeader h2 {
   margin: 0;
+  max-width: 100%;
   color: #111522;
   font-size: clamp(1.9rem, 4.6vw, 3.35rem);
   line-height: 1.04;
   letter-spacing: 0;
   font-weight: 800;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .partnerHeader p {
@@ -2089,6 +2105,10 @@
   }
 
   .menuFab {
+    width: 50px;
+    min-width: 50px;
     height: 50px;
+    aspect-ratio: 1;
+    padding: 0;
   }
 }

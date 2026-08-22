@@ -159,8 +159,8 @@ export async function uploadReceiptImage(
   
   // Determine filename based on blob type
   const filename = blob.type === "application/pdf" 
-    ? `receipt-${orderId}.pdf`
-    : `receipt-${orderId}.jpg`;
+    ? `tokkomarketplace-struk-${orderId}.pdf`
+    : `tokkomarketplace-struk-${orderId}.jpg`;
   
   formData.append("image", blob, filename);
   

@@ -2873,7 +2873,9 @@ function AdminManagementSection() {
                     rel="noreferrer"
                     className={styles.inlineLink}
                   >
-                    Struk
+                    {order.items?.some((item) =>
+                      item.productType === "donation" || /donasi|donation/i.test(item.productName),
+                    ) ? "Sertifikat" : "Struk"}
                   </a>
                   <button type="button" onClick={() => onDeleteOrder(order.id)}>
                     Hapus

@@ -207,14 +207,18 @@ export const authOptions: NextAuthOptions = {
 
       return true;
     },
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger, session, account }) {
       if (user) {
-        token.userId = user.id;
-        token.username = user.name ?? undefined;
-        token.email = (user as any).email ?? undefined;
-        token.role = (user as any).role;
-        token.phone = (user as any).phone;
-        token.avatarUrl = user.image ?? undefined;
+        const databaseUser = account?.provider === "google" && user.email
+          ? await findUserByEmail(user.email.trim().toLowerCase())
+          : null;
+        const resolvedUser = databaseUser ?? user;
+        token.userId = resolvedUser.id;
+        token.username = databaseUser?.username ?? user.name ?? undefined;
+        token.email = databaseUser?.email ?? (user as any).email ?? undefined;
+        token.role = databaseUser?.role ?? (user as any).role;
+        token.phone = databaseUser?.phone ?? (user as any).phone;
+        token.avatarUrl = databaseUser?.avatarUrl || user.image || undefined;
       } else if (trigger === "update" && session) {
         const nextSession = session as {
           username?: string;

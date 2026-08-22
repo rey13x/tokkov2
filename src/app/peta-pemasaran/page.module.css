@@ -1,0 +1,224 @@
+.page {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
+  padding: 0 !important;
+  overflow: hidden;
+  background: #eef1f5;
+}
+
+.page :global(.marketing-map) {
+  width: 100%;
+  min-height: 100dvh;
+  gap: 0;
+}
+
+.page :global(.marketing-map-stage) {
+  min-height: 100dvh;
+}
+
+.page :global(.marketing-map-canvas) {
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+}
+
+.page :global(.marketing-map-logo) {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 1200;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.page :global(.marketing-map-live) {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #17365d;
+  font-size: 0.9rem;
+  font-weight: 800;
+  box-shadow: 0 8px 22px rgba(15, 28, 52, 0.15);
+}
+
+.page :global(.marketing-map-live-dot) {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #16b65b;
+}
+
+.page :global(.marketing-map-controls) {
+  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 0;
+  padding: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: max-height 220ms ease, padding 220ms ease, opacity 180ms ease, transform 220ms ease;
+}
+
+.page :global(.marketing-map-controls button),
+.page :global(.marketing-map-open) {
+  min-height: 42px;
+  border: 1px solid rgba(22, 27, 40, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #17365d;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
+.page :global(.marketing-map-controls button) {
+  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.page :global(.marketing-map-open) {
+  width: 100%;
+  padding: 0 18px;
+  box-shadow: 0 8px 22px rgba(15, 28, 52, 0.15);
+}
+
+.page :global(.marketing-map-fullscreen-back) {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #17365d;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 8px 22px rgba(15, 28, 52, 0.15);
+}
+
+.page :global(.marketing-map-controls button:hover),
+.page :global(.marketing-map-open:hover) {
+  background: #ffffff;
+  border-color: #17365d;
+}
+
+.page :global(.marketing-map-picker-open .marketing-map-controls) {
+  max-height: 120px;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.page :global(.marketing-pin) {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.page :global(.marketing-pin-pusat) {
+  width: 38px !important;
+  height: 38px !important;
+}
+
+.page :global(.marketing-pin img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.page :global(.marketing-map-picker) {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 86px;
+  z-index: 1200;
+  max-width: 460px;
+}
+
+.page :global(.marketing-map-picker-open) {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 12px;
+  border-radius: 16px;
+}
+
+.page :global(.marketing-map-live) {
+  top: 24px;
+  right: 24px;
+}
+
+.brandLink {
+  position: fixed;
+  z-index: 1500;
+  color: #17365d;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.brandLink {
+  left: 22px;
+  bottom: 22px;
+  font-size: 1rem;
+  text-shadow: 0 1px 2px #fff;
+}
+
+.loading {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  margin: 0;
+  color: #17365d;
+  font-weight: 800;
+}
+
+@media (max-width: 620px) {
+  .page :global(.marketing-map-picker) {
+    left: 12px;
+    right: 12px;
+    bottom: 78px;
+  }
+
+  .page :global(.marketing-map-live) {
+    top: 14px;
+    right: 14px;
+  }
+
+  .brandLink {
+    left: 14px;
+    bottom: 18px;
+  }
+}

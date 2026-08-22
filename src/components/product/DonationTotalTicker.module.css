@@ -1,9 +1,15 @@
 .ticker {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  column-gap: 0.25em;
+  max-width: 100%;
   min-width: 7ch;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   color: #142b52;
 }
 
@@ -12,9 +18,10 @@
 }
 
 .brandMark {
-  position: absolute;
-  top: -1.1rem;
-  right: -1.1rem;
+  position: relative;
+  top: auto;
+  right: auto;
+  flex: 0 0 auto;
   width: 22px;
   height: 22px;
   padding: 0;
@@ -24,6 +31,7 @@
   background: #142b52;
   cursor: pointer;
   z-index: 3;
+  vertical-align: middle;
 }
 
 .brandMark img {

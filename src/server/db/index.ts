@@ -616,6 +616,9 @@ export async function ensureDatabase() {
       await run(
         "ALTER TABLE donation_activities ADD COLUMN telegram_chat_id TEXT",
       ).catch(() => {});
+      await run(
+        "ALTER TABLE donation_activities ADD COLUMN donation_product_id TEXT",
+      ).catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS orders (
@@ -1844,6 +1847,7 @@ function mapDonationActivity(row: Record<string, unknown>): DonationActivity {
   return {
     id: String(row.id),
     type: String(row.type) as DonationActivityType,
+    donationProductId: String(row.donation_product_id ?? "").trim() || undefined,
     amount: Math.max(0, Number(row.amount ?? 0)),
     note: String(row.note ?? ""),
     imageUrl: resolveMediaUrl(String(row.image_url ?? "")) || undefined,
@@ -1870,14 +1874,15 @@ export async function createDonationActivity(input: {
   occurredAt: string;
   actorName: string;
   actorPhone: string;
+  donationProductId: string;
 }) {
   await ensureDatabase();
   const id = randomId();
   await run(
     `INSERT INTO donation_activities
-      (id, type, amount, note, image_url, occurred_at, actor_name, actor_phone, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, input.type, input.amount, input.note, resolveMediaUrl(input.imageUrl || ""), input.occurredAt, input.actorName, input.actorPhone, now()],
+      (id, type, amount, note, image_url, occurred_at, actor_name, actor_phone, donation_product_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.type, input.amount, input.note, resolveMediaUrl(input.imageUrl || ""), input.occurredAt, input.actorName, input.actorPhone, input.donationProductId, now()],
   );
   const result = await run("SELECT * FROM donation_activities WHERE id = ? LIMIT 1", [id]);
   return mapDonationActivity(result.rows[0] as Record<string, unknown>);
