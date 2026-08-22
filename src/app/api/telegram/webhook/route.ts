@@ -41,24 +41,30 @@ async function telegramRequest(method: string, body: Record<string, unknown>) {
   const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
   if (!token) return;
 
-  const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    console.error(`Telegram ${method} failed:`, response.status);
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!response.ok) {
+      console.error(`Telegram ${method} failed:`, response.status);
+    }
+    const result = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+      result?: { message_id?: number; file_path?: string };
+    } | null;
+    const chatId = String(body.chat_id ?? "");
+    if (method === "sendMessage" && result?.result?.message_id && chatId) {
+      await rememberTelegramMessage(chatId, result.result.message_id);
+    }
+    return result;
+  } catch (error) {
+    console.error(`Telegram ${method} failed or timed out after 30 seconds:`, error);
+    return { ok: false, result: undefined };
   }
-  const result = (await response.json().catch(() => null)) as {
-    ok?: boolean;
-    result?: { message_id?: number; file_path?: string };
-  } | null;
-  const chatId = String(body.chat_id ?? "");
-  if (method === "sendMessage" && result?.result?.message_id && chatId) {
-    await rememberTelegramMessage(chatId, result.result.message_id);
-  }
-  return result;
 }
 
 function greeting() {
@@ -437,7 +443,10 @@ export async function POST(request: Request) {
     await deleteTelegramMessage(chatId, callback.message.message_id);
     await state?.set({ senderWaiting: false, senderMessageId: null, senderConfirmationMessageId: null, updatedAt: Date.now() }, { merge: true });
     if (!copied?.ok) {
-      await telegramRequest("sendMessage", { chat_id: chatId, text: "❌ Pesan gagal dikirim ke channel." });
+      await telegramRequest("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Pesan gagal dikirim ke channel. Telegram tidak merespons dalam 30 detik atau channel belum mengizinkan bot mengirim pesan.",
+      });
       return NextResponse.json({ ok: false, error: "Copy failed" }, { status: 502 });
     }
     await telegramRequest("sendMessage", { chat_id: chatId, text: "✅ Sukses dikirim!\n@tokkomarketplace" });
