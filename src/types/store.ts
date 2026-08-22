@@ -98,6 +98,8 @@ export type DonationActivity = {
   occurredAt: string;
   actorName: string;
   actorPhone: string;
+  telegramMessageId?: number;
+  telegramChatId?: string;
   createdAt: string;
 };
 

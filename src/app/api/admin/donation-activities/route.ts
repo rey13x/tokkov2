@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
-import { createDonationActivity, listDonationActivities } from "@/server/store-data";
-import { sendTelegramDonationActivityNotification } from "@/server/notifications";
+import { createDonationActivity, deleteDonationActivity, listDonationActivities, updateDonationActivityTelegram } from "@/server/store-data";
+import { deleteTelegramDonationActivityMessage, sendTelegramDonationActivityNotification } from "@/server/notifications";
 
 const activitySchema = z.object({
   type: z.enum(["income", "expense", "refund"]),
@@ -28,8 +28,23 @@ export async function POST(request: Request) {
     const payload = activitySchema.parse(await request.json());
     const activity = await createDonationActivity(payload);
     if (!activity) throw new Error("Aktivitas gagal disimpan.");
-    const telegramSent = await sendTelegramDonationActivityNotification(activity);
-    return NextResponse.json({ activity, telegramSent }, { status: 201 });
+    let telegramResult: { messageId: number | null; error: string | null };
+    try {
+      telegramResult = await sendTelegramDonationActivityNotification(activity);
+    } catch (telegramError) {
+      console.error("Telegram donation activity notification failed:", telegramError);
+      telegramResult = { messageId: null, error: "Tidak bisa terhubung ke Telegram." };
+    }
+    if (telegramResult.messageId) {
+      await updateDonationActivityTelegram(
+        activity.id,
+        telegramResult.messageId,
+        process.env.TELEGRAM_PAYMENT_CHANNEL_ID?.trim() || "@tokkomarketplace",
+      );
+      activity.telegramMessageId = telegramResult.messageId;
+      activity.telegramChatId = process.env.TELEGRAM_PAYMENT_CHANNEL_ID?.trim() || "@tokkomarketplace";
+    }
+    return NextResponse.json({ activity, telegramSent: Boolean(telegramResult.messageId), telegramError: telegramResult.error }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: "Data aktivitas belum lengkap atau belum sesuai." }, { status: 400 });
@@ -37,4 +52,15 @@ export async function POST(request: Request) {
     console.error("POST /api/admin/donation-activities failed:", error);
     return NextResponse.json({ message: "Gagal menyimpan aktivitas donasi." }, { status: 500 });
   }
+}
+
+export async function DELETE(request: Request) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+  const id = new URL(request.url).searchParams.get("id");
+  if (!id) return NextResponse.json({ message: "ID aktivitas wajib diisi." }, { status: 400 });
+  const activity = await deleteDonationActivity(id);
+  if (!activity) return NextResponse.json({ message: "Aktivitas tidak ditemukan." }, { status: 404 });
+  await deleteTelegramDonationActivityMessage(activity.telegramChatId, activity.telegramMessageId);
+  return NextResponse.json({ activity });
 }

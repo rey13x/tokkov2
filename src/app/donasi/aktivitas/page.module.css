@@ -19,6 +19,31 @@
   margin: 0 auto 24px;
 }
 
+.headerIdentity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.logoLink {
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+}
+
+.logo {
+  display: block;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.headerCopy {
+  min-width: 0;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: #69728d;
@@ -34,10 +59,13 @@
   letter-spacing: -0.02em;
 }
 
+.header h1 {
+  white-space: nowrap;
+}
+
 .subtitle,
 .sectionHeading > span,
 .empty,
-time,
 .meta {
   color: #69728d;
 }
@@ -107,6 +135,31 @@ time,
   padding-top: 14px;
 }
 
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 0 2px;
+}
+
+.filterButton,
+.filterActive {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #d8dce5;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #69728d;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.filterActive {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
+}
+
 .activityCard {
   display: flex;
   gap: 14px;
@@ -115,38 +168,30 @@ time,
   border-radius: 16px;
 }
 
-.activityIcon {
-  flex: 0 0 40px;
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  color: white;
-  font-size: 1.3rem;
-  font-weight: 800;
-}
-
-.income { background: #1f8a70; }
-.expense { background: #c2413b; }
-.refund { background: #b7791f; }
-
 .activityBody { flex: 1; min-width: 0; }
 .activityTop h3 { margin: 0; font-size: 1.08rem; }
-time { display: block; margin-top: 3px; font-size: 0.78rem; }
+.activityTop time { display: block; margin-top: 3px; font-size: 0.78rem; }
 .activityTop > strong { white-space: nowrap; font-size: 1.05rem; }
-.incomeAmount { color: #1f8a70; }
+.incomeAmount,
 .expenseAmount,
-.refundAmount { color: #c2413b; }
+.refundAmount { color: #142b52; }
 .activityBody > p { margin: 12px 0 8px; line-height: 1.5; }
+.reason { margin-top: 0 !important; }
 .meta { font-size: 0.76rem; }
-.activityImage { width: min(100%, 480px); height: auto; margin-top: 14px; object-fit: cover; border-radius: 10px; }
+.activityImage { display: block; width: min(100%, 180px); height: auto; margin: 0 0 14px; border: none; border-radius: 0; }
 .empty { margin: 18px 0 0; }
 
 @media (max-width: 620px) {
-  .header,
   .sectionHeading,
   .activityTop { flex-direction: column; align-items: stretch; }
-  .backLink { align-self: flex-start; }
+  .header { align-items: center; gap: 10px; }
+  .headerIdentity { gap: 10px; }
+  .logoLink,
+  .logo { width: 52px; height: 52px; }
+  .logoLink { flex-basis: 52px; }
+  .header h1 { font-size: clamp(1.45rem, 7.5vw, 2rem); }
+  .eyebrow { font-size: 0.58rem; }
+  .subtitle { font-size: 0.75rem; }
+  .backLink { align-self: center; }
   .activityTop > strong { align-self: flex-start; }
 }

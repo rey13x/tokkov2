@@ -106,7 +106,8 @@ export async function sendTelegramDonationActivityNotification(payload: {
   imageUrl?: string;
 }) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
-  if (!botToken) return false;
+  if (!botToken) return { messageId: null, error: "TELEGRAM_BOT_TOKEN belum dikonfigurasi." };
+  const channelId = process.env.TELEGRAM_PAYMENT_CHANNEL_ID?.trim() || "@tokkomarketplace";
   const typeLabel = { income: "PEMASUKAN", expense: "PENGELUARAN", refund: "PENGEMBALIAN" }[payload.type];
   const title = { income: "📣 PEMASUKAN DONASI", expense: "📣 PENGELUARAN DONASI", refund: "📣 PENGEMBALIAN DONASI" }[payload.type];
   const caption = [
@@ -119,20 +120,101 @@ export async function sendTelegramDonationActivityNotification(payload: {
     `<b>Nama</b> : ${escapeTelegramHtml(payload.actorName)}`,
     `<b>No. HP</b> : ${escapeTelegramHtml(payload.actorPhone)}`,
   ].join("\n");
-  const response = payload.imageUrl
-    ? await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+  let lastError = "Telegram gagal mengirim notifikasi.";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    let response: Response;
+    if (payload.imageUrl) {
+      if (payload.imageUrl.startsWith("data:")) {
+        const match = payload.imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!match) return { messageId: null, error: "Format foto lampiran tidak valid." };
+        const form = new FormData();
+        form.append("chat_id", channelId);
+        form.append("caption", caption);
+        form.append("parse_mode", "HTML");
+        form.append("photo", new Blob([Buffer.from(match[2], "base64")], { type: match[1] }), "donation-activity");
+        response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, { method: "POST", body: form, cache: "no-store", signal: AbortSignal.timeout(15000) });
+      } else {
+        response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: channelId, photo: payload.imageUrl, caption, parse_mode: "HTML" }),
+          cache: "no-store",
+          signal: AbortSignal.timeout(15000),
+        });
+      }
+    } else {
+      response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: "@tokkomarketplace", photo: payload.imageUrl, caption, parse_mode: "HTML" }),
+        body: JSON.stringify({ chat_id: channelId, text: caption, parse_mode: "HTML" }),
         cache: "no-store",
-      })
-    : await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: "@tokkomarketplace", text: caption, parse_mode: "HTML" }),
-        cache: "no-store",
+        signal: AbortSignal.timeout(15000),
       });
-  return response.ok;
+    }
+    if (response.ok) {
+      const result = (await response.json().catch(() => null)) as { result?: { message_id?: number } } | null;
+      if (typeof result?.result?.message_id === "number") {
+        return { messageId: result.result.message_id, error: null };
+      }
+      lastError = "Telegram tidak mengembalikan ID pesan.";
+    } else {
+      const details = (await response.json().catch(() => null)) as { description?: string } | null;
+      lastError = details?.description || `Telegram gagal (${response.status}).`;
+    }
+  }
+  return { messageId: null, error: lastError };
+}
+
+export async function deleteTelegramDonationActivityMessage(chatId: string | undefined, messageId: number | undefined) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!botToken || !chatId || !messageId) return false;
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/deleteMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId }),
+      cache: "no-store",
+    });
+    return response.ok;
+  } catch (error) {
+    console.error("Telegram donation activity deletion failed:", error);
+    return false;
+  }
+}
+
+async function sendTelegramChannelPhoto(imageUrl: string | undefined, channelId: string) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!botToken || !imageUrl) return false;
+  const publicImageUrl = imageUrl.startsWith("/")
+    ? `${(process.env.NEXTAUTH_URL?.trim() || "https://tokkov2.vercel.app").replace(/\/$/, "")}${imageUrl}`
+    : imageUrl;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      let response: Response;
+      if (publicImageUrl.startsWith("data:")) {
+        const match = publicImageUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!match) return false;
+        const form = new FormData();
+        form.append("chat_id", channelId);
+        form.append("photo", new Blob([Buffer.from(match[2], "base64")], { type: match[1] }), "product-image");
+        response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, { method: "POST", body: form, cache: "no-store", signal: AbortSignal.timeout(15000) });
+      } else {
+        response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: channelId, photo: publicImageUrl }),
+          cache: "no-store",
+          signal: AbortSignal.timeout(15000),
+        });
+      }
+      if (response.ok) return true;
+      console.error(`Telegram product photo attempt ${attempt} failed:`, await response.text().catch(() => ""));
+    } catch (error) {
+      console.error(`Telegram product photo attempt ${attempt} failed:`, error);
+    }
+  }
+  return false;
 }
 
 async function editTelegramMessage(
@@ -385,16 +467,16 @@ export async function sendTelegramPaymentChannelNotification(payload: {
   transactionId: string;
   amount: number;
 }) {
-  const channelId = "@tokkomarketplace";
+  const channelId = process.env.TELEGRAM_PAYMENT_CHANNEL_ID?.trim() || "@tokkomarketplace";
 
   try {
     const order = await getOrderById(payload.orderId);
     if (!order) return false;
     const items = await listOrderItemsByOrderId(payload.orderId);
-    const enrichedItems = await Promise.all(items.map(async (item) => ({
-      ...item,
-      productType: item.productType || (await getProductById(item.productId))?.productType,
-    })));
+    const enrichedItems = await Promise.all(items.map(async (item) => {
+      const product = await getProductById(item.productId);
+      return { ...item, productType: item.productType || product?.productType, imageUrl: product?.imageUrl };
+    }));
     const donation = enrichedItems.find((item) => item.productType === "donation");
     if (donation) {
       const donationCaption = [
@@ -406,7 +488,8 @@ export async function sendTelegramPaymentChannelNotification(payload: {
         `<b>Email</b>: ${escapeTelegramHtml(maskChannelEmail(order.userEmail))}`,
         `<b>No. Telepon</b>: ${escapeTelegramHtml(maskChannelPhone(order.userPhone))}`,
         "",
-        `<b>Atas donasi yang diberikan untuk bantuan</b> ${escapeTelegramHtml(donation.productName)} dengan nominal sebesar: <b>Rp ${donation.unitPrice.toLocaleString("id-ID")}</b>`,
+        `<b>Produk</b>: ${escapeTelegramHtml(donation.productName)} x${donation.quantity}`,
+        `<b>Nominal</b>: <b>Rp ${donation.unitPrice.toLocaleString("id-ID")}</b>`,
         "",
         "tokkomarketplace.shop",
       ].join("\n");
@@ -414,31 +497,12 @@ export async function sendTelegramPaymentChannelNotification(payload: {
       // prepare channel redirect button
       const channelButton: TelegramReplyMarkup = { inline_keyboard: [[{ text: "Tokko Marketplace", url: "https://tokkov2.vercel.app" }]] };
 
-      // Retry sending receipt up to 3 times to ensure channel delivery
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const sent = await sendTelegramReceipt(payload.orderId, channelId, {
-            notifiedField: "telegramDonationChannelNotifiedAt",
-            caption: donationCaption,
-            replyMarkup: channelButton,
-          });
-          if (sent) return true;
-        } catch (err) {
-          console.error(`Attempt ${attempt} - failed to send donation receipt to channel:`, err);
-        }
-        // small delay before retry
-        await new Promise((r) => setTimeout(r, 500));
+      const photoSent = await sendTelegramChannelPhoto(donation?.imageUrl, channelId);
+      const textSent = await sendTelegramMessage(donationCaption, channelButton, channelId).catch(() => null);
+      if (!textSent) {
+        await sendTelegramMessage(`⚠️ Gagal mengirim info donasi ke channel untuk order ${payload.orderId}. Foto: ${photoSent ? "terkirim" : "tidak tersedia/gagal"}.`).catch(() => {});
       }
-
-      console.error(`Failed to send donation receipt to channel @tokkomarketplace for order ${payload.orderId} after retries.`);
-      // Fallback: send text message to channel with redirect button
-      const fallbackText = donationCaption;
-      const fallbackSent = await sendTelegramMessage(fallbackText, channelButton, channelId).catch(() => null);
-      if (fallbackSent) return true;
-
-      // Notify admin chat so manual intervention is possible
-      await sendTelegramMessage(`⚠️ Gagal mengirim struk donasi ke channel untuk order ${payload.orderId}. Mohon cek manual.`).catch(() => {});
-      return false;
+      return Boolean(textSent);
     }
 
     const caption = [
@@ -449,6 +513,9 @@ export async function sendTelegramPaymentChannelNotification(payload: {
       `<b>Waktu</b>       : ${escapeTelegramHtml(formatAuditDate())}`,
       `<b>Jumlah</b>       : Rp ${payload.amount.toLocaleString("id-ID")}`,
       "",
+      "<b>Produk Dibeli</b>",
+      ...enrichedItems.map((item, index) => `${index + 1}. ${escapeTelegramHtml(item.productName)} x${item.quantity}`),
+      "",
       "<b>Informasi Akun</b>",
         `Nama           : ${escapeTelegramHtml(order.userName)}`,
         `Email          : ${escapeTelegramHtml(maskChannelEmail(order.userEmail))}`,
@@ -458,29 +525,22 @@ export async function sendTelegramPaymentChannelNotification(payload: {
     // prepare channel redirect button
     const channelButton: TelegramReplyMarkup = { inline_keyboard: [[{ text: "Tokko Marketplace", url: "https://tokkov2.vercel.app" }]] };
 
-    // Retry sending receipt up to 3 times to ensure channel delivery
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        const sent = await sendTelegramReceipt(payload.orderId, channelId, {
-          notifiedField: "telegramPaymentChannelNotifiedAt",
-          caption,
-          replyMarkup: channelButton,
-        });
-        if (sent) return true;
-      } catch (err) {
-        console.error(`Attempt ${attempt} - failed to send payment receipt to channel:`, err);
-      }
-      await new Promise((r) => setTimeout(r, 500));
+    let receiptSent = false;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      receiptSent = await sendTelegramReceipt(payload.orderId, channelId, {
+        notifiedField: "telegramPaymentChannelNotifiedAt",
+        caption: "🧾 <b>Struk pembayaran berhasil</b>",
+        replyMarkup: channelButton,
+      }).catch(() => false);
+      if (receiptSent) break;
     }
-
-    console.error(`Failed to send payment receipt to channel @tokkomarketplace for order ${payload.orderId} after retries.`);
-    // Fallback: send text message to channel with redirect button
-    const fallbackText = caption;
-    const fallbackSent = await sendTelegramMessage(fallbackText, channelButton, channelId).catch(() => null);
-    if (fallbackSent) return true;
-
-    await sendTelegramMessage(`⚠️ Gagal mengirim struk pembayaran ke channel untuk order ${payload.orderId}. Mohon cek manual.`).catch(() => {});
-    return false;
+    const textSent = receiptSent
+      ? await sendTelegramMessage(caption, channelButton, channelId).catch(() => null)
+      : null;
+    if (!textSent) {
+      await sendTelegramMessage(`⚠️ Gagal mengirim struk atau info pembayaran ke channel untuk order ${payload.orderId}.`).catch(() => {});
+    }
+    return Boolean(textSent);
   } catch (error) {
     console.error("Error in sendTelegramPaymentChannelNotification:", error);
     await sendTelegramMessage(`⚠️ Error saat mengirim struk ke channel untuk order ${payload.orderId}. Mohon cek log.`).catch(() => {});

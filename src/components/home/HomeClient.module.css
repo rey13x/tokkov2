@@ -1094,9 +1094,11 @@
 
 .donationHeader h2 {
   color: #111827;
-  font-size: clamp(1.55rem, 3vw, 2.25rem);
+  max-width: 100%;
+  font-size: clamp(0.72rem, 5.5vw, 2.25rem);
   font-weight: 800;
-  overflow-wrap: anywhere;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .donationHeader p,
@@ -1108,6 +1110,10 @@
 
 .donationHeader p {
   font-weight: 700;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .donationHint {

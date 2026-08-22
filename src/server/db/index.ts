@@ -605,9 +605,17 @@ export async function ensureDatabase() {
           occurred_at TEXT NOT NULL,
           actor_name TEXT NOT NULL DEFAULT 'Tokko Marketplace',
           actor_phone TEXT NOT NULL DEFAULT '085121579597',
+          telegram_message_id INTEGER,
+          telegram_chat_id TEXT,
           created_at INTEGER NOT NULL
         )`,
       );
+      await run(
+        "ALTER TABLE donation_activities ADD COLUMN telegram_message_id INTEGER",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE donation_activities ADD COLUMN telegram_chat_id TEXT",
+      ).catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS orders (
@@ -1842,6 +1850,8 @@ function mapDonationActivity(row: Record<string, unknown>): DonationActivity {
     occurredAt: String(row.occurred_at),
     actorName: String(row.actor_name ?? "Tokko Marketplace"),
     actorPhone: String(row.actor_phone ?? "085121579597"),
+    telegramMessageId: Number(row.telegram_message_id ?? 0) || undefined,
+    telegramChatId: String(row.telegram_chat_id ?? "") || undefined,
     createdAt: new Date(Number(row.created_at)).toISOString(),
   };
 }
@@ -1871,6 +1881,20 @@ export async function createDonationActivity(input: {
   );
   const result = await run("SELECT * FROM donation_activities WHERE id = ? LIMIT 1", [id]);
   return mapDonationActivity(result.rows[0] as Record<string, unknown>);
+}
+
+export async function updateDonationActivityTelegram(id: string, messageId: number, chatId: string) {
+  await ensureDatabase();
+  await run("UPDATE donation_activities SET telegram_message_id = ?, telegram_chat_id = ? WHERE id = ?", [messageId, chatId, id]);
+}
+
+export async function deleteDonationActivity(id: string) {
+  await ensureDatabase();
+  const result = await run("SELECT * FROM donation_activities WHERE id = ? LIMIT 1", [id]);
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) return null;
+  await run("DELETE FROM donation_activities WHERE id = ?", [id]);
+  return mapDonationActivity(row);
 }
 
 export async function voteInformationPoll(id: string, option: string) {

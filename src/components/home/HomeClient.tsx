@@ -1122,7 +1122,6 @@ export default function HomeClient() {
               slow
               showCelebration
               prefix="Total Terkumpul Rp"
-              brandSrc={donationProduct?.imageUrl}
             />
           </div>
           <Link href="/donasi/aktivitas" className={styles.donationActivityLink}>

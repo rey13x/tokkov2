@@ -21,6 +21,7 @@ import {
   confirmOrderCancellation as confirmOrderCancellationDb,
   createInformation as createInformationDb,
   createDonationActivity as createDonationActivityDb,
+  deleteDonationActivity as deleteDonationActivityDb,
   createOrder as createOrderDb,
   createProduct as createProductDb,
   createMarquee as createMarqueeDb,
@@ -47,6 +48,7 @@ import {
   listAllProducts as listAllProductsDb,
   listInformations as listInformationsDb,
   listDonationActivities as listDonationActivitiesDb,
+  updateDonationActivityTelegram as updateDonationActivityTelegramDb,
   listOrders as listOrdersDb,
   listProducts as listProductsDb,
   listTestimonials as listTestimonialsDb,
@@ -879,6 +881,8 @@ export async function listDonationActivities(): Promise<DonationActivity[]> {
           occurredAt: String(data.occurredAt ?? new Date().toISOString()),
           actorName: String(data.actorName ?? "Tokko Marketplace"),
           actorPhone: String(data.actorPhone ?? "085121579597"),
+          telegramMessageId: Number(data.telegramMessageId ?? 0) || undefined,
+          telegramChatId: String(data.telegramChatId ?? "") || undefined,
           createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
         } satisfies DonationActivity;
       })
@@ -915,6 +919,45 @@ export async function createDonationActivity(input: {
   } catch (error) {
     console.error("Failed to create donation activity in Firestore. Falling back to local database.", error);
     return createDonationActivityDb(input);
+  }
+}
+
+export async function updateDonationActivityTelegram(id: string, messageId: number, chatId: string) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) return updateDonationActivityTelegramDb(id, messageId, chatId);
+  try {
+    await firestore.collection("donationActivities").doc(id).update({ telegramMessageId: messageId, telegramChatId: chatId });
+  } catch (error) {
+    console.error("Failed to store Telegram activity metadata. Falling back to local database.", error);
+    return updateDonationActivityTelegramDb(id, messageId, chatId);
+  }
+}
+
+export async function deleteDonationActivity(id: string) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) return deleteDonationActivityDb(id);
+  try {
+    const ref = firestore.collection("donationActivities").doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+    const data = doc.data() as Record<string, unknown>;
+    await ref.delete();
+    return {
+      id,
+      type: String(data.type) as DonationActivityType,
+      amount: Math.max(0, Number(data.amount ?? 0)),
+      note: String(data.note ?? ""),
+      imageUrl: resolveMediaUrl(String(data.imageUrl ?? "")) || undefined,
+      occurredAt: String(data.occurredAt ?? new Date().toISOString()),
+      actorName: String(data.actorName ?? "Tokko Marketplace"),
+      actorPhone: String(data.actorPhone ?? "085121579597"),
+      telegramMessageId: Number(data.telegramMessageId ?? 0) || undefined,
+      telegramChatId: String(data.telegramChatId ?? "") || undefined,
+      createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
+    } satisfies DonationActivity;
+  } catch (error) {
+    console.error("Failed to delete donation activity from Firestore. Falling back to local database.", error);
+    return deleteDonationActivityDb(id);
   }
 }
 
