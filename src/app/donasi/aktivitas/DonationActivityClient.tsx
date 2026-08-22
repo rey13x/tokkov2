@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import DonationTotalTicker from "@/components/product/DonationTotalTicker";
+import WaitLoading from "@/components/ui/WaitLoading";
 import { fetchStoreData } from "@/lib/store-client";
 import type { DonationActivity } from "@/types/store";
 import styles from "./page.module.css";
@@ -81,7 +82,7 @@ export default function DonationActivityClient() {
             </button>
           ))}
         </div>
-        {loading ? <p className={styles.empty}>Memuat aktivitas...</p> : null}
+        {loading ? <WaitLoading centered text="Lagi ngambil data, Pastiin internet kamu ada..." /> : null}
         {!loading && activities.length === 0 ? <p className={styles.empty}>Belum ada aktivitas donasi.</p> : null}
         <div className={styles.list}>
           {filteredActivities.map((activity) => (

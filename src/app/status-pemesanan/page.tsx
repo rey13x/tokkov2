@@ -1738,7 +1738,7 @@ export default function StatusPemesananPage() {
                   <span className={styles.adminNoteText}>Catatan admin: {order.adminNote}</span>
                 ) : null}
               </div>
-                {order.status !== "sent" && order.cancelRequestStatus !== "confirmed" ? (
+                {!order.items?.some((item) => item.productType === "donation") && order.status !== "sent" && order.cancelRequestStatus !== "confirmed" ? (
                 <div className={styles.cancelRequestBox}>
                   <textarea
                     value={confirmationNotes[order.id] ?? ""}

@@ -534,6 +534,9 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
   userName?: string;
   userEmail?: string;
 }) {
+  const order = await getOrderById(payload.orderId);
+  const items = order ? await listOrderItemsByOrderId(payload.orderId) : [];
+  const isDonation = items.some((item) => item.productType === "donation");
   await sendTelegramPaymentChannelNotification({
     orderId: payload.orderId,
     transactionId: payload.transactionId,
@@ -561,6 +564,7 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
     ]],
   };
 
+  let receiptTarget: { chatId: string; messageId: number } | null = null;
   try {
     const firestore = getFirebaseFirestore();
     const orderSnapshot = await firestore?.collection("orders").doc(payload.orderId).get();
@@ -572,13 +576,58 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
         telegramMessageUpdatedAt: Date.now(),
         telegramPaymentNotifiedAt: Date.now(),
       }, { merge: true });
-      return;
+      receiptTarget = { chatId, messageId };
     }
   } catch (error) {
     console.error("Failed to update Telegram payment message:", error);
   }
 
-  await sendTelegramMessage(text, paymentSuccessKeyboard);
+  if (!receiptTarget) {
+    const messageId = await sendTelegramMessage(text, paymentSuccessKeyboard);
+    const chatId = process.env.TELEGRAM_CHAT_ID?.trim() || "";
+    if (messageId && chatId) receiptTarget = { chatId, messageId };
+  }
+
+  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!isDonation && order && receiptTarget && botToken) {
+    try {
+      const receiptSvg = await buildReceiptPhoto({
+        orderId: order.id,
+        userName: order.userName,
+        userEmail: order.userEmail,
+        userPhone: order.userPhone,
+        createdAt: order.createdAt,
+        depositId: order.depositId,
+        paidAt: order.paidAt,
+        items: items.map((item) => ({
+          productName: item.productName,
+          productDuration: item.productDuration,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          productType: item.productType,
+          donationName: item.donationName,
+          donationMessage: item.donationMessage,
+        })),
+        total: Number(order.totalAmount ?? order.total ?? payload.amount),
+      });
+      const loadSharp = new Function("return import('sharp')") as () => Promise<{ default: typeof import("sharp").default }>;
+      const { default: sharp } = await loadSharp();
+      const receiptPhoto = await sharp(Buffer.from(receiptSvg)).png().toBuffer();
+      const form = new FormData();
+      form.append("chat_id", receiptTarget.chatId);
+      form.append("caption", "✅ <b>Pembayaran Berhasil</b>\n\n🧾 Struk transaksi terlampir.");
+      form.append("parse_mode", "HTML");
+      form.append("photo", new Blob([new Uint8Array(receiptPhoto)], { type: "image/png" }), `tokkomarketplace-struk-${order.id}.png`);
+      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+        method: "POST",
+        body: form,
+        cache: "no-store",
+      });
+      if (!response.ok) console.error("Failed to send Telegram product receipt:", await response.text().catch(() => ""));
+    } catch (error) {
+      console.error("Failed to generate Telegram product receipt:", error);
+    }
+  }
 }
 
 export async function sendTelegramPaymentReviewNotification(payload: {
