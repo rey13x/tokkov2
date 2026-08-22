@@ -1082,6 +1082,7 @@
   align-items: center;
   text-align: center;
   gap: 14px;
+  margin-bottom: 34px;
 }
 
 .donationHeader {
@@ -1125,19 +1126,32 @@
 
 .donationWatermark {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  inset: -20%;
   z-index: 1;
   color: #142b52;
-  font-size: clamp(1rem, 4vw, 1.65rem);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  gap: 22px 18px;
+  font-size: clamp(1.15rem, 4.5vw, 1.85rem);
   font-style: italic;
   font-weight: 800;
   line-height: 1;
   text-align: center;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.55);
-  transform: translate(-50%, -50%) rotate(-16deg);
-  white-space: nowrap;
+  opacity: 0.22;
+  transform: rotate(-16deg);
   pointer-events: none;
+}
+
+.donationWatermark span {
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+
+.donationPhotoWrap,
+.donationPhotoWrap * {
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .donationPhoto {
@@ -1152,6 +1166,14 @@
 
 .donationAmount :global(.DonationTotalTicker-module__ticker) {
   min-width: 0;
+}
+
+.donationActivityLink {
+  color: #142b52;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .donationHint {

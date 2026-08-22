@@ -47,6 +47,7 @@ import {
 import { fetchStoreData } from "@/lib/store-client";
 import { clearSessionCached, fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
 import type {
+  DonationActivity,
   StoreInformation,
   StoreMarqueeItem,
   StoreProduct,
@@ -138,6 +139,7 @@ export default function HomeClient() {
   const [statusNotificationCount, setStatusNotificationCount] = useState(0);
   const [products, setProducts] = useState<HomeProduct[]>([]);
   const [informations, setInformations] = useState<HomeInformation[]>([]);
+  const [donationActivities, setDonationActivities] = useState<DonationActivity[]>([]);
   const [testimonials, setTestimonials] = useState<HomeTestimonial[]>([]);
   const [marquees, setMarquees] = useState<HomeMarquee[]>([]);
   const [isTestimonialDragging, setIsTestimonialDragging] = useState(false);
@@ -161,6 +163,18 @@ export default function HomeClient() {
     };
   }, []);
 
+  useEffect(() => {
+    const blockInspectionShortcuts = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if (event.key === "F12" || (event.metaKey && event.altKey && ["i", "j", "u"].includes(key)) || (event.ctrlKey && event.shiftKey && ["i", "j", "c"].includes(key))) {
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener("keydown", blockInspectionShortcuts);
+    return () => document.removeEventListener("keydown", blockInspectionShortcuts);
+  }, []);
+
   const categories = useMemo(() => {
     const set = new Set(products.map((product) => product.category));
     return [...set];
@@ -175,6 +189,10 @@ export default function HomeClient() {
   const donationTotal = products
     .filter((product) => product.productType === "donation")
     .reduce((total, product) => total + Math.max(0, product.donationTotal ?? 0), 0);
+  const donationActivityAdjustment = donationActivities.reduce(
+    (total, activity) => total + (activity.type === "income" ? activity.amount : -activity.amount),
+    0,
+  );
   const shouldAutoSlideInformations = informations.length > 1;
   const informationCarouselItems = useMemo(
     () =>
@@ -529,6 +547,7 @@ export default function HomeClient() {
         }
         setProducts(data.products ?? []);
         setInformations(data.informations ?? []);
+        setDonationActivities(data.donationActivities ?? []);
         setTestimonials(data.testimonials ?? []);
         setMarquees(data.marquees ?? []);
         setStoreDataReady(true);
@@ -1074,7 +1093,12 @@ export default function HomeClient() {
             <h2>{donationSection.title}</h2>
             <p>{donationSection.body}</p>
           </div>
-          <div className={styles.donationPhotoWrap}>
+          <div
+            className={styles.donationPhotoWrap}
+            onContextMenu={(event) => event.preventDefault()}
+            onDragStart={(event) => event.preventDefault()}
+            onSelect={(event) => event.preventDefault()}
+          >
             <FlexibleMedia
               src={donationSection.imageUrl || donationProduct?.imageUrl}
               alt={donationSection.title}
@@ -1084,7 +1108,9 @@ export default function HomeClient() {
               unoptimized
             />
             <span className={styles.donationWatermark} aria-hidden="true">
-              {donationSection.watermarkText || "CONTOH SERTIFIKAT"}
+              {Array.from({ length: 12 }, (_, index) => (
+                <span key={index}>{donationSection.watermarkText || "CONTOH SERTIFIKAT"}</span>
+              ))}
             </span>
           </div>
           <p className={styles.donationHint}>
@@ -1092,13 +1118,16 @@ export default function HomeClient() {
           </p>
           <div className={styles.donationAmount}>
             <DonationTotalTicker
-              amount={donationTotal}
+              amount={Math.max(0, donationTotal + donationActivityAdjustment)}
               slow
               showCelebration
               prefix="Total Terkumpul Rp"
               brandSrc={donationProduct?.imageUrl}
             />
           </div>
+          <Link href="/donasi/aktivitas" className={styles.donationActivityLink}>
+            Lihat aktivitas donasi
+          </Link>
         </section>
       ) : null}
 

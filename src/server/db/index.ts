@@ -2,6 +2,8 @@ import { createClient, type InArgs } from "@libsql/client";
 import { hash } from "bcryptjs";
 import type {
   InformationType,
+  DonationActivity,
+  DonationActivityType,
   StoreOrderDetail,
   StoreOrderItem,
   OrderSummary,
@@ -593,6 +595,19 @@ export async function ensureDatabase() {
       await run(
         "ALTER TABLE informations ADD COLUMN watermark_text TEXT NOT NULL DEFAULT 'CONTOH SERTIFIKAT'",
       ).catch(() => {});
+      await run(
+        `CREATE TABLE IF NOT EXISTS donation_activities (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          amount INTEGER NOT NULL,
+          note TEXT NOT NULL DEFAULT '',
+          image_url TEXT NOT NULL DEFAULT '',
+          occurred_at TEXT NOT NULL,
+          actor_name TEXT NOT NULL DEFAULT 'Tokko Marketplace',
+          actor_phone TEXT NOT NULL DEFAULT '085121579597',
+          created_at INTEGER NOT NULL
+        )`,
+      );
 
       await run(
         `CREATE TABLE IF NOT EXISTS orders (
@@ -1815,6 +1830,47 @@ export async function updateInformation(
   );
 
   return getInformationById(id);
+}
+
+function mapDonationActivity(row: Record<string, unknown>): DonationActivity {
+  return {
+    id: String(row.id),
+    type: String(row.type) as DonationActivityType,
+    amount: Math.max(0, Number(row.amount ?? 0)),
+    note: String(row.note ?? ""),
+    imageUrl: resolveMediaUrl(String(row.image_url ?? "")) || undefined,
+    occurredAt: String(row.occurred_at),
+    actorName: String(row.actor_name ?? "Tokko Marketplace"),
+    actorPhone: String(row.actor_phone ?? "085121579597"),
+    createdAt: new Date(Number(row.created_at)).toISOString(),
+  };
+}
+
+export async function listDonationActivities(): Promise<DonationActivity[]> {
+  await ensureDatabase();
+  const result = await run("SELECT * FROM donation_activities ORDER BY occurred_at DESC, created_at DESC");
+  return result.rows.map((row) => mapDonationActivity(row as Record<string, unknown>));
+}
+
+export async function createDonationActivity(input: {
+  type: DonationActivityType;
+  amount: number;
+  note: string;
+  imageUrl?: string;
+  occurredAt: string;
+  actorName: string;
+  actorPhone: string;
+}) {
+  await ensureDatabase();
+  const id = randomId();
+  await run(
+    `INSERT INTO donation_activities
+      (id, type, amount, note, image_url, occurred_at, actor_name, actor_phone, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.type, input.amount, input.note, resolveMediaUrl(input.imageUrl || ""), input.occurredAt, input.actorName, input.actorPhone, now()],
+  );
+  const result = await run("SELECT * FROM donation_activities WHERE id = ? LIMIT 1", [id]);
+  return mapDonationActivity(result.rows[0] as Record<string, unknown>);
 }
 
 export async function voteInformationPoll(id: string, option: string) {

@@ -1,0 +1,123 @@
+"use client";
+
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import type { DonationActivity, DonationActivityType } from "@/types/store";
+import styles from "./page.module.css";
+
+const labels: Record<DonationActivityType, string> = { income: "Pemasukan", expense: "Pengeluaran", refund: "Pengembalian" };
+const todayInput = () => {
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+};
+
+export function AdminDonationActivitiesSection() {
+  const [activities, setActivities] = useState<DonationActivity[]>([]);
+  const [type, setType] = useState<DonationActivityType>("income");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [occurredAt, setOccurredAt] = useState(todayInput);
+  const [useToday, setUseToday] = useState(true);
+  const [imageUrl, setImageUrl] = useState("");
+  const [actorName, setActorName] = useState("Tokko Marketplace");
+  const [actorPhone, setActorPhone] = useState("085121579597");
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const loadActivities = async () => {
+    const response = await fetch("/api/admin/donation-activities", { cache: "no-store" });
+    if (response.ok) setActivities(((await response.json()) as { activities: DonationActivity[] }).activities);
+  };
+
+  useEffect(() => {
+    void loadActivities();
+    fetch("/api/me", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((profile: { phone?: string; username?: string } | null) => {
+        if (profile?.phone?.trim()) setActorPhone(profile.phone.trim());
+        if (profile?.username?.trim()) setActorName("Tokko Marketplace");
+      })
+      .catch(() => {});
+  }, []);
+
+  const uploadImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("folder", "donation-activities");
+      const response = await fetch("/api/admin/upload", { method: "POST", body: form });
+      const result = (await response.json()) as { url?: string; message?: string };
+      if (!response.ok || !result.url) throw new Error(result.message || "Upload foto gagal.");
+      setImageUrl(result.url);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload foto gagal.");
+    } finally {
+      setIsUploading(false);
+      event.target.value = "";
+    }
+  };
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSending(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/donation-activities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          amount: Number(amount.replace(/\D/g, "")),
+          note,
+          imageUrl,
+          occurredAt: new Date(useToday ? todayInput() : occurredAt).toISOString(),
+          actorName,
+          actorPhone,
+        }),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) throw new Error(result.message || "Gagal mengirim aktivitas.");
+      setAmount("");
+      setNote("");
+      setImageUrl("");
+      setMessage("Aktivitas tersimpan dan dikirim ke Telegram.");
+      await loadActivities();
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Gagal mengirim aktivitas.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <article className={styles.card}>
+      <h2>Aktivitas Donasi</h2>
+      <p>Pantau pemasukan, pengeluaran, dan pengembalian donasi.</p>
+      <form className={styles.form} onSubmit={submit}>
+        <select value={type} onChange={(event) => setType(event.target.value as DonationActivityType)}>
+          <option value="income">Pemasukan</option>
+          <option value="expense">Pengeluaran</option>
+          <option value="refund">Pengembalian</option>
+        </select>
+        <input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="numeric" placeholder="Nominal donasi" required />
+        <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Catatan aktivitas" required />
+        <label className={styles.fileField}>Foto lampiran (opsional)<input type="file" accept="image/*" onChange={uploadImage} /><small>{isUploading ? "Uploading..." : imageUrl ? "Foto siap dikirim" : "Pilih foto dari device"}</small></label>
+        <label><input type="checkbox" checked={useToday} onChange={(event) => setUseToday(event.target.checked)} /> Hari ini dan waktu sekarang</label>
+        {!useToday ? <input type="datetime-local" value={occurredAt} onChange={(event) => setOccurredAt(event.target.value)} required /> : null}
+        <button type="submit" disabled={isSending || isUploading}>{isSending ? "Mengirim..." : "Kirim"}</button>
+        {message ? <p>{message}</p> : null}
+        {error ? <p>{error}</p> : null}
+      </form>
+      <div className={styles.list}>
+        {activities.map((activity) => <div className={styles.listItem} key={activity.id}><strong>{labels[activity.type]} · Rp {activity.amount.toLocaleString("id-ID")}</strong><span>{activity.note}</span></div>)}
+      </div>
+    </article>
+  );
+}

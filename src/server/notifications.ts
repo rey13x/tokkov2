@@ -96,6 +96,45 @@ async function sendTelegramMessage(
   }
 }
 
+export async function sendTelegramDonationActivityNotification(payload: {
+  type: "income" | "expense" | "refund";
+  amount: number;
+  note: string;
+  occurredAt: string | number | Date;
+  actorName: string;
+  actorPhone: string;
+  imageUrl?: string;
+}) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!botToken) return false;
+  const typeLabel = { income: "PEMASUKAN", expense: "PENGELUARAN", refund: "PENGEMBALIAN" }[payload.type];
+  const title = { income: "📣 PEMASUKAN DONASI", expense: "📣 PENGELUARAN DONASI", refund: "📣 PENGEMBALIAN DONASI" }[payload.type];
+  const caption = [
+    `<b>${title}</b>`,
+    "",
+    `<b>Jenis</b> : ${typeLabel}`,
+    `<b>Nominal</b> : Rp ${payload.amount.toLocaleString("id-ID")}`,
+    `<b>Catatan</b> : ${escapeTelegramHtml(payload.note || "-")}`,
+    `<b>Waktu</b> : ${escapeTelegramHtml(formatAuditDate(payload.occurredAt))}`,
+    `<b>Nama</b> : ${escapeTelegramHtml(payload.actorName)}`,
+    `<b>No. HP</b> : ${escapeTelegramHtml(payload.actorPhone)}`,
+  ].join("\n");
+  const response = payload.imageUrl
+    ? await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: "@tokkomarketplace", photo: payload.imageUrl, caption, parse_mode: "HTML" }),
+        cache: "no-store",
+      })
+    : await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: "@tokkomarketplace", text: caption, parse_mode: "HTML" }),
+        cache: "no-store",
+      });
+  return response.ok;
+}
+
 async function editTelegramMessage(
   chatId: string,
   messageId: number,

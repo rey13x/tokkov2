@@ -4,6 +4,7 @@ import type {
   StorePaymentSettings,
   StorePrivacyPolicyPage,
   StoreProduct,
+    DonationActivity,
   StoreStoryReel,
   StoreTestimonial,
 } from "@/types/store";
@@ -21,6 +22,7 @@ export type StoreData = {
   storyReels?: StoreStoryReel[];
   paymentSettings?: StorePaymentSettings | null;
   privacyPolicy?: StorePrivacyPolicyPage | null;
+  donationActivities?: DonationActivity[];
 };
 
 export function fetchStoreData(): Promise<StoreData> {

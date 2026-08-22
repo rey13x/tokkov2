@@ -10,6 +10,7 @@ import VerifiedBadge from "@/components/VerifiedBadge";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
 import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
+import { AdminDonationActivitiesSection } from "./AdminDonationActivitiesSection";
 import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StoreStoryReel, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary, InformationType } from "@/types/store";
 
 const AD_POPUP_STORAGE_KEY = "adConfig";
@@ -22,6 +23,7 @@ type AdminSection =
   | "orders"
   | "products"
   | "informations"
+  | "donationActivities"
   | "testimonials"
   | "testimonialComments"
   | "marquees"
@@ -41,6 +43,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "orders", label: "Order", desc: "Status pesanan user" },
   { id: "products", label: "Produk", desc: "CRUD produk" },
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
+  { id: "donationActivities", label: "Aktivitas Donasi", desc: "Pemasukan & pengeluaran" },
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
   { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
@@ -3828,6 +3831,8 @@ function AdminManagementSection() {
           </div>
         </article>
         ) : null}
+
+        {activeSection === "donationActivities" ? <AdminDonationActivitiesSection /> : null}
 
         {activeSection === "testimonials" ? (
         <article className={styles.card}>

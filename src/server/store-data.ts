@@ -1,6 +1,8 @@
 import type {
   BookStory,
   InformationType,
+  DonationActivity,
+  DonationActivityType,
   MaintenanceSettings,
   OrderSummary,
   PortfolioItem,
@@ -18,6 +20,7 @@ import type {
 import {
   confirmOrderCancellation as confirmOrderCancellationDb,
   createInformation as createInformationDb,
+  createDonationActivity as createDonationActivityDb,
   createOrder as createOrderDb,
   createProduct as createProductDb,
   createMarquee as createMarqueeDb,
@@ -43,6 +46,7 @@ import {
   listOrdersWithItems as listOrdersWithItemsDb,
   listAllProducts as listAllProductsDb,
   listInformations as listInformationsDb,
+  listDonationActivities as listDonationActivitiesDb,
   listOrders as listOrdersDb,
   listProducts as listProductsDb,
   listTestimonials as listTestimonialsDb,
@@ -854,6 +858,63 @@ export async function getInformationById(id: string) {
       error,
     );
     return getInformationByIdDb(id);
+  }
+}
+
+export async function listDonationActivities(): Promise<DonationActivity[]> {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) return listDonationActivitiesDb();
+
+  try {
+    const snapshot = await firestore.collection("donationActivities").get();
+    return snapshot.docs
+      .map((doc: { id: string; data: () => unknown }) => {
+        const data = doc.data() as Record<string, unknown>;
+        return {
+          id: doc.id,
+          type: String(data.type) as DonationActivityType,
+          amount: Math.max(0, Number(data.amount ?? 0)),
+          note: String(data.note ?? ""),
+          imageUrl: resolveMediaUrl(String(data.imageUrl ?? "")) || undefined,
+          occurredAt: String(data.occurredAt ?? new Date().toISOString()),
+          actorName: String(data.actorName ?? "Tokko Marketplace"),
+          actorPhone: String(data.actorPhone ?? "085121579597"),
+          createdAt: new Date(Number(data.createdAt ?? now())).toISOString(),
+        } satisfies DonationActivity;
+      })
+      .sort((a: DonationActivity, b: DonationActivity) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to list donation activities from Firestore. Falling back to local database.", error);
+    return listDonationActivitiesDb();
+  }
+}
+
+export async function createDonationActivity(input: {
+  type: DonationActivityType;
+  amount: number;
+  note: string;
+  imageUrl?: string;
+  occurredAt: string;
+  actorName: string;
+  actorPhone: string;
+}) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) return createDonationActivityDb(input);
+
+  try {
+    const id = crypto.randomUUID();
+    const createdAt = now();
+    await firestore.collection("donationActivities").doc(id).set({
+      ...input,
+      amount: Math.max(0, Math.round(input.amount)),
+      imageUrl: resolveMediaUrl(input.imageUrl || ""),
+      createdAt,
+    });
+    return (await listDonationActivities()).find((activity) => activity.id === id) ?? null;
+  } catch (error) {
+    console.error("Failed to create donation activity in Firestore. Falling back to local database.", error);
+    return createDonationActivityDb(input);
   }
 }
 

@@ -87,6 +87,20 @@ export type MaintenanceSettings = {
 
 export type InformationType = "message" | "poll" | "update" | "donation";
 
+export type DonationActivityType = "income" | "expense" | "refund";
+
+export type DonationActivity = {
+  id: string;
+  type: DonationActivityType;
+  amount: number;
+  note: string;
+  imageUrl?: string;
+  occurredAt: string;
+  actorName: string;
+  actorPhone: string;
+  createdAt: string;
+};
+
 export type StoreInformation = {
   id: string;
   type: InformationType;
