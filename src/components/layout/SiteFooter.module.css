@@ -39,8 +39,9 @@
 .links {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px 16px;
   flex-wrap: wrap;
+  max-width: 520px;
 }
 
 .links a {

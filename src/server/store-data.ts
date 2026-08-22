@@ -203,6 +203,7 @@ function mapProductDoc(
     imageUrl: resolveMediaUrl(String(data?.imageUrl ?? "")),
     mediaGallery,
     isActive: Boolean(data?.isActive ?? true),
+    isHighlighted: Boolean(data?.isHighlighted ?? false),
     productType: (String(data?.productType ?? "jual_beli") as "jual_beli" | "pekerjaan" | "donation"),
     jobApplicationLink: String(data?.jobApplicationLink ?? ""),
     maxApplicants: Number(data?.maxApplicants ?? 0) || undefined,
@@ -411,6 +412,12 @@ async function getUniqueSlug(firestore: any, baseName: string) {
   }
 }
 
+function sortProductsByHighlight(products: StoreProduct[]) {
+  return [...products].sort(
+    (first, second) => Number(Boolean(second.isHighlighted)) - Number(Boolean(first.isHighlighted)),
+  );
+}
+
 export async function listProducts() {
   const firestore = getFirestoreOrNull();
   if (!firestore) {
@@ -423,9 +430,9 @@ export async function listProducts() {
       .orderBy("createdAt", "desc")
       .get();
 
-    return snapshot.docs
+    return sortProductsByHighlight(snapshot.docs
       .map((doc: any) => mapProductDoc(doc.id, doc.data() as Record<string, unknown>))
-      .filter((product: any) => product.isActive);
+      .filter((product: any) => product.isActive));
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to read products from Firestore. Falling back to local database.", error);
@@ -445,9 +452,9 @@ export async function listAllProducts() {
       .orderBy("createdAt", "desc")
       .get();
 
-    return snapshot.docs.map((doc: any) =>
+    return sortProductsByHighlight(snapshot.docs.map((doc: any) =>
       mapProductDoc(doc.id, doc.data() as Record<string, unknown>),
-    );
+    ));
   } catch (error) {
     markFirestoreUnavailable(error);
     console.error("Failed to read all products from Firestore. Falling back to local database.", error);
@@ -488,6 +495,7 @@ export async function createProduct(input: {
   jobApplicationLink?: string;
   maxApplicants?: number;
   buyNowLink?: string;
+  isHighlighted?: boolean;
 }) {
   const firestore = getFirestoreOrNull();
   if (!firestore) {
@@ -522,6 +530,7 @@ export async function createProduct(input: {
       imageUrl: mediaUrl,
       mediaGallery,
       isActive: true,
+      isHighlighted: Boolean(input.isHighlighted),
       productType,
       jobApplicationLink: jobLink,
       maxApplicants,
@@ -556,6 +565,7 @@ export async function updateProduct(
     jobApplicationLink: string;
     maxApplicants: number;
     buyNowLink: string;
+    isHighlighted?: boolean;
   }>,
 ) {
   const firestore = getFirestoreOrNull();
@@ -639,6 +649,7 @@ export async function updateProduct(
       ...(input.description !== undefined ? { description: input.description } : {}),
       ...(input.duration !== undefined ? { duration: input.duration.trim() } : {}),
       ...(input.price !== undefined ? { price: input.price } : {}),
+      ...(input.isHighlighted !== undefined ? { isHighlighted: Boolean(input.isHighlighted) } : {}),
       ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
       ...(input.mediaGallery !== undefined
         ? {

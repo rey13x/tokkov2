@@ -10,7 +10,7 @@ import VerifiedBadge from "@/components/VerifiedBadge";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
 import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
-import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StoreStoryReel, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary } from "@/types/store";
+import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StoreStoryReel, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary, InformationType } from "@/types/store";
 
 const AD_POPUP_STORAGE_KEY = "adConfig";
 
@@ -72,10 +72,11 @@ const defaultProductForm = {
   jobApplicationLink: "",
   buyNowLink: "",
   maxApplicants: 0,
+  isHighlighted: false,
 };
 
 const defaultInfoForm = {
-  type: "update" as "message" | "poll" | "update",
+  type: "update" as InformationType,
   title: "",
   body: "",
   imageUrl: "/assets/logo.png",
@@ -2559,8 +2560,24 @@ function AdminManagementSection() {
       jobApplicationLink: product.jobApplicationLink || "",
       buyNowLink: product.buyNowLink || "",
       maxApplicants: product.maxApplicants ?? 0,
+      isHighlighted: Boolean(product.isHighlighted),
     });
     setPriceInput(formatRupiahInput(String(product.price)));
+  };
+
+  const onToggleProductHighlight = async (product: StoreProduct) => {
+    const response = await fetch(`/api/admin/products/${product.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isHighlighted: !product.isHighlighted }),
+    });
+    if (!response.ok) {
+      setError("Gagal mengubah status highlight produk.");
+      return;
+    }
+    setMessage(product.isHighlighted ? "Highlight produk dimatikan." : "Produk ditampilkan paling awal.");
+    await loadProducts();
+    bumpPreview();
   };
 
   const onEditInformation = (information: StoreInformation) => {
@@ -3585,6 +3602,11 @@ function AdminManagementSection() {
                       {product.category}
                       {product.duration ? ` - ${product.duration}` : ""}
                     </span>
+                    {product.isHighlighted ? (
+                      <span style={{ color: "#17365d", fontSize: "0.85rem", fontWeight: 700 }}>
+                        Highlight aktif
+                      </span>
+                    ) : null}
                     {product.productType === "pekerjaan" ? (
                       <span style={{ color: "#666", fontSize: "0.85rem" }}>
                         Pelamar: {product.applicantCount || 0} / {product.maxApplicants ? product.maxApplicants : "∞"}
@@ -3593,6 +3615,9 @@ function AdminManagementSection() {
                   </div>
                 </div>
                 <div className={styles.rowActions}>
+                  <button type="button" onClick={() => onToggleProductHighlight(product)}>
+                    {product.isHighlighted ? "Matikan Highlight" : "Highlight"}
+                  </button>
                   <button type="button" onClick={() => onEditProduct(product)}>
                     Edit
                   </button>
@@ -3613,10 +3638,18 @@ function AdminManagementSection() {
             <select
               value={infoForm.type}
               onChange={(event) => {
-                const nextType = event.target.value as "message" | "poll" | "update";
+                const nextType = event.target.value as InformationType;
                 setInfoForm((current) => ({
                   ...current,
                   type: nextType,
+                  title:
+                    nextType === "donation" && !current.title.trim()
+                      ? "SEJUMLAH KEBAHAGIAAN TERKUMPUL"
+                      : current.title,
+                  body:
+                    nextType === "donation" && !current.body.trim()
+                      ? "Inilah Total dari keseluruhan Program Donasi yang Terkumpul, yang sudah berbagi Kebahagiaan pada banyak orang."
+                      : current.body,
                   pollOptions:
                     nextType === "poll"
                       ? current.pollOptions.length > 0
@@ -3629,13 +3662,14 @@ function AdminManagementSection() {
               <option value="update">Update</option>
               <option value="message">Message</option>
               <option value="poll">Polling</option>
+              <option value="donation">Donasi</option>
             </select>
             <input
               value={infoForm.title}
               onChange={(event) =>
                 setInfoForm((current) => ({ ...current, title: event.target.value }))
               }
-              placeholder="Judul informasi"
+              placeholder={infoForm.type === "donation" ? "Judul section donasi" : "Judul informasi"}
               required
             />
             <textarea
@@ -3643,7 +3677,7 @@ function AdminManagementSection() {
               onChange={(event) =>
                 setInfoForm((current) => ({ ...current, body: event.target.value }))
               }
-              placeholder="Isi informasi"
+              placeholder={infoForm.type === "donation" ? "Deskripsi section donasi" : "Isi informasi"}
               required
             />
             <input value={infoForm.imageUrl} readOnly placeholder="URL media informasi otomatis" />

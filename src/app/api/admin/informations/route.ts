@@ -4,7 +4,7 @@ import { requireAdmin } from "@/server/admin";
 import { createInformation, listInformations } from "@/server/store-data";
 
 const informationSchema = z.object({
-  type: z.enum(["message", "poll", "update"]),
+  type: z.enum(["message", "poll", "update", "donation"]),
   title: z.string().min(2).max(160),
   body: z.string().min(4).max(3000),
   imageUrl: z.string().max(3000000).default("/assets/logo.png"),

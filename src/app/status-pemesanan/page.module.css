@@ -163,6 +163,18 @@
   stroke-width: 1.7;
 }
 
+.successAlert {
+  background: #ffffff;
+  color: #10131a;
+}
+
+.successAlert svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
 .donationCertificateParticles {
   position: absolute;
   inset: -6px;

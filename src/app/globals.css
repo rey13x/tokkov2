@@ -8,7 +8,7 @@
   --chip-active: #0f172c;
   --radius-lg: 34px;
   --radius-md: 20px;
-  --bg-primary: #efeff1;
+  --bg-primary: #ffffff;
   --text-color: #111423;
   --text-color-soft: #6b7387;
 }
@@ -35,6 +35,10 @@ html,
 body {
   max-width: 100vw;
   overflow-x: clip;
+}
+
+.route-transition-shell > * {
+  background: #ffffff !important;
 }
 
 #smooth-wrapper {

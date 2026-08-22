@@ -4,7 +4,7 @@ import { requireAdmin } from "@/server/admin";
 import { deleteInformation, updateInformation } from "@/server/store-data";
 
 const updateSchema = z.object({
-  type: z.enum(["message", "poll", "update"]).optional(),
+  type: z.enum(["message", "poll", "update", "donation"]).optional(),
   title: z.string().min(2).max(160).optional(),
   body: z.string().min(4).max(3000).optional(),
   imageUrl: z.string().max(3000000).optional(),

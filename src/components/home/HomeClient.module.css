@@ -154,12 +154,14 @@
 
 .heroSearchButton {
   width: 100%;
-  border: none;
+  min-width: 0;
+  height: 48px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
   background: transparent;
-  outline: none;
   text-align: center;
   color: #161b28;
-  font-size: clamp(1.06rem, 1.7vw, 1.24rem);
   font-weight: 700;
   cursor: pointer;
 }
@@ -173,6 +175,16 @@
 
 .section:last-of-type {
   margin-bottom: 6px;
+}
+
+.mapLoading {
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  background: #eef1f5;
+  color: #5d6675;
+  font-weight: 700;
 }
 
 .mapLoading {
@@ -193,6 +205,12 @@
   width: 100%;
 }
 
+.section :global(.marketing-map-stage) {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
 .section :global(.marketing-map-heading) {
   display: flex;
   align-items: end;
@@ -202,7 +220,7 @@
 
 .section :global(.marketing-map-eyebrow) {
   margin: 0 0 5px;
-  color: #d07818;
+  color: #17365d;
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -253,14 +271,25 @@
 
 .section :global(.marketing-map-canvas) {
   position: relative;
-  width: min(100%, 520px);
-  aspect-ratio: 1;
+  z-index: 1;
+  isolation: isolate;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  max-width: none;
+  aspect-ratio: 2.35 / 1;
   height: auto;
   margin: 0 auto;
   overflow: hidden;
   border: 1px solid rgba(22, 27, 40, 0.13);
   border-radius: 20px;
-  box-shadow: 0 16px 34px rgba(22, 27, 40, 0.12);
+  box-shadow: none;
+}
+
+.section :global(.marketing-map-canvas .leaflet-container) {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0;
 }
 
 .section :global(.marketing-pin-wrapper) {
@@ -272,10 +301,11 @@
   width: 46px;
   height: 46px;
   overflow: hidden;
-  border: 3px solid #ffffff;
+  border: 0;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(22, 27, 40, 0.32);
+  background: transparent;
+  box-shadow: none;
+  transition: filter 700ms ease, opacity 700ms ease;
 }
 
 .section :global(.marketing-pin img) {
@@ -285,66 +315,151 @@
   object-fit: cover;
 }
 
+.section :global(.marketing-pin-night) {
+  filter: grayscale(1) saturate(0) brightness(0.74);
+}
+
 .section :global(.marketing-pin-pusat) {
   width: 56px;
   height: 56px;
-  border-color: #f0a51a;
-  box-shadow: 0 0 0 3px rgba(240, 165, 26, 0.22), 0 5px 16px rgba(166, 104, 10, 0.38);
+  box-shadow: none;
 }
 
 .section :global(.marketing-map-controls) {
   position: absolute;
-  right: 14px;
-  bottom: 14px;
-  left: 14px;
-  z-index: 1000;
+  right: 12px;
+  bottom: 68px;
+  left: 12px;
+  z-index: 1200;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   gap: 8px;
   padding: 10px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+  box-shadow: none;
+  border-radius: 999px;
+  max-height: 0;
+  padding-block: 0;
+  opacity: 0;
+  transform: translateY(-8px) scaleY(0.92);
+  transform-origin: top;
+  overflow-x: auto;
+  scrollbar-width: none;
+  transition: max-height 280ms ease, padding 280ms ease, opacity 220ms ease, transform 280ms ease;
+}
+
+.section :global(.marketing-map-picker) {
+  position: absolute;
+  right: 0;
+  bottom: -8px;
+  left: 0;
+  z-index: 1200;
+  display: grid;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.section :global(.marketing-map-picker > *) {
+  pointer-events: auto;
+}
+
+.section :global(.marketing-map-picker-open .marketing-map-controls) {
+  max-height: 78px;
+  padding-block: 10px;
+  opacity: 1;
+  transform: translateY(0) scaleY(1);
+}
+
+.section :global(.marketing-map-controls::-webkit-scrollbar) {
+  display: none;
 }
 
 .section :global(.marketing-map-controls button) {
   min-width: 84px;
+  flex: 0 0 auto;
   border-color: rgba(255, 255, 255, 0.2);
   background: #ffffff;
   color: #161b28;
+  border-radius: 999px;
 }
 
 .section :global(.marketing-map-controls button:hover) {
-  border-color: #f0a51a;
-  background: #fff8e8;
-  color: #161b28;
+  border-color: #17365d;
+  background: #eef3f9;
+  color: #17365d;
 }
 
 .section :global(.marketing-map-open) {
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
-  left: 14px;
-  z-index: 1000;
+  position: static;
+  width: 100%;
+  margin: 0 12px;
+  width: calc(100% - 24px);
   min-height: 48px;
   border: 1px solid rgba(22, 27, 40, 0.16);
-  border-radius: 14px;
+  border-radius: 999px;
   background: rgba(255, 255, 255, 0.96);
   color: #161b28;
   cursor: pointer;
   font: inherit;
   font-weight: 800;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
 .section :global(.marketing-map-open:hover) {
   background: #ffffff;
-  border-color: #f0a51a;
+  border-color: #17365d;
 }
 
 .section :global(.marketing-map-short-label) {
   display: none;
+}
+
+.section :global(.marketing-map-logo) {
+  position: absolute;
+  top: 0;
+  left: -10px;
+  z-index: 20;
+  width: 108px;
+  height: 108px;
+  object-fit: cover;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.section :global(.marketing-map-live) {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1100;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #17365d;
+  font-size: 0.78rem;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.section :global(.marketing-map-live-dot) {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #16b65b;
+  animation: marketingLivePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes marketingLivePulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.78); }
+  50% { opacity: 1; transform: scale(1.12); }
 }
 
 @media (max-width: 620px) {
@@ -355,8 +470,11 @@
   }
 
   .section :global(.marketing-map-controls) {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    right: 12px;
+    left: 12px;
   }
 
   .section :global(.marketing-map-controls button) {
@@ -365,22 +483,24 @@
   }
 
   .section :global(.marketing-map-canvas) {
-    width: min(100%, 520px);
+    width: 100%;
+    aspect-ratio: 16 / 10;
     border-radius: 14px;
   }
 
   .section :global(.marketing-map-controls) {
-    right: 8px;
-    bottom: 8px;
-    left: 8px;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
     gap: 6px;
     padding: 8px;
   }
 
-  .section :global(.marketing-map-open) {
-    right: 8px;
-    bottom: 8px;
-    left: 8px;
+  .section :global(.marketing-map-logo) {
+    width: 90px;
+    height: 90px;
+    top: 0;
+    left: -8px;
   }
 
   .section :global(.marketing-map-controls button) {
@@ -491,10 +611,9 @@
 .storyFeedShell:active {
   cursor: grabbing;
 }
-
 .storyFeedShellClosed {
-  opacity: 0;
-  transform: translateX(-12px);
+  font-size: clamp(0.9rem, 1.6vw, 1rem);
+  font-weight: 600;
   max-height: 0;
   overflow: hidden;
   pointer-events: none;
@@ -957,6 +1076,74 @@
   line-height: 1.45;
 }
 
+.donationSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+
+.donationHeader {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 680px;
+}
+
+.donationHeader h2 {
+  color: #111827;
+  font-size: clamp(1.55rem, 3vw, 2.25rem);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.donationHeader p,
+.donationHint {
+  color: #7b8494;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.donationHeader p {
+  font-weight: 700;
+}
+
+.donationHint {
+  font-size: 0.58rem;
+}
+
+.donationPhotoWrap {
+  position: relative;
+  width: min(100%, 420px);
+  aspect-ratio: 4 / 3;
+  border: none;
+  overflow: hidden;
+  background: #f7f8fb;
+  box-shadow: 0 14px 28px rgba(17, 24, 39, 0.12);
+}
+
+.donationPhoto {
+  object-fit: contain;
+}
+
+.donationAmount {
+  color: #142b52;
+  font-size: clamp(1.55rem, 3.4vw, 2.35rem);
+  font-weight: 800;
+}
+
+.donationAmount :global(.DonationTotalTicker-module__ticker) {
+  min-width: 0;
+}
+
+.donationHint {
+  width: 100%;
+  max-width: 680px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .infoBody time {
   color: #7e879e;
   font-size: 0.76rem;
@@ -1289,14 +1476,15 @@
 .menuFab {
   position: fixed;
   left: 50%;
+  top: auto;
   right: auto;
-  transform: translateX(-50%);
   bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
   z-index: 50;
-  width: min(156px, calc(100vw - 36px));
-  min-width: 0;
-  height: 48px;
-  padding: 0 18px;
+  width: 50px;
+  min-width: 50px;
+  height: 50px;
+  padding: 0;
   border: 1px solid #0d1119;
   border-radius: 999px;
   background: #0d1119;
@@ -1304,10 +1492,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 8px;
   cursor: pointer;
   box-shadow: 0 8px 20px rgba(8, 12, 22, 0.15);
-  transition: all 0.3s ease;
+  transition: width 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
 }
 
 .menuFabBehindOverlay {
@@ -1335,10 +1523,9 @@
 
 .menuFabLabel {
   display: inline-block;
-  margin-left: 0;
   color: #ffffff;
-  font-weight: 600;
   font-size: clamp(0.9rem, 1.6vw, 1rem);
+  font-weight: 600;
   line-height: 1;
   white-space: nowrap;
 }
@@ -1367,41 +1554,20 @@
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* Portrait: keep the fab anchored to the right edge */
-@media (orientation: portrait) and (max-width: 1200px) {
+@media (max-width: 767px) {
   .menuFab {
     right: 18px;
     left: auto;
     transform: none;
     width: 46px;
-    padding: 0 8px;
     min-width: 46px;
     height: 46px;
+    padding: 0 8px;
     gap: 0;
   }
 
   .menuFabLabel {
     display: none;
-  }
-
-  .menuFab svg {
-    width: 24px;
-    height: 24px;
-  }
-}
-
-/* Ensure wide centered fab on landscape/desktop so icon + label are visible */
-@media (orientation: landscape) and (min-width: 920px) {
-  .menuFab {
-    width: min(156px, calc(100vw - 36px));
-    min-width: 0;
-    padding: 0 20px;
-    height: 52px;
-    gap: 3px;
-  }
-
-  .menuFabLabel {
-    display: inline-block;
   }
 }
 
@@ -1878,9 +2044,6 @@
   }
 
   .menuFab {
-    width: 50px;
-    min-width: 50px;
     height: 50px;
-    right: 14px;
   }
 }

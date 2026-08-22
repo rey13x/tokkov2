@@ -42,6 +42,15 @@ export default function SiteFooter() {
             <a href="https://www.instagram.com/sixsevenrai/" target="_blank" rel="noreferrer">
               Instagram
             </a>
+            <a href="https://t.me/tokkomarketplace" target="_blank" rel="noreferrer">
+              Saluran Telegram
+            </a>
+            <a href="https://whatsapp.com/channel/0029VbCXa1ADDmFMNzoE6b0k" target="_blank" rel="noreferrer">
+              Saluran Whatsapp
+            </a>
+            <a href="https://byrai-three.vercel.app" target="_blank" rel="noreferrer">
+              Founder
+            </a>
           </nav>
           <nav className={styles.policyLinks} aria-label="Kebijakan dan sertifikasi">
             <Link href="/kebijakan-privasi-sertifikasi">

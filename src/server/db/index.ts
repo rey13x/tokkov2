@@ -158,6 +158,7 @@ function mapProduct(row: Record<string, unknown>): StoreProduct {
     imageUrl: resolveMediaUrl(String(row.image_url ?? "")),
     mediaGallery,
     isActive: Number(row.is_active) === 1,
+    isHighlighted: Number(row.is_highlighted ?? 0) === 1,
     productType: (String(row.product_type ?? "jual_beli") as "jual_beli" | "pekerjaan" | "donation"),
     donationTotal: Number(row.donation_total ?? 0),
     jobApplicationLink: String(row.job_application_link ?? ""),
@@ -538,6 +539,7 @@ export async function ensureDatabase() {
           applicant_count INTEGER NOT NULL DEFAULT 0,
           buy_now_link TEXT NOT NULL DEFAULT '',
           donation_total INTEGER NOT NULL DEFAULT 0,
+          is_highlighted INTEGER NOT NULL DEFAULT 0,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
@@ -565,6 +567,9 @@ export async function ensureDatabase() {
       ).catch(() => {});
       await run(
         "ALTER TABLE products ADD COLUMN donation_total INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE products ADD COLUMN is_highlighted INTEGER NOT NULL DEFAULT 0",
       ).catch(() => {});
 
       await run(
@@ -1512,14 +1517,14 @@ export async function updateUserById(
 export async function listProducts() {
   await ensureDatabase();
   const res = await run(
-    "SELECT * FROM products WHERE is_active = 1 ORDER BY created_at DESC",
+    "SELECT * FROM products WHERE is_active = 1 ORDER BY is_highlighted DESC, created_at DESC",
   );
   return res.rows.map((row) => mapProduct(row as Record<string, unknown>));
 }
 
 export async function listAllProducts() {
   await ensureDatabase();
-  const res = await run("SELECT * FROM products ORDER BY created_at DESC");
+  const res = await run("SELECT * FROM products ORDER BY is_highlighted DESC, created_at DESC");
   return res.rows.map((row) => mapProduct(row as Record<string, unknown>));
 }
 
@@ -1553,6 +1558,7 @@ export async function createProduct(input: {
   jobApplicationLink?: string;
   maxApplicants?: number;
   buyNowLink?: string;
+  isHighlighted?: boolean;
 }) {
   await ensureDatabase();
   const id = randomId();
@@ -1586,8 +1592,8 @@ export async function createProduct(input: {
 
   await run(
     `INSERT INTO products
-      (id, slug, name, category, short_description, description, duration, price, image_url, media_gallery, is_active, product_type, job_application_link, max_applicants, applicant_count, buy_now_link, donation_total, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 0, ?, 0, ?, ?)`,
+      (id, slug, name, category, short_description, description, duration, price, image_url, media_gallery, is_active, product_type, job_application_link, max_applicants, applicant_count, buy_now_link, donation_total, is_highlighted, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 0, ?, 0, ?, ?, ?)`,
     [
       id,
       slug,
@@ -1603,6 +1609,7 @@ export async function createProduct(input: {
       jobLink,
       maxApplicants,
       buyNowLink,
+      Number(input.isHighlighted),
       now(),
       now(),
     ],
@@ -1626,6 +1633,7 @@ export async function updateProduct(
     jobApplicationLink: string;
     maxApplicants: number;
     buyNowLink: string;
+    isHighlighted?: boolean;
   }>,
 ) {
   await ensureDatabase();
@@ -1676,7 +1684,7 @@ export async function updateProduct(
 
   await run(
     `UPDATE products
-     SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, media_gallery = ?, is_active = ?, product_type = ?, job_application_link = ?, max_applicants = ?, buy_now_link = ?, updated_at = ?
+    SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, media_gallery = ?, is_active = ?, product_type = ?, job_application_link = ?, max_applicants = ?, buy_now_link = ?, is_highlighted = ?, updated_at = ?
      WHERE id = ?`,
     [
       nextSlug,
@@ -1693,6 +1701,7 @@ export async function updateProduct(
       nextJobLink,
       nextMaxApplicants,
       nextBuyNowLink,
+      input.isHighlighted === undefined ? Number(current.isHighlighted) : Number(input.isHighlighted),
       now(),
       id,
     ],

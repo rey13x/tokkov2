@@ -113,6 +113,15 @@ function CertificateIcon() {
   );
 }
 
+function AlertIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 3 2.8 20h18.4L12 3Z" />
+      <path d="M12 8v6M12 17.5v.1" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function PaymentIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -200,6 +209,7 @@ export default function StatusPemesananPage() {
   const [isPreparingPaymentOrderId, setIsPreparingPaymentOrderId] = useState<string | null>(null);
   const [isPreparingReceiptOrderId, setIsPreparingReceiptOrderId] = useState<string | null>(null);
   const [isPreparingHistoryCertificate, setIsPreparingHistoryCertificate] = useState(false);
+  const [showDonationRequirementPopup, setShowDonationRequirementPopup] = useState(false);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [paymentCheckCooldown, setPaymentCheckCooldown] = useState(30);
   const [paymentSuccessPopup, setPaymentSuccessPopup] = useState<{ amount: number; orderId: string } | null>(null);
@@ -563,6 +573,11 @@ export default function StatusPemesananPage() {
     [historyCandidates, historyFilter],
   );
 
+  const selectableHistoryCandidates = useMemo(
+    () => filteredHistoryCandidates.filter((order) => !order.items?.some((item) => item.productType === "donation")),
+    [filteredHistoryCandidates],
+  );
+
   const toggleHistorySelection = (orderId: string) => {
     setSelectedHistoryIds((current) =>
       current.includes(orderId) ? current.filter((id) => id !== orderId) : [...current, orderId],
@@ -570,7 +585,7 @@ export default function StatusPemesananPage() {
   };
 
   const selectAllFilteredHistory = () => {
-    const filteredIds = filteredHistoryCandidates.map((order) => order.id);
+    const filteredIds = selectableHistoryCandidates.map((order) => order.id);
     setSelectedHistoryIds((current) => [
       ...current.filter((id) => !filteredIds.includes(id)),
       ...filteredIds,
@@ -579,6 +594,10 @@ export default function StatusPemesananPage() {
 
   const clearSelectedHistory = async () => {
     if (selectedHistoryIds.length === 0) {
+      return;
+    }
+
+    if (!window.confirm(`Hapus ${selectedHistoryIds.length} riwayat yang dipilih?`)) {
       return;
     }
 
@@ -681,6 +700,11 @@ export default function StatusPemesananPage() {
   };
 
   const openDonationHistoryCertificate = async () => {
+    const isAdmin = session?.user?.role === "admin";
+    if (!isAdmin && donationTotal < 100000) {
+      setShowDonationRequirementPopup(true);
+      return;
+    }
     const donationOrder = displayOrders.find((order) =>
       ["paid", "sent"].includes(order.status) && order.items?.some((item) => item.productType === "donation"),
     );
@@ -1639,14 +1663,14 @@ export default function StatusPemesananPage() {
                 </button>
               ))}
             </div>
-            <button type="button" className={styles.selectAllHistoryButton} onClick={selectAllFilteredHistory} disabled={filteredHistoryCandidates.length === 0}>
-              Pilih semua yang tampil ({filteredHistoryCandidates.length})
+            <button type="button" className={styles.selectAllHistoryButton} onClick={selectAllFilteredHistory} disabled={selectableHistoryCandidates.length === 0}>
+              Pilih semua yang tampil ({selectableHistoryCandidates.length})
             </button>
             <div className={styles.historySelectionList}>
               {filteredHistoryCandidates.length > 0 ? filteredHistoryCandidates.map((order) => (
                 <label key={order.id} className={styles.historySelectionItem}>
                   <input type="checkbox" checked={selectedHistoryIds.includes(order.id)} onChange={() => toggleHistorySelection(order.id)} />
-                  <span><strong>{statusLabel(order.status)}</strong><small>{order.id} · {formatRupiah(order.total)}</small></span>
+                  <span><strong>{statusLabel(order.status)}{order.items?.some((item) => item.productType === "donation") ? " · Donasi (pilih manual)" : ""}</strong><small>{order.id} · {formatRupiah(order.total)}</small></span>
                 </label>
               )) : <p className={styles.historyEmpty}>Tidak ada riwayat pada filter ini.</p>}
             </div>
@@ -1659,6 +1683,20 @@ export default function StatusPemesananPage() {
           </section>
         </div>
       , document.body) : null}
+
+      {showDonationRequirementPopup && typeof document !== "undefined" ? createPortal(
+        <div className={styles.successToastOverlay} role="alertdialog" aria-modal="true" aria-labelledby="donation-requirement-title">
+          <section className={`${styles.successToast} ${styles.successToastDialog}`}>
+            <div className={`${styles.successCheck} ${styles.successAlert}`} aria-hidden="true"><AlertIcon /></div>
+            <div className={styles.successToastContent}>
+              <strong id="donation-requirement-title">Maaf</strong>
+              <p>Jumlah donasi kamu belum memenuhi persyaratan untuk mendapatkan Sertifikat. Minimal donasi adalah <b>Rp 100.000</b>.</p>
+              <button type="button" className={styles.successToastButton} onClick={() => setShowDonationRequirementPopup(false)}>OKE!</button>
+            </div>
+          </section>
+        </div>,
+        document.body,
+      ) : null}
 
       <section className={styles.listWrap}>
         {displayOrders.map((order) => {

@@ -35,6 +35,7 @@ const baseSchema = z.object({
     })
   ).default([]),
   productType: z.enum(["jual_beli", "pekerjaan", "donation"]).default("jual_beli"),
+  isHighlighted: z.boolean().default(false),
 });
 
 const productSchema = baseSchema.and(

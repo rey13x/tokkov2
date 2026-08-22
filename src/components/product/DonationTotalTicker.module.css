@@ -34,18 +34,17 @@
 }
 
 .brandMarkEntering {
-  animation: brandMarkCycle 5s ease-in-out infinite;
+  animation: brandMarkPopIn 460ms cubic-bezier(0.2, 1.35, 0.4, 1) both;
 }
 
 .brandMarkExiting {
   animation: brandMarkPopOut 460ms cubic-bezier(0.55, 0, 0.8, 0.2) both;
 }
 
-@keyframes brandMarkCycle {
-  0%, 78%, 100% { opacity: 1; transform: scale(1) rotate(0); }
-  84% { transform: scale(1.04) rotate(-4deg); }
-  90% { transform: scale(0.98) rotate(4deg); }
-  96% { transform: scale(1.02) rotate(-2deg); }
+@keyframes brandMarkPopIn {
+  0% { opacity: 0; transform: scale(0.1) rotate(-18deg); }
+  65% { opacity: 1; transform: scale(1.12) rotate(8deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
 }
 
 @keyframes brandMarkPopOut {
@@ -71,7 +70,7 @@
   opacity: 0;
   animation-name: donationParticlePop;
   animation-timing-function: cubic-bezier(0.2, 1.35, 0.4, 1);
-  animation-iteration-count: infinite;
+  animation-iteration-count: 1;
   --particle-rotate: 0deg;
 }
 
@@ -127,7 +126,7 @@
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: tickerShimmerSweep 5.8s linear infinite;
+  animation: tickerShimmerSweep 5.8s linear 1 forwards;
 }
 
 .tickerShimmer > span {

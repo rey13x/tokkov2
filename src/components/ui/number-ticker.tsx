@@ -12,6 +12,7 @@ type NumberTickerProps = {
   className?: string;
   onComplete?: () => void;
   reverse?: boolean;
+  once?: boolean;
 };
 
 export default function NumberTicker({
@@ -23,11 +24,12 @@ export default function NumberTicker({
   className,
   onComplete,
   reverse = false,
+  once = false,
 }: NumberTickerProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const completedTargetRef = useRef<number | null>(null);
   const phaseRef = useRef<"reverse" | "up">(reverse ? "reverse" : "up");
-  const isInView = useInView(ref, { once: false, margin: "0px" });
+  const isInView = useInView(ref, { once, margin: "0px" });
   const motionValue = useMotionValue(reverse ? value : startValue);
   const springValue = useSpring(motionValue, {
     damping: 58,

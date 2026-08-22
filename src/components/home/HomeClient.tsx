@@ -24,6 +24,7 @@ import FlexibleMedia from "@/components/media/FlexibleMedia";
 import ProductCard from "@/components/home/ProductCard";
 import PremiumMarquee from "@/components/home/PremiumMarquee";
 import WaitLoading from "@/components/ui/WaitLoading";
+import DonationTotalTicker from "@/components/product/DonationTotalTicker";
 import { formatRupiah } from "@/data/products";
 import { HERO_BACKGROUND_URLS, HERO_CONFIG, getPhotoDuration } from "@/data/hero-backgrounds";
 import { CART_UPDATED_EVENT, getCartCount } from "@/lib/cart";
@@ -168,6 +169,12 @@ export default function HomeClient() {
   const productMenuItems = useMemo(() => categories.slice(0, 10), [categories]);
 
   const bestSellerProducts = products.slice(0, 8);
+  const donationSection = informations.find((item) => item.type === "donation");
+  const donationProduct = products.find((product) => product.productType === "donation");
+  const visibleInformations = informations.filter((item) => item.type !== "donation");
+  const donationTotal = products
+    .filter((product) => product.productType === "donation")
+    .reduce((total, product) => total + Math.max(0, product.donationTotal ?? 0), 0);
   const shouldAutoSlideInformations = informations.length > 1;
   const informationCarouselItems = useMemo(
     () =>
@@ -673,18 +680,18 @@ export default function HomeClient() {
     const menuFab = menuFabRef.current;
     const menuIcon = menuFab.querySelector<HTMLElement>("svg");
     const menuLabel = menuFab.querySelector<HTMLElement>(`.${styles.menuFabLabel}`);
-    const isCompact = window.matchMedia("(orientation: portrait) and (max-width: 1200px)").matches;
-    const targetWidth = isCompact ? 46 : 156;
+    const isCompact = window.matchMedia("(max-width: 767px)").matches;
+    const targetWidth = isCompact ? 46 : 112;
 
     gsap.set(menuFab, { width: isCompact ? 46 : 48, paddingLeft: 0, paddingRight: 0 });
     gsap.set(menuIcon, { opacity: 0, scale: 0.2 });
-    gsap.set(menuLabel, { opacity: 0, x: 8 });
+    gsap.set(menuLabel, { opacity: 0, x: 8, scale: 0.72, transformOrigin: "center left" });
 
     const menuIntro = gsap.timeline({ delay: 0.25 });
     menuIntro
       .to(menuIcon, { opacity: 1, scale: 1, duration: 0.32, ease: "back.out(1.7)" })
-      .to(menuFab, { width: targetWidth, paddingLeft: isCompact ? 8 : 18, paddingRight: isCompact ? 8 : 18, duration: 0.42, ease: "power3.out" })
-      .to(menuLabel, { opacity: 1, x: 0, duration: 0.24, ease: "power2.out" }, "-=0.08");
+      .to(menuFab, { width: targetWidth, paddingLeft: isCompact ? 8 : 14, paddingRight: isCompact ? 8 : 14, duration: 0.42, ease: "back.out(1.25)" })
+      .to(menuLabel, { opacity: 1, x: 0, scale: 1, duration: 0.34, ease: "back.out(2.2)" }, "-=0.1");
     menuIntroRef.current = menuIntro;
 
     return () => {
@@ -994,7 +1001,7 @@ export default function HomeClient() {
       {bestSellerProducts.length > 0 ? (
       <section className={styles.section} data-animate="section">
         <div className={styles.sectionHead}>
-          <h2>Produk Baru</h2>
+          <h2>Produk Terbaik</h2>
           <button
             type="button"
             className={styles.inlineAction}
@@ -1022,14 +1029,14 @@ export default function HomeClient() {
       </section>
       ) : null}
 
-      {informations.length > 0 ? (
+      {visibleInformations.length > 0 ? (
       <section className={styles.section} data-animate="section" id="testimoni">
         <div className={styles.sectionHead}>
           <h2>Informasi</h2>
         </div>
         {shouldAutoSlideInformations ? (
           <PremiumMarquee<HomeInformation>
-            items={informations}
+            items={visibleInformations}
             speed={18}
             gap={12}
             className={styles.infoCarousel}
@@ -1055,10 +1062,50 @@ export default function HomeClient() {
           />
         ) : (
           <div className={styles.infoList}>
-            {informations.map((item) => renderInformationCard(item, item.id))}
+            {visibleInformations.map((item) => renderInformationCard(item, item.id))}
           </div>
         )}
       </section>
+      ) : null}
+
+      {donationSection ? (
+        <section className={`${styles.section} ${styles.donationSection}`} data-animate="section">
+          <div className={styles.donationHeader}>
+            <h2>{donationSection.title}</h2>
+            <p>{donationSection.body}</p>
+          </div>
+          <div className={styles.donationPhotoWrap}>
+            <FlexibleMedia
+              src={donationSection.imageUrl || donationProduct?.imageUrl}
+              alt={donationSection.title}
+              fill
+              className={styles.donationPhoto}
+              sizes="(max-width: 820px) 82vw, 420px"
+              unoptimized
+            />
+          </div>
+          <p className={styles.donationHint}>
+            Kamu bisa mendapatkan Sertifikat ini dengan memberikan sedikit Kebahagiaan untuk mereka
+          </p>
+          <div className={styles.donationAmount}>
+            <DonationTotalTicker
+              amount={donationTotal}
+              slow
+              showCelebration
+              prefix="Total Terkumpul Rp"
+              brandSrc={donationProduct?.imageUrl}
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {storeDataReady ? (
+        <section className={styles.section} data-animate="section">
+          <div className={styles.partnerHeader}>
+            <h2>Tim Marketing</h2>
+          </div>
+          <PetaPemasaranDinamis />
+        </section>
       ) : null}
 
       {testimonials.length > 0 || activeMarquees.length > 0 ? (
@@ -1098,20 +1145,8 @@ export default function HomeClient() {
       </section>
       ) : null}
 
-      {storeDataReady ? (
-        <section className={styles.section} data-animate="section">
-          <div className={styles.partnerHeader}>
-            <h2>Tim Marketing</h2>
-          </div>
-          <PetaPemasaranDinamis />
-        </section>
-      ) : null}
-
       {activeMarquees.length > 0 ? (
       <section className={styles.section} data-animate="section">
-        <div className={styles.partnerHeader}>
-          <h2>Marquee Partner</h2>
-        </div>
         {activeMarquees.length > 0 ? (
           <PremiumMarquee<HomeMarquee>
             items={activeMarquees}

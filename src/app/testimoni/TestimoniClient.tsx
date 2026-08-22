@@ -482,10 +482,11 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                                 border: "none",
                                 cursor: "pointer",
                                 fontSize: "20px",
+                                color: "#17365d",
                                 opacity: star <= editingRating ? 1 : 0.4,
                               }}
                             >
-                              ⭐
+                              ★
                             </button>
                           ))}
                           <button
@@ -527,9 +528,11 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                         </div>
                       ) : (
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontSize: "14px" }}>
-                            {comment.rating && comment.rating > 0 ? "⭐".repeat(comment.rating) : "Tanpa rating"}
-                          </span>
+                          {comment.rating && comment.rating > 0 ? (
+                            <RatingStars rating={comment.rating} />
+                          ) : (
+                            <span style={{ fontSize: "14px" }}>Tanpa rating</span>
+                          )}
                           {session?.user && (session.user.role === "admin" || comment.userId === session.user.id) && (
                             <button
                               type="button"

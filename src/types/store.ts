@@ -17,6 +17,7 @@ export type StoreProduct = {
   imageUrl: string; // Primary/featured image
   mediaGallery?: ProductMediaItem[]; // Additional media (photos, videos, gifs)
   isActive: boolean;
+  isHighlighted?: boolean;
   productType: ProductType;
   jobApplicationLink?: string;
   maxApplicants?: number;
@@ -84,7 +85,7 @@ export type MaintenanceSettings = {
   updatedAt: string;
 };
 
-export type InformationType = "message" | "poll" | "update";
+export type InformationType = "message" | "poll" | "update" | "donation";
 
 export type StoreInformation = {
   id: string;

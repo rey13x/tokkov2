@@ -9,9 +9,11 @@ type DonationTotalTickerProps = {
   amount: number;
   slow?: boolean;
   showCelebration?: boolean;
+  prefix?: string;
+  brandSrc?: string;
 };
 
-export default function DonationTotalTicker({ amount, slow = false, showCelebration = false }: DonationTotalTickerProps) {
+export default function DonationTotalTicker({ amount, slow = false, showCelebration = false, prefix = "Terkumpul Rp", brandSrc = "/assets/maintenancelogo.jpg" }: DonationTotalTickerProps) {
   const target = Math.max(0, Math.round(Number(amount) || 0));
   const [completedTarget, setCompletedTarget] = useState<number | null>(null);
   const [shimmerTarget, setShimmerTarget] = useState<number | null>(null);
@@ -58,9 +60,8 @@ export default function DonationTotalTicker({ amount, slow = false, showCelebrat
   const className = [
     styles.ticker,
     completedTarget === target ? styles.tickerBounce : "",
-    shimmerTarget === target ? `${shimmerClass}${slow ? ` ${styles.tickerShimmerSlow}` : ""}` : "",
   ].filter(Boolean).join(" ");
-  const numberClassName = [
+  const shimmerClassName = [
     shimmerTarget === target ? `${shimmerClass}${slow ? ` ${styles.tickerShimmerSlow}` : ""}` : "",
   ].filter(Boolean).join(" ");
   const particles = [
@@ -73,8 +74,9 @@ export default function DonationTotalTicker({ amount, slow = false, showCelebrat
   ];
 
   return (
-    <span className={className} aria-label={`Terkumpul ${formatRupiah(target)}`}>
-      Terkumpul Rp <NumberTicker key={tickerKey} value={target} reverse className={numberClassName} onComplete={handleTickerComplete} />
+    <span className={className} aria-label={`${prefix} ${formatRupiah(target)}`}>
+      <span className={shimmerClassName}>{prefix}</span>{" "}
+      <NumberTicker key={tickerKey} value={target} reverse once className={shimmerClassName} onComplete={handleTickerComplete} />
       {showCelebration && (completedTarget === target || logoExiting) ? (
         <button
           type="button"
@@ -84,7 +86,7 @@ export default function DonationTotalTicker({ amount, slow = false, showCelebrat
           title="Ulangi animasi"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/maintenancelogo.jpg" alt="" />
+          <img src={brandSrc} alt="" />
         </button>
       ) : null}
       {showCelebration ? (
