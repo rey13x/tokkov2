@@ -82,6 +82,22 @@ function jamLokal(lokasi: LokasiPemasaran, waktu: Date) {
   return jam === 24 ? 0 : jam;
 }
 
+function hashLokasi(id: string) {
+  return [...id].reduce((hash, character) => (hash * 31 + character.charCodeAt(0)) >>> 0, 7);
+}
+
+function lokasiSedangAktif(lokasi: LokasiPemasaran, waktu: Date) {
+  const jam = jamLokal(lokasi, waktu);
+  if (jam >= 8 && jam < 23) {
+    return true;
+  }
+
+  const block = Math.floor(waktu.getTime() / (3 * 60 * 60 * 1000));
+  const seed = hashLokasi(lokasi.id) + block;
+  const nightOwl = hashLokasi(lokasi.id) % 5 === 0;
+  return nightOwl || seed % 4 === 0;
+}
+
 const dataNegaraNavigasi: NavigasiNegara[] = [
   { nama: "Indonesia", koordinat: [-2.5489, 118.0149], zoom: 5 },
   { nama: "Malaysia", koordinat: [4.2105, 101.9758], zoom: 6 },
@@ -178,10 +194,9 @@ export default function PetaPemasaran({ fullScreen = false }: { fullScreen?: boo
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
           {semuaLokasi.map((lokasi) => {
-            const jam = jamLokal(lokasi, waktuSekarang);
-            const malam = jam >= 23 || jam < 8;
+            const aktif = lokasiSedangAktif(lokasi, waktuSekarang);
             return (
-            <Marker key={lokasi.id} position={[lokasi.lat, lokasi.lng]} icon={buatIkonFoto(lokasi.tipe, malam)}>
+            <Marker key={lokasi.id} position={[lokasi.lat, lokasi.lng]} icon={buatIkonFoto(lokasi.tipe, !aktif)}>
               <Popup>
                 <strong>{lokasi.nama}</strong>
                 <br />
