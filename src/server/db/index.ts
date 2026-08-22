@@ -178,6 +178,7 @@ function mapInfo(row: Record<string, unknown>): StoreInformation {
     title: String(row.title),
     body: String(row.body),
     imageUrl: resolveMediaUrl(String(row.image_url ?? "")),
+    watermarkText: String(row.watermark_text ?? ""),
     pollOptions,
     pollVotes,
     createdAt: new Date(Number(row.created_at)).toISOString(),
@@ -579,6 +580,7 @@ export async function ensureDatabase() {
           title TEXT NOT NULL,
           body TEXT NOT NULL,
           image_url TEXT NOT NULL DEFAULT '',
+          watermark_text TEXT NOT NULL DEFAULT 'CONTOH SERTIFIKAT',
           poll_options TEXT NOT NULL DEFAULT '[]',
           poll_votes TEXT NOT NULL DEFAULT '{}',
           created_at INTEGER NOT NULL,
@@ -587,6 +589,9 @@ export async function ensureDatabase() {
       );
       await run(
         "ALTER TABLE informations ADD COLUMN poll_votes TEXT NOT NULL DEFAULT '{}'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE informations ADD COLUMN watermark_text TEXT NOT NULL DEFAULT 'CONTOH SERTIFIKAT'",
       ).catch(() => {});
 
       await run(
@@ -1737,6 +1742,7 @@ export async function createInformation(input: {
   title: string;
   body: string;
   imageUrl: string;
+  watermarkText: string;
   pollOptions: string[];
 }) {
   await ensureDatabase();
@@ -1746,14 +1752,15 @@ export async function createInformation(input: {
   const pollVotes = input.type === "poll" ? normalizePollVotes(pollOptions, {}) : {};
   await run(
     `INSERT INTO informations
-      (id, type, title, body, image_url, poll_options, poll_votes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, type, title, body, image_url, watermark_text, poll_options, poll_votes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.type,
       input.title,
       input.body,
       mediaUrl,
+      input.watermarkText,
       JSON.stringify(pollOptions),
       JSON.stringify(pollVotes),
       now(),
@@ -1771,6 +1778,7 @@ export async function updateInformation(
     title: string;
     body: string;
     imageUrl: string;
+    watermarkText?: string;
     pollOptions: string[];
   }>,
 ) {
@@ -1781,6 +1789,7 @@ export async function updateInformation(
   }
   const nextMediaUrl =
     input.imageUrl === undefined ? current.imageUrl : resolveMediaUrl(input.imageUrl);
+  const nextWatermarkText = input.watermarkText ?? current.watermarkText ?? "";
   const nextType = input.type ?? current.type;
   const nextPollOptions = normalizePollOptions(input.pollOptions ?? current.pollOptions);
   const nextPollVotes =
@@ -1790,13 +1799,14 @@ export async function updateInformation(
 
   await run(
     `UPDATE informations
-     SET type = ?, title = ?, body = ?, image_url = ?, poll_options = ?, poll_votes = ?, updated_at = ?
+    SET type = ?, title = ?, body = ?, image_url = ?, watermark_text = ?, poll_options = ?, poll_votes = ?, updated_at = ?
      WHERE id = ?`,
     [
       nextType,
       input.title ?? current.title,
       input.body ?? current.body,
       nextMediaUrl,
+      nextWatermarkText,
       JSON.stringify(nextPollOptions),
       JSON.stringify(nextPollVotes),
       now(),

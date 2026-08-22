@@ -93,6 +93,7 @@ export type StoreInformation = {
   title: string;
   body: string;
   imageUrl: string;
+  watermarkText?: string;
   pollOptions: string[];
   pollVotes: Record<string, number>;
   createdAt: string;

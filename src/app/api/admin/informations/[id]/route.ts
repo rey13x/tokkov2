@@ -8,6 +8,7 @@ const updateSchema = z.object({
   title: z.string().min(2).max(160).optional(),
   body: z.string().min(4).max(3000).optional(),
   imageUrl: z.string().max(3000000).optional(),
+  watermarkText: z.string().max(120).optional(),
   pollOptions: z.array(z.string().min(1).max(80)).optional(),
 });
 

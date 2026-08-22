@@ -80,6 +80,7 @@ const defaultInfoForm = {
   title: "",
   body: "",
   imageUrl: "/assets/logo.png",
+  watermarkText: "CONTOH SERTIFIKAT",
   pollOptions: ["", ""],
 };
 
@@ -2588,6 +2589,7 @@ function AdminManagementSection() {
       title: information.title,
       body: information.body,
       imageUrl: information.imageUrl,
+      watermarkText: information.watermarkText || "CONTOH SERTIFIKAT",
       pollOptions: information.pollOptions.length > 0 ? information.pollOptions : ["", ""],
     });
   };
@@ -3680,6 +3682,16 @@ function AdminManagementSection() {
               placeholder={infoForm.type === "donation" ? "Deskripsi section donasi" : "Isi informasi"}
               required
             />
+            {infoForm.type === "donation" ? (
+              <input
+                value={infoForm.watermarkText}
+                onChange={(event) =>
+                  setInfoForm((current) => ({ ...current, watermarkText: event.target.value }))
+                }
+                placeholder="Teks watermark foto"
+                maxLength={120}
+              />
+            ) : null}
             <input value={infoForm.imageUrl} readOnly placeholder="URL media informasi otomatis" />
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>

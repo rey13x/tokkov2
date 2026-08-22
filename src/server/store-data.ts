@@ -227,6 +227,7 @@ function mapInformationDoc(
     title: String(data?.title ?? ""),
     body: String(data?.body ?? ""),
     imageUrl: resolveMediaUrl(String(data?.imageUrl ?? "")),
+    watermarkText: String(data?.watermarkText ?? ""),
     pollOptions,
     pollVotes: normalizePollVotes(pollOptions, data?.pollVotes),
     createdAt: new Date(Number(data?.createdAt ?? now())).toISOString(),
@@ -741,6 +742,7 @@ export async function createInformation(input: {
   title: string;
   body: string;
   imageUrl: string;
+  watermarkText: string;
   pollOptions: string[];
 }) {
   const firestore = getFirestoreOrNull();
@@ -759,6 +761,7 @@ export async function createInformation(input: {
       title: input.title,
       body: input.body,
       imageUrl: mediaUrl,
+      watermarkText: input.watermarkText,
       pollOptions,
       pollVotes,
       createdAt,
@@ -783,6 +786,7 @@ export async function updateInformation(
     title: string;
     body: string;
     imageUrl: string;
+    watermarkText?: string;
     pollOptions: string[];
   }>,
 ) {
@@ -813,6 +817,7 @@ export async function updateInformation(
       ...(input.title !== undefined ? { title: input.title } : {}),
       ...(input.body !== undefined ? { body: input.body } : {}),
       ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
+      ...(input.watermarkText !== undefined ? { watermarkText: input.watermarkText } : {}),
       ...(input.pollOptions !== undefined ? { pollOptions: nextPollOptions } : {}),
       pollVotes: nextPollVotes,
       updatedAt: now(),

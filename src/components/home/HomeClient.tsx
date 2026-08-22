@@ -1083,6 +1083,9 @@ export default function HomeClient() {
               sizes="(max-width: 820px) 82vw, 420px"
               unoptimized
             />
+            <span className={styles.donationWatermark} aria-hidden="true">
+              {donationSection.watermarkText || "CONTOH SERTIFIKAT"}
+            </span>
           </div>
           <p className={styles.donationHint}>
             Kamu bisa mendapatkan Sertifikat ini dengan memberikan sedikit Kebahagiaan untuk mereka
