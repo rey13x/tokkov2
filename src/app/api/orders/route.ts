@@ -7,6 +7,8 @@ import {
   listOrdersWithItems,
 } from "@/server/store-data";
 import {
+  findUserByEmail,
+  findUserById,
   updateUserLastActive,
 } from "@/server/db";
 import {
@@ -73,6 +75,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
+  const currentUser = await findUserById(session.user.id) ||
+    (session.user.email ? await findUserByEmail(session.user.email.trim().toLowerCase()) : null);
+
   try {
     const body = await request.json();
     const payload = createOrderSchema.parse(body);
@@ -127,10 +132,10 @@ export async function POST(request: Request) {
     }
 
     const created = await createOrder({
-      userId: session.user.id,
-      userName: session.user.username || session.user.name || "User",
-      userEmail: session.user.email ?? "-",
-      userPhone: session.user.phone ?? "",
+      userId: currentUser?.id ?? session.user.id,
+      userName: currentUser?.username || session.user.username || session.user.name || "User",
+      userEmail: currentUser?.email ?? session.user.email ?? "-",
+      userPhone: currentUser?.phone ?? session.user.phone ?? "",
       items: enrichedItems,
     });
 
@@ -138,9 +143,9 @@ export async function POST(request: Request) {
 
     const telegramNotification = sendTelegramOrderNotification({
       orderId: created.id,
-      userName: session.user.username || session.user.name || "User",
-      userEmail: session.user.email ?? "-",
-      userPhone: session.user.phone ?? "",
+      userName: currentUser?.username || session.user.username || session.user.name || "User",
+      userEmail: currentUser?.email ?? session.user.email ?? "-",
+      userPhone: currentUser?.phone ?? session.user.phone ?? "",
       total: created.total,
       items: enrichedItems,
     }).catch((notificationError) => {
@@ -154,9 +159,9 @@ export async function POST(request: Request) {
       appendOrderToCsv({
         orderId: created.id,
         createdAt,
-        userName: session.user.username || session.user.name || "User",
-        userEmail: session.user.email ?? "-",
-        userPhone: session.user.phone ?? "",
+        userName: currentUser?.username || session.user.username || session.user.name || "User",
+        userEmail: currentUser?.email ?? session.user.email ?? "-",
+        userPhone: currentUser?.phone ?? session.user.phone ?? "",
         total: created.total,
         items: enrichedItems.map((item) => ({
           productName: item.productName,

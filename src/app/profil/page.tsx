@@ -3,7 +3,7 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { FiArrowRight, FiEye, FiEyeOff } from "react-icons/fi";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import WaitLoading from "@/components/ui/WaitLoading";
 import styles from "./page.module.css";
@@ -18,6 +18,7 @@ interface ProfilePhoto {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status, update } = useSession();
   const canUseEmailOtp = false;
 
@@ -181,6 +182,7 @@ export default function ProfilePage() {
       const result = (await response.json()) as {
         message?: string;
         user?: {
+          id: string;
           username: string;
           email: string;
           phone: string;
@@ -206,6 +208,7 @@ export default function ProfilePage() {
       // Update session with new profile data (wait for it to complete)
       try {
         const updateResult = await update({
+          userId: result.user?.id,
           username: result.user?.username ?? name,
           email: result.user?.email ?? email,
           phone: result.user?.phone ?? phone,
@@ -247,6 +250,11 @@ export default function ProfilePage() {
         }
       } catch (freshError) {
         console.error("Failed to fetch fresh user data:", freshError);
+      }
+
+      if (searchParams.get("requiredPhone") === "1") {
+        const redirect = searchParams.get("redirect");
+        router.replace(redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/");
       }
     } catch {
       setError("Gagal update profil.");

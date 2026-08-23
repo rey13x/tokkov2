@@ -230,6 +230,9 @@ export const authOptions: NextAuthOptions = {
         if (typeof nextSession.username === "string") token.username = nextSession.username;
         if (typeof nextSession.email === "string") token.email = nextSession.email;
         if (typeof nextSession.phone === "string") token.phone = nextSession.phone;
+        if (typeof (nextSession as { userId?: string }).userId === "string") {
+          token.userId = (nextSession as { userId: string }).userId;
+        }
         if (typeof nextSession.avatarUrl === "string") token.avatarUrl = nextSession.avatarUrl;
         if (typeof nextSession.image === "string") token.avatarUrl = nextSession.image;
       } else if (token.userId && token.userId !== "dev-admin-hardcoded") {

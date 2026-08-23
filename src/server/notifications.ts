@@ -486,6 +486,10 @@ export async function sendTelegramOrderNotification(payload: {
         `${index + 1}. ${escapeTelegramHtml(item.productName)} x${item.quantity} (Rp ${item.unitPrice.toLocaleString("id-ID")})`,
     )
     .join("\n");
+  const taxableSubtotal = payload.items
+    .filter((item) => item.productType !== "donation")
+    .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const tax = taxableSubtotal > 0 ? 500 : 0;
 
   const text = [
     isDonation ? "💙 <b>DONASI MASUK</b>" : "📣 <b>ORDERAN MASUK</b>",
@@ -499,6 +503,8 @@ export async function sendTelegramOrderNotification(payload: {
     "<b>Detail Produk</b>",
     lines,
     "",
+    `<b>Subtotal</b>  : Rp ${(payload.total - tax).toLocaleString("id-ID")}`,
+    `<b>Pajak</b>     : Rp ${tax.toLocaleString("id-ID")}`,
     `<b>Total</b>     : Rp ${payload.total.toLocaleString("id-ID")}`,
   ].join("\n");
 
@@ -552,10 +558,12 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
     `<b>Transaction ID</b> : <tg-spoiler>${escapeTelegramHtml(payload.transactionId)}</tg-spoiler>`,
     `<b>Nama</b>          : <tg-spoiler>${escapeTelegramHtml(payload.userName)}</tg-spoiler>`,
     `<b>Email</b>         : <tg-spoiler>${escapeTelegramHtml(payload.userEmail)}</tg-spoiler>`,
+    `<b>No. HP</b>        : <tg-spoiler>${escapeTelegramHtml(order?.userPhone || "-")}</tg-spoiler>`,
     `<b>Jumlah</b>        : Rp ${payload.amount.toLocaleString("id-ID")}`,
+    order && !isDonation ? `<b>Pajak</b>         : Rp 500` : null,
     `<b>Status</b>        : ${payload.preOrder ? "Sudah Bayar | Pre-Order" : telegramStatusLabel("paid")}`,
     `<b>Waktu</b>         : ${escapeTelegramHtml(formatAuditDate())}`,
-  ].join("\n");
+  ].filter((line): line is string => Boolean(line)).join("\n");
   const adminOrderUrl = buildAdminOrderUrl(payload.orderId);
   const paymentSuccessKeyboard = {
     inline_keyboard: [[

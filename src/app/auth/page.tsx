@@ -148,7 +148,7 @@ export default function AuthPage() {
     }
     const me = (await response.json()) as { role?: "user" | "admin"; phone?: string };
     if (!me.phone?.trim()) {
-      return "/profil?requiredPhone=1";
+      return `/profil?requiredPhone=1&redirect=${encodeURIComponent(redirectTarget)}`;
     }
     if (me.role === "admin") {
       return "/admin";

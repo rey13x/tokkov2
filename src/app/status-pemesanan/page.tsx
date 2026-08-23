@@ -1003,16 +1003,24 @@ export default function StatusPemesananPage() {
               })
               .join("\n\n")
           : "-";
+      const taxableSubtotal = (order.items ?? [])
+        .filter((item) => item.productType !== "donation")
+        .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+      const tax = taxableSubtotal > 0 ? 500 : 0;
 
       // Build simple confirmation message
       const messageParts = [
         `Username: ${order.userName}`,
         `Email: ${order.userEmail}`,
+        `Nomor Telepon: ${order.userPhone || "-"}`,
         "",
         "*SPESIFIKASI PRODUK:*",
         itemLines,
         "",
+        `Subtotal: ${formatRupiah(order.total - tax)}`,
+        `Pajak: ${formatRupiah(tax)}`,
         `*HARGA TOTAL: ${formatRupiah(order.total)}*`,
+        notes ? `Catatan: ${notes}` : "",
         "",
         "Mohon konfirmasi.",
       ];

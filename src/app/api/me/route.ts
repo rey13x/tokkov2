@@ -59,7 +59,8 @@ export async function GET() {
     });
   }
 
-  const user = await findUserById(session.user.id);
+  const user = await findUserById(session.user.id) ||
+    (session.user.email ? await findUserByEmail(session.user.email.trim().toLowerCase()) : null);
   if (!user) {
     return NextResponse.json({ message: "User tidak ditemukan" }, { status: 404 });
   }
@@ -88,7 +89,8 @@ export async function PATCH(request: Request) {
     // Handle special case for hardcoded admin
     let user = session.user.id === "dev-admin-hardcoded"
       ? await findUserByEmail("digitalawanku2@gmail.com")
-      : await findUserById(session.user.id);
+      : await findUserById(session.user.id) ||
+        (session.user.email ? await findUserByEmail(session.user.email.trim().toLowerCase()) : null);
 
     if (!user && session.user.id === "dev-admin-hardcoded") {
       // Create hardcoded admin user in database if not exists
