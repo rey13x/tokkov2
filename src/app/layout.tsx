@@ -9,7 +9,7 @@ import { AuthSessionProvider } from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import ClientProviders from "@/components/providers/ClientProviders";
 import AdPopup from "@/components/popup/AdPopup";
-import { getPublicStoreData } from "@/server/public-store-data";
+import { EMPTY_STORE_DATA } from "@/lib/store-client";
 import "./globals.css";
 
 const sora = Sora({
@@ -44,14 +44,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const initialStoreData = await getPublicStoreData();
-
   return (
     <html lang="en">
       <body className={`${sora.variable} ${spaceMono.variable}`}>
         <ThemeProvider>
           <AuthSessionProvider>
-            <ClientProviders initialStoreData={initialStoreData}>
+            <ClientProviders initialStoreData={EMPTY_STORE_DATA}>
               <div id="smooth-wrapper">
                 <div id="smooth-content">
                   <PageTransition>{children}</PageTransition>
