@@ -552,7 +552,7 @@
 
 .storeLoading {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   padding: 12px clamp(14px, 4vw, 56px) 0;
 }
 

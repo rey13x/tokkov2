@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef, useMemo, FormEvent, ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { updateCachedStoreData } from "@/lib/public-data-cache";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
@@ -1736,13 +1737,21 @@ function AdminManagementSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const result = (await response.json()) as { message?: string };
+      const result = (await response.json()) as { message?: string; product?: StoreProduct };
       if (!response.ok) {
         setError(result.message ?? "Gagal simpan produk.");
         return;
       }
 
       setMessage(productEditId ? "Produk berhasil diperbarui." : "Produk baru berhasil ditambahkan.");
+      if (result.product) {
+        updateCachedStoreData((current) => ({
+          ...current,
+          products: productEditId
+            ? current.products.map((product) => product.id === result.product?.id ? result.product! : product)
+            : [result.product!, ...current.products],
+        }));
+      }
       resetProductForm();
       await loadProducts();
       bumpPreview();
@@ -2064,14 +2073,23 @@ function AdminManagementSection() {
     if (!window.confirm("Yakin hapus semua produk?")) {
       return;
     }
-    await fetch("/api/admin/products", { method: "DELETE" });
+    const response = await fetch("/api/admin/products", { method: "DELETE" });
+    if (response.ok) {
+      updateCachedStoreData((current) => ({ ...current, products: [] }));
+    }
     resetProductForm();
     await loadProducts();
     bumpPreview();
   };
 
   const onDeleteProduct = async (id: string) => {
-    await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+    const response = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+    if (response.ok) {
+      updateCachedStoreData((current) => ({
+        ...current,
+        products: current.products.filter((product) => product.id !== id),
+      }));
+    }
     if (productEditId === id) {
       resetProductForm();
     }

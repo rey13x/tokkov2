@@ -19,6 +19,7 @@
 
 # production
 /build
+/storage/cache/
 
 # misc
 .DS_Store

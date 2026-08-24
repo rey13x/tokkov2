@@ -19,7 +19,7 @@ import {
   getOnboardingState,
   type OnboardingStage,
 } from "@/lib/onboarding";
-import { fetchStoreData } from "@/lib/store-client";
+import { useStoreData } from "@/components/providers/StoreDataProvider";
 import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
 
@@ -68,12 +68,13 @@ function getInitialCartLines(): CartLine[] {
 
 export default function CartPage() {
   const router = useRouter();
+  const { data: storeData } = useStoreData();
   const { status, data: session } = useSession();
   const { isMaintenanceEnabled } = useMaintenanceMode();
   const filterRef = useRef<HTMLDivElement | null>(null);
   const [cartLines, setCartLines] = useState<CartLine[]>(getInitialCartLines);
-  const [products, setProducts] = useState<StoreProduct[]>([]);
-  const [isStoreLoading, setIsStoreLoading] = useState(true);
+  const products = storeData.products;
+  const isStoreLoading = false;
   const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
   const [isJobApplicationsLoading, setIsJobApplicationsLoading] = useState(true);
   const [jobApplicationError, setJobApplicationError] = useState("");
@@ -99,27 +100,6 @@ export default function CartPage() {
     () => true,
     () => false,
   );
-
-  useEffect(() => {
-    let mounted = true;
-    fetchStoreData()
-      .then((data) => {
-        if (!mounted) {
-          return;
-        }
-        setProducts(data.products ?? []);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (mounted) {
-          setIsStoreLoading(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   // Fetch job applications
   useEffect(() => {
@@ -558,7 +538,7 @@ export default function CartPage() {
           Kembali belanja
         </Link>
       </header>
-      {!isClient || isStoreLoading || isJobApplicationsLoading ? <WaitLoading centered /> : null}
+      {!isClient || isStoreLoading || isJobApplicationsLoading ? <WaitLoading centered text="Proses Data, Pastiin internet kamu ada..." /> : null}
 
       {isClient && !isStoreLoading && !isJobApplicationsLoading && detailedItems.length === 0 && freelanceJobApplications.length === 0 ? (
         <section className={styles.emptyState}>

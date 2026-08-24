@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import DonationTotalTicker from "@/components/product/DonationTotalTicker";
-import WaitLoading from "@/components/ui/WaitLoading";
-import { fetchStoreData } from "@/lib/store-client";
+import { useStoreData } from "@/components/providers/StoreDataProvider";
 import type { DonationActivity } from "@/types/store";
 import styles from "./page.module.css";
 
@@ -22,27 +21,12 @@ function formatDate(value: string) {
 }
 
 export default function DonationActivityClient() {
-  const [activities, setActivities] = useState<DonationActivity[]>([]);
-  const [productsTotal, setProductsTotal] = useState(0);
+  const { data: storeData } = useStoreData();
+  const activities: DonationActivity[] = storeData.donationActivities ?? [];
+  const productsTotal = storeData.products
+    .filter((product) => product.productType === "donation")
+    .reduce((total, product) => total + Math.max(0, product.donationTotal ?? 0), 0);
   const [filter, setFilter] = useState<"all" | DonationActivity["type"]>("all");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadData = () => fetchStoreData()
-      .then((data) => {
-        setActivities(data.donationActivities ?? []);
-        setProductsTotal(
-          data.products
-            .filter((product) => product.productType === "donation")
-            .reduce((total, product) => total + Math.max(0, product.donationTotal ?? 0), 0),
-        );
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-      void loadData();
-      const refreshTimer = window.setInterval(loadData, 30_000);
-      return () => window.clearInterval(refreshTimer);
-      }, []);
 
   const total = useMemo(() => productsTotal, [productsTotal]);
   const filteredActivities = filter === "all" ? activities : activities.filter((activity) => activity.type === filter);
@@ -82,8 +66,7 @@ export default function DonationActivityClient() {
             </button>
           ))}
         </div>
-        {loading ? <WaitLoading centered text="Lagi ngambil data, Pastiin internet kamu ada..." /> : null}
-        {!loading && activities.length === 0 ? <p className={styles.empty}>Belum ada aktivitas donasi.</p> : null}
+        {activities.length === 0 ? <p className={styles.empty}>Belum ada aktivitas donasi.</p> : null}
         <div className={styles.list}>
           {filteredActivities.map((activity) => (
             <article key={activity.id} className={styles.activityCard}>

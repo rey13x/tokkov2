@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { FiMaximize2 } from "react-icons/fi";
 import type { CallBackProps, Step } from "react-joyride";
 // @ts-expect-error - qrcode.react does not ship complete React 19 types in this project.
 import QRCode from "qrcode.react";
@@ -210,6 +211,11 @@ export default function StatusPemesananPage() {
   const [isPreparingReceiptOrderId, setIsPreparingReceiptOrderId] = useState<string | null>(null);
   const [isPreparingHistoryCertificate, setIsPreparingHistoryCertificate] = useState(false);
   const [showDonationRequirementPopup, setShowDonationRequirementPopup] = useState(false);
+  const [openHistorySections, setOpenHistorySections] = useState({
+    donation: false,
+    products: false,
+    applications: false,
+  });
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [paymentCheckCooldown, setPaymentCheckCooldown] = useState(30);
   const [paymentSuccessPopup, setPaymentSuccessPopup] = useState<{ amount: number; orderId: string } | null>(null);
@@ -265,13 +271,17 @@ export default function StatusPemesananPage() {
         window.setTimeout(() => {
           void onDownloadReceipt(order.id);
           setPaymentSuccessPopup(null);
-          window.setTimeout(() => router.push("/troli"), 5000);
         }, 900);
       }
       knownPaymentStatusesRef.current[order.id] = order.status;
     });
     setOrders(nextOrders);
-  }, [router, status]);
+    const highlightedOrder = nextOrders.find((order) => order.id === highlightedOrderId);
+    if (highlightedOrder) {
+      const isDonation = highlightedOrder.items?.some((item) => item.productType === "donation") ?? false;
+      setOpenHistorySections({ donation: isDonation, products: !isDonation, applications: false });
+    }
+  }, [highlightedOrderId, router, status]);
 
   const loadJobApplications = useCallback(async () => {
     if (status !== "authenticated") {
@@ -732,7 +742,6 @@ export default function StatusPemesananPage() {
       await onDownloadReceipt(orderId);
       window.history.replaceState({}, "", "/status-pemesanan");
       await loadOrders();
-      window.setTimeout(() => router.push("/troli"), 5000);
     } catch {
       setError("Struk belum berhasil dibuat. Coba klik ikon struk lagi.");
     }
@@ -1557,9 +1566,27 @@ export default function StatusPemesananPage() {
         </div>
       </section>
 
+      {isLoading ? (
+        <div className={styles.historyLoadingOverlay} role="status" aria-live="polite">
+          <WaitLoading centered text="Proses Data, Pastiin internet kamu ada..." />
+        </div>
+      ) : null}
+
       <section className={styles.donationHistorySection} aria-labelledby="donation-history-title">
         <div className={styles.donationHistoryHeader}>
-          <div className={styles.donationHistoryTitle}>
+          <button
+            type="button"
+            className={styles.historyToggle}
+            onClick={() => setOpenHistorySections((current) => ({ ...current, donation: !current.donation }))}
+            aria-expanded={openHistorySections.donation}
+            aria-controls="donation-history-content"
+          >
+            <span className={styles.donationHistoryTitle}>
+              <span className={styles.historyToggleIcon}>{openHistorySections.donation ? "−" : "+"}</span>
+              <h2 id="donation-history-title">Riwayat Donasi</h2>
+            </span>
+          </button>
+          <div className={styles.donationHistoryActions}>
             <button
               type="button"
               className={styles.donationCertificateButton}
@@ -1577,11 +1604,10 @@ export default function StatusPemesananPage() {
               ) : null}
               {isPreparingHistoryCertificate ? <span className={styles.buttonSpinner} aria-label="Menyiapkan sertifikat riwayat" /> : <CertificateIcon />}
             </button>
-            <h2 id="donation-history-title">Riwayat Donasi</h2>
+            <strong>{formatRupiah(donationTotal)}</strong>
           </div>
-          <strong>{formatRupiah(donationTotal)}</strong>
         </div>
-        <div className={styles.donationHistoryList}>
+        {openHistorySections.donation ? <div id="donation-history-content" className={`${styles.donationHistoryList} ${styles.historyScrollArea}`}>
           {displayOrders.flatMap((order) => (order.items ?? [])
             .filter((item) => item.productType === "donation")
             .map((item) => ({ order, item }))).map(({ order, item }) => (
@@ -1590,10 +1616,9 @@ export default function StatusPemesananPage() {
                 <small>{new Date(order.createdAt).toLocaleDateString("id-ID")} · {item.donationName || order.userName}</small>
               </div>
             ))}
-        </div>
+        </div> : null}
       </section>
 
-      {isLoading ? <WaitLoading centered /> : null}
       {error ? <p className={styles.errorText}>{error}</p> : null}
       {success && !showCancellationSuccess && typeof document !== "undefined" ? createPortal(
         <div className={styles.successToastOverlay} role="status" aria-live="polite">
@@ -1642,7 +1667,7 @@ export default function StatusPemesananPage() {
               <img src={receiptPreview.url} alt={`Preview struk ${receiptPreview.orderId}`} />
             </div>
             <div className={styles.certificatePopupActions}>
-              <button type="button" className={styles.popupCloseButton} onClick={() => openExpandedPreview({ url: receiptPreview.url, title: "Preview Struk", downloadName: `tokkomarketplace-struk-${receiptPreview.orderId}.jpg` })}>Perbesar Struk</button>
+              <button type="button" className={styles.expandPreviewButton} onClick={() => openExpandedPreview({ url: receiptPreview.url, title: "Preview Struk", downloadName: `tokkomarketplace-struk-${receiptPreview.orderId}.jpg` })} title="Perbesar struk" aria-label="Perbesar struk"><FiMaximize2 /></button>
             </div>
           </section>
         </div>,
@@ -1706,7 +1731,12 @@ export default function StatusPemesananPage() {
         document.body,
       ) : null}
 
-      <section className={styles.listWrap}>
+      <section className={`${styles.listWrap} ${styles.orderHistoryScrollArea}`}>
+        <button type="button" className={styles.historySectionToggle} onClick={() => setOpenHistorySections((current) => ({ ...current, products: !current.products }))} aria-expanded={openHistorySections.products}>
+          <span className={styles.historyToggleIcon}>{openHistorySections.products ? "−" : "+"}</span>
+          <h2 className={styles.sectionTitle}>Riwayat Produk</h2>
+        </button>
+        {openHistorySections.products ? <div className={styles.historyCardsScrollArea}>
         {displayOrders.map((order) => {
           const isHighlighted = highlightedOrderId === order.id;
           const isOnboardingTargetOrder = onboardingTargetOrderId === order.id;
@@ -1833,10 +1863,15 @@ export default function StatusPemesananPage() {
           );
         })}
         {!isLoading && displayOrders.length === 0 ? <p className={styles.emptyText}>Belum ada pesanan.</p> : null}
+        </div> : null}
       </section>
 
-      <section className={styles.listWrap}>
-        <h2 className={styles.sectionTitle}>Lamaran Pekerjaan</h2>
+      <section className={`${styles.listWrap} ${styles.jobHistoryScrollArea}`}>
+        <button type="button" className={styles.historySectionToggle} onClick={() => setOpenHistorySections((current) => ({ ...current, applications: !current.applications }))} aria-expanded={openHistorySections.applications}>
+          <span className={styles.historyToggleIcon}>{openHistorySections.applications ? "−" : "+"}</span>
+          <h2 className={styles.sectionTitle}>Lamaran Pekerjaan</h2>
+        </button>
+        {openHistorySections.applications ? <div className={styles.historyCardsScrollArea}>
         {jobApplications.map((application) => (
           <article key={application.id} className={styles.orderCard}>
             <div className={styles.orderMain}>
@@ -1862,6 +1897,7 @@ export default function StatusPemesananPage() {
           </article>
         ))}
         {!isLoading && jobApplications.length === 0 ? <p className={styles.emptyText}>Belum ada lamaran pekerjaan.</p> : null}
+        </div> : null}
       </section>
 
       {activePaymentOrder && typeof document !== "undefined"
@@ -1965,9 +2001,7 @@ export default function StatusPemesananPage() {
               <img src={certificatePreview.url} alt={`Preview sertifikat donasi ${certificatePreview.orderId}`} />
             </div>
             <div className={styles.certificatePopupActions}>
-              <button type="button" className={styles.popupCloseButton} onClick={() => openExpandedPreview({ url: certificatePreview.url, title: "Preview Sertifikat Donasi", downloadName: `tokkomarketplace-sertifikat-donasi-${certificatePreview.orderId}.jpg` })}>
-                Perbesar Sertifikat
-              </button>
+              <button type="button" className={styles.expandPreviewButton} onClick={() => openExpandedPreview({ url: certificatePreview.url, title: "Preview Sertifikat Donasi", downloadName: `tokkomarketplace-sertifikat-donasi-${certificatePreview.orderId}.jpg` })} title="Perbesar sertifikat" aria-label="Perbesar sertifikat"><FiMaximize2 /></button>
             </div>
           </section>
         </div>,

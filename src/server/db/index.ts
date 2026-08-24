@@ -22,6 +22,9 @@ const now = () => Date.now();
 // Use Turso remote database if configured, otherwise use local SQLite database
 const dbUrl = process.env.TURSO_URL?.trim() ? process.env.TURSO_URL : "file:./tokko.db";
 const authToken = process.env.TURSO_URL?.trim() ? process.env.TURSO_AUTH_TOKEN : undefined;
+const localMirrorDb = process.env.TURSO_URL?.trim()
+  ? createClient({ url: "file:./tokko.db" })
+  : null;
 
 export const db = createClient({
   url: dbUrl,
@@ -365,7 +368,69 @@ export async function ensureAdminEmailExists() {
 }
 
 export async function run(sql: string, args?: InArgs) {
-  return db.execute({ sql, args });
+  const result = await db.execute({ sql, args });
+  if (localMirrorDb && !/^\s*(select|pragma|with|explain)\b/i.test(sql)) {
+    await localMirrorDb.execute({ sql, args }).catch((error) => {
+      console.warn("Local database mirror write failed:", error);
+    });
+  }
+  return result;
+}
+
+async function bootstrapLocalMirror() {
+  if (!localMirrorDb) {
+    return;
+  }
+
+  await localMirrorDb.execute(
+    "CREATE TABLE IF NOT EXISTS __tokko_mirror_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+  );
+  const marker = await localMirrorDb.execute(
+    "SELECT value FROM __tokko_mirror_meta WHERE key = 'bootstrap' LIMIT 1",
+  );
+  const localProductCount = await localMirrorDb.execute(
+    "SELECT COUNT(*) AS count FROM products",
+  ).catch(() => ({ rows: [] }));
+  const remoteProductCount = await db.execute(
+    "SELECT COUNT(*) AS count FROM products",
+  );
+  if (marker.rows.length > 0 && Number(localProductCount.rows[0]?.count ?? 0) >= Number(remoteProductCount.rows[0]?.count ?? 0)) {
+    return;
+  }
+
+  const tables = await db.execute(
+    "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+  );
+  for (const table of tables.rows as unknown as Array<{ name: string; sql: string | null }>) {
+    if (!table.sql || table.name === "__tokko_mirror_meta") {
+      continue;
+    }
+
+    await localMirrorDb.execute(table.sql).catch(() => undefined);
+    const localColumnsResult = await localMirrorDb.execute(
+      `PRAGMA table_info("${table.name.replaceAll('"', '""')}")`,
+    );
+    const localColumns = new Set(
+      (localColumnsResult.rows as unknown as Array<{ name: string }>).map((column) => column.name),
+    );
+    const rows = await db.execute(`SELECT * FROM "${table.name.replaceAll('"', '""')}"`);
+    await localMirrorDb.execute(`DELETE FROM "${table.name.replaceAll('"', '""')}"`).catch(() => undefined);
+    for (const row of rows.rows) {
+      const columns = Object.keys(row as Record<string, unknown>).filter((column) => localColumns.has(column));
+      if (columns.length === 0) continue;
+      const quotedColumns = columns.map((column) => `"${column.replaceAll('"', '""')}"`).join(", ");
+      const placeholders = columns.map(() => "?").join(", ");
+      await localMirrorDb.execute({
+        sql: `INSERT OR REPLACE INTO "${table.name.replaceAll('"', '""')}" (${quotedColumns}) VALUES (${placeholders})`,
+        args: columns.map((column) => (row as Record<string, unknown>)[column]) as InArgs,
+      }).catch(() => undefined);
+    }
+  }
+
+  await localMirrorDb.execute(
+    "INSERT OR REPLACE INTO __tokko_mirror_meta (key, value) VALUES ('bootstrap', ?)",
+    [String(Date.now())],
+  );
 }
 
 async function seedIfEmpty() {
@@ -1122,6 +1187,7 @@ export async function ensureDatabase() {
       await seedIfEmpty();
       await runOneTimeCatalogCleanup();
       await ensureAdminEmailIfNotExists();
+      await bootstrapLocalMirror();
       initialized = true;
     })();
   }

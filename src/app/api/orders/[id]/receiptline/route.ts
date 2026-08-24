@@ -60,6 +60,7 @@ export async function GET(_request: Request, context: { params: Params }) {
 
     const { id } = await context.params;
     const requestUrl = new URL(_request.url);
+    const assetUrl = (assetPath: string) => new URL(assetPath, requestUrl.origin).toString();
     const isHistoryCertificate = requestUrl.searchParams.get("history") === "1";
     const [order, items] = await Promise.all([getOrderById(id), listOrderItemsByOrderId(id)]);
     if (!order) return NextResponse.json({ message: "Order tidak ditemukan." }, { status: 404 });
@@ -88,8 +89,8 @@ export async function GET(_request: Request, context: { params: Params }) {
       .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
     const tax = taxableSubtotal > 0 ? 500 : 0;
     const qr = await receiptlineQr(order.id);
-    const logoUrl = "/assets/maintenancelogo.jpg";
-    const signatureUrl = "/assets/TTDev-trans.png";
+    const logoUrl = assetUrl("/assets/maintenancelogo.jpg");
+    const signatureUrl = assetUrl("/assets/TTDev-trans.png");
 
     // Detect donation order (any item marked as donation)
     const isDonation = items.some((it) => (it as any).productType === "donation" || /donasi|donation/i.test(String((it as any).productName || "")));

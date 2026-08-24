@@ -23,7 +23,6 @@ import bagasPhoto from "@/app/assets/Bagas.jpg";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import ProductCard from "@/components/home/ProductCard";
 import PremiumMarquee from "@/components/home/PremiumMarquee";
-import WaitLoading from "@/components/ui/WaitLoading";
 import DonationTotalTicker from "@/components/product/DonationTotalTicker";
 import { formatRupiah } from "@/data/products";
 import { HERO_BACKGROUND_URLS, HERO_CONFIG, getPhotoDuration } from "@/data/hero-backgrounds";
@@ -44,7 +43,7 @@ import {
   requestOnboardingBoot,
   startOnboarding,
 } from "@/lib/onboarding";
-import { fetchStoreData } from "@/lib/store-client";
+import { useStoreData } from "@/components/providers/StoreDataProvider";
 import { clearSessionCached, fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
 import type {
   DonationActivity,
@@ -76,6 +75,7 @@ function getTestimonialMediaSrc(item: HomeTestimonial) {
 }
 
 export default function HomeClient() {
+  const { data: initialStoreData } = useStoreData();
   const rootRef = useRef<HTMLElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const mainPanelRef = useRef<HTMLDivElement | null>(null);
@@ -127,9 +127,6 @@ export default function HomeClient() {
       .catch(() => {});
   }, [router, sessionStatus]);
 
-  const [storeDataReady, setStoreDataReady] = useState(() => {
-    return false;
-  });
   const [isMounted, setIsMounted] = useState(false);
   const [menuLayer, setMenuLayer] = useState<MenuLayer>("closed");
   const [menuMounted, setMenuMounted] = useState(false);
@@ -137,11 +134,11 @@ export default function HomeClient() {
   const [cartCount, setCartCount] = useState(0);
   const [isCartBouncing, setIsCartBouncing] = useState(false);
   const [statusNotificationCount, setStatusNotificationCount] = useState(0);
-  const [products, setProducts] = useState<HomeProduct[]>([]);
-  const [informations, setInformations] = useState<HomeInformation[]>([]);
-  const [donationActivities, setDonationActivities] = useState<DonationActivity[]>([]);
-  const [testimonials, setTestimonials] = useState<HomeTestimonial[]>([]);
-  const [marquees, setMarquees] = useState<HomeMarquee[]>([]);
+  const [products, setProducts] = useState<HomeProduct[]>(initialStoreData.products ?? []);
+  const [informations, setInformations] = useState<HomeInformation[]>(initialStoreData.informations ?? []);
+  const [donationActivities, setDonationActivities] = useState<DonationActivity[]>(initialStoreData.donationActivities ?? []);
+  const [testimonials, setTestimonials] = useState<HomeTestimonial[]>(initialStoreData.testimonials ?? []);
+  const [marquees, setMarquees] = useState<HomeMarquee[]>(initialStoreData.marquees ?? []);
   const [isTestimonialDragging, setIsTestimonialDragging] = useState(false);
   const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
@@ -161,6 +158,25 @@ export default function HomeClient() {
     return () => {
       window.cancelAnimationFrame(frameId);
     };
+  }, []);
+
+  useEffect(() => {
+    const handleStoreDataUpdated = (event: Event) => {
+      const data = (event as CustomEvent<{
+        products?: HomeProduct[];
+        informations?: HomeInformation[];
+        donationActivities?: DonationActivity[];
+        testimonials?: HomeTestimonial[];
+        marquees?: HomeMarquee[];
+      }>).detail;
+      setProducts(data.products ?? []);
+      setInformations(data.informations ?? []);
+      setDonationActivities(data.donationActivities ?? []);
+      setTestimonials(data.testimonials ?? []);
+      setMarquees(data.marquees ?? []);
+    };
+    window.addEventListener("tokko:store-data-updated", handleStoreDataUpdated);
+    return () => window.removeEventListener("tokko:store-data-updated", handleStoreDataUpdated);
   }, []);
 
   useEffect(() => {
@@ -534,37 +550,11 @@ export default function HomeClient() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-
-    const loadStoreData = () => fetchStoreData()
-      .then((data) => {
-        if (!mounted) {
-          return;
-        }
-        setProducts(data.products ?? []);
-        setInformations(data.informations ?? []);
-        setDonationActivities(data.donationActivities ?? []);
-        setTestimonials(data.testimonials ?? []);
-        setMarquees(data.marquees ?? []);
-        setStoreDataReady(true);
-      })
-      .catch(() => {
-        // keep the homepage usable even if the store API is slow or unavailable
-      });
-
-    void loadStoreData();
-    const refreshTimer = window.setInterval(loadStoreData, 30_000);
-
     void Promise.allSettled([
       fetchSessionCached(PUBLIC_DATA_CACHE_KEY.heroBackgrounds, "/api/hero-backgrounds", { cache: "no-store" }),
       fetchSessionCached(PUBLIC_DATA_CACHE_KEY.portfolio, "/api/portfolio", { cache: "no-store" }),
       fetchSessionCached(PUBLIC_DATA_CACHE_KEY.bookStories, "/api/book-stories/approved", { cache: "no-store" }),
     ]);
-
-    return () => {
-      mounted = false;
-      window.clearInterval(refreshTimer);
-    };
   }, []);
 
   useEffect(() => {
@@ -717,7 +707,6 @@ export default function HomeClient() {
 
   useEffect(() => {
     const shouldRun =
-      storeDataReady &&
       !menuMounted &&
       bestSellerProducts.length > 0 &&
       isOnboardingStageActive(ONBOARDING_STAGE.HOME_PRODUCT);
@@ -737,7 +726,7 @@ export default function HomeClient() {
     }, 160);
 
     return () => window.clearTimeout(timer);
-  }, [storeDataReady, menuMounted, bestSellerProducts.length]);
+  }, [menuMounted, bestSellerProducts.length]);
 
   const renderInformationCard = (item: HomeInformation, key: string) => (
     <article key={key} className={styles.infoCard}>
@@ -1001,12 +990,6 @@ export default function HomeClient() {
         </div>
       </section>
 
-      {!storeDataReady ? (
-        <div className={styles.storeLoading}>
-          <WaitLoading />
-        </div>
-      ) : null}
-
       <AppOnboardingJoyride
         run={isHomeTutorialRunning}
         steps={homeTutorialSteps}
@@ -1126,14 +1109,12 @@ export default function HomeClient() {
         </section>
       ) : null}
 
-      {storeDataReady ? (
-        <section id="tim-marketing" className={styles.section} data-animate="section">
+      <section id="tim-marketing" className={styles.section} data-animate="section">
           <div className={styles.partnerHeader}>
             <h2>Tim Marketing</h2>
           </div>
           <PetaPemasaranDinamis />
-        </section>
-      ) : null}
+      </section>
 
       {testimonials.length > 0 || activeMarquees.length > 0 ? (
       <section className={styles.section} data-animate="section">

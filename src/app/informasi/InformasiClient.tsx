@@ -1,44 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiArrowRight, FiArrowLeft } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
-import { fetchStoreData } from "@/lib/store-client";
+import { useStoreData } from "@/components/providers/StoreDataProvider";
 import type { StoreInformation } from "@/types/store";
 import styles from "./InformasiClient.module.css";
 
 export default function InformasiClient() {
   const router = useRouter();
-  const [informations, setInformations] = useState<StoreInformation[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await fetchStoreData();
-        setInformations(data.informations ?? []);
-      } catch (error) {
-        console.error("Failed to fetch informations:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  if (loading) {
-    return (
-      <main className={styles.page}>
-        <div className={styles.loadingContainer}>
-          <p style={{ textAlign: 'center' }}>Lagi ngambil data, Pastiin internet kamu ada...</p>
-        </div>
-      </main>
-    );
-  }
+  const { data: storeData } = useStoreData();
+  const informations: StoreInformation[] = storeData.informations;
 
   return (
     <main className={styles.page}>

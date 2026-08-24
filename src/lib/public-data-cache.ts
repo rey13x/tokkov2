@@ -52,14 +52,20 @@ export function fetchSessionCached<T>(key: string, url: string, init?: RequestIn
       : 5 * 60_000;
   const memoryValue = memoryCache.get(key) as T | undefined;
   const memoryCachedAt = memoryCacheTimes.get(key) ?? 0;
-  if (memoryValue !== undefined && Date.now() - memoryCachedAt < ttlMs) {
+  const memoryIsEmptyStore = key === PUBLIC_DATA_CACHE_KEY.store
+    && Array.isArray((memoryValue as { products?: unknown[] } | undefined)?.products)
+    && (memoryValue as { products: unknown[] }).products.length === 0;
+  if (memoryValue !== undefined && !memoryIsEmptyStore && Date.now() - memoryCachedAt < ttlMs) {
     return Promise.resolve(memoryValue);
   }
   memoryCache.delete(key);
   memoryCacheTimes.delete(key);
 
   const sessionValue = readSessionCache<T>(key, ttlMs);
-  if (sessionValue !== null) {
+  const sessionIsEmptyStore = key === PUBLIC_DATA_CACHE_KEY.store
+    && Array.isArray((sessionValue as { products?: unknown[] } | null)?.products)
+    && (sessionValue as { products: unknown[] }).products.length === 0;
+  if (sessionValue !== null && !sessionIsEmptyStore) {
     memoryCache.set(key, sessionValue);
     return Promise.resolve(sessionValue);
   }
@@ -96,4 +102,16 @@ export function clearSessionCached(key: string) {
   if (typeof window !== "undefined") {
     window.sessionStorage.removeItem(key);
   }
+}
+
+export function updateCachedStoreData(update: (data: import("@/lib/store-client").StoreData) => import("@/lib/store-client").StoreData) {
+  const current = memoryCache.get(PUBLIC_DATA_CACHE_KEY.store) as import("@/lib/store-client").StoreData | undefined
+    ?? readSessionCache<import("@/lib/store-client").StoreData>(PUBLIC_DATA_CACHE_KEY.store, Number.MAX_SAFE_INTEGER);
+  if (!current) {
+    return;
+  }
+  const next = update(current);
+  memoryCache.set(PUBLIC_DATA_CACHE_KEY.store, next);
+  memoryCacheTimes.set(PUBLIC_DATA_CACHE_KEY.store, Date.now());
+  writeSessionCache(PUBLIC_DATA_CACHE_KEY.store, next);
 }
