@@ -25,6 +25,17 @@ export type StoreData = {
   donationActivities?: DonationActivity[];
 };
 
+export const EMPTY_STORE_DATA: StoreData = {
+  products: [],
+  informations: [],
+  testimonials: [],
+  marquees: [],
+  storyReels: [],
+  paymentSettings: null,
+  privacyPolicy: null,
+  donationActivities: [],
+};
+
 export function fetchStoreData(): Promise<StoreData> {
   return fetchSessionCached<StoreData>(PUBLIC_DATA_CACHE_KEY.store, "/api/store", {
     cache: "no-store",
