@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getPublicStoreData } from "@/server/public-store-data";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const storeData = await getPublicStoreData();

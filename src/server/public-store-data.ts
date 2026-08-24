@@ -15,9 +15,33 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const PUBLIC_DATA_TIMEOUT_MS = 3_000;
+const MAX_PUBLIC_INLINE_MEDIA_LENGTH = 180_000;
 const PUBLIC_DATA_CACHE_FILE = path.join(process.cwd(), "storage", "cache", "public-store.json");
 let localSnapshot: { data: StoreData; cachedAt: number } | null = null;
 let refreshPromise: Promise<StoreData> | null = null;
+
+function compactInlineMedia(value: StoreData): StoreData {
+  const compact = (item: unknown): unknown => {
+    if (Array.isArray(item)) {
+      return item.map(compact);
+    }
+    if (!item || typeof item !== "object") {
+      return item;
+    }
+
+    return Object.fromEntries(
+      Object.entries(item).map(([key, nestedValue]) => {
+        const isMediaField = /url|image|media|audio|video/i.test(key);
+        if (isMediaField && typeof nestedValue === "string" && nestedValue.startsWith("data:") && nestedValue.length > MAX_PUBLIC_INLINE_MEDIA_LENGTH) {
+          return [key, ""];
+        }
+        return [key, compact(nestedValue)];
+      }),
+    );
+  };
+
+  return compact(value) as StoreData;
+}
 
 function withTimeout<T>(promise: Promise<T>, fallback: T, name: string, timeoutMs = PUBLIC_DATA_TIMEOUT_MS): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -53,7 +77,7 @@ async function loadPublicStoreData(): Promise<StoreData> {
     withTimeout(listDonationActivities(), [], "donationActivities"),
   ]);
 
-  const data = { products, informations, testimonials, marquees, storyReels, paymentSettings, privacyPolicy, donationActivities };
+  const data = compactInlineMedia({ products, informations, testimonials, marquees, storyReels, paymentSettings, privacyPolicy, donationActivities });
   if (products.length > 0 || informations.length > 0 || testimonials.length > 0) {
     localSnapshot = { data, cachedAt: Date.now() };
     await mkdir(path.dirname(PUBLIC_DATA_CACHE_FILE), { recursive: true }).catch(() => undefined);
@@ -72,7 +96,7 @@ function readLocalSnapshot() {
     const parsed = JSON.parse(raw) as { data?: StoreData; cachedAt?: number };
     const hasCatalog = Boolean(parsed.data?.products && parsed.data.products.length > 0);
     if (parsed.data && typeof parsed.cachedAt === "number" && hasCatalog) {
-      localSnapshot = { data: parsed.data, cachedAt: parsed.cachedAt };
+      localSnapshot = { data: compactInlineMedia(parsed.data), cachedAt: parsed.cachedAt };
       return localSnapshot;
     }
   } catch {
