@@ -3,7 +3,6 @@ import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
 import { deleteProduct, updateProduct } from "@/server/store-data";
 import { sendTelegramActivityNotification } from "@/server/notifications";
-import { refreshPublicStoreData } from "@/server/public-store-data";
 
 const normalizeExternalUrl = (value: unknown) => {
   if (typeof value !== "string") return value;
@@ -68,7 +67,6 @@ export async function PATCH(request: Request, context: { params: Params }) {
         `Harga: Rp ${product.price.toLocaleString("id-ID")}`,
       ],
     });
-    refreshPublicStoreData();
 
     return NextResponse.json({ product });
   } catch (error) {
@@ -104,6 +102,5 @@ export async function DELETE(_request: Request, context: { params: Params }) {
     description: `Admin menghapus produk ${id}.`,
     metadata: [`Produk ID: ${id}`],
   });
-  refreshPublicStoreData();
   return NextResponse.json({ message: "Produk berhasil dihapus." });
 }

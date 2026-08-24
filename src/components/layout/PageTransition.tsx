@@ -95,23 +95,20 @@ export default function PageTransition({
 
   return (
     <div ref={wrapRef} className="route-transition-shell">
-      {isRouteLoading ? (
+      {isRouteLoading && pathname !== "/" ? (
         <div
           style={{
             position: "fixed",
-            inset: 0,
+            top: pathname.startsWith("/produk/") ? "50%" : "10px",
+            left: "50%",
+            transform: pathname.startsWith("/produk/")
+              ? "translate(-50%, -50%)"
+              : "translateX(-50%)",
             zIndex: 1200,
-            display: "grid",
-            placeItems: "center",
-            background: "rgba(255, 255, 255, 0.52)",
-            backdropFilter: "blur(2px)",
-            pointerEvents: "all",
+            pointerEvents: "none",
           }}
         >
-          <WaitLoading
-            centered
-            text={pathname === "/troli" || pathname === "/status-pemesanan" ? "Proses Data, Pastiin internet kamu ada..." : "Lagi ngambil data, Pastiin internet kamu ada..."}
-          />
+          <WaitLoading />
         </div>
       ) : null}
       {children}

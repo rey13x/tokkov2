@@ -1,15 +1,30 @@
 import { NextResponse } from "next/server";
-import { getPublicStoreData } from "@/server/public-store-data";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+import {
+  getPaymentSettings,
+  listInformations,
+  listMarquees,
+  listProducts,
+  getPrivacyPolicyPage,
+  listStoryReels,
+  listTestimonials,
+  listDonationActivities,
+} from "@/server/store-data";
 
 export async function GET() {
   try {
-    const storeData = await getPublicStoreData();
+    const [products, informations, testimonials, marquees, storyReels, paymentSettings, privacyPolicy, donationActivities] = await Promise.all([
+      listProducts(),
+      listInformations(),
+      listTestimonials(),
+      listMarquees(),
+      listStoryReels(),
+      getPaymentSettings(),
+      getPrivacyPolicyPage(),
+      listDonationActivities(),
+    ]);
 
     return NextResponse.json(
-      storeData,
+      { products, informations, testimonials, marquees, storyReels, paymentSettings, privacyPolicy, donationActivities },
       {
         headers: {
           "Cache-Control": "public, max-age=5, s-maxage=10, stale-while-revalidate=60",

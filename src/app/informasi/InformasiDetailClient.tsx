@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FiArrowLeft } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
-import { useStoreData } from "@/components/providers/StoreDataProvider";
+import { fetchStoreData } from "@/lib/store-client";
 import type { StoreInformation } from "@/types/store";
 import styles from "./[id]/InformasiDetailClient.module.css";
 
@@ -15,12 +15,28 @@ type Props = {
 
 export default function InformasiDetailClient({ id }: Props) {
   const router = useRouter();
-  const { data: storeData } = useStoreData();
-  const [information, setInformation] = useState<StoreInformation | null>(() =>
-    storeData.informations.find((item) => item.id === id) ?? null,
-  );
+  const [information, setInformation] = useState<StoreInformation | null>(null);
+  const [loading, setLoading] = useState(true);
   const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await fetchStoreData();
+        const found = data.informations?.find((info) => info.id === id);
+        if (found) {
+          setInformation(found);
+        }
+      } catch (error) {
+        console.error("Failed to fetch information:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id]);
 
   const handlePollVote = async (optionIndex: number) => {
     if (!information || activePollVoteId) {
@@ -51,6 +67,16 @@ export default function InformasiDetailClient({ id }: Props) {
       setActivePollVoteId(null);
     }
   };
+
+  if (loading) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.loadingContainer}>
+          <p style={{ textAlign: 'center' }}>Lagi ngambil data, Pastiin internet kamu ada...</p>
+        </div>
+      </main>
+    );
+  }
 
   if (!information) {
     return (

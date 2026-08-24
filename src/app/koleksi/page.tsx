@@ -12,7 +12,8 @@ import { addToCart } from "@/lib/cart";
 import { categoryToSlug } from "@/lib/category";
 import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
 import { getProductPath } from "@/lib/product-routing";
-import { useStoreData } from "@/components/providers/StoreDataProvider";
+import { fetchStoreData } from "@/lib/store-client";
+import WaitLoading from "@/components/ui/WaitLoading";
 import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
 
@@ -24,15 +25,22 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
   const router = useRouter();
   const { data: session, status } = useSession();
   const { isMaintenanceEnabled } = useMaintenanceMode();
-  const { data: storeData } = useStoreData();
   const stickyRef = useRef<HTMLElement | null>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
   const initialCategory = category ?? "Semua";
   const [activeCategory, setActiveCategory] = useState(initialCategory);
-  const products = storeData.products;
+  const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [query, setQuery] = useState("");
   const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
   const [cartNotice, setCartNotice] = useState("");
+
+  useEffect(() => {
+    fetchStoreData()
+      .then((data) => setProducts(data.products))
+      .catch(() => {})
+      .finally(() => setIsLoadingProducts(false));
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -169,7 +177,7 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
 
       {cartNotice ? <p className={styles.cartNotice}>{cartNotice}</p> : null}
 
-      {filtered.length > 0 ? (
+      {isLoadingProducts ? <WaitLoading centered /> : filtered.length > 0 ? (
         <section className={styles.productGrid}>
           {filtered.map((product) => (
             <article key={product.id} className={styles.productShell}>

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
-import { requireAdmin } from "@/server/admin";
 
 export async function POST(request: Request) {
   // Dev-only endpoint - only works in development
@@ -9,11 +8,6 @@ export async function POST(request: Request) {
       { message: "This endpoint is only available in development" },
       { status: 403 }
     );
-  }
-
-  const auth = await requireAdmin();
-  if (!auth.ok) {
-    return auth.response;
   }
 
   const firestore = getFirebaseFirestore() as any;

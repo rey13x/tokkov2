@@ -7,7 +7,6 @@ import {
   listAllProducts,
 } from "@/server/store-data";
 import { notifyNativeUsers, sendTelegramActivityNotification } from "@/server/notifications";
-import { refreshPublicStoreData } from "@/server/public-store-data";
 
 const normalizeExternalUrl = (value: unknown) => {
   if (typeof value !== "string") return value;
@@ -138,6 +137,5 @@ export async function DELETE() {
     actorEmail: auth.admin.email ?? "-",
     description: "Admin menghapus semua produk.",
   });
-  refreshPublicStoreData();
   return NextResponse.json({ message: "Semua produk berhasil dihapus." });
 }

@@ -20,13 +20,7 @@ export async function POST(
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
-    const sameUserId = order.userId === session.user.id;
-    const sameVerifiedEmail = Boolean(
-      session.user.email
-      && order.userEmail
-      && order.userEmail.trim().toLowerCase() === session.user.email.trim().toLowerCase(),
-    );
-    if (!sameUserId && !sameVerifiedEmail) {
+    if (order.userId !== session.user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     if (["paid", "sent"].includes(order.status)) {

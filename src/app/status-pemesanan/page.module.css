@@ -124,61 +124,11 @@
   background: #ffffff;
 }
 
-.historyLoadingOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(3px);
-  pointer-events: all;
-}
-
 .donationHistoryHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-.historyToggle,
-.historySectionToggle {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.historyToggle {
-  padding: 0;
-  text-align: left;
-}
-
-.historySectionToggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 2px 2px;
-  text-align: left;
-}
-
-.historyToggleIcon {
-  display: inline-grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  border: 1px solid #d8dce5;
-  border-radius: 50%;
-  color: #10131a;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.donationHistoryActions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .donationHistoryTitle {
@@ -290,14 +240,6 @@
   margin-top: 14px;
 }
 
-.historyScrollArea {
-  animation: historyReveal 180ms ease-out both;
-}
-
-.donationHistoryList.historyScrollArea {
-  padding-right: 4px;
-}
-
 .donationHistoryItem {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -350,34 +292,6 @@
 .listWrap {
   display: grid;
   gap: 10px;
-}
-
-.orderHistoryScrollArea,
-.jobHistoryScrollArea {
-  padding: 12px;
-  border: 1px solid #d8dce5;
-  border-radius: 20px;
-  background: #ffffff;
-}
-
-.historyCardsScrollArea {
-  animation: historyReveal 180ms ease-out both;
-}
-
-@keyframes historyReveal {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.jobHistoryScrollArea {
-  max-height: min(320px, 42vh);
 }
 
 .orderCard {
@@ -1003,36 +917,6 @@
   display: flex;
   justify-content: center;
   padding-top: 4px;
-}
-
-.expandPreviewButton {
-  width: 44px;
-  height: 44px;
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 44px;
-  padding: 0;
-  border: 1px solid #10131a;
-  border-radius: 50%;
-  background: #10131a;
-  color: #ffffff;
-  cursor: pointer;
-  transition: transform 160ms ease, background-color 160ms ease;
-}
-
-.expandPreviewButton:hover {
-  transform: scale(1.05);
-  background: #273143;
-}
-
-.expandPreviewButton:focus-visible {
-  outline: 3px solid #7c9cff;
-  outline-offset: 3px;
-}
-
-.expandPreviewButton svg {
-  width: 19px;
-  height: 19px;
 }
 
 .popupCardEntering {

@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
-import { useStoreData } from "@/components/providers/StoreDataProvider";
+import { useEffect, useState } from "react";
+import WaitLoading from "@/components/ui/WaitLoading";
+import { fetchStoreData } from "@/lib/store-client";
 import styles from "./page.module.css";
 
 const FALLBACK_POLICY = {
@@ -29,8 +30,32 @@ function sanitizeBannerSrc(rawUrl: string) {
 }
 
 export default function PrivacyCertificationClient() {
-  const { data: storeData } = useStoreData();
-  const policy = storeData.privacyPolicy ?? FALLBACK_POLICY;
+  const [policy, setPolicy] = useState(FALLBACK_POLICY);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchStoreData()
+      .then((data) => {
+        if (mounted && data.privacyPolicy) {
+          setPolicy(data.privacyPolicy);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (isLoading) {
+    return <WaitLoading centered />;
+  }
 
   return (
     <main className={styles.page}>

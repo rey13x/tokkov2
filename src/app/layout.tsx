@@ -9,7 +9,6 @@ import { AuthSessionProvider } from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import ClientProviders from "@/components/providers/ClientProviders";
 import AdPopup from "@/components/popup/AdPopup";
-import { EMPTY_STORE_DATA } from "@/lib/store-client";
 import "./globals.css";
 
 const sora = Sora({
@@ -35,11 +34,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport = {
-  themeColor: "#111319",
-};
-
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -49,7 +44,7 @@ export default async function RootLayout({
       <body className={`${sora.variable} ${spaceMono.variable}`}>
         <ThemeProvider>
           <AuthSessionProvider>
-            <ClientProviders initialStoreData={EMPTY_STORE_DATA}>
+            <ClientProviders>
               <div id="smooth-wrapper">
                 <div id="smooth-content">
                   <PageTransition>{children}</PageTransition>
