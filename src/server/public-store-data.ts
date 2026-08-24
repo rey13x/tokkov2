@@ -21,6 +21,13 @@ let localSnapshot: { data: StoreData; cachedAt: number } | null = null;
 let refreshPromise: Promise<StoreData> | null = null;
 
 function compactInlineMedia(value: StoreData): StoreData {
+  const fallbackForMediaField = (key: string) => {
+    if (/audio/i.test(key)) {
+      return "/assets/notif.mp3";
+    }
+    return "/assets/Background.jpg";
+  };
+
   const compact = (item: unknown): unknown => {
     if (Array.isArray(item)) {
       return item.map(compact);
@@ -33,7 +40,7 @@ function compactInlineMedia(value: StoreData): StoreData {
       Object.entries(item).map(([key, nestedValue]) => {
         const isMediaField = /url|image|media|audio|video/i.test(key);
         if (isMediaField && typeof nestedValue === "string" && nestedValue.startsWith("data:") && nestedValue.length > MAX_PUBLIC_INLINE_MEDIA_LENGTH) {
-          return [key, ""];
+          return [key, fallbackForMediaField(key)];
         }
         return [key, compact(nestedValue)];
       }),
