@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const PUBLIC_DATA_TIMEOUT_MS = 3_000;
-const MAX_PUBLIC_INLINE_MEDIA_LENGTH = 180_000;
+const MAX_PUBLIC_INLINE_MEDIA_LENGTH = 20_000;
 const PUBLIC_DATA_CACHE_FILE = path.join(process.cwd(), "storage", "cache", "public-store.json");
 let localSnapshot: { data: StoreData; cachedAt: number } | null = null;
 let refreshPromise: Promise<StoreData> | null = null;
