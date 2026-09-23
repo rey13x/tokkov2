@@ -1316,12 +1316,12 @@
 .orderDeleteButton {
   background: #be2040;
   border-color: #be2040;
-  color: #11151f;
+  color: #ffffff;
 }
 
 .orderDeleteButton:hover:not(:disabled) {
   background: #a71b37;
-  color: #11151f;
+  color: #ffffff;
 }
 
 .emptyState {
