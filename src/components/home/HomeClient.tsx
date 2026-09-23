@@ -10,7 +10,6 @@ import { useSession } from "next-auth/react";
 import type { CallBackProps, Step } from "react-joyride";
 import dynamic from "next/dynamic";
 import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   FiArrowLeft,
   FiChevronRight,
@@ -624,69 +623,6 @@ export default function HomeClient() {
       setActivePollVoteId(null);
     }
   };
-
-  useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        "[data-animate='hero']",
-        { y: 38, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.9,
-          stagger: 0.09,
-          ease: "back.out(1.55)",
-        },
-      );
-
-      const sections = gsap.utils.toArray<HTMLElement>("[data-animate='section']");
-      sections.forEach((section) => {
-        gsap.fromTo(
-          section,
-          { y: 44, opacity: 0.12, scale: 0.98 },
-          {
-            y: 0,
-            opacity: 1,
-            scale: 1,
-            duration: 0.84,
-            ease: "back.out(1.2)",
-            scrollTrigger: {
-              trigger: section,
-              start: "top 86%",
-              toggleActions: "play none none reverse",
-            },
-          },
-        );
-      });
-
-      const cards = gsap.utils.toArray<HTMLElement>("[data-card='product']");
-      cards.forEach((card, index) => {
-        gsap.fromTo(
-          card,
-          { y: 26 + (index % 3) * 6, opacity: 0, rotateZ: index % 2 === 0 ? -1 : 1 },
-          {
-            y: 0,
-            opacity: 1,
-            rotateZ: 0,
-            duration: 0.82,
-            ease: "back.out(1.18)",
-            scrollTrigger: {
-              trigger: card,
-              start: "top 92%",
-              toggleActions: "play none none reverse",
-            },
-          },
-        );
-      });
-
-    }, rootRef);
-
-    return () => {
-      ctx.revert();
-    };
-  }, []);
 
   useEffect(() => {
     if (!isMounted || !menuFabRef.current) {
