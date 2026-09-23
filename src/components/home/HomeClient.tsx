@@ -1029,7 +1029,8 @@ export default function HomeClient() {
       </section>
       ) : null}
 
-      {donationSection ? (
+      {/* Heart for Humanity temporarily disabled; keep this block for later reactivation. */}
+      {/* {donationSection ? (
         <section className={`${styles.section} ${styles.donationSection}`} data-animate="section">
           <div className={styles.donationHeader}>
             <h2>{donationSection.title}</h2>
@@ -1070,7 +1071,7 @@ export default function HomeClient() {
             Lihat aktivitas donasi
           </Link>
         </section>
-      ) : null}
+      ) : null} */}
 
       {storeDataReady ? (
         <section id="tim-marketing" className={styles.section} data-animate="section">
@@ -1081,7 +1082,8 @@ export default function HomeClient() {
         </section>
       ) : null}
 
-      {testimonials.length > 0 || activeMarquees.length > 0 ? (
+      {/* Partner testimonials temporarily disabled; the logo marquee below stays active. */}
+      {/* {testimonials.length > 0 || activeMarquees.length > 0 ? (
       <section className={styles.section} data-animate="section">
         <div className={styles.partnerHeader}>
           <h2>Bekerja sama dengan</h2>
@@ -1116,7 +1118,7 @@ export default function HomeClient() {
         ) : null}
 
       </section>
-      ) : null}
+      ) : null} */}
 
       {activeMarquees.length > 0 ? (
       <section className={styles.section} data-animate="section">

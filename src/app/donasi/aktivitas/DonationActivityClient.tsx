@@ -12,6 +12,7 @@ import styles from "./page.module.css";
 
 const labels = { income: "Pemasukan", expense: "Pengeluaran", refund: "Pengembalian" } as const;
 const signs = { income: "+", expense: "-", refund: "-" } as const;
+const DONATION_ACTIVITY_ENABLED = false;
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("id-ID", {
@@ -28,6 +29,11 @@ export default function DonationActivityClient() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!DONATION_ACTIVITY_ENABLED) {
+      setLoading(false);
+      return;
+    }
+
     const loadData = () => fetchStoreData()
       .then((data) => {
         setActivities(data.donationActivities ?? []);
@@ -46,6 +52,18 @@ export default function DonationActivityClient() {
 
   const total = useMemo(() => productsTotal, [productsTotal]);
   const filteredActivities = filter === "all" ? activities : activities.filter((activity) => activity.type === filter);
+
+  if (!DONATION_ACTIVITY_ENABLED) {
+    return (
+      <main className={styles.page}>
+        <section className={styles.activitySection}>
+          <p className={styles.eyebrow}>CATATAN</p>
+          <h1>Aktivitas Donasi</h1>
+          <p className={styles.empty}>Halaman aktivasi donasi sedang dinonaktifkan sementara.</p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className={styles.page}>
