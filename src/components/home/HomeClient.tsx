@@ -43,7 +43,7 @@ import {
   requestOnboardingBoot,
   startOnboarding,
 } from "@/lib/onboarding";
-import { fetchStoreData } from "@/lib/store-client";
+import { fetchStoreSupportingData, fetchStoreProducts } from "@/lib/store-client";
 import { clearSessionCached, fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
 import type {
   DonationActivity,
@@ -542,12 +542,20 @@ export default function HomeClient() {
   useEffect(() => {
     let mounted = true;
 
-    const loadStoreData = () => fetchStoreData()
+    const loadProducts = () => fetchStoreProducts()
       .then((data) => {
         if (!mounted) {
           return;
         }
         setProducts(data.products ?? []);
+      })
+      .catch(() => {});
+
+    const loadSupportingData = () => fetchStoreSupportingData()
+      .then((data) => {
+        if (!mounted) {
+          return;
+        }
         setInformations(data.informations ?? []);
         setDonationActivities(data.donationActivities ?? []);
         setTestimonials(data.testimonials ?? []);
@@ -558,7 +566,8 @@ export default function HomeClient() {
         // keep the homepage usable even if the store API is slow or unavailable
       });
 
-    void loadStoreData();
+    void loadProducts();
+    void loadSupportingData();
 
     void fetchSessionCached(PUBLIC_DATA_CACHE_KEY.heroBackgrounds, "/api/hero-backgrounds", { cache: "no-store" });
 

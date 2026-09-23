@@ -10,10 +10,18 @@ import {
   listDonationActivities,
 } from "@/server/store-data";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const params = new URL(request.url).searchParams;
+    if (params.get("productsOnly") === "1") {
+      return NextResponse.json(
+        { products: await listProducts() },
+        { headers: { "Cache-Control": "public, max-age=5, s-maxage=10, stale-while-revalidate=60" } },
+      );
+    }
+
     const [products, informations, testimonials, marquees, storyReels, paymentSettings, privacyPolicy, donationActivities] = await Promise.all([
-      listProducts(),
+      params.get("withoutProducts") === "1" ? Promise.resolve([]) : listProducts(),
       listInformations(),
       listTestimonials(),
       listMarquees(),

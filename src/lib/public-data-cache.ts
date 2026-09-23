@@ -4,6 +4,8 @@ const pendingRequests = new Map<string, Promise<unknown>>();
 
 export const PUBLIC_DATA_CACHE_KEY = {
   store: "tokko_store_data_cache_v2",
+  storeProducts: "tokko_store_products_cache_v1",
+  storeSupporting: "tokko_store_supporting_cache_v1",
   heroBackgrounds: "tokko_hero_backgrounds_cache_v1",
   portfolio: "tokko_portfolio_cache_v1",
   bookStories: "tokko_book_stories_cache_v1",
@@ -47,7 +49,7 @@ function writeSessionCache<T>(key: string, value: T) {
 export function fetchSessionCached<T>(key: string, url: string, init?: RequestInit): Promise<T> {
   const ttlMs = key === PUBLIC_DATA_CACHE_KEY.heroBackgrounds
     ? 0
-    : key === PUBLIC_DATA_CACHE_KEY.store
+    : key === PUBLIC_DATA_CACHE_KEY.store || key === PUBLIC_DATA_CACHE_KEY.storeProducts || key === PUBLIC_DATA_CACHE_KEY.storeSupporting
     ? 24 * 60 * 60_000
     : key === PUBLIC_DATA_CACHE_KEY.bookStories
     ? 24 * 60 * 60_000

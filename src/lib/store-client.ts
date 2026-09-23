@@ -31,6 +31,22 @@ export function fetchStoreData(): Promise<StoreData> {
   });
 }
 
+export function fetchStoreProducts(): Promise<Pick<StoreData, "products">> {
+  return fetchSessionCached<Pick<StoreData, "products">>(
+    PUBLIC_DATA_CACHE_KEY.storeProducts,
+    "/api/store?productsOnly=1",
+    { cache: "no-store" },
+  );
+}
+
+export function fetchStoreSupportingData(): Promise<Omit<StoreData, "products">> {
+  return fetchSessionCached<Omit<StoreData, "products">>(
+    PUBLIC_DATA_CACHE_KEY.storeSupporting,
+    "/api/store?withoutProducts=1",
+    { cache: "no-store" },
+  );
+}
+
 export function clearStoreDataCache() {
   clearSessionCached(PUBLIC_DATA_CACHE_KEY.store);
 }
