@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useMemo, FormEvent, ChangeEvent } f
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
-import { TrendingUp } from "lucide-react";
+import { Laptop, Smartphone, Tablet, TrendingUp } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
@@ -309,6 +309,7 @@ function AdminManagementSection() {
     sortOrder: 0,
   });
   const [previewVersion, setPreviewVersion] = useState(0);
+    const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
   const [isUploadingInfoImage, setIsUploadingInfoImage] = useState(false);
   const [isUploadingTestimonialMedia, setIsUploadingTestimonialMedia] = useState(false);
@@ -6361,6 +6362,35 @@ function AdminManagementSection() {
           <div className={styles.cardHead}>
             <h2>Preview Realtime</h2>
             <div className={styles.rowActions}>
+              <div className={styles.previewDeviceSwitch} aria-label="Ukuran preview">
+                <button
+                  type="button"
+                  className={previewDevice === "mobile" ? styles.previewDeviceButtonActive : styles.previewDeviceButton}
+                  onClick={() => setPreviewDevice("mobile")}
+                  aria-label="Preview ukuran handphone"
+                  title="Handphone"
+                >
+                  <Smartphone size={16} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className={previewDevice === "tablet" ? styles.previewDeviceButtonActive : styles.previewDeviceButton}
+                  onClick={() => setPreviewDevice("tablet")}
+                  aria-label="Preview ukuran tablet"
+                  title="Tablet"
+                >
+                  <Tablet size={16} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className={previewDevice === "desktop" ? styles.previewDeviceButtonActive : styles.previewDeviceButton}
+                  onClick={() => setPreviewDevice("desktop")}
+                  aria-label="Preview ukuran laptop"
+                  title="Laptop"
+                >
+                  <Laptop size={16} aria-hidden="true" />
+                </button>
+              </div>
               <button type="button" onClick={bumpPreview}>
                 Refresh Preview
               </button>
@@ -6377,7 +6407,13 @@ function AdminManagementSection() {
               key={previewVersion}
               src={`/?adminPreview=${previewVersion}`}
               title="Preview Beranda Tokko"
-              className={styles.previewFrame}
+              className={`${styles.previewFrame} ${
+                previewDevice === "mobile"
+                  ? styles.previewFrameMobile
+                  : previewDevice === "tablet"
+                    ? styles.previewFrameTablet
+                    : styles.previewFrameDesktop
+              }`}
             />
           </div>
         </article>
