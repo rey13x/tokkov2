@@ -3002,7 +3002,8 @@ function AdminManagementSection() {
                   <div className={styles.orderDetails}>
                     <p className={styles.orderTitle}>{order.userName} <small>#{order.id.slice(0, 8).toUpperCase()}</small></p>
                     <span className={styles.orderAmount}>
-                      {formatRupiah(order.total)} - {new Date(order.createdAt).toLocaleString("id-ID")}
+                      <strong>Total</strong> {formatRupiah(order.total)}
+                      <small>{new Date(order.createdAt).toLocaleString("id-ID")}</small>
                     </span>
                     <span className={styles.orderStatus}>
                       <strong>Status:</strong> {statusOrderLabel(order.status)}
@@ -3012,20 +3013,20 @@ function AdminManagementSection() {
                       <strong>Request Batal:</strong> {cancelRequestStatusLabel(order.cancelRequestStatus)}
                     </span>
                     {order.cancelRequestReason ? (
-                      <span>Alasan: {order.cancelRequestReason}</span>
+                      <span className={styles.orderDetailLine}><strong>Alasan:</strong> {order.cancelRequestReason}</span>
                     ) : null}
                     {order.cancelRequestedAt ? (
-                      <span>
-                        Waktu Request: {new Date(order.cancelRequestedAt).toLocaleString("id-ID")}
+                      <span className={styles.orderDetailLine}>
+                        <strong>Waktu Request:</strong> {new Date(order.cancelRequestedAt).toLocaleString("id-ID")}
                       </span>
                     ) : null}
                     {order.cancelConfirmedAt ? (
-                      <span>
-                        Waktu Konfirmasi: {new Date(order.cancelConfirmedAt).toLocaleString("id-ID")}
+                      <span className={styles.orderDetailLine}>
+                        <strong>Waktu Konfirmasi:</strong> {new Date(order.cancelConfirmedAt).toLocaleString("id-ID")}
                       </span>
                     ) : null}
-                    <label>
-                      Catatan admin
+                    <label className={styles.orderNoteLabel}>
+                      <strong>Catatan admin</strong>
                       <textarea
                         value={orderNoteDrafts[order.id] ?? ""}
                         onChange={(event) =>
@@ -3037,8 +3038,8 @@ function AdminManagementSection() {
                       />
                     </label>
                     {order.items && order.items.length > 0 ? (
-                      <span>
-                        Produk:{" "}
+                      <span className={styles.orderDetailLine}>
+                        <strong>Produk:</strong>{" "}
                         {order.items
                           .map((item) => {
                             // Try to display productId and quantity (StoreOrderItem)
