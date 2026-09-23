@@ -1471,7 +1471,28 @@
 
   .listItem > .rowActions {
     width: 100%;
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .listItem > .rowActions select {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+  }
+
+  .listItem > .rowActions button,
+  .listItem > .rowActions a {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .listItem label {
+    display: block;
+    margin-top: 8px;
   }
 
   .previewCard {
