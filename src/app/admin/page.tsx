@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useMemo, FormEvent, ChangeEvent } f
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
-import { Laptop, Smartphone, Tablet, TrendingUp } from "lucide-react";
+import { Laptop, RotateCw, Smartphone, Tablet, TrendingUp } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
@@ -194,6 +194,28 @@ function cancelRequestStatusLabel(status: string | undefined) {
   return "Tidak ada";
 }
 
+function whatsappPhoneNumber(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) {
+    return "";
+  }
+  return digits.startsWith("0") ? `62${digits.slice(1)}` : digits.startsWith("62") ? digits : `62${digits}`;
+}
+
+function whatsappUserMessage(user: { username: string; email: string; loginMethod: string; purchaseCount: number; jobApplicationCount: number; lastActiveAt?: string | null; createdAt: string }, customMessage: string) {
+  const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleDateString("id-ID") : "-");
+  const details = [
+    `Username: ${user.username || "-"}`,
+    `Email: ${user.email || "-"}`,
+    `Login: ${user.loginMethod || "-"}`,
+    `Beli: ${user.purchaseCount ?? 0}`,
+    `Lamar: ${user.jobApplicationCount ?? 0}`,
+    `Last active: ${formatDate(user.lastActiveAt)}`,
+    `Join: ${formatDate(user.createdAt)}`,
+  ].join("\n");
+  return `${customMessage.trim() || "Halo, kami ingin menghubungi kamu dari Tokko."}\n\n${details}`;
+}
+
 function AdminManagementSection() {
       const [productForm, setProductForm] = useState<typeof defaultProductForm>(defaultProductForm);
     // Main admin dashboard state
@@ -310,6 +332,9 @@ function AdminManagementSection() {
   });
   const [previewVersion, setPreviewVersion] = useState(0);
     const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [previewOrientation, setPreviewOrientation] = useState<"portrait" | "landscape">("portrait");
+  const [previewIsMinimized, setPreviewIsMinimized] = useState(false);
+  const [whatsappDrafts, setWhatsappDrafts] = useState<Record<string, string>>({});
   const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
   const [isUploadingInfoImage, setIsUploadingInfoImage] = useState(false);
   const [isUploadingTestimonialMedia, setIsUploadingTestimonialMedia] = useState(false);
@@ -6173,6 +6198,7 @@ function AdminManagementSection() {
                     <tr style={{ borderBottom: "1px solid #ddd" }}>
                       <th style={{ padding: "8px", textAlign: "left" }}>Username</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Email</th>
+                      <th style={{ padding: "8px", textAlign: "left" }}>No. Telepon</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Login</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Beli</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Lamar</th>
@@ -6186,6 +6212,23 @@ function AdminManagementSection() {
                       <tr key={user.id} style={{ borderBottom: "1px solid #eee" }}>
                         <td data-label="Username" style={{ padding: "8px" }}>{user.username}</td>
                         <td data-label="Email" style={{ padding: "8px", fontSize: "12px" }}>{user.email}</td>
+                        <td data-label="No. Telepon" style={{ padding: "8px", fontSize: "12px" }}>
+                          {user.phone ? (
+                            <a
+                              className={styles.whatsappPhoneLink}
+                              href={`https://wa.me/${whatsappPhoneNumber(user.phone)}?text=${encodeURIComponent(
+                                whatsappUserMessage(user, whatsappDrafts[user.id] || ""),
+                              )}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Buka WhatsApp dengan pesan otomatis"
+                            >
+                              {user.phone}
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
                         <td data-label="Login" style={{ padding: "8px" }}>
                           <span className={`${styles.loginBadge} ${user.loginMethod === "Google" ? styles.googleBadge : styles.tokkoBadge}`}>
                             {user.loginMethod === "Google" ? "Google" : "Tokko"}
@@ -6236,6 +6279,25 @@ function AdminManagementSection() {
                         </td>
                         <td data-label="Aksi" style={{ padding: "8px", textAlign: "center" }}>
                           <div className={styles.userActions}>
+                            <input
+                              className={styles.whatsappMessageInput}
+                              value={whatsappDrafts[user.id] || ""}
+                              onChange={(event) => setWhatsappDrafts((current) => ({ ...current, [user.id]: event.target.value }))}
+                              placeholder="Pesan custom..."
+                              aria-label={`Pesan WhatsApp untuk ${user.username}`}
+                            />
+                            {user.phone ? (
+                              <a
+                                className={`${styles.primaryButton} ${styles.userActionButton} ${styles.whatsappButton}`}
+                                href={`https://wa.me/${whatsappPhoneNumber(user.phone)}?text=${encodeURIComponent(
+                                  whatsappUserMessage(user, whatsappDrafts[user.id] || ""),
+                                )}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Kirim WA
+                              </a>
+                            ) : null}
                             <button
                               type="button"
                               className={`${styles.secondaryButton} ${styles.userActionButton}`}
@@ -6391,6 +6453,26 @@ function AdminManagementSection() {
                   <Laptop size={16} aria-hidden="true" />
                 </button>
               </div>
+              {previewDevice !== "desktop" ? (
+                <button
+                  type="button"
+                  className={styles.previewIconButton}
+                  onClick={() => setPreviewOrientation((current) => (current === "portrait" ? "landscape" : "portrait"))}
+                  aria-label={`Putar preview ke posisi ${previewOrientation === "portrait" ? "landscape" : "portrait"}`}
+                  title="Putar preview"
+                >
+                  <RotateCw size={16} aria-hidden="true" />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={styles.previewIconButton}
+                onClick={() => setPreviewIsMinimized((current) => !current)}
+                aria-label={previewIsMinimized ? "Besarkan preview" : "Kecilkan preview"}
+                title={previewIsMinimized ? "Besarkan preview" : "Kecilkan preview"}
+              >
+                {previewIsMinimized ? "□" : "−"}
+              </button>
               <button type="button" onClick={bumpPreview}>
                 Refresh Preview
               </button>
@@ -6402,18 +6484,18 @@ function AdminManagementSection() {
           <p className={styles.previewHint}>
             Setiap create/update/delete akan otomatis refresh preview ini.
           </p>
-          <div className={styles.previewViewport}>
+          <div className={`${styles.previewViewport} ${previewIsMinimized ? styles.previewViewportMinimized : ""}`}>
             <iframe
               key={previewVersion}
               src={`/?adminPreview=${previewVersion}`}
               title="Preview Beranda Tokko"
               className={`${styles.previewFrame} ${
                 previewDevice === "mobile"
-                  ? styles.previewFrameMobile
+                  ? previewOrientation === "landscape" ? styles.previewFrameMobileLandscape : styles.previewFrameMobile
                   : previewDevice === "tablet"
-                    ? styles.previewFrameTablet
+                    ? previewOrientation === "landscape" ? styles.previewFrameTabletLandscape : styles.previewFrameTablet
                     : styles.previewFrameDesktop
-              }`}
+              } ${previewIsMinimized ? styles.previewFrameMinimized : ""}`}
             />
           </div>
         </article>
