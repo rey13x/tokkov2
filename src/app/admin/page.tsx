@@ -2960,6 +2960,13 @@ function AdminManagementSection() {
               </button>
             </div>
           </div>
+          <p className={styles.managementHint}>
+            Hubungi melalui Whatsapp{" "}
+            <a className={styles.adminWhatsappLink} href="https://wa.me/6285121579597" target="_blank" rel="noreferrer">
+              6285121579597
+            </a>{" "}
+            jika ada trouble
+          </p>
           <div className={styles.list}>
             {filteredOrders.map((order) => (
               <div key={order.id} className={styles.listItem}>
@@ -6223,6 +6230,13 @@ function AdminManagementSection() {
                 </button>
               </div>
             </div>
+            <p className={styles.managementHint}>
+              Hubungi melalui Whatsapp{" "}
+              <a className={styles.adminWhatsappLink} href="https://wa.me/6285121579597" target="_blank" rel="noreferrer">
+                6285121579597
+              </a>{" "}
+              jika ada trouble
+            </p>
 
             <div className={styles.list}>
               {users.length === 0 ? (
@@ -6231,13 +6245,7 @@ function AdminManagementSection() {
                 </p>
               ) : (
                 <div className={styles.usersTableWrap}>
-                  <p className={styles.tableScrollHint}>
-                    Hubungi melalui Whatsapp{" "}
-                    <a className={styles.adminWhatsappLink} href="https://wa.me/6285121579597" target="_blank" rel="noreferrer">
-                      6285121579597
-                    </a>{" "}
-                    jika ada trouble
-                  </p>
+                  <p className={styles.tableScrollHint}>Geser ke kiri/kanan untuk melihat semua data user.</p>
                   <table className={`${styles.table} ${styles.usersTable}`} style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #ddd" }}>

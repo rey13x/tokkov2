@@ -850,6 +850,12 @@
   font-size: 0.8rem;
 }
 
+.managementHint {
+  margin: 8px 0 0;
+  color: #6b748d;
+  font-size: 0.72rem;
+}
+
 .audioPreview {
   width: min(260px, 100%);
   margin-top: 6px;
