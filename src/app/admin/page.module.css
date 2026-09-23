@@ -845,14 +845,63 @@
   min-height: 70vh;
   border: 1px solid #dbe2f0;
   border-radius: 14px;
-  overflow: hidden;
+  overflow: auto;
   background: #ffffff;
+  display: flex;
+  justify-content: center;
 }
 
 .previewFrame {
-  width: 100%;
+  flex: 0 0 auto;
   min-height: 70vh;
   border: none;
+  background: #ffffff;
+  transition: width 180ms ease;
+}
+
+.previewFrameDesktop {
+  width: 100%;
+}
+
+.previewFrameTablet {
+  width: min(768px, 100%);
+}
+
+.previewFrameMobile {
+  width: min(390px, 100%);
+}
+
+.previewDeviceSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #dbe2f0;
+  border-radius: 10px;
+  background: #f7f9fc;
+}
+
+.previewDeviceButton,
+.previewDeviceButtonActive {
+  width: 32px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.previewDeviceButton {
+  color: #5f6782;
+  background: transparent;
+}
+
+.previewDeviceButtonActive {
+  color: #ffffff;
+  background: #214ebd;
 }
 
 .primaryButton {
@@ -942,62 +991,14 @@
   .page {
     overflow-x: hidden;
   }
-    display: flex;
-    justify-content: center;
 
   .card > div[style*="grid-template-columns"] {
     grid-template-columns: minmax(0, 1fr) !important;
     flex: 0 0 auto;
+  }
 
   .header {
     background: #ffffff;
-    transition: width 180ms ease;
-  }
-
-  .previewFrameDesktop {
-    width: 100%;
-  }
-
-  .previewFrameTablet {
-    width: min(768px, 100%);
-  }
-
-  .previewFrameMobile {
-    width: min(390px, 100%);
-  }
-
-  .previewDeviceSwitch {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    padding: 3px;
-    border: 1px solid #dbe2f0;
-    border-radius: 10px;
-    background: #f7f9fc;
-  }
-
-  .previewDeviceButton,
-  .previewDeviceButtonActive {
-    width: 32px;
-    height: 30px;
-    padding: 0;
-    border: none;
-    border-radius: 7px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-  }
-
-  .previewDeviceButton {
-    color: #5f6782;
-    background: transparent;
-  }
-
-  .previewDeviceButtonActive {
-    color: #ffffff;
-    background: #214ebd;
-    flex-direction: column;
   }
 
   .headerActions {
