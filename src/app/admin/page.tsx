@@ -2957,8 +2957,8 @@ function AdminManagementSection() {
           <div className={styles.list}>
             {latestOrders.map((order) => (
               <div key={order.id} className={styles.listItem}>
-                <p>{order.userName}</p>
-                <span>
+                <p className={styles.orderRecentName}>{order.userName}</p>
+                <span className={styles.orderRecentMeta}>
                   {formatRupiah(order.total)} - {new Date(order.createdAt).toLocaleString("id-ID")}
                 </span>
               </div>
@@ -2999,16 +2999,18 @@ function AdminManagementSection() {
             {filteredOrders.map((order) => (
               <div key={order.id} className={styles.listItem}>
                 <div className={styles.listPreview}>
-                  <div>
-                    <p>{order.userName} - {order.id.slice(0, 8).toUpperCase()}</p>
-                    <span>
+                  <div className={styles.orderDetails}>
+                    <p className={styles.orderTitle}>{order.userName} <small>#{order.id.slice(0, 8).toUpperCase()}</small></p>
+                    <span className={styles.orderAmount}>
                       {formatRupiah(order.total)} - {new Date(order.createdAt).toLocaleString("id-ID")}
                     </span>
-                    <span>
-                      Status: {statusOrderLabel(order.status)}
+                    <span className={styles.orderStatus}>
+                      <strong>Status:</strong> {statusOrderLabel(order.status)}
                       {order.status === "cancelled" ? <strong style={{ color: "#9a6700" }}> (Pre-Order)</strong> : null}
                     </span>
-                    <span>Request Batal: {cancelRequestStatusLabel(order.cancelRequestStatus)}</span>
+                    <span className={order.cancelRequestStatus === "requested" ? styles.orderCancelRequested : styles.orderDetailLine}>
+                      <strong>Request Batal:</strong> {cancelRequestStatusLabel(order.cancelRequestStatus)}
+                    </span>
                     {order.cancelRequestReason ? (
                       <span>Alasan: {order.cancelRequestReason}</span>
                     ) : null}

@@ -705,6 +705,42 @@
   font-size: 0.86rem;
 }
 
+.orderRecentName,
+.orderTitle {
+  color: #11151f;
+  font-weight: 800;
+}
+
+.orderRecentMeta,
+.orderAmount {
+  color: #214ebd !important;
+  font-weight: 700;
+}
+
+.orderTitle small {
+  color: #6b748d;
+  font-size: 0.72em;
+  font-weight: 700;
+}
+
+.orderDetails {
+  min-width: 0;
+}
+
+.orderStatus {
+  color: #1f2536 !important;
+  font-weight: 700;
+}
+
+.orderDetailLine {
+  color: #5f6782;
+}
+
+.orderCancelRequested {
+  color: #a04418 !important;
+  font-weight: 800;
+}
+
 .listItem span {
   font-size: 0.75rem;
   color: #5f6782;
