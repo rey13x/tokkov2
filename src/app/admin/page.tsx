@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useMemo, FormEvent, ChangeEvent } f
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
-import { Laptop, RotateCw, Send, Smartphone, Tablet, TrendingUp } from "lucide-react";
+import { House, Laptop, RotateCw, Send, Smartphone, Tablet, TrendingUp, UserRound } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
@@ -2760,7 +2760,6 @@ function AdminManagementSection() {
         </button>
         <div>
           <h1>Admin Dashboard</h1>
-          <p>Halo Admin, konsisten untuk produknya yaa. Hubungi melalui Whatsapp jika ada trouble</p>
         </div>
         <div className={styles.headerActions}>
           {!isLimitedAdmin ? (
@@ -2773,11 +2772,22 @@ function AdminManagementSection() {
               </Link>
             </>
           ) : null}
-          <button type="button" onClick={onLogoutAdmin} className={styles.actionLink}>
-            Keluar Admin
+          <button
+            type="button"
+            onClick={onLogoutAdmin}
+            className={`${styles.actionLink} ${styles.iconActionLink}`}
+            title="Keluar Admin"
+            aria-label="Keluar Admin"
+          >
+            <UserRound size={18} aria-hidden="true" />
           </button>
-          <Link href="/" className={styles.actionLink}>
-            Balik ke Beranda
+          <Link
+            href="/"
+            className={`${styles.actionLink} ${styles.iconActionLink}`}
+            title="Balik ke Beranda"
+            aria-label="Balik ke Beranda"
+          >
+            <House size={18} aria-hidden="true" />
           </Link>
         </div>
       </header>

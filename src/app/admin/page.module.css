@@ -45,6 +45,12 @@
   text-decoration: none;
 }
 
+.iconActionLink {
+  width: 38px;
+  padding: 0;
+  justify-content: center;
+}
+
 .errorText {
   color: #b3223b;
   font-size: 0.88rem;
