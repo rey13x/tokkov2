@@ -1204,6 +1204,17 @@
   color: #6e4b00;
 }
 
+.adminWhatsappLink {
+  color: #1769d1;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.adminWhatsappLink:hover {
+  color: #0b4d9f;
+}
+
 .whatsappMessageInput {
   width: 150px;
   min-height: 32px;
@@ -1223,6 +1234,23 @@
   background: #0d1119 !important;
   color: #ffffff !important;
   text-decoration: none;
+}
+
+.whatsappIconButton {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  border-radius: 8px;
+  background: #0d1119;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.whatsappIconButton:hover {
+  background: #28303d;
 }
 
 .table th {

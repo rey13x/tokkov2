@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useMemo, FormEvent, ChangeEvent } f
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
-import { Laptop, RotateCw, Smartphone, Tablet, TrendingUp } from "lucide-react";
+import { Laptop, RotateCw, Send, Smartphone, Tablet, TrendingUp } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
@@ -6221,7 +6221,13 @@ function AdminManagementSection() {
                 </p>
               ) : (
                 <div className={styles.usersTableWrap}>
-                  <p className={styles.tableScrollHint}>Geser ke kiri/kanan untuk melihat semua data user.</p>
+                  <p className={styles.tableScrollHint}>
+                    Hubungi melalui Whatsapp{" "}
+                    <a className={styles.adminWhatsappLink} href="https://wa.me/6285121579597" target="_blank" rel="noreferrer">
+                      6285121579597
+                    </a>{" "}
+                    jika ada trouble
+                  </p>
                   <table className={`${styles.table} ${styles.usersTable}`} style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #ddd" }}>
@@ -6317,14 +6323,16 @@ function AdminManagementSection() {
                             />
                             {user.phone ? (
                               <a
-                                className={`${styles.primaryButton} ${styles.userActionButton} ${styles.whatsappButton}`}
                                 href={`https://wa.me/${whatsappPhoneNumber(user.phone)}?text=${encodeURIComponent(
                                   whatsappUserMessage(user, whatsappDrafts[user.id] || ""),
                                 )}`}
                                 target="_blank"
                                 rel="noreferrer"
+                                className={styles.whatsappIconButton}
+                                aria-label={`Kirim WhatsApp ke ${user.username}`}
+                                title="Kirim WhatsApp"
                               >
-                                Kirim WA
+                                <Send size={16} aria-hidden="true" />
                               </a>
                             ) : null}
                             <button
