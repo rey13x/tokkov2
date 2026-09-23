@@ -21,6 +21,7 @@ export default function ProfilePage() {
   const searchParams = useSearchParams();
   const { data: session, status, update } = useSession();
   const canUseEmailOtp = false;
+  const isGoogleAccount = session?.user?.authProvider === "google";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -563,14 +564,16 @@ export default function ProfilePage() {
             <button type="submit" className={styles.submitButton} disabled={isSaving}>
               {isSaving ? "Menyimpan..." : "Perbarui"}
             </button>
-            <div className={styles.accountMeta}>
-              <p>
-                Ganti password? Konfirmasi ke{" "}
-                <a href="https://wa.me/6281319865384?text=Halo%20min%20mau%20ganti%20password.." target="_blank" rel="noreferrer" onClick={onPasswordHelp}>
-                  admin
-                </a>
-              </p>
-            </div>
+            {!isGoogleAccount ? (
+              <div className={styles.accountMeta}>
+                <p>
+                  Ganti password? Konfirmasi ke{" "}
+                  <a href="https://wa.me/6281319865384?text=Halo%20min%20mau%20ganti%20password.." target="_blank" rel="noreferrer" onClick={onPasswordHelp}>
+                    admin
+                  </a>
+                </p>
+              </div>
+            ) : null}
           </form>
         </section>
       ) : null}

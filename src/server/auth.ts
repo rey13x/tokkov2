@@ -14,6 +14,7 @@ import {
   isAdminEmail,
   updateUserLastActive,
   ensureAdminEmailExists,
+  listProfilePhotos,
 } from "@/server/db";
 import { sendTelegramActivityNotification, sendTelegramAuthNotification } from "@/server/notifications";
 
@@ -236,7 +237,18 @@ export const authOptions: NextAuthOptions = {
         token.email = databaseUser?.email ?? (user as any).email ?? undefined;
         token.role = databaseUser?.role ?? (user as any).role;
         token.phone = databaseUser?.phone ?? (user as any).phone;
-        token.avatarUrl = databaseUser?.avatarUrl || user.image || undefined;
+        token.authProvider = account?.provider === "google" ? "google" : "credentials";
+        if (account?.provider === "google" && !databaseUser?.avatarUrl) {
+          const profilePhotos = await listProfilePhotos().catch(() => []);
+          token.avatarUrl = profilePhotos.length > 0
+            ? profilePhotos[Math.floor(Math.random() * profilePhotos.length)].url
+            : undefined;
+          if (databaseUser && token.avatarUrl) {
+            await updateUserById(databaseUser.id, { avatarUrl: token.avatarUrl }).catch(() => {});
+          }
+        } else {
+          token.avatarUrl = databaseUser?.avatarUrl || user.image || undefined;
+        }
       } else if (trigger === "update" && session) {
         const nextSession = session as {
           username?: string;
@@ -292,6 +304,7 @@ export const authOptions: NextAuthOptions = {
       }
       session.user.role = token.role ?? "user";
       session.user.phone = token.phone ?? "";
+      session.user.authProvider = token.authProvider ?? "credentials";
       session.user.image = token.avatarUrl || session.user.image || null;
 
       // Update user last active time (skip for hardcoded dev admin)

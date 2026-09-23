@@ -8,6 +8,7 @@ declare module "next-auth" {
       email?: string;
       role: "user" | "admin";
       phone: string;
+      authProvider?: "credentials" | "google";
     } & DefaultSession["user"];
   }
 }
@@ -20,5 +21,6 @@ declare module "next-auth/jwt" {
     role?: "user" | "admin";
     phone?: string;
     avatarUrl?: string;
+    authProvider?: "credentials" | "google";
   }
 }
