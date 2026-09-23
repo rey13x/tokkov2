@@ -271,6 +271,7 @@ function AdminManagementSection() {
     const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, string>>({});
     const [orderNoteDrafts, setOrderNoteDrafts] = useState<Record<string, string>>({});
     const [series, setSeries] = useState<Array<{ bucket: string; totalOrders: number }>>([]);
+    const [orderChartPeriod, setOrderChartPeriod] = useState<"hour" | "day" | "month" | "year">("day");
     const [latestOrders, setLatestOrders] = useState<Array<{ id: string; userName: string; total: number; createdAt: string }>>([]);
     const [users, setUsers] = useState<any[]>([]); // Replace any with user type if available
     const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
@@ -1096,8 +1097,8 @@ function AdminManagementSection() {
     });
   };
 
-  const loadStats = async () => {
-    const response = await fetch("/api/admin/stats", { cache: "no-store" });
+  const loadStats = async (period = orderChartPeriod) => {
+    const response = await fetch(`/api/admin/stats?period=${period}`, { cache: "no-store" });
     if (!response.ok) {
       throw new Error("Gagal ambil stats");
     }
@@ -1735,7 +1736,7 @@ function AdminManagementSection() {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshOverview);
     };
-  }, [activeSection, authState]);
+  }, [activeSection, authState, orderChartPeriod]);
 
   // Track when testimonialComments section is loaded to hide badges for newly added comments
   useEffect(() => {
@@ -2908,7 +2909,24 @@ function AdminManagementSection() {
         </article>
 
         <article className={styles.card}>
-          <h2>Grafik Order Realtime</h2>
+          <div className={styles.cardHead}>
+            <h2>Grafik Order</h2>
+            <select
+              className={styles.chartPeriodSelect}
+              value={orderChartPeriod}
+              onChange={(event) => {
+                const period = event.target.value as typeof orderChartPeriod;
+                setOrderChartPeriod(period);
+                loadStats(period).catch(() => setError("Gagal memuat grafik order."));
+              }}
+              aria-label="Filter periode grafik order"
+            >
+              <option value="hour">Jam</option>
+              <option value="day">Tanggal</option>
+              <option value="month">Bulan</option>
+              <option value="year">Tahun</option>
+            </select>
+          </div>
           <div className={styles.areaChartWrap}>
             {series.length === 0 ? (
               <p>Belum ada data order.</p>
@@ -2927,13 +2945,19 @@ function AdminManagementSection() {
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
-                    tickFormatter={(value: string) => `${value.slice(8, 10)}/${value.slice(5, 7)}`}
+                    tickFormatter={(value: string) => orderChartPeriod === "hour"
+                      ? value.slice(11, 16)
+                      : orderChartPeriod === "month"
+                        ? `${value.slice(5, 7)}/${value.slice(0, 4)}`
+                        : orderChartPeriod === "year"
+                          ? value
+                          : `${value.slice(8, 10)}/${value.slice(5, 7)}`}
                   />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
                   <Tooltip
                     cursor={{ stroke: "#214ebd", strokeDasharray: "4 4" }}
                     formatter={(value: unknown) => [`${value ?? 0} order`, "Total"]}
-                    labelFormatter={(value: React.ReactNode) => `Tanggal ${String(value ?? "")}`}
+                    labelFormatter={(value: React.ReactNode) => `${orderChartPeriod === "hour" ? "Jam" : orderChartPeriod === "month" ? "Bulan" : orderChartPeriod === "year" ? "Tahun" : "Tanggal"} ${String(value ?? "")}`}
                   />
                   <Area
                     type="linear"

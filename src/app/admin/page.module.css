@@ -906,6 +906,18 @@
   font-size: 0.75rem;
 }
 
+.chartPeriodSelect {
+  min-height: 32px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #d1d8e8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #17365d;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .managementToolbar {
   display: flex;
   align-items: center;
