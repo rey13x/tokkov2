@@ -1,3 +1,4 @@
+import { withSobat } from "@/lib/user-message";
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -42,8 +43,10 @@ export default function NativePayGateDashboard() {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [productDraft, setProductDraft] = useState({ name: "", description: "", price: 10000, imageUrl: "" });
-  const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
+  const [notice, setRawNotice] = useState("");
+  const [error, setRawError] = useState("");
+  const setNotice = (value: unknown) => setRawNotice(withSobat(value));
+  const setError = (value: unknown) => setRawError(withSobat(value));
   const [loading, setLoading] = useState(true);
 
   const publicUrl = useMemo(() => (store ? `${window.location.origin}/${store.slug}` : ""), [store]);

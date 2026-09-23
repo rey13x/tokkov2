@@ -4,6 +4,7 @@ import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useState } from "react";
 import type { PortfolioItem } from "@/types/store";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import { withSobat } from "@/lib/user-message";
 import styles from "./AdminPortfolioSection.module.css";
 
 type Props = {
@@ -27,8 +28,10 @@ export function AdminPortfolioSection({ isFileUploadEnabled, onUploadMedia }: Pr
   const [portfolioEditId, setPortfolioEditId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingPortfolioImage, setIsUploadingPortfolioImage] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [error, setRawError] = useState("");
+  const [message, setRawMessage] = useState("");
+  const setError = (value: unknown) => setRawError(withSobat(value));
+  const setMessage = (value: unknown) => setRawMessage(withSobat(value));
 
   // Load portfolio data
   useEffect(() => {

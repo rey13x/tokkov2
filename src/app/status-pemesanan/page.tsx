@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { withSobat } from "@/lib/user-message";
 import type { CallBackProps, Step } from "react-joyride";
 // @ts-expect-error - qrcode.react does not ship complete React 19 types in this project.
 import QRCode from "qrcode.react";
@@ -185,8 +186,10 @@ export default function StatusPemesananPage() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [jobApplications, setJobApplications] = useState<Array<{ id: string; product_name: string; created_at: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setRawError] = useState("");
+  const [success, setRawSuccess] = useState("");
+  const setError = (value: unknown) => setRawError(withSobat(value));
+  const setSuccess = (value: unknown) => setRawSuccess(withSobat(value));
   const [highlightedOrderId, setHighlightedOrderId] = useState("");
   const [isTutorialMode, setIsTutorialMode] = useState(false);
   const [activePaymentOrderId, setActivePaymentOrderId] = useState<string | null>(null);

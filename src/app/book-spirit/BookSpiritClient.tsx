@@ -14,6 +14,9 @@ import type { BookStory } from "@/types/store";
 import StorySubmissionModal from "./StorySubmissionModal";
 import styles from "./BookSpiritClient.module.css";
 import { clearSessionCached, fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
+import { withSobat } from "@/lib/user-message";
+
+const showUserAlert = (message: unknown) => window.alert(withSobat(message));
 
 export default function BookSpiritClient() {
   const router = useRouter();
@@ -211,11 +214,11 @@ export default function BookSpiritClient() {
         setStories(stories.map(s => s.id === storyId ? data.story : s));
       } else {
         const data = (await response.json()) as { message?: string };
-        alert(data.message || "Gagal hapus komentar");
+        showUserAlert(data.message || "Gagal hapus komentar");
       }
     } catch (error) {
       console.error("Failed to delete comment:", error);
-      alert("Gagal hapus komentar");
+      showUserAlert("Gagal hapus komentar");
     } finally {
       setLoadingActions(prev => ({ ...prev, [commentId]: "" }));
     }
@@ -235,7 +238,7 @@ export default function BookSpiritClient() {
       } else {
         // Fallback: copy to clipboard
         await navigator.clipboard.writeText(shareText);
-        alert("Link bagikan disalin ke clipboard!");
+        showUserAlert("Link bagikan disalin ke clipboard!");
       }
     } catch (error) {
       console.error("Failed to share:", error);
@@ -244,7 +247,7 @@ export default function BookSpiritClient() {
 
   const handleReportStory = async () => {
     if (!reportModal || !reportReason.trim()) {
-      alert("Silakan isi alasan laporan");
+      showUserAlert("Silakan isi alasan laporan");
       return;
     }
 
@@ -258,15 +261,15 @@ export default function BookSpiritClient() {
 
       const data = await response.json();
       if (response.ok) {
-        alert("Laporan kamu sudah diterima. Terima kasih!");
+        showUserAlert("Laporan kamu sudah diterima. Terima kasih!");
         setReportModal(null);
         setReportReason("");
       } else {
-        alert(data.message || "Gagal mengirim laporan");
+        showUserAlert(data.message || "Gagal mengirim laporan");
       }
     } catch (error) {
       console.error("Failed to report story:", error);
-      alert("Gagal mengirim laporan");
+      showUserAlert("Gagal mengirim laporan");
     } finally {
       setReportSubmitting(false);
     }

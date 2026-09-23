@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import { IoClose } from "react-icons/io5";
 import { FiCamera } from "react-icons/fi";
 import { MdStar } from "react-icons/md";
+import { withSobat } from "@/lib/user-message";
 import styles from "./StorySubmissionModal.module.css";
 
 type Props = {
@@ -14,7 +15,8 @@ type Props = {
 
 export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setRawMessage] = useState("");
+  const setMessage = (value: unknown) => setRawMessage(withSobat(value));
   const [success, setSuccess] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]); // Now stores URLs, not base64
   const [uploadingPhotoCount, setUploadingPhotoCount] = useState(0);

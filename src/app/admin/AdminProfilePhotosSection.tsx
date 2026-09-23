@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import WaitLoading from "@/components/ui/WaitLoading";
+import { withSobat } from "@/lib/user-message";
 import styles from "./AdminProfilePhotosSection.module.css";
 
 interface ProfilePhoto {
@@ -17,8 +18,10 @@ export function AdminProfilePhotosSection() {
   const [newPhotoUrl, setNewPhotoUrl] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [message, setRawMessage] = useState("");
+  const [error, setRawError] = useState("");
+  const setMessage = (value: unknown) => setRawMessage(withSobat(value));
+  const setError = (value: unknown) => setRawError(withSobat(value));
   const [uploadMode, setUploadMode] = useState<"url" | "file">("url");
 
   // Fetch photos on mount

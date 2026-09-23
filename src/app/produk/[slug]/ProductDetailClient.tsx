@@ -12,6 +12,7 @@ import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { formatRupiah } from "@/data/products";
 import { addToCart } from "@/lib/cart";
+import { withSobat } from "@/lib/user-message";
 import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
 import { getProductPath } from "@/lib/product-routing";
 import {
@@ -22,6 +23,8 @@ import {
 } from "@/lib/onboarding";
 import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
+
+const showUserAlert = (message: unknown) => window.alert(withSobat(message));
 
 type ProductDetailClientProps = {
   product: StoreProduct;
@@ -220,7 +223,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
     if (onboardingActive && status !== "authenticated") {
       if (typeof window !== "undefined") {
-        window.alert(
+        showUserAlert(
           "Kalau bukan tutorial, kamu bakal diarahkan ke login/daftar. Untuk tutorial ini, langkah login kita lewati dulu ya.",
         );
       }

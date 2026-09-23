@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { FiCheckCircle, FiCreditCard, FiGlobe, FiShoppingBag } from "react-icons/fi";
 // @ts-expect-error - qrcode.react doesn't ship complete React 19 types in this project.
 import QRCode from "qrcode.react";
+import { withSobat } from "@/lib/user-message";
 import styles from "./page.module.css";
 
 type Store = {
@@ -33,7 +34,8 @@ export default function StorefrontClient({ store, products }: { store: Store; pr
   const [customAmount, setCustomAmount] = useState(store.minAmount);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setRawError] = useState("");
+  const setError = (value: unknown) => setRawError(withSobat(value));
 
   const activeAmount = selectedProductId ? products.find((item) => item.id === selectedProductId)?.price || amount : amount;
 

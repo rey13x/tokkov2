@@ -7,7 +7,10 @@ import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import type { StoreTestimonial, StoreTestimonialComment, CommentReactionSummary } from "@/types/store";
 import { RatingStars } from "@/components/foundations/rating-stars";
+import { withSobat } from "@/lib/user-message";
 import styles from "./TestimoniClient.module.css";
+
+const showUserAlert = (message: unknown) => window.alert(withSobat(message));
 
 interface TestimoniClientProps {
   testimonials: StoreTestimonial[];
@@ -133,11 +136,11 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
           setEditingCommentText("");
         } else {
           const error = (await res.json()) as { message?: string };
-          alert(error.message || "Gagal edit komentar");
+          showUserAlert(error.message || "Gagal edit komentar");
         }
       } catch (error) {
         console.error("Failed to edit comment:", error);
-        alert("Gagal edit komentar");
+        showUserAlert("Gagal edit komentar");
       } finally {
         setIsEditingComment((prev) => ({ ...prev, [commentId]: false }));
       }
@@ -218,11 +221,11 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
           }));
         } else {
           const error = (await res.json()) as { message?: string };
-          alert(error.message || "Gagal hapus komentar");
+          showUserAlert(error.message || "Gagal hapus komentar");
         }
       } catch (error) {
         console.error("Failed to delete comment:", error);
-        alert("Gagal hapus komentar");
+        showUserAlert("Gagal hapus komentar");
       } finally {
         setIsDeletingComment((prev) => ({ ...prev, [commentId]: false }));
       }
@@ -254,11 +257,11 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
           setEditingRating(0);
         } else {
           const error = (await res.json()) as { message?: string };
-          alert(error.message || "Gagal update rating komentar");
+          showUserAlert(error.message || "Gagal update rating komentar");
         }
       } catch (error) {
         console.error("Failed to update rating:", error);
-        alert("Gagal update rating komentar");
+        showUserAlert("Gagal update rating komentar");
       } finally {
         setIsUpdatingRating((prev) => ({ ...prev, [commentId]: false }));
       }
@@ -288,11 +291,11 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
           }));
         } else {
           const error = (await res.json()) as { message?: string };
-          alert(error.message || "Gagal mengubah verified status");
+          showUserAlert(error.message || "Gagal mengubah verified status");
         }
       } catch (error) {
         console.error("Failed to toggle verified:", error);
-        alert("Gagal mengubah verified status");
+        showUserAlert("Gagal mengubah verified status");
       } finally {
         setIsUpdatingVerified((prev) => ({ ...prev, [commentId]: false }));
       }

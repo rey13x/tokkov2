@@ -8,6 +8,7 @@ import { signIn, useSession } from "next-auth/react";
 import { FcGoogle } from "react-icons/fc";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { getDeviceId } from "@/lib/device-fingerprint";
+import { withSobat } from "@/lib/user-message";
 import styles from "./page.module.css";
 
 type AuthMode = "signin" | "signup" | "forgotPassword";
@@ -108,11 +109,15 @@ export default function AuthPage() {
 
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [isForgotPasswordSubmitting, setIsForgotPasswordSubmitting] = useState(false);
-  const [forgotPasswordError, setForgotPasswordError] = useState("");
-  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState("");
+  const [forgotPasswordError, setRawForgotPasswordError] = useState("");
+  const [forgotPasswordSuccess, setRawForgotPasswordSuccess] = useState("");
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setRawError] = useState("");
+  const [success, setRawSuccess] = useState("");
+  const setForgotPasswordError = (message: unknown) => setRawForgotPasswordError(withSobat(message));
+  const setForgotPasswordSuccess = (message: unknown) => setRawForgotPasswordSuccess(withSobat(message));
+  const setError = (message: unknown) => setRawError(withSobat(message));
+  const setSuccess = (message: unknown) => setRawSuccess(withSobat(message));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRequestingCode, setIsRequestingCode] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
@@ -407,7 +412,7 @@ export default function AuthPage() {
           <p className={styles.description}>Masuk atau daftar Akun buat lanjut Belanja.</p>
         </header>
 
-        <div className={styles.modeSwitch}>
+        <div className={`${styles.modeSwitch} ${!forgotPasswordEnabled ? styles.modeSwitchSingle : ""}`}>
           <button
             type="button"
             onClick={() => {

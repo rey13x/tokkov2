@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { withSobat } from "@/lib/user-message";
 import type { CallBackProps, Step } from "react-joyride";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
@@ -76,13 +77,16 @@ export default function CartPage() {
   const [isStoreLoading, setIsStoreLoading] = useState(true);
   const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
   const [isJobApplicationsLoading, setIsJobApplicationsLoading] = useState(true);
-  const [jobApplicationError, setJobApplicationError] = useState("");
+  const [jobApplicationError, setRawJobApplicationError] = useState("");
   const [cancelingApplicationId, setCancelingApplicationId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState("Semua");
   const [query, setQuery] = useState("");
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setRawError] = useState("");
+  const [success, setRawSuccess] = useState("");
+  const setJobApplicationError = (value: unknown) => setRawJobApplicationError(withSobat(value));
+  const setError = (value: unknown) => setRawError(withSobat(value));
+  const setSuccess = (value: unknown) => setRawSuccess(withSobat(value));
   const [paymentConsent, setPaymentConsent] = useState(false);
   const [invalidDonationNameSlug, setInvalidDonationNameSlug] = useState<string | null>(null);
   const [isCartTutorialRunning, setIsCartTutorialRunning] = useState(false);

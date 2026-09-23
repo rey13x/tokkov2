@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
+import { withSobat } from "@/lib/user-message";
 import styles from "./reset-password.module.css";
 
 type ResetStep = "verify" | "reset" | "success" | "error";
@@ -18,7 +19,8 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setRawMessage] = useState("");
+  const setMessage = (value: unknown) => setRawMessage(withSobat(value));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Verify token on mount

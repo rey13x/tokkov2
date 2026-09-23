@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
 import WaitLoading from "@/components/ui/WaitLoading";
+import { withSobat } from "@/lib/user-message";
 import {
   FiArrowDownLeft,
   FiArrowLeft,
@@ -147,8 +148,10 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
   const [showApiKey, setShowApiKey] = useState(false);
   const [showPaygatePassword, setShowPaygatePassword] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
+  const [notice, setRawNotice] = useState("");
+  const [error, setRawError] = useState("");
+  const setNotice = (value: unknown) => setRawNotice(withSobat(value));
+  const setError = (value: unknown) => setRawError(withSobat(value));
   const [phone, setPhone] = useState("");
   const [topupAmount, setTopupAmount] = useState(10000);
   const [paygateAuthMode, setPaygateAuthMode] = useState<PayGateAuthMode>(

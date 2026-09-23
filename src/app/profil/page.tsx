@@ -6,6 +6,7 @@ import { FiArrowRight, FiEye, FiEyeOff } from "react-icons/fi";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import WaitLoading from "@/components/ui/WaitLoading";
+import { withSobat } from "@/lib/user-message";
 import styles from "./page.module.css";
 
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
@@ -32,8 +33,8 @@ export default function ProfilePage() {
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [otpCode, setOtpCode] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [message, setRawMessage] = useState("");
+  const [error, setRawError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isRequestingOtp, setIsRequestingOtp] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -42,7 +43,10 @@ export default function ProfilePage() {
   const [selectedProfileImage, setSelectedProfileImage] = useState("");
   const [profilePhotos, setProfilePhotos] = useState<ProfilePhoto[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
-  const [photosError, setPhotosError] = useState("");
+  const [photosError, setRawPhotosError] = useState("");
+  const setMessage = (value: unknown) => setRawMessage(withSobat(value));
+  const setError = (value: unknown) => setRawError(withSobat(value));
+  const setPhotosError = (value: unknown) => setRawPhotosError(withSobat(value));
 
   useEffect(() => {
     if (status === "unauthenticated") {

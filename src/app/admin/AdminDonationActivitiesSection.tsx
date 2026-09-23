@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import type { DonationActivity, DonationActivityType, StoreProduct } from "@/types/store";
+import { withSobat } from "@/lib/user-message";
 import styles from "./page.module.css";
 
 const labels: Record<DonationActivityType, string> = { income: "Pemasukan", expense: "Pengeluaran", refund: "Pengembalian" };
@@ -26,8 +27,10 @@ export function AdminDonationActivitiesSection() {
   const [filter, setFilter] = useState<"all" | DonationActivityType>("all");
   const [isUploading, setIsUploading] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [message, setRawMessage] = useState("");
+  const [error, setRawError] = useState("");
+  const setMessage = (value: unknown) => setRawMessage(withSobat(value));
+  const setError = (value: unknown) => setRawError(withSobat(value));
   const formatAmount = (value: string) => {
     const digits = value.replace(/\D/g, "");
     return digits ? `Rp ${Number(digits).toLocaleString("id-ID")}` : "";
