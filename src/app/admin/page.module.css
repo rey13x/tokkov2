@@ -1314,12 +1314,13 @@
 }
 
 .orderDeleteButton {
-  background: #dc3545;
+  background: #be2040;
+  border-color: #be2040;
   color: #ffffff;
 }
 
 .orderDeleteButton:hover:not(:disabled) {
-  background: #b3223b;
+  background: #a71b37;
 }
 
 .emptyState {
@@ -1501,7 +1502,7 @@
 
   .listItem > .rowActions .orderDeleteButton {
     grid-column: 1 / -1;
-    width: min(220px, 100%);
+    width: 50%;
     justify-self: center;
   }
 
