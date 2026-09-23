@@ -223,6 +223,7 @@ function AdminManagementSection() {
       const [productForm, setProductForm] = useState<typeof defaultProductForm>(defaultProductForm);
     // Main admin dashboard state
     const [authState, setAuthState] = useState<"checking" | "allowed" | "blocked">("checking");
+    const [initialDashboardLoading, setInitialDashboardLoading] = useState(true);
     const [activeSection, setActiveSection] = useState<AdminSection>("overview");
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [products, setProducts] = useState<StoreProduct[]>([]);
@@ -1704,8 +1705,10 @@ function AdminManagementSection() {
           initialLoads.push(loadInformations(), loadTestimonials(), loadMarquees());
         }
         await Promise.allSettled(initialLoads);
+        setInitialDashboardLoading(false);
       })
       .catch(() => {
+        setInitialDashboardLoading(false);
         setAuthState("blocked");
         router.replace("/admin/login");
       });
@@ -2751,7 +2754,7 @@ function AdminManagementSection() {
     });
   };
 
-  if (authState === "checking") {
+  if (authState === "checking" || (authState === "allowed" && initialDashboardLoading)) {
     return (
       <main className={styles.page}>
         <WaitLoading centered text="Tunggu ya Sobat, pastiin internet Sobat ada.." />
