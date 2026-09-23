@@ -3018,7 +3018,7 @@ function AdminManagementSection() {
                     </span>
                     <span className={styles.orderStatus}>
                       <strong>Status:</strong> {statusOrderLabel(order.status)}
-                      {order.status === "cancelled" ? <strong style={{ color: "#9a6700" }}> (Pre-Order)</strong> : null}
+                      {order.status === "cancelled" ? <strong style={{ color: "#214ebd" }}> (Pre-Order)</strong> : null}
                     </span>
                     <span className={order.cancelRequestStatus === "requested" ? styles.orderCancelRequested : styles.orderDetailLine}>
                       <strong>Request Batal:</strong> {cancelRequestStatusLabel(order.cancelRequestStatus)}
@@ -3343,8 +3343,8 @@ function AdminManagementSection() {
 
             {/* Instant mode info */}
             {maintenanceSettingsForm.maintenanceMode === "instant" && (
-              <div style={{ marginTop: "12px", padding: "12px", backgroundColor: "#fff3cd", borderRadius: "10px", borderLeft: "4px solid #ffc107" }}>
-                <small style={{ color: "#856404" }}>
+              <div style={{ marginTop: "12px", padding: "12px", backgroundColor: "#e8f0ff", borderRadius: "10px", borderLeft: "4px solid #214ebd" }}>
+                <small style={{ color: "#17365d" }}>
                   ⚠️ Mode langsung: Website akan segera tertutup. Matikan checkbox di atas untuk membuka kembali.
                 </small>
               </div>
@@ -4704,7 +4704,7 @@ function AdminManagementSection() {
                               onClick={() => onToggleVerifiedBadge(comment.id, testimonialId, comment.verified || false)}
                               disabled={isTogglingVerifiedBadge[comment.id]}
                               style={{
-                                background: comment.verified ? "#FF9800" : "#9E9E9E",
+                                background: comment.verified ? "#214ebd" : "#9E9E9E",
                                 color: "white",
                                 border: "none",
                                 borderRadius: "10px",
@@ -5158,7 +5158,7 @@ function AdminManagementSection() {
                             onClick={() => onToggleStoryCommentVerified(story.id, comment.id, comment.verified || false)}
                             disabled={isTogglingStoryCommentVerified[comment.id]}
                             style={{
-                              background: comment.verified ? "#FF9800" : "#9E9E9E",
+                              background: comment.verified ? "#214ebd" : "#9E9E9E",
                               color: "white",
                               border: "none",
                               borderRadius: "10px",
@@ -5519,7 +5519,7 @@ function AdminManagementSection() {
                       type="button"
                       onClick={() => onRejectBookStory(story.id)}
                       disabled={isLoading}
-                      style={{ background: "#FF9800", color: "white" }}
+                      style={{ background: "#214ebd", color: "white" }}
                     >
                       Tolak
                     </button>
@@ -5678,7 +5678,7 @@ function AdminManagementSection() {
                                         type="button"
                                         onClick={() => onToggleStoryCommentVerified(story.id, comment.id, comment.verified || false)}
                                         disabled={isTogglingStoryCommentVerified[comment.id]}
-                                        style={{ padding: "4px 8px", background: comment.verified ? "#FF9800" : "#9E9E9E", color: "white", border: "none", borderRadius: "10px", cursor: isTogglingStoryCommentVerified[comment.id] ? "not-allowed" : "pointer", fontSize: "12px", opacity: isTogglingStoryCommentVerified[comment.id] ? 0.6 : 1 }}
+                                        style={{ padding: "4px 8px", background: comment.verified ? "#214ebd" : "#9E9E9E", color: "white", border: "none", borderRadius: "10px", cursor: isTogglingStoryCommentVerified[comment.id] ? "not-allowed" : "pointer", fontSize: "12px", opacity: isTogglingStoryCommentVerified[comment.id] ? 0.6 : 1 }}
                                       >
                                         {isTogglingStoryCommentVerified[comment.id] ? "..." : (comment.verified ? "Verified" : "Non-Ver")}
                                       </button>
@@ -5763,7 +5763,7 @@ function AdminManagementSection() {
                     <button
                       type="button"
                       onClick={() => setExpandedStoryId(expandedStoryId === story.id ? null : story.id)}
-                      style={{ background: "#FF9800", color: "white" }}
+                      style={{ background: "#214ebd", color: "white" }}
                     >
                       {expandedStoryId === story.id ? "Tutup" : "Kelola"}
                     </button>
@@ -5965,7 +5965,7 @@ function AdminManagementSection() {
                       type="button"
                       onClick={() => resolveStoryReport(report.id, false)}
                       disabled={isLoading}
-                      style={{ background: "#FF9800", color: "white" }}
+                      style={{ background: "#214ebd", color: "white" }}
                     >
                       Selesaikan
                     </button>

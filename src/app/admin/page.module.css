@@ -81,7 +81,7 @@
 }
 
 .warnText {
-  color: #8c5a11;
+  color: #17365d;
   font-size: 0.88rem;
 }
 
@@ -754,7 +754,7 @@
 }
 
 .orderCancelRequested {
-  color: #a04418 !important;
+  color: #214ebd !important;
   font-weight: 800;
 }
 
@@ -1263,8 +1263,8 @@
 }
 
 .googleBadge {
-  background: #fff1e8;
-  color: #a04418;
+  background: #e8f0ff;
+  color: #17365d;
 }
 
 .tokkoBadge {
@@ -1288,15 +1288,15 @@
 }
 
 .whatsappPhoneLink {
-  color: #9a6800;
+  color: #1769d1;
   font-weight: 700;
   text-decoration: underline;
-  text-decoration-color: #e7b52f;
+  text-decoration-color: #1769d1;
   text-underline-offset: 3px;
 }
 
 .whatsappPhoneLink:hover {
-  color: #6e4b00;
+  color: #0b4d9f;
 }
 
 .adminWhatsappLink {
