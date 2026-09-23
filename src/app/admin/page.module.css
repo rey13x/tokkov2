@@ -1329,6 +1329,43 @@
   color: #ffffff;
 }
 
+.confirmModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(13, 17, 25, 0.58);
+}
+
+.confirmModal {
+  width: min(420px, 100%);
+  padding: 24px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 20px 60px rgba(13, 17, 25, 0.24);
+  text-align: center;
+}
+
+.confirmModal h2 {
+  margin: 0;
+  color: #11151f;
+  font-size: 1.2rem;
+}
+
+.confirmModal p {
+  margin: 10px 0 20px;
+  color: #5f6782;
+  font-size: 0.88rem;
+}
+
+.confirmModalActions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
 .rowActions .orderDeleteButton:hover:not(:disabled) {
   background: #a71b37;
   color: #ffffff;

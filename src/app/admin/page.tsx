@@ -267,6 +267,8 @@ function AdminManagementSection() {
     const [series, setSeries] = useState<Array<{ bucket: string; totalOrders: number }>>([]);
     const [latestOrders, setLatestOrders] = useState<Array<{ id: string; userName: string; total: number; createdAt: string }>>([]);
     const [users, setUsers] = useState<any[]>([]); // Replace any with user type if available
+    const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+    const [deleteUserName, setDeleteUserName] = useState("");
     const [userSearch, setUserSearch] = useState("");
     const [orderSearch, setOrderSearch] = useState("");
     const [session, setSession] = useState<any>(null); // Replace any with session type if available
@@ -1502,10 +1504,6 @@ function AdminManagementSection() {
   };
 
   const onDeleteUser = async (userId: string) => {
-    if (!window.confirm("Yakin ingin menghapus user ini? Data user akan terhapus selamanya.")) {
-      return;
-    }
-
     setIsLoading(true);
     try {
       const response = await fetch("/api/admin/users", {
@@ -1518,6 +1516,8 @@ function AdminManagementSection() {
       }
 
       setMessage("User berhasil dihapus.");
+      setDeleteUserId(null);
+      setDeleteUserName("");
       await loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal menghapus user");
@@ -6373,8 +6373,11 @@ function AdminManagementSection() {
                             </button>
                             <button
                               type="button"
-                              className={`${styles.deleteButton} ${styles.userActionButton}`}
-                              onClick={() => onDeleteUser(user.id)}
+                              className={`${styles.deleteButton} ${styles.orderDeleteButton} ${styles.userActionButton}`}
+                              onClick={() => {
+                                setDeleteUserId(user.id);
+                                setDeleteUserName(user.username);
+                              }}
                               disabled={isLoading}
                             >
                               Hapus
@@ -6479,6 +6482,45 @@ function AdminManagementSection() {
                     {isResettingPassword ? "Resetting..." : "Simpan Password Baru"}
                   </button>
                 </div>
+              </div>
+            </article>
+          </div>
+        ) : null}
+
+        {deleteUserId ? (
+          <div
+            className={styles.confirmModalBackdrop}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-user-title"
+            onClick={() => {
+              setDeleteUserId(null);
+              setDeleteUserName("");
+            }}
+          >
+            <article className={styles.confirmModal} onClick={(event) => event.stopPropagation()}>
+              <h2 id="delete-user-title">Sobat yakin mau hapus?</h2>
+              <p>User <strong>{deleteUserName}</strong> akan dihapus permanen.</p>
+              <div className={styles.confirmModalActions}>
+                <button
+                  type="button"
+                  className={`${styles.deleteButton} ${styles.orderDeleteButton}`}
+                  onClick={() => onDeleteUser(deleteUserId)}
+                  disabled={isLoading}
+                >
+                  Yakin
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => {
+                    setDeleteUserId(null);
+                    setDeleteUserName("");
+                  }}
+                  disabled={isLoading}
+                >
+                  Gak Jadi
+                </button>
               </div>
             </article>
           </div>
