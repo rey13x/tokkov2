@@ -15,6 +15,13 @@
   gap: 14px;
 }
 
+.headerMain {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .header h1 {
   font-size: clamp(1.7rem, 3vw, 2.4rem);
 }
@@ -1600,7 +1607,7 @@
     cursor: pointer;
     color: #1a2235;
     font-size: 1.2rem;
-    margin-right: auto;
+    margin: 0;
   }
 
   .sidebar {

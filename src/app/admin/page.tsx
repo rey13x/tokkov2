@@ -2749,16 +2749,16 @@ function AdminManagementSection() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <button
-          type="button"
-          className={styles.sidebarToggle}
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          title="Alihkan sidebar"
-          aria-label="Alihkan sidebar"
-        >
-          {isSidebarOpen ? "✕" : "≡"}
-        </button>
-        <div>
+        <div className={styles.headerMain}>
+          <button
+            type="button"
+            className={styles.sidebarToggle}
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            title="Alihkan sidebar"
+            aria-label="Alihkan sidebar"
+          >
+            {isSidebarOpen ? "✕" : "≡"}
+          </button>
           <h1>Admin Dashboard</h1>
         </div>
         <div className={styles.headerActions}>
