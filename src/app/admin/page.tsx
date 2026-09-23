@@ -2757,7 +2757,8 @@ function AdminManagementSection() {
             title="Alihkan sidebar"
             aria-label="Alihkan sidebar"
           >
-            {isSidebarOpen ? "✕" : "≡"}
+            <span aria-hidden="true">{isSidebarOpen ? "✕" : "☰"}</span>
+            <span>Admin</span>
           </button>
           <h1>Admin Dashboard</h1>
         </div>
