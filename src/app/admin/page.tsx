@@ -6462,21 +6462,23 @@ function AdminManagementSection() {
                                 <Send size={16} aria-hidden="true" />
                               </a>
                             ) : null}
-                            <button
-                              type="button"
-                              className={`${styles.secondaryButton} ${styles.userActionButton}`}
-                              onClick={() => {
-                                setResetPasswordUserId(user.id);
-                                setResetPasswordUserName(user.username);
-                                setResetPasswordNewPassword("");
-                                setResetPasswordConfirmPassword("");
-                                setError("");
-                              }}
-                              disabled={isResettingPassword || user.loginMethod === "Google"}
-                              title={user.loginMethod === "Google" ? "Akun Google tidak memakai password Tokko" : "Reset password Tokko"}
-                            >
-                              {user.loginMethod === "Google" ? "Google" : "Reset Pass"}
-                            </button>
+                            {user.loginMethod !== "Google" ? (
+                              <button
+                                type="button"
+                                className={`${styles.secondaryButton} ${styles.userActionButton}`}
+                                onClick={() => {
+                                  setResetPasswordUserId(user.id);
+                                  setResetPasswordUserName(user.username);
+                                  setResetPasswordNewPassword("");
+                                  setResetPasswordConfirmPassword("");
+                                  setError("");
+                                }}
+                                disabled={isResettingPassword}
+                                title="Reset password Tokko"
+                              >
+                                Reset Pass
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className={`${styles.deleteButton} ${styles.orderDeleteButton} ${styles.userActionButton}`}
