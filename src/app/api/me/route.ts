@@ -35,10 +35,10 @@ export async function GET() {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.id === "limited-admin-sobatpremium" || session.user.email?.toLowerCase() === "sobatpremium@tokko.com") {
+  if (session.user.id === "limited-admin-sobatpremium" || session.user.email?.toLowerCase() === "sobatpremium@gmail.com") {
     return NextResponse.json({
       username: "Sobat Premium",
-      email: "sobatpremium@tokko.com",
+      email: "sobatpremium@gmail.com",
       phone: "",
       avatarUrl: "",
       role: "admin",

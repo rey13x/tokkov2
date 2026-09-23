@@ -68,7 +68,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
 ];
 
-const LIMITED_ADMIN_EMAIL = "sobatpremium@tokko.com";
+const LIMITED_ADMIN_EMAIL = "sobatpremium@gmail.com";
 const LIMITED_ADMIN_SECTIONS = new Set<AdminSection>([
   "overview",
   "orders",

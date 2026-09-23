@@ -21,7 +21,7 @@ import { sendTelegramActivityNotification, sendTelegramAuthNotification } from "
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
 
-const LIMITED_ADMIN_EMAIL = "sobatpremium@tokko.com";
+const LIMITED_ADMIN_EMAIL = "sobatpremium@gmail.com";
 const LIMITED_ADMIN_PASSWORD_HASH = "$2b$10$jkvrioJq6aTB6vnw0ucjuuoq5DKOios3omDkhXh2BchZw84OCHabG";
 
 
