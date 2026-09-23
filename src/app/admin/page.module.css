@@ -8,6 +8,18 @@
   background: #f4f6fb;
 }
 
+.page,
+.page * {
+  scrollbar-width: none;
+}
+
+.page::-webkit-scrollbar,
+.page *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 .header {
   display: flex;
   align-items: flex-start;
