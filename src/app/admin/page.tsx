@@ -1704,9 +1704,6 @@ function AdminManagementSection() {
           resetProductForm();
         }
         const initialLoads = [loadProducts(), loadOrders(), loadStats()];
-        if (!limitedAdminSession) {
-          initialLoads.push(loadInformations(), loadTestimonials(), loadMarquees());
-        }
         await Promise.allSettled(initialLoads);
         setInitialDashboardLoading(false);
       })

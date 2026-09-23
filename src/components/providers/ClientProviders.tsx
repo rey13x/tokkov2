@@ -36,9 +36,11 @@ export default function ClientProviders({
       // Ignore service worker registration errors.
     });
 
-    void fetchStoreData().catch(() => {
-      // Individual pages retry through the shared cache when needed.
-    });
+    if (!window.location.pathname.startsWith('/admin')) {
+      void fetchStoreData().catch(() => {
+        // Individual pages retry through the shared cache when needed.
+      });
+    }
 
     const storiesTimer = window.setTimeout(() => {
       void fetchSessionCached(
