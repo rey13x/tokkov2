@@ -1318,7 +1318,18 @@
   color: #ffffff;
 }
 
+.rowActions .orderDeleteButton {
+  background: #be2040;
+  border-color: #be2040;
+  color: #ffffff;
+}
+
 .orderDeleteButton:hover:not(:disabled) {
+  background: #a71b37;
+  color: #ffffff;
+}
+
+.rowActions .orderDeleteButton:hover:not(:disabled) {
   background: #a71b37;
   color: #ffffff;
 }
