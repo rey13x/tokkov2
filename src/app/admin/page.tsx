@@ -11,6 +11,7 @@ import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { captureReceiptAsImage } from "@/lib/receipt-capture";
 import { formatRupiah } from "@/data/products";
+import WaitLoading from "@/components/ui/WaitLoading";
 import styles from "./page.module.css";
 import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
 import { AdminDonationActivitiesSection } from "./AdminDonationActivitiesSection";
@@ -2728,7 +2729,7 @@ function AdminManagementSection() {
   if (authState === "checking") {
     return (
       <main className={styles.page}>
-        <p>Memuat admin panel...</p>
+        <WaitLoading centered text="Tunggu ya Sobat, pastiin internet Sobat ada.." />
       </main>
     );
   }

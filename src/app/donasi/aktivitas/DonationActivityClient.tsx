@@ -82,7 +82,7 @@ export default function DonationActivityClient() {
             </button>
           ))}
         </div>
-        {loading ? <WaitLoading centered text="Lagi ngambil data, Pastiin internet kamu ada..." /> : null}
+        {loading ? <WaitLoading centered text="Tunggu ya Sobat, pastiin internet Sobat ada.." /> : null}
         {!loading && activities.length === 0 ? <p className={styles.empty}>Belum ada aktivitas donasi.</p> : null}
         <div className={styles.list}>
           {filteredActivities.map((activity) => (

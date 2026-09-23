@@ -8,7 +8,7 @@ type WaitLoadingProps = {
   text?: string | undefined;
 };
 
-const DEFAULT_LOADING_TEXT = "Lagi ngambil data, Pastiin internet kamu ada...";
+const DEFAULT_LOADING_TEXT = "Tunggu ya Sobat, pastiin internet Sobat ada..";
 
 export default function WaitLoading({
   centered = false,
