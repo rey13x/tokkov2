@@ -227,14 +227,14 @@
   min-width: 0;
   max-width: 100%;
   gap: 8px;
-  overflow: hidden;
-  flex-wrap: wrap;
-  padding: 2px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
 }
 
 .quickStats div {
-  flex: 1 1 190px;
-  min-width: 0;
+  flex: 0 0 190px;
   border: 1px solid #dfe4ef;
   border-radius: 12px;
   padding: 10px;
@@ -242,6 +242,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  scroll-snap-align: start;
 }
 
 .quickStats strong {
@@ -1731,8 +1732,8 @@
     background: transparent;
     cursor: pointer;
     color: #1a2235;
-    font-size: 1.15rem;
-    font-weight: 600;
+    font-size: 1.5rem;
+    font-weight: 700;
     margin: 0;
   }
 
