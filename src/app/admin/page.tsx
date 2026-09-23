@@ -2760,7 +2760,6 @@ function AdminManagementSection() {
             <span aria-hidden="true">{isSidebarOpen ? "✕" : "☰"}</span>
             <span>Admin</span>
           </button>
-          <h1>Admin Dashboard</h1>
         </div>
         <div className={styles.headerActions}>
           {!isLimitedAdmin ? (
