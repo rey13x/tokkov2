@@ -1458,6 +1458,22 @@
     width: 100%;
   }
 
+  .listItem {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .listPreview {
+    width: 100%;
+  }
+
+  .listItem > .rowActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .previewCard {
     flex-direction: column;
     align-items: flex-start;

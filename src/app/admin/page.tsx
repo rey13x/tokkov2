@@ -6245,7 +6245,6 @@ function AdminManagementSection() {
                 </p>
               ) : (
                 <div className={styles.usersTableWrap}>
-                  <p className={styles.tableScrollHint}>Geser ke kiri/kanan untuk melihat semua data user.</p>
                   <table className={`${styles.table} ${styles.usersTable}`} style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #ddd" }}>
