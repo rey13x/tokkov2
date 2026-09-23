@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useMemo, FormEvent, ChangeEvent } f
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
-import { House, Laptop, RotateCw, Send, Smartphone, Tablet, UserRound } from "lucide-react";
+import { House, Laptop, RotateCw, Send, Smartphone, Tablet, TrendingUp, UserRound } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
@@ -2975,6 +2975,9 @@ function AdminManagementSection() {
             <div>
               <strong>{series.reduce((total, point) => total + point.totalOrders, 0)}</strong>
               <span>Order terpantau</span>
+            </div>
+            <div className={styles.chartTrend}>
+              <TrendingUp aria-hidden="true" />
             </div>
           </div>
         </article>
