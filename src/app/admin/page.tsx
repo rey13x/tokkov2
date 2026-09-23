@@ -2845,13 +2845,13 @@ function AdminManagementSection() {
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
-                    tickFormatter={(value: string) => value.slice(11, 16)}
+                    tickFormatter={(value: string) => value.slice(5)}
                   />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
                   <Tooltip
                     cursor={{ stroke: "#214ebd", strokeDasharray: "4 4" }}
                     formatter={(value: unknown) => [`${value ?? 0} order`, "Total"]}
-                    labelFormatter={(value: React.ReactNode) => `Waktu ${String(value ?? "").slice(11, 16)}`}
+                    labelFormatter={(value: React.ReactNode) => `Tanggal ${String(value ?? "")}`}
                   />
                   <Area
                     type="linear"
