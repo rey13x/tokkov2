@@ -20,6 +20,7 @@ export async function GET() {
       user: {
         uid: session.user.id,
         email: session.user.email,
+        adminScope: session.user.email.toLowerCase() === "sobatpremium@tokko.com" ? "limited" : "full",
       },
     });
   }
@@ -36,6 +37,7 @@ export async function GET() {
         user: {
           uid: decoded.uid,
           email: decoded.email,
+          adminScope: decoded.email.toLowerCase() === "sobatpremium@tokko.com" ? "limited" : "full",
         },
       });
     }

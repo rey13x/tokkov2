@@ -489,10 +489,17 @@ export default function HomeClient() {
     };
 
     void checkOrderStatuses();
-    const timer = window.setInterval(() => void checkOrderStatuses(), 15_000);
+    const checkWhenVisible = () => {
+      if (!document.hidden) {
+        void checkOrderStatuses();
+      }
+    };
+    const timer = window.setInterval(checkWhenVisible, 60_000);
+    document.addEventListener("visibilitychange", checkWhenVisible);
     return () => {
       active = false;
       window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", checkWhenVisible);
     };
   }, [sessionStatus]);
 
@@ -553,17 +560,11 @@ export default function HomeClient() {
       });
 
     void loadStoreData();
-    const refreshTimer = window.setInterval(loadStoreData, 30_000);
 
-    void Promise.allSettled([
-      fetchSessionCached(PUBLIC_DATA_CACHE_KEY.heroBackgrounds, "/api/hero-backgrounds", { cache: "no-store" }),
-      fetchSessionCached(PUBLIC_DATA_CACHE_KEY.portfolio, "/api/portfolio", { cache: "no-store" }),
-      fetchSessionCached(PUBLIC_DATA_CACHE_KEY.bookStories, "/api/book-stories/approved", { cache: "no-store" }),
-    ]);
+    void fetchSessionCached(PUBLIC_DATA_CACHE_KEY.heroBackgrounds, "/api/hero-backgrounds", { cache: "no-store" });
 
     return () => {
       mounted = false;
-      window.clearInterval(refreshTimer);
     };
   }, []);
 

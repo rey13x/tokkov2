@@ -2834,7 +2834,7 @@ export async function removeAdminEmail(email: string): Promise<boolean> {
 export async function listAllUsers() {
   await ensureDatabase();
   const res = await run(
-    "SELECT id, username, email, phone, created_at, last_active_at FROM users ORDER BY created_at DESC",
+    "SELECT id, username, email, phone, created_at, last_active_at, CASE WHEN password_hash IS NULL OR password_hash = '' THEN 'Google' ELSE 'Tokko' END AS login_method FROM users ORDER BY created_at DESC",
   );
   return ((res.rows ?? []) as unknown) as Array<{
     id: string;
@@ -2843,6 +2843,7 @@ export async function listAllUsers() {
     phone: string;
     created_at: number;
     last_active_at: number | null;
+    login_method: "Google" | "Tokko";
   }>;
 }
 

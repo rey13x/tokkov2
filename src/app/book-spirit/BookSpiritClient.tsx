@@ -13,7 +13,7 @@ import WaitLoading from "@/components/ui/WaitLoading";
 import type { BookStory } from "@/types/store";
 import StorySubmissionModal from "./StorySubmissionModal";
 import styles from "./BookSpiritClient.module.css";
-import { fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
+import { clearSessionCached, fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
 
 export default function BookSpiritClient() {
   const router = useRouter();
@@ -113,6 +113,7 @@ export default function BookSpiritClient() {
 
   const handleStorySubmitted = async () => {
     try {
+      clearSessionCached(PUBLIC_DATA_CACHE_KEY.bookStories);
       const response = await fetch("/api/book-stories/approved");
       if (response.ok) {
         const data = (await response.json()) as { stories: BookStory[] };

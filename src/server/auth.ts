@@ -20,6 +20,9 @@ import { sendTelegramActivityNotification, sendTelegramAuthNotification } from "
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
 
+const LIMITED_ADMIN_EMAIL = "sobatpremium@tokko.com";
+const LIMITED_ADMIN_PASSWORD_HASH = "$2b$10$jkvrioJq6aTB6vnw0ucjuuoq5DKOios3omDkhXh2BchZw84OCHabG";
+
 
 
 const providers: NextAuthOptions["providers"] = [
@@ -56,6 +59,21 @@ const providers: NextAuthOptions["providers"] = [
           name: "Tokko Marketplace",
           image: null,
           role: "admin",
+          phone: "",
+        };
+      }
+
+      if (
+        identifier.toLowerCase() === LIMITED_ADMIN_EMAIL &&
+        await compare(password, LIMITED_ADMIN_PASSWORD_HASH)
+      ) {
+        return {
+          id: "limited-admin-sobatpremium",
+          email: LIMITED_ADMIN_EMAIL,
+          name: "Sobat Premium",
+          image: null,
+          role: "admin",
+          adminScope: "limited",
           phone: "",
         };
       }

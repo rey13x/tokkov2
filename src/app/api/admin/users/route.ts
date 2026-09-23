@@ -24,6 +24,7 @@ export async function GET() {
           ...user,
           purchaseCount: purchases.length ?? 0,
           jobApplicationCount: jobApplications.length ?? 0,
+          loginMethod: user.login_method,
           lastActiveAt: user.last_active_at ? new Date(user.last_active_at).toISOString() : null,
           createdAt: new Date(user.created_at).toISOString(),
         };

@@ -35,6 +35,17 @@ export async function GET() {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
+  if (session.user.id === "limited-admin-sobatpremium" || session.user.email?.toLowerCase() === "sobatpremium@tokko.com") {
+    return NextResponse.json({
+      username: "Sobat Premium",
+      email: "sobatpremium@tokko.com",
+      phone: "",
+      avatarUrl: "",
+      role: "admin",
+      pushSubscription: null,
+    });
+  }
+
   // Handle special case for hardcoded admin
   if (session.user.id === "dev-admin-hardcoded") {
     const adminUser = await findUserByEmail("digitalawanku2@gmail.com").catch(() => null);
@@ -199,6 +210,20 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: "Gagal update profil." }, { status: 500 });
     }
 
+    const changedFields: string[] = [];
+    if (updated.username !== user.username) {
+      changedFields.push("Username");
+    }
+    if (updated.email !== user.email) {
+      changedFields.push("Gmail");
+    }
+    if (updated.phone !== user.phone) {
+      changedFields.push("Nomor WhatsApp");
+    }
+    if (wantsPasswordChange) {
+      changedFields.push("Password");
+    }
+
     await updateTestimonialUserProfile(user.id, {
       userName: updated.username,
       userAvatarUrl: updated.avatarUrl,
@@ -221,7 +246,9 @@ export async function PATCH(request: Request) {
     }
 
     return NextResponse.json({
-      message: "Profil berhasil diperbarui.",
+      message: changedFields.length > 0
+        ? `${changedFields.join(", ")} berhasil diupdate.`
+        : "Tidak ada perubahan profil.",
       user: {
         id: updated.id,
         username: updated.username,

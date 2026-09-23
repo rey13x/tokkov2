@@ -48,7 +48,9 @@ export function fetchSessionCached<T>(key: string, url: string, init?: RequestIn
   const ttlMs = key === PUBLIC_DATA_CACHE_KEY.heroBackgrounds
     ? 0
     : key === PUBLIC_DATA_CACHE_KEY.store
-    ? 30_000
+    ? 24 * 60 * 60_000
+    : key === PUBLIC_DATA_CACHE_KEY.bookStories
+    ? 24 * 60 * 60_000
       : 5 * 60_000;
   const memoryValue = memoryCache.get(key) as T | undefined;
   const memoryCachedAt = memoryCacheTimes.get(key) ?? 0;

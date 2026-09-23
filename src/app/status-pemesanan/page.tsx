@@ -265,7 +265,6 @@ export default function StatusPemesananPage() {
         window.setTimeout(() => {
           void onDownloadReceipt(order.id);
           setPaymentSuccessPopup(null);
-          window.setTimeout(() => router.push("/troli"), 5000);
         }, 900);
       }
       knownPaymentStatusesRef.current[order.id] = order.status;
@@ -732,7 +731,6 @@ export default function StatusPemesananPage() {
       await onDownloadReceipt(orderId);
       window.history.replaceState({}, "", "/status-pemesanan");
       await loadOrders();
-      window.setTimeout(() => router.push("/troli"), 5000);
     } catch {
       setError("Struk belum berhasil dibuat. Coba klik ikon struk lagi.");
     }

@@ -3,7 +3,6 @@ import { Sora, Space_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import PageTransition from "@/components/layout/PageTransition";
 import SiteFooter from "@/components/layout/SiteFooter";
-import GlobalScrollSmoother from "@/components/layout/GlobalScrollSmoother";
 import MaintenanceModal from "@/components/maintenance/MaintenanceModal";
 import { AuthSessionProvider } from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
@@ -51,7 +50,6 @@ export default function RootLayout({
                   <SiteFooter />
                 </div>
               </div>
-              <GlobalScrollSmoother />
               <MaintenanceModal />
               <AdPopup />
               <SpeedInsights />

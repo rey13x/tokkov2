@@ -5,8 +5,11 @@ import React, { useState, useEffect, useRef, useMemo, FormEvent, ChangeEvent } f
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiThumbsUp, FiMessageCircle } from "react-icons/fi";
+import { TrendingUp } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import { captureReceiptAsImage } from "@/lib/receipt-capture";
 import { formatRupiah } from "@/data/products";
 import styles from "./page.module.css";
 import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
@@ -39,7 +42,7 @@ type AdminSection =
   | "preview";
 
 const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
-  { id: "overview", label: "Ringkasan", desc: "Statistik & order" },
+  { id: "overview", label: "Dashboard", desc: "Statistik & order" },
   { id: "orders", label: "Order", desc: "Status pesanan user" },
   { id: "products", label: "Produk", desc: "CRUD produk" },
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
@@ -61,6 +64,16 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "users", label: "User", desc: "Lihat data user & aktivitas" },
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
 ];
+
+const LIMITED_ADMIN_EMAIL = "sobatpremium@tokko.com";
+const LIMITED_ADMIN_SECTIONS = new Set<AdminSection>([
+  "overview",
+  "orders",
+  "products",
+  "profilePhotos",
+  "users",
+  "preview",
+]);
 
 const defaultProductForm = {
   name: "",
@@ -233,6 +246,10 @@ function AdminManagementSection() {
     const [latestOrders, setLatestOrders] = useState<Array<{ id: string; userName: string; total: number; createdAt: string }>>([]);
     const [users, setUsers] = useState<any[]>([]); // Replace any with user type if available
     const [session, setSession] = useState<any>(null); // Replace any with session type if available
+    const isLimitedAdmin = session?.user?.email?.toLowerCase() === LIMITED_ADMIN_EMAIL;
+    const visibleSidebarItems = isLimitedAdmin
+      ? sidebarItems.filter((item) => LIMITED_ADMIN_SECTIONS.has(item.id))
+      : sidebarItems;
     const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
     const [resetPasswordUserName, setResetPasswordUserName] = useState<string>("");
     const [resetPasswordNewPassword, setResetPasswordNewPassword] = useState<string>("");
@@ -268,6 +285,8 @@ function AdminManagementSection() {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [receiptPreview, setReceiptPreview] = useState<{ url: string; orderId: string } | null>(null);
+  const [isPreparingReceiptOrderId, setIsPreparingReceiptOrderId] = useState<string | null>(null);
   const [infoForm, setInfoForm] = useState(defaultInfoForm);
   const [infoEditId, setInfoEditId] = useState<string | null>(null);
   const [testimonialForm, setTestimonialForm] = useState(defaultTestimonialForm);
@@ -319,10 +338,7 @@ function AdminManagementSection() {
   const [storyCommentSectionLoadTime, setStoryCommentSectionLoadTime] = useState<number>(0);
   const [selectedAITestimonialId, setSelectedAITestimonialId] = useState<string>("");
   const privacyEditorRef = useRef<HTMLDivElement | null>(null);
-  const maxOrderCount = useMemo(
-    () => Math.max(1, ...series.map((item) => item.totalOrders)),
-    [series],
-  );
+  const notificationRef = useRef<HTMLDivElement | null>(null);
   const totalRevenue = useMemo(
     () => latestOrders.reduce((sum, order) => sum + order.total, 0),
     [latestOrders],
@@ -1605,7 +1621,7 @@ function AdminManagementSection() {
 
         const payload = (await response.json()) as {
           authenticated: boolean;
-          user?: { email?: string; uid?: string };
+          user?: { email?: string; uid?: string; adminScope?: "full" | "limited" };
         };
 
         if (!payload.authenticated) {
@@ -1618,31 +1634,22 @@ function AdminManagementSection() {
         setSession(payload);
 
         setAuthState("allowed");
+        const limitedAdminSession = payload.user?.adminScope === "limited" ||
+          payload.user?.email?.toLowerCase() === LIMITED_ADMIN_EMAIL;
         const requestedSection = new URLSearchParams(window.location.search).get("section");
         const requestedAction = new URLSearchParams(window.location.search).get("action");
-        if (sidebarItems.some((item) => item.id === requestedSection)) {
+        if (sidebarItems.some((item) => item.id === requestedSection) &&
+            (!limitedAdminSession || LIMITED_ADMIN_SECTIONS.has(requestedSection as AdminSection))) {
           setActiveSection(requestedSection as AdminSection);
         }
         if (requestedSection === "products" && requestedAction === "create") {
           resetProductForm();
         }
-        await Promise.allSettled([
-          loadProducts(),
-          loadInformations(),
-          loadTestimonials(),
-          loadTestimonialComments(),
-          loadMarquees(),
-          loadStoryReels(),
-          loadBookStories(),
-          loadApprovedBookStories(),
-          loadStoryReports(),
-          loadPrivacyPolicy(),
-          loadPaymentSettings(),
-          loadMaintenanceSettings(),
-          loadOrders(),
-          loadStats(),
-          loadUsers(),
-        ]);
+        const initialLoads = [loadProducts(), loadOrders(), loadStats()];
+        if (!limitedAdminSession) {
+          initialLoads.push(loadInformations(), loadTestimonials(), loadMarquees());
+        }
+        await Promise.allSettled(initialLoads);
       })
       .catch(() => {
         setAuthState("blocked");
@@ -1655,16 +1662,26 @@ function AdminManagementSection() {
       return;
     }
 
-    const timer = window.setInterval(() => {
+    const refreshOverview = () => {
+      if (document.hidden || activeSection !== "overview" && activeSection !== "orders") {
+        return;
+      }
       loadStats().catch(() => {});
       loadOrders().catch(() => {});
-    }, 5000);
+    };
+    const timer = window.setInterval(refreshOverview, 30_000);
+    document.addEventListener("visibilitychange", refreshOverview);
 
-    return () => window.clearInterval(timer);
-  }, [authState]);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshOverview);
+    };
+  }, [activeSection, authState]);
 
   // Track when testimonialComments section is loaded to hide badges for newly added comments
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
     if (activeSection === "testimonialComments") {
       setStoryCommentSectionLoadTime(Date.now());
       // Load actual testimonial comments
@@ -1677,6 +1694,26 @@ function AdminManagementSection() {
     if (activeSection === "notifications") {
       loadPushSubscribers().catch((err) => {
         console.error("Failed to load push subscriptions:", err);
+      });
+    }
+
+    const loaders: Partial<Record<AdminSection, () => Promise<unknown>>> = {
+      products: loadProducts,
+      informations: loadInformations,
+      testimonials: loadTestimonials,
+      marquees: loadMarquees,
+      storyReels: loadStoryReels,
+      bookStories: async () => Promise.all([loadBookStories(), loadApprovedBookStories(), loadStoryReports()]),
+      paymentSettings: loadPaymentSettings,
+      privacyPolicy: loadPrivacyPolicy,
+      maintenanceSettings: loadMaintenanceSettings,
+      users: loadUsers,
+      orders: loadOrders,
+    };
+    if (loaders[activeSection]) {
+      loaders[activeSection]?.().catch((err) => {
+        console.error(`Failed to load admin section ${activeSection}:`, err);
+        setError("Data menu belum berhasil dimuat. Coba buka lagi.");
       });
     }
   }, [activeSection]);
@@ -2034,6 +2071,42 @@ function AdminManagementSection() {
     } catch {
       setError("Gagal menghapus order.");
     }
+  };
+
+  const onPreviewReceipt = async (orderId: string) => {
+    setError("");
+    setIsPreparingReceiptOrderId(orderId);
+    try {
+      const blob = await captureReceiptAsImage(orderId);
+      const url = URL.createObjectURL(blob);
+      setReceiptPreview((current) => {
+        if (current) {
+          URL.revokeObjectURL(current.url);
+        }
+        return { url, orderId };
+      });
+    } catch {
+      setError("Struk belum berhasil dibuat. Coba lagi sebentar.");
+    } finally {
+      setIsPreparingReceiptOrderId(null);
+    }
+  };
+
+  const closeReceiptPreview = () => {
+    if (receiptPreview) {
+      URL.revokeObjectURL(receiptPreview.url);
+    }
+    setReceiptPreview(null);
+  };
+
+  const downloadReceiptPreview = () => {
+    if (!receiptPreview) {
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = receiptPreview.url;
+    link.download = `tokkomarketplace-struk-${receiptPreview.orderId}.jpg`;
+    link.click();
   };
 
   const onConfirmCancelOrder = async (orderId: string) => {
@@ -2653,12 +2726,16 @@ function AdminManagementSection() {
           <p>Halo Admin, konsisten untuk produknya yaa. Hubungi melalui Whatsapp jika ada trouble</p>
         </div>
         <div className={styles.headerActions}>
-          <Link href="/api/admin/orders/export?format=csv" className={styles.actionLink}>
-            Ekspor CSV
-          </Link>
-          <Link href="/api/admin/orders/export?format=xlsx" className={styles.actionLink}>
-            Ekspor XLSX
-          </Link>
+          {!isLimitedAdmin ? (
+            <>
+              <Link href="/api/admin/orders/export?format=csv" className={styles.actionLink}>
+                Ekspor CSV
+              </Link>
+              <Link href="/api/admin/orders/export?format=xlsx" className={styles.actionLink}>
+                Ekspor XLSX
+              </Link>
+            </>
+          ) : null}
           <button type="button" onClick={onLogoutAdmin} className={styles.actionLink}>
             Keluar Admin
           </button>
@@ -2668,8 +2745,27 @@ function AdminManagementSection() {
         </div>
       </header>
 
-      {error ? <p className={styles.errorText}>{error}</p> : null}
-      {message ? <p className={styles.successText}>{message}</p> : null}
+      {error || message ? (
+        <div
+          ref={notificationRef}
+          className={`${styles.adminToast} ${error ? styles.adminToastError : styles.adminToastSuccess}`}
+          role={error ? "alert" : "status"}
+          aria-live={error ? "assertive" : "polite"}
+        >
+          <span>{error || message}</span>
+          <button
+            type="button"
+            className={styles.toastClose}
+            onClick={() => {
+              setError("");
+              setMessage("");
+            }}
+            aria-label="Tutup notifikasi"
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
       {!isFileUploadEnabled ? (
         <p className={styles.warnText}>
           Upload file dimatikan. Isi media menggunakan URL manual.
@@ -2690,7 +2786,7 @@ function AdminManagementSection() {
           <div className={styles.sidebarCard}>
             <p className={styles.sidebarTitle}>Navigasi Admin</p>
             <nav className={styles.sidebarNav}>
-              {sidebarItems.map((item) => (
+              {visibleSidebarItems.map((item) => (
                 <button
                   key={item.id}
                   type="button"
@@ -2712,27 +2808,15 @@ function AdminManagementSection() {
       {activeSection === "overview" ? (
       <section className={styles.sectionGrid}>
         <article className={styles.card}>
-          <h2>Ringkasan Cepat</h2>
+          <h2>Statistik Utama</h2>
           <div className={styles.quickStats}>
             <div>
               <strong>{products.length}</strong>
               <span>Total Produk</span>
             </div>
             <div>
-              <strong>{informations.length}</strong>
-              <span>Informasi Aktif</span>
-            </div>
-            <div>
-              <strong>{testimonials.length}</strong>
-              <span>Testimonial</span>
-            </div>
-            <div>
-              <strong>{marquees.length}</strong>
-              <span>Logo Marquee</span>
-            </div>
-            <div>
               <strong>{latestOrders.length}</strong>
-              <span>Order Terkini</span>
+              <span>Total Order</span>
             </div>
             <div>
               <strong>{formatRupiah(totalRevenue)}</strong>
@@ -2743,24 +2827,53 @@ function AdminManagementSection() {
 
         <article className={styles.card}>
           <h2>Grafik Order Realtime</h2>
-          <div className={styles.chart}>
-            {series.length === 0 ? <p>Belum ada data order.</p> : null}
-            {series.map((point) => (
-              <div key={point.bucket} className={styles.barWrap}>
-                <div
-                  className={styles.bar}
-                  style={{
-                    height: `${Math.max(10, (point.totalOrders / maxOrderCount) * 100)}%`,
-                  }}
-                />
-                <span>{point.totalOrders}</span>
-              </div>
-            ))}
+          <div className={styles.areaChartWrap}>
+            {series.length === 0 ? (
+              <p>Belum ada data order.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={series} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="orderAreaFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#214ebd" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#214ebd" stopOpacity={0.04} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="#dfe4ef" />
+                  <XAxis
+                    dataKey="bucket"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    tickFormatter={(value: string) => value.slice(11, 16)}
+                  />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
+                  <Tooltip
+                    cursor={{ stroke: "#214ebd", strokeDasharray: "4 4" }}
+                    formatter={(value: unknown) => [`${value ?? 0} order`, "Total"]}
+                    labelFormatter={(value: React.ReactNode) => `Waktu ${String(value ?? "").slice(11, 16)}`}
+                  />
+                  <Area
+                    type="linear"
+                    dataKey="totalOrders"
+                    stroke="#214ebd"
+                    strokeWidth={2.5}
+                    fill="url(#orderAreaFill)"
+                    activeDot={{ r: 4 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
-          <div className={styles.chartLabels}>
-            {series.map((point) => (
-              <span key={`label-${point.bucket}`}>{point.bucket.slice(11)}</span>
-            ))}
+          <div className={styles.chartSummary}>
+            <div>
+              <strong>{series.reduce((total, point) => total + point.totalOrders, 0)}</strong>
+              <span>Order terpantau</span>
+            </div>
+            <div className={styles.chartTrend}>
+              <TrendingUp aria-hidden="true" />
+              <span>Update otomatis</span>
+            </div>
           </div>
         </article>
 
@@ -2867,16 +2980,16 @@ function AdminManagementSection() {
                       Konfirmasi Batal
                     </button>
                   ) : null}
-                  <a
-                    href={`/api/orders/${order.id}/receipt`}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
                     className={styles.inlineLink}
+                    onClick={() => onPreviewReceipt(order.id)}
+                    disabled={isPreparingReceiptOrderId === order.id}
                   >
                     {order.items?.some((item) =>
                       item.productType === "donation" || /donasi|donation/i.test(item.productName),
-                    ) ? "Sertifikat" : "Struk"}
-                  </a>
+                    ) ? "Sertifikat" : isPreparingReceiptOrderId === order.id ? "Menyiapkan..." : "Struk"}
+                  </button>
                   <button type="button" onClick={() => onDeleteOrder(order.id)}>
                     Hapus
                   </button>
@@ -2991,7 +3104,7 @@ function AdminManagementSection() {
             </label>
 
             {/* Mode selection */}
-            <div style={{ marginTop: "12px", padding: "12px", backgroundColor: "#f9f9f9", borderRadius: "6px" }}>
+            <div style={{ marginTop: "12px", padding: "12px", backgroundColor: "#f9f9f9", borderRadius: "10px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
                 <input
                   type="radio"
@@ -3121,7 +3234,7 @@ function AdminManagementSection() {
 
             {/* Instant mode info */}
             {maintenanceSettingsForm.maintenanceMode === "instant" && (
-              <div style={{ marginTop: "12px", padding: "12px", backgroundColor: "#fff3cd", borderRadius: "6px", borderLeft: "4px solid #ffc107" }}>
+              <div style={{ marginTop: "12px", padding: "12px", backgroundColor: "#fff3cd", borderRadius: "10px", borderLeft: "4px solid #ffc107" }}>
                 <small style={{ color: "#856404" }}>
                   ⚠️ Mode langsung: Website akan segera tertutup. Matikan checkbox di atas untuk membuka kembali.
                 </small>
@@ -3259,7 +3372,7 @@ function AdminManagementSection() {
                         justifyContent: "space-between",
                         gap: "12px",
                         padding: "10px 12px",
-                        borderRadius: "8px",
+                        borderRadius: "10px",
                         backgroundColor: "#fff",
                         border: "1px solid #e5e7eb",
                         cursor: "grab",
@@ -3273,7 +3386,7 @@ function AdminManagementSection() {
                             width: 72,
                             height: 52,
                             objectFit: "cover",
-                            borderRadius: 8,
+                            borderRadius: "10px",
                             border: "1px solid #ddd",
                             background: "#f3f4f6",
                           }}
@@ -4006,7 +4119,7 @@ function AdminManagementSection() {
                       background: "#04B851",
                       color: "white",
                       border: "none",
-                      borderRadius: "4px",
+                      borderRadius: "10px",
                       padding: "6px 12px",
                       cursor: isGeneratingAIComments[testimonial.id] ? "not-allowed" : "pointer",
                       opacity: isGeneratingAIComments[testimonial.id] ? 0.6 : 1,
@@ -4028,7 +4141,7 @@ function AdminManagementSection() {
                     style={{
                       width: "50px",
                       padding: "6px",
-                      borderRadius: "4px",
+                      borderRadius: "10px",
                       border: "1px solid #ddd",
                     }}
                     title="Jumlah komentar AI untuk dibuat"
@@ -4052,14 +4165,14 @@ function AdminManagementSection() {
             </p>
 
             {/* AI Comment Generation Section */}
-            <div style={{ marginBottom: "20px", padding: "12px", background: "#f5f5f5", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+            <div style={{ marginBottom: "20px", padding: "12px", background: "#f5f5f5", borderRadius: "10px", border: "1px solid #e0e0e0" }}>
               <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
                 <select
                   value={selectedAITestimonialId}
                   onChange={(e) => setSelectedAITestimonialId(e.target.value)}
                   style={{
                     padding: "8px 12px",
-                    borderRadius: "6px",
+                    borderRadius: "10px",
                     border: "1px solid #ddd",
                     fontSize: "0.9rem",
                   }}
@@ -4085,7 +4198,7 @@ function AdminManagementSection() {
                   style={{
                     width: "60px",
                     padding: "8px 12px",
-                    borderRadius: "6px",
+                    borderRadius: "10px",
                     border: "1px solid #ddd",
                     fontSize: "0.9rem",
                   }}
@@ -4104,7 +4217,7 @@ function AdminManagementSection() {
                     background: "#04B851",
                     color: "white",
                     border: "none",
-                    borderRadius: "6px",
+                    borderRadius: "10px",
                     padding: "8px 16px",
                     fontSize: "0.9rem",
                     cursor: !selectedAITestimonialId || isGeneratingAIComments[selectedAITestimonialId] ? "not-allowed" : "pointer",
@@ -4121,7 +4234,7 @@ function AdminManagementSection() {
             </div>
             
             {/* Add Manual Comment Form */}
-            <div style={{ marginBottom: "20px", padding: "12px", background: "#f5f5f5", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+            <div style={{ marginBottom: "20px", padding: "12px", background: "#f5f5f5", borderRadius: "10px", border: "1px solid #e0e0e0" }}>
               <h3 style={{ margin: "0 0 12px", fontSize: "1rem" }}>Tambah Komentar Langsung</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div>
@@ -4137,7 +4250,7 @@ function AdminManagementSection() {
                     style={{
                       width: "100%",
                       padding: "8px 12px",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       border: "1px solid #ddd",
                       fontSize: "0.9rem",
                       boxSizing: "border-box",
@@ -4165,7 +4278,7 @@ function AdminManagementSection() {
                     style={{
                       width: "100%",
                       padding: "8px 12px",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       border: "1px solid #ddd",
                       fontSize: "0.9rem",
                       boxSizing: "border-box",
@@ -4186,7 +4299,7 @@ function AdminManagementSection() {
                     style={{
                       width: "100%",
                       padding: "8px 12px",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       border: "1px solid #ddd",
                       fontSize: "0.9rem",
                       minHeight: "80px",
@@ -4209,7 +4322,7 @@ function AdminManagementSection() {
                       }
                       style={{
                         padding: "8px 12px",
-                        borderRadius: "6px",
+                        borderRadius: "10px",
                         border: "1px solid #ddd",
                         fontSize: "0.9rem",
                       }}
@@ -4246,7 +4359,7 @@ function AdminManagementSection() {
                       background: "#04B851",
                       color: "white",
                       border: "none",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       padding: "8px 16px",
                       fontSize: "0.9rem",
                       cursor: isAddingManualComment ? "not-allowed" : "pointer",
@@ -4261,7 +4374,7 @@ function AdminManagementSection() {
             </div>
 
             {/* Copy Existing Comments Section */}
-            <div style={{ marginBottom: "20px", padding: "12px", background: "#e8f5e9", borderRadius: "6px", border: "1px solid #c8e6c9" }}>
+            <div style={{ marginBottom: "20px", padding: "12px", background: "#e8f5e9", borderRadius: "10px", border: "1px solid #c8e6c9" }}>
               <h3 style={{ margin: "0 0 12px", fontSize: "1rem" }}>Salin Komentar yang Sudah Disetujui</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div>
@@ -4275,7 +4388,7 @@ function AdminManagementSection() {
                     style={{
                       width: "100%",
                       padding: "8px 12px",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       border: "1px solid #ddd",
                       fontSize: "0.9rem",
                       boxSizing: "border-box",
@@ -4292,12 +4405,12 @@ function AdminManagementSection() {
 
                 {/* Show comments from selected source testimonial */}
                 {selectedSourceTestimonialId && (
-                  <div style={{ maxHeight: "300px", overflowY: "auto", padding: "8px", background: "white", borderRadius: "4px", border: "1px solid #c8e6c9" }}>
+                  <div style={{ maxHeight: "300px", overflowY: "auto", padding: "8px", background: "white", borderRadius: "10px", border: "1px solid #c8e6c9" }}>
                     <p style={{ fontSize: "0.8rem", color: "#666", margin: "0 0 8px" }}>Pilih komentar untuk disalin:</p>
                     {(testimonialComments[selectedSourceTestimonialId] || [])
                       .filter((c) => c.verified && !c.replyToId) // Only show verified comments that are not replies
                       .map((comment) => (
-                        <div key={comment.id} style={{ marginBottom: "8px", padding: "8px", background: "#f9f9f9", borderRadius: "4px", border: "1px solid #e0e0e0" }}>
+                        <div key={comment.id} style={{ marginBottom: "8px", padding: "8px", background: "#f9f9f9", borderRadius: "10px", border: "1px solid #e0e0e0" }}>
                           <label style={{ display: "flex", gap: "8px", cursor: "pointer" }}>
                             <input
                               type="checkbox"
@@ -4337,7 +4450,7 @@ function AdminManagementSection() {
                     style={{
                       width: "100%",
                       padding: "8px 12px",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       border: "1px solid #ddd",
                       fontSize: "0.9rem",
                       boxSizing: "border-box",
@@ -4361,7 +4474,7 @@ function AdminManagementSection() {
                       background: "#2196F3",
                       color: "white",
                       border: "none",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       padding: "8px 16px",
                       fontSize: "0.9rem",
                       cursor: isAddingManualComment || !selectedSourceTestimonialId || !targetTestimonialId || selectedCommentsToCopy.size === 0 ? "not-allowed" : "pointer",
@@ -4382,7 +4495,7 @@ function AdminManagementSection() {
                       background: "#999",
                       color: "white",
                       border: "none",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       padding: "8px 16px",
                       fontSize: "0.9rem",
                       cursor: "pointer",
@@ -4400,14 +4513,14 @@ function AdminManagementSection() {
                 <div key={testimonialId} style={{ marginBottom: "24px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
                   {comments.length > 0 && (
                     <>
-                      <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #04B851" }}>
+                      <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "10px", borderLeft: "3px solid #04B851" }}>
                         <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
                           Testimoni ID: {testimonialId} - {comments.length} komentar
                         </p>
                       </div>
 
                       {comments.map((comment) => (
-                        <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+                        <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "10px", border: "1px solid #e0e0e0" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
                             <span style={{
                               fontWeight: comment.verified ? 800 : 600,
@@ -4450,7 +4563,7 @@ function AdminManagementSection() {
                                 background: "#f44336",
                                 color: "white",
                                 border: "none",
-                                borderRadius: "4px",
+                                borderRadius: "10px",
                                 padding: "6px 12px",
                                 fontSize: "0.85rem",
                                 cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer",
@@ -4469,7 +4582,7 @@ function AdminManagementSection() {
                                 background: "#2196F3",
                                 color: "white",
                                 border: "none",
-                                borderRadius: "4px",
+                                borderRadius: "10px",
                                 padding: "6px 12px",
                                 fontSize: "0.85rem",
                                 cursor: "pointer",
@@ -4485,7 +4598,7 @@ function AdminManagementSection() {
                                 background: comment.verified ? "#FF9800" : "#9E9E9E",
                                 color: "white",
                                 border: "none",
-                                borderRadius: "4px",
+                                borderRadius: "10px",
                                 padding: "6px 12px",
                                 fontSize: "0.85rem",
                                 cursor: isTogglingVerifiedBadge[comment.id] ? "not-allowed" : "pointer",
@@ -4508,7 +4621,7 @@ function AdminManagementSection() {
                                 background: "#9C27B0",
                                 color: "white",
                                 border: "none",
-                                borderRadius: "4px",
+                                borderRadius: "10px",
                                 padding: "6px 12px",
                                 fontSize: "0.85rem",
                                 cursor: "pointer",
@@ -4527,7 +4640,7 @@ function AdminManagementSection() {
                                 background: "#04B851",
                                 color: "white",
                                 border: "none",
-                                borderRadius: "4px",
+                                borderRadius: "10px",
                                 padding: "6px 12px",
                                 fontSize: "0.85rem",
                                 cursor: isGeneratingAIReplies[`${testimonialId}-${comment.id}`] ? "not-allowed" : "pointer",
@@ -4550,20 +4663,20 @@ function AdminManagementSection() {
                               style={{
                                 width: "40px",
                                 padding: "6px",
-                                borderRadius: "4px",
+                                borderRadius: "10px",
                                 border: "1px solid #ddd",
                                 fontSize: "0.85rem",
                               }}
                               title="Jumlah balasan AI"
                             />
-                            <span style={{ fontSize: "0.8rem", color: "#666", padding: "6px 8px", background: "#f0f0f0", borderRadius: "4px" }}>
+                            <span style={{ fontSize: "0.8rem", color: "#666", padding: "6px 8px", background: "#f0f0f0", borderRadius: "10px" }}>
                               AI Balas: {countAIReplies(comment.id, testimonialId)}
                             </span>
                           </div>
 
                           {/* Edit Form Modal */}
                           {editingCommentId === comment.id && (
-                            <div style={{ marginTop: "12px", padding: "12px", background: "#e3f2fd", borderRadius: "6px", border: "1px solid #90caf9" }}>
+                            <div style={{ marginTop: "12px", padding: "12px", background: "#e3f2fd", borderRadius: "10px", border: "1px solid #90caf9" }}>
                               <h4 style={{ margin: "0 0 8px", fontSize: "0.9rem", color: "#1976d2" }}>Edit Komentar</h4>
                               <div style={{ marginBottom: "8px" }}>
                                 <label style={{ display: "block", fontSize: "0.8rem", color: "#666", marginBottom: "4px" }}>Nama Penulis</label>
@@ -4574,7 +4687,7 @@ function AdminManagementSection() {
                                   style={{
                                     width: "100%",
                                     padding: "8px",
-                                    borderRadius: "4px",
+                                    borderRadius: "10px",
                                     border: "1px solid #ccc",
                                     fontSize: "0.85rem",
                                     boxSizing: "border-box",
@@ -4590,7 +4703,7 @@ function AdminManagementSection() {
                                   style={{
                                     width: "100%",
                                     padding: "8px",
-                                    borderRadius: "4px",
+                                    borderRadius: "10px",
                                     border: "1px solid #ccc",
                                     fontSize: "0.85rem",
                                     minHeight: "80px",
@@ -4609,7 +4722,7 @@ function AdminManagementSection() {
                                     background: "#1976d2",
                                     color: "white",
                                     border: "none",
-                                    borderRadius: "4px",
+                                    borderRadius: "10px",
                                     padding: "6px 12px",
                                     fontSize: "0.85rem",
                                     cursor: isUpdatingComment[comment.id] ? "not-allowed" : "pointer",
@@ -4628,7 +4741,7 @@ function AdminManagementSection() {
                                     background: "#999",
                                     color: "white",
                                     border: "none",
-                                    borderRadius: "4px",
+                                    borderRadius: "10px",
                                     padding: "6px 12px",
                                     fontSize: "0.85rem",
                                     cursor: "pointer",
@@ -4642,7 +4755,7 @@ function AdminManagementSection() {
 
                           {/* Reply Modal */}
                           {replyModalOpen === comment.id && (
-                            <div style={{ marginTop: "12px", padding: "12px", background: "#f3e5f5", borderRadius: "6px", border: "1px solid #ce93d8" }}>
+                            <div style={{ marginTop: "12px", padding: "12px", background: "#f3e5f5", borderRadius: "10px", border: "1px solid #ce93d8" }}>
                               <h4 style={{ margin: "0 0 8px", fontSize: "0.9rem", color: "#7b1fa2" }}>Balas Komentar</h4>
                               <p style={{ margin: "0 0 8px", fontSize: "0.8rem", color: "#666" }}>Balas ke: <strong>@{comment.userName}</strong></p>
                               <div style={{ marginBottom: "8px" }}>
@@ -4653,7 +4766,7 @@ function AdminManagementSection() {
                                   style={{
                                     width: "100%",
                                     padding: "8px",
-                                    borderRadius: "4px",
+                                    borderRadius: "10px",
                                     border: "1px solid #ccc",
                                     fontSize: "0.85rem",
                                     minHeight: "80px",
@@ -4672,7 +4785,7 @@ function AdminManagementSection() {
                                     background: "#7b1fa2",
                                     color: "white",
                                     border: "none",
-                                    borderRadius: "4px",
+                                    borderRadius: "10px",
                                     padding: "6px 12px",
                                     fontSize: "0.85rem",
                                     cursor: isUpdatingComment[comment.id] ? "not-allowed" : "pointer",
@@ -4691,7 +4804,7 @@ function AdminManagementSection() {
                                     background: "#999",
                                     color: "white",
                                     border: "none",
-                                    borderRadius: "4px",
+                                    borderRadius: "10px",
                                     padding: "6px 12px",
                                     fontSize: "0.85rem",
                                     cursor: "pointer",
@@ -4723,7 +4836,7 @@ function AdminManagementSection() {
             </p>
 
             {/* Copy Testimonial Comments to Book Story Section */}
-            <div style={{ marginBottom: "20px", padding: "12px", background: "#e8f5e9", borderRadius: "6px", border: "1px solid #c8e6c9" }}>
+            <div style={{ marginBottom: "20px", padding: "12px", background: "#e8f5e9", borderRadius: "10px", border: "1px solid #c8e6c9" }}>
               <h4 style={{ margin: "0 0 12px", fontSize: "0.95rem", color: "#333" }}>Salin Komentar Testimoni ke Cerita</h4>
               <div style={{ display: "flex", gap: "12px", flexDirection: "column" }}>
                 <div>
@@ -4737,7 +4850,7 @@ function AdminManagementSection() {
                     style={{
                       width: "100%",
                       padding: "8px 12px",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       border: "1px solid #ddd",
                       fontSize: "0.9rem",
                       boxSizing: "border-box",
@@ -4754,12 +4867,12 @@ function AdminManagementSection() {
 
                 {/* Show comments from selected source testimonial */}
                 {selectedSourceTestimonialForStory && (
-                  <div style={{ maxHeight: "300px", overflowY: "auto", padding: "8px", background: "white", borderRadius: "4px", border: "1px solid #c8e6c9" }}>
+                  <div style={{ maxHeight: "300px", overflowY: "auto", padding: "8px", background: "white", borderRadius: "10px", border: "1px solid #c8e6c9" }}>
                     <p style={{ fontSize: "0.8rem", color: "#666", margin: "0 0 8px" }}>Pilih komentar untuk disalin:</p>
                     {(testimonialComments[selectedSourceTestimonialForStory] || [])
                       .filter((c) => !c.replyToId)
                       .map((comment) => (
-                        <div key={comment.id} style={{ marginBottom: "8px", padding: "8px", background: "#f9f9f9", borderRadius: "4px", border: "1px solid #e0e0e0" }}>
+                        <div key={comment.id} style={{ marginBottom: "8px", padding: "8px", background: "#f9f9f9", borderRadius: "10px", border: "1px solid #e0e0e0" }}>
                           <label style={{ display: "flex", gap: "8px", cursor: "pointer" }}>
                             <input
                               type="checkbox"
@@ -4799,7 +4912,7 @@ function AdminManagementSection() {
                     style={{
                       width: "100%",
                       padding: "8px 12px",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       border: "1px solid #ddd",
                       fontSize: "0.9rem",
                       boxSizing: "border-box",
@@ -4823,7 +4936,7 @@ function AdminManagementSection() {
                       background: "#2196F3",
                       color: "white",
                       border: "none",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       padding: "8px 16px",
                       fontSize: "0.9rem",
                       cursor: isCopyingCommentsToStory || !selectedSourceTestimonialForStory || !targetStoryIdForCopy || selectedCommentsToCopyToStory.size === 0 ? "not-allowed" : "pointer",
@@ -4844,7 +4957,7 @@ function AdminManagementSection() {
                       background: "#999",
                       color: "white",
                       border: "none",
-                      borderRadius: "6px",
+                      borderRadius: "10px",
                       padding: "8px 16px",
                       fontSize: "0.9rem",
                       cursor: "pointer",
@@ -4862,7 +4975,7 @@ function AdminManagementSection() {
               {approvedBookStories.map((story) =>
                 story.comments && story.comments.length > 0 ? (
                   <div key={story.id} style={{ marginBottom: "24px", borderBottom: "1px solid #e0e0e0", paddingBottom: "16px" }}>
-                    <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "4px", borderLeft: "3px solid #11151E" }}>
+                    <div style={{ marginBottom: "12px", padding: "8px", background: "#f0f0f0", borderRadius: "10px", borderLeft: "3px solid #11151E" }}>
                       <p style={{ margin: "0 0 4px", fontWeight: "600", fontSize: "0.95rem" }}>
                         📖 {story.title} - {story.comments.length} komentar
                       </p>
@@ -4872,7 +4985,7 @@ function AdminManagementSection() {
                     </div>
 
                     {story.comments.map((comment) => (
-                      <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0" }}>
+                      <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "10px", border: "1px solid #e0e0e0" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
                           <span style={{
                             fontWeight: comment.verified ? 800 : 600,
@@ -4904,7 +5017,7 @@ function AdminManagementSection() {
                               background: "#f44336",
                               color: "white",
                               border: "none",
-                              borderRadius: "4px",
+                              borderRadius: "10px",
                               padding: "6px 12px",
                               fontSize: "0.85rem",
                               cursor: isDeletingStoryComment[comment.id] ? "not-allowed" : "pointer",
@@ -4923,7 +5036,7 @@ function AdminManagementSection() {
                               background: "#2196F3",
                               color: "white",
                               border: "none",
-                              borderRadius: "4px",
+                              borderRadius: "10px",
                               padding: "6px 12px",
                               fontSize: "0.85rem",
                               cursor: "pointer",
@@ -4939,7 +5052,7 @@ function AdminManagementSection() {
                               background: comment.verified ? "#FF9800" : "#9E9E9E",
                               color: "white",
                               border: "none",
-                              borderRadius: "4px",
+                              borderRadius: "10px",
                               padding: "6px 12px",
                               fontSize: "0.85rem",
                               cursor: isTogglingStoryCommentVerified[comment.id] ? "not-allowed" : "pointer",
@@ -4956,7 +5069,7 @@ function AdminManagementSection() {
 
                         {/* Edit Form Modal */}
                         {editingStoryCommentId === comment.id && (
-                          <div style={{ marginTop: "12px", padding: "12px", background: "#e3f2fd", borderRadius: "6px", border: "1px solid #90caf9" }}>
+                          <div style={{ marginTop: "12px", padding: "12px", background: "#e3f2fd", borderRadius: "10px", border: "1px solid #90caf9" }}>
                             <h4 style={{ margin: "0 0 8px", fontSize: "0.9rem", color: "#1976d2" }}>Edit Komentar</h4>
                             <div style={{ marginBottom: "8px" }}>
                               <label style={{ display: "block", fontSize: "0.8rem", color: "#666", marginBottom: "4px" }}>Nama Penulis</label>
@@ -4967,7 +5080,7 @@ function AdminManagementSection() {
                                 style={{
                                   width: "100%",
                                   padding: "8px",
-                                  borderRadius: "4px",
+                                  borderRadius: "10px",
                                   border: "1px solid #bbb",
                                   fontSize: "0.85rem",
                                   boxSizing: "border-box",
@@ -4982,7 +5095,7 @@ function AdminManagementSection() {
                                 style={{
                                   width: "100%",
                                   padding: "8px",
-                                  borderRadius: "4px",
+                                  borderRadius: "10px",
                                   border: "1px solid #bbb",
                                   fontSize: "0.85rem",
                                   minHeight: "80px",
@@ -5000,7 +5113,7 @@ function AdminManagementSection() {
                                   background: "#1976d2",
                                   color: "white",
                                   border: "none",
-                                  borderRadius: "4px",
+                                  borderRadius: "10px",
                                   padding: "6px 12px",
                                   fontSize: "0.85rem",
                                   cursor: isUpdatingStoryComment[comment.id] ? "not-allowed" : "pointer",
@@ -5019,7 +5132,7 @@ function AdminManagementSection() {
                                   background: "#999",
                                   color: "white",
                                   border: "none",
-                                  borderRadius: "4px",
+                                  borderRadius: "10px",
                                   padding: "6px 12px",
                                   fontSize: "0.85rem",
                                   cursor: "pointer",
@@ -5341,7 +5454,7 @@ function AdminManagementSection() {
                               style={{
                                 width: "60px",
                                 height: "60px",
-                                borderRadius: "4px",
+                                borderRadius: "10px",
                                 objectFit: "cover",
                               }}
                             />
@@ -5422,7 +5535,7 @@ function AdminManagementSection() {
                                 type="button"
                                 onClick={() => updateStoryLikes(story.id, storyLikesForm[story.id] ?? story.likedBy.length)}
                                 disabled={isLoading}
-                                style={{ marginLeft: "8px", padding: "4px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                                style={{ marginLeft: "8px", padding: "4px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "10px", cursor: "pointer" }}
                               >
                                 Update
                               </button>
@@ -5436,7 +5549,7 @@ function AdminManagementSection() {
                             ) : (
                               <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
                                 {story.comments.map((comment) => (
-                                  <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "6px", border: "1px solid #e0e0e0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+                                  <div key={comment.id} style={{ marginBottom: "12px", padding: "10px", background: "#f9f9f9", borderRadius: "10px", border: "1px solid #e0e0e0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
                                     <div style={{ minWidth: 0, flex: 1 }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px", flexWrap: "wrap" }}>
                                         <p style={{ margin: "0", fontWeight: comment.verified ? 800 : 600, fontSize: "0.95rem" }}>{comment.userName}</p>
@@ -5456,7 +5569,7 @@ function AdminManagementSection() {
                                         type="button"
                                         onClick={() => onToggleStoryCommentVerified(story.id, comment.id, comment.verified || false)}
                                         disabled={isTogglingStoryCommentVerified[comment.id]}
-                                        style={{ padding: "4px 8px", background: comment.verified ? "#FF9800" : "#9E9E9E", color: "white", border: "none", borderRadius: "4px", cursor: isTogglingStoryCommentVerified[comment.id] ? "not-allowed" : "pointer", fontSize: "12px", opacity: isTogglingStoryCommentVerified[comment.id] ? 0.6 : 1 }}
+                                        style={{ padding: "4px 8px", background: comment.verified ? "#FF9800" : "#9E9E9E", color: "white", border: "none", borderRadius: "10px", cursor: isTogglingStoryCommentVerified[comment.id] ? "not-allowed" : "pointer", fontSize: "12px", opacity: isTogglingStoryCommentVerified[comment.id] ? 0.6 : 1 }}
                                       >
                                         {isTogglingStoryCommentVerified[comment.id] ? "..." : (comment.verified ? "Verified" : "Non-Ver")}
                                       </button>
@@ -5464,7 +5577,7 @@ function AdminManagementSection() {
                                         type="button"
                                         onClick={() => onDeleteBookStoryComment(story.id, comment.id)}
                                         disabled={isDeletingComment[comment.id]}
-                                        style={{ padding: "4px 8px", background: "#f44336", color: "white", border: "none", borderRadius: "4px", cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer", fontSize: "12px", opacity: isDeletingComment[comment.id] ? 0.6 : 1 }}
+                                        style={{ padding: "4px 8px", background: "#f44336", color: "white", border: "none", borderRadius: "10px", cursor: isDeletingComment[comment.id] ? "not-allowed" : "pointer", fontSize: "12px", opacity: isDeletingComment[comment.id] ? 0.6 : 1 }}
                                       >
                                         {isDeletingComment[comment.id] ? "..." : "Hapus"}
                                       </button>
@@ -5478,7 +5591,7 @@ function AdminManagementSection() {
                           <div style={{ marginTop: "16px" }}>
                             <strong>Tambah Komentar Custom:</strong>
                             {(storyCommentsForm[story.id] || []).map((comment, idx) => (
-                              <div key={idx} style={{ marginTop: "8px", padding: "8px", background: "#f5f5f5", borderRadius: "4px" }}>
+                              <div key={idx} style={{ marginTop: "8px", padding: "8px", background: "#f5f5f5", borderRadius: "10px" }}>
                                 <input
                                   type="text"
                                   placeholder="Nama user"
@@ -5506,7 +5619,7 @@ function AdminManagementSection() {
                                     const newComments = (storyCommentsForm[story.id] || []).filter((_, i) => i !== idx);
                                     setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
                                   }}
-                                  style={{ marginTop: "4px", padding: "4px 8px", background: "#f44336", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}
+                                  style={{ marginTop: "4px", padding: "4px 8px", background: "#f44336", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "12px" }}
                                 >
                                   Hapus
                                 </button>
@@ -5518,7 +5631,7 @@ function AdminManagementSection() {
                                 const newComments = [...(storyCommentsForm[story.id] || []), { userName: "", text: "" }];
                                 setStoryCommentsForm(prev => ({ ...prev, [story.id]: newComments }));
                               }}
-                              style={{ marginTop: "8px", padding: "6px 12px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                              style={{ marginTop: "8px", padding: "6px 12px", background: "#4CAF50", color: "white", border: "none", borderRadius: "10px", cursor: "pointer" }}
                             >
                               + Tambah Komentar
                             </button>
@@ -5527,7 +5640,7 @@ function AdminManagementSection() {
                                 type="button"
                                 onClick={() => addCustomComments(story.id, storyCommentsForm[story.id] || [])}
                                 disabled={isLoading}
-                                style={{ marginLeft: "8px", padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                                style={{ marginLeft: "8px", padding: "6px 12px", background: "#2196F3", color: "white", border: "none", borderRadius: "10px", cursor: "pointer" }}
                               >
                                 Kirim Komentar
                               </button>
@@ -5584,7 +5697,7 @@ function AdminManagementSection() {
                   </div>
                   
                   {editingWriterId === story.id && (
-                    <div style={{ marginTop: "12px", padding: "12px", background: "#f9f9f9", borderRadius: "4px" }}>
+                    <div style={{ marginTop: "12px", padding: "12px", background: "#f9f9f9", borderRadius: "10px" }}>
                       <h4>Ubah Penulis Cerita</h4>
                       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                         <input
@@ -5592,42 +5705,42 @@ function AdminManagementSection() {
                           placeholder="User ID"
                           value={writerForm.userId}
                           onChange={(e) => setWriterForm(prev => ({ ...prev, userId: e.target.value }))}
-                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "10px" }}
                         />
                         <input
                           type="text"
                           placeholder="Nama Penulis"
                           value={writerForm.userName}
                           onChange={(e) => setWriterForm(prev => ({ ...prev, userName: e.target.value }))}
-                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "10px" }}
                         />
                         <input
                           type="email"
                           placeholder="Email Penulis"
                           value={writerForm.userEmail}
                           onChange={(e) => setWriterForm(prev => ({ ...prev, userEmail: e.target.value }))}
-                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "10px" }}
                         />
                         <input
                           type="text"
                           placeholder="Avatar URL (opsional)"
                           value={writerForm.userAvatarUrl}
                           onChange={(e) => setWriterForm(prev => ({ ...prev, userAvatarUrl: e.target.value }))}
-                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "4px" }}
+                          style={{ padding: "8px", border: "1px solid #ddd", borderRadius: "10px" }}
                         />
                         <div style={{ display: "flex", gap: "8px" }}>
                           <button
                             type="button"
                             onClick={() => updateStoryWriter(story.id)}
                             disabled={isLoading}
-                            style={{ flex: 1, padding: "8px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                            style={{ flex: 1, padding: "8px", background: "#4CAF50", color: "white", border: "none", borderRadius: "10px", cursor: "pointer" }}
                           >
                             Simpan Penulis
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditingWriterId(null)}
-                            style={{ flex: 1, padding: "8px", background: "#ccc", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                            style={{ flex: 1, padding: "8px", background: "#ccc", border: "none", borderRadius: "10px", cursor: "pointer" }}
                           >
                             Batal
                           </button>
@@ -5637,7 +5750,7 @@ function AdminManagementSection() {
                   )}
 
                   {editingViewersId === story.id && (
-                    <div style={{ marginTop: "12px", padding: "12px", background: "#f9f9f9", borderRadius: "4px" }}>
+                    <div style={{ marginTop: "12px", padding: "12px", background: "#f9f9f9", borderRadius: "10px" }}>
                       <h4>Atur Penonton Cerita</h4>
                       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                         <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -5664,7 +5777,7 @@ function AdminManagementSection() {
                                   .filter(id => id.length > 0);
                                 setViewersForm(prev => ({ ...prev, restrictedViewerIds: ids }));
                               }}
-                              style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "4px", minHeight: "80px", fontFamily: "monospace" }}
+                              style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "10px", minHeight: "80px", fontFamily: "monospace" }}
                             />
                             <p style={{ fontSize: "12px", color: "#999", marginTop: "4px" }}>
                               Total pembaca yang diizinkan: {viewersForm.restrictedViewerIds.length}
@@ -5677,14 +5790,14 @@ function AdminManagementSection() {
                             type="button"
                             onClick={() => updateStoryViewers(story.id)}
                             disabled={isLoading}
-                            style={{ flex: 1, padding: "8px", background: "#4CAF50", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                            style={{ flex: 1, padding: "8px", background: "#4CAF50", color: "white", border: "none", borderRadius: "10px", cursor: "pointer" }}
                           >
                             Simpan Pengaturan
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditingViewersId(null)}
-                            style={{ flex: 1, padding: "8px", background: "#ccc", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                            style={{ flex: 1, padding: "8px", background: "#ccc", border: "none", borderRadius: "10px", cursor: "pointer" }}
                           >
                             Batal
                           </button>
@@ -6052,11 +6165,14 @@ function AdminManagementSection() {
                   Belum ada user yang mendaftar.
                 </p>
               ) : (
-                <table className={`${styles.table} ${styles.usersTable}`} style={{ width: "100%", borderCollapse: "collapse" }}>
+                <div className={styles.usersTableWrap}>
+                  <p className={styles.tableScrollHint}>Geser ke kiri/kanan untuk melihat semua data user.</p>
+                  <table className={`${styles.table} ${styles.usersTable}`} style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #ddd" }}>
                       <th style={{ padding: "8px", textAlign: "left" }}>Username</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Email</th>
+                      <th style={{ padding: "8px", textAlign: "left" }}>Login</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Beli</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Lamar</th>
                       <th style={{ padding: "8px", textAlign: "left" }}>Last Active</th>
@@ -6067,37 +6183,42 @@ function AdminManagementSection() {
                   <tbody>
                     {users.map((user) => (
                       <tr key={user.id} style={{ borderBottom: "1px solid #eee" }}>
-                        <td style={{ padding: "8px" }}>{user.username}</td>
-                        <td style={{ padding: "8px", fontSize: "12px" }}>{user.email}</td>
-                        <td style={{ padding: "8px", textAlign: "center" }}>
+                        <td data-label="Username" style={{ padding: "8px" }}>{user.username}</td>
+                        <td data-label="Email" style={{ padding: "8px", fontSize: "12px" }}>{user.email}</td>
+                        <td data-label="Login" style={{ padding: "8px" }}>
+                          <span className={`${styles.loginBadge} ${user.loginMethod === "Google" ? styles.googleBadge : styles.tokkoBadge}`}>
+                            {user.loginMethod === "Google" ? "Google" : "Tokko"}
+                          </span>
+                        </td>
+                        <td data-label="Beli" style={{ padding: "8px", textAlign: "center" }}>
                           <span
                             style={{
                               display: "inline-block",
                               background: user.purchaseCount > 0 ? "#4CAF50" : "#f0f0f0",
                               color: user.purchaseCount > 0 ? "white" : "black",
                               padding: "4px 8px",
-                              borderRadius: "4px",
+                              borderRadius: "10px",
                               fontSize: "12px",
                             }}
                           >
                             {user.purchaseCount}
                           </span>
                         </td>
-                        <td style={{ padding: "8px", textAlign: "center" }}>
+                        <td data-label="Lamar" style={{ padding: "8px", textAlign: "center" }}>
                           <span
                             style={{
                               display: "inline-block",
                               background: user.jobApplicationCount > 0 ? "#2196F3" : "#f0f0f0",
                               color: user.jobApplicationCount > 0 ? "white" : "black",
                               padding: "4px 8px",
-                              borderRadius: "4px",
+                              borderRadius: "10px",
                               fontSize: "12px",
                             }}
                           >
                             {user.jobApplicationCount}
                           </span>
                         </td>
-                        <td style={{ padding: "8px", fontSize: "12px" }}>
+                        <td data-label="Last Active" style={{ padding: "8px", fontSize: "12px" }}>
                           {user.lastActiveAt
                             ? new Date(user.lastActiveAt).toLocaleDateString("id-ID", {
                                 month: "short",
@@ -6105,43 +6226,45 @@ function AdminManagementSection() {
                               })
                             : "-"}
                         </td>
-                        <td style={{ padding: "8px", fontSize: "12px" }}>
+                        <td data-label="Join" style={{ padding: "8px", fontSize: "12px" }}>
                           {new Date(user.createdAt).toLocaleDateString("id-ID", {
                             month: "short",
                             day: "numeric",
                             year: "2-digit",
                           })}
                         </td>
-                        <td style={{ padding: "8px", textAlign: "center" }}>
-                          <button
-                            type="button"
-                            className={styles.secondaryButton}
-                            onClick={() => {
-                              setResetPasswordUserId(user.id);
-                              setResetPasswordUserName(user.username);
-                              setResetPasswordNewPassword("");
-                              setResetPasswordConfirmPassword("");
-                              setError("");
-                            }}
-                            disabled={isResettingPassword}
-                            style={{ fontSize: "12px", padding: "4px 8px", marginRight: "4px" }}
-                          >
-                            Reset Pass
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.deleteButton}
-                            onClick={() => onDeleteUser(user.id)}
-                            disabled={isLoading}
-                            style={{ fontSize: "12px", padding: "4px 8px" }}
-                          >
-                            Hapus
-                          </button>
+                        <td data-label="Aksi" style={{ padding: "8px", textAlign: "center" }}>
+                          <div className={styles.userActions}>
+                            <button
+                              type="button"
+                              className={`${styles.secondaryButton} ${styles.userActionButton}`}
+                              onClick={() => {
+                                setResetPasswordUserId(user.id);
+                                setResetPasswordUserName(user.username);
+                                setResetPasswordNewPassword("");
+                                setResetPasswordConfirmPassword("");
+                                setError("");
+                              }}
+                              disabled={isResettingPassword || user.loginMethod === "Google"}
+                              title={user.loginMethod === "Google" ? "Akun Google tidak memakai password Tokko" : "Reset password Tokko"}
+                            >
+                              {user.loginMethod === "Google" ? "Google" : "Reset Pass"}
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.deleteButton} ${styles.userActionButton}`}
+                              onClick={() => onDeleteUser(user.id)}
+                              disabled={isLoading}
+                            >
+                              Hapus
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               )}
             </div>
           </article>
@@ -6263,6 +6386,30 @@ function AdminManagementSection() {
       ) : null}
       </section>
       </div>
+
+      {receiptPreview ? (
+        <div className={styles.receiptModalBackdrop} role="dialog" aria-modal="true" aria-label="Preview struk">
+          <div className={styles.receiptModal}>
+            <div className={styles.cardHead}>
+              <h2>Preview Struk</h2>
+              <button type="button" className={styles.toastClose} onClick={closeReceiptPreview} aria-label="Tutup preview struk">
+                ×
+              </button>
+            </div>
+            <div className={styles.receiptImageWrap}>
+              <img src={receiptPreview.url} alt={`Preview struk ${receiptPreview.orderId}`} />
+            </div>
+            <div className={styles.formActions}>
+              <button type="button" className={styles.primaryButton} onClick={downloadReceiptPreview}>
+                Download JPG
+              </button>
+              <button type="button" className={styles.secondaryButton} onClick={closeReceiptPreview}>
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -194,7 +194,7 @@ export default function ProfilePage() {
         return;
       }
 
-      setMessage(result.message ?? "Profil berhasil diperbarui.");
+      setMessage(result.message ?? "Perubahan berhasil diupdate.");
       setOldPassword("");
       setNewPassword("");
       setOtpCode("");
@@ -440,7 +440,9 @@ export default function ProfilePage() {
             <label className={styles.field}>
               <span className={styles.fieldLabel}>
                 No Telepon <span style={{ color: "#d92d20" }}>*</span>
-                <span className={styles.phoneHint}>Pastikan menggunakan Nomor Whatsapp aktif ya!</span>
+                {phone.trim().length === 0 ? (
+                  <span className={styles.phoneHint}>Pastikan menggunakan Nomor Whatsapp aktif ya!</span>
+                ) : null}
               </span>
               <input
                 value={phone}
