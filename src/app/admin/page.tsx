@@ -2845,7 +2845,7 @@ function AdminManagementSection() {
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
-                    tickFormatter={(value: string) => value.slice(5)}
+                    tickFormatter={(value: string) => `${value.slice(8, 10)}/${value.slice(5, 7)}`}
                   />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
                   <Tooltip

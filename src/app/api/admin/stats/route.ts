@@ -19,7 +19,9 @@ export async function GET() {
       current.totalAmount += Number(order.total ?? 0);
       dailyOrders.set(bucket, current);
     });
-    const series = [...dailyOrders.values()].sort((a, b) => a.bucket.localeCompare(b.bucket)).slice(-30);
+    const series = [...dailyOrders.values()]
+      .sort((a, b) => a.bucket.localeCompare(b.bucket))
+      .slice(-30);
 
     return NextResponse.json({
       series,
