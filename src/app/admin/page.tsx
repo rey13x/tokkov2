@@ -224,6 +224,8 @@ function AdminManagementSection() {
     // Main admin dashboard state
     const [authState, setAuthState] = useState<"checking" | "allowed" | "blocked">("checking");
     const [initialDashboardLoading, setInitialDashboardLoading] = useState(true);
+    const [sectionLoading, setSectionLoading] = useState<AdminSection | null>(null);
+    const loadedSectionsRef = useRef<Set<AdminSection>>(new Set(["overview", "products", "orders"]));
     const [activeSection, setActiveSection] = useState<AdminSection>("overview");
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [products, setProducts] = useState<StoreProduct[]>([]);
@@ -1767,10 +1769,15 @@ function AdminManagementSection() {
       users: loadUsers,
       orders: loadOrders,
     };
-    if (loaders[activeSection]) {
-      loaders[activeSection]?.().catch((err) => {
+    if (loaders[activeSection] && !loadedSectionsRef.current.has(activeSection)) {
+      setSectionLoading(activeSection);
+      loaders[activeSection]?.().then(() => {
+        loadedSectionsRef.current.add(activeSection);
+      }).catch((err) => {
         console.error(`Failed to load admin section ${activeSection}:`, err);
         setError("Data menu belum berhasil dimuat. Coba buka lagi.");
+      }).finally(() => {
+        setSectionLoading((current) => current === activeSection ? null : current);
       });
     }
   }, [activeSection]);
@@ -2969,7 +2976,11 @@ function AdminManagementSection() {
       </section>
       ) : null}
 
-      {activeSection !== "overview" ? (
+      {sectionLoading ? (
+        <div className={styles.adminSectionLoading}>
+          <WaitLoading centered text="Tunggu ya Sobat, pastiin internet Sobat ada.." />
+        </div>
+      ) : activeSection !== "overview" ? (
       <section className={styles.sectionGrid}>
         {activeSection === "orders" ? (
         <article className={styles.card}>

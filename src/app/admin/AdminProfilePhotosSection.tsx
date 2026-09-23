@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import WaitLoading from "@/components/ui/WaitLoading";
 import styles from "./AdminProfilePhotosSection.module.css";
 
 interface ProfilePhoto {
@@ -147,7 +148,7 @@ export function AdminProfilePhotosSection() {
   };
 
   if (isLoading) {
-    return <div className={styles.container}>Memuat foto profil...</div>;
+    return <WaitLoading centered text="Tunggu ya Sobat, pastiin internet Sobat ada.." />;
   }
 
   return (

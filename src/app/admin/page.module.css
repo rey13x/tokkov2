@@ -202,6 +202,14 @@
   gap: 12px;
 }
 
+.adminSectionLoading {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
 .sectionGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
