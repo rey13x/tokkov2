@@ -41,6 +41,7 @@ type AdminSection =
   | "users"
   | "profilePhotos"
   | "mapPhoto"
+  | "marqueeBanner"
   | "preview";
 
 const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
@@ -65,6 +66,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "admins", label: "Admin", desc: "Kelola admin" },
   { id: "users", label: "User", desc: "Lihat data user & aktivitas" },
   { id: "mapPhoto", label: "Ubah Foto", desc: "Atur foto dan radius map" },
+  { id: "marqueeBanner", label: "Foto Marquee", desc: "Ubah banner di atas marquee" },
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
 ];
 
@@ -343,6 +345,9 @@ function AdminManagementSection() {
   });
   const [mapPhotoUrl, setMapPhotoUrl] = useState("");
   const [mapPhotoRadius, setMapPhotoRadius] = useState(50);
+  const [marqueeBannerUrl, setMarqueeBannerUrl] = useState("");
+  const [marqueeBannerRadius, setMarqueeBannerRadius] = useState(16);
+  const [isUploadingMarqueeBanner, setIsUploadingMarqueeBanner] = useState(false);
 
   useEffect(() => {
     try {
@@ -354,6 +359,17 @@ function AdminManagementSection() {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    fetch("/api/admin/marquee-banner", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { url?: string; radius?: number } | null) => {
+        if (!data) return;
+        setMarqueeBannerUrl(data.url ?? "");
+        setMarqueeBannerRadius(Number(data.radius ?? 16));
+      })
+      .catch(() => {});
+  }, []);
+
   const onSaveMapPhoto = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
@@ -362,6 +378,35 @@ function AdminManagementSection() {
       setMessage("Foto map berhasil disimpan.");
     } catch {
       setError("Gagal menyimpan pengaturan foto map.");
+    }
+  };
+
+  const onSaveMarqueeBanner = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const response = await fetch("/api/admin/marquee-banner", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: marqueeBannerUrl, radius: marqueeBannerRadius }),
+    });
+    if (!response.ok) {
+      setError("Gagal menyimpan foto marquee.");
+      return;
+    }
+    setMessage("Foto marquee berhasil disimpan.");
+  };
+
+  const onUploadMarqueeBanner = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setIsUploadingMarqueeBanner(true);
+    try {
+      setMarqueeBannerUrl(await uploadMedia(file, "marquee-banner"));
+      setMessage("Foto berhasil diupload. Klik Simpan Foto untuk menerapkan.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload foto gagal.");
+    } finally {
+      setIsUploadingMarqueeBanner(false);
+      event.target.value = "";
     }
   };
   const [previewVersion, setPreviewVersion] = useState(0);
@@ -6160,6 +6205,51 @@ function AdminManagementSection() {
                 src={mapPhotoUrl}
                 alt="Preview foto map"
                 style={{ width: "96px", height: "96px", objectFit: "cover", borderRadius: `${mapPhotoRadius}%` }}
+              />
+            ) : null}
+          </article>
+        ) : null}
+
+        {activeSection === "marqueeBanner" ? (
+          <article className={styles.card}>
+            <h2>Foto Marquee</h2>
+            <p style={{ color: "#666", marginTop: 0 }}>
+              Foto landscape ini tampil di atas logo marquee homepage dan bisa diganti kapan saja.
+            </p>
+            <form className={styles.form} onSubmit={onSaveMarqueeBanner}>
+              <label>
+                Upload Foto
+                <input type="file" accept="image/*" onChange={onUploadMarqueeBanner} disabled={isUploadingMarqueeBanner} />
+                <small>{isUploadingMarqueeBanner ? "Mengupload..." : "Pilih foto landscape dari perangkat"}</small>
+              </label>
+              <label>
+                URL Foto
+                <input
+                  type="url"
+                  value={marqueeBannerUrl}
+                  onChange={(event) => setMarqueeBannerUrl(event.target.value)}
+                  placeholder="https://.../banner.jpg"
+                />
+              </label>
+              <label>
+                Radius Foto: {marqueeBannerRadius}%
+                <input
+                  type="range"
+                  min="0"
+                  max="50"
+                  value={marqueeBannerRadius}
+                  onChange={(event) => setMarqueeBannerRadius(Number(event.target.value))}
+                />
+              </label>
+              <div className={styles.formActions}>
+                <button type="submit">Simpan Foto</button>
+              </div>
+            </form>
+            {marqueeBannerUrl ? (
+              <img
+                src={marqueeBannerUrl}
+                alt="Preview foto marquee"
+                style={{ width: "100%", aspectRatio: "2.8 / 1", objectFit: "cover", borderRadius: `${marqueeBannerRadius}%` }}
               />
             ) : null}
           </article>

@@ -141,6 +141,7 @@ export default function HomeClient() {
   const [donationActivities, setDonationActivities] = useState<DonationActivity[]>([]);
   const [testimonials, setTestimonials] = useState<HomeTestimonial[]>([]);
   const [marquees, setMarquees] = useState<HomeMarquee[]>([]);
+  const [marqueeBanner, setMarqueeBanner] = useState<{ url: string; radius: number }>({ url: "", radius: 16 });
   const [isTestimonialDragging, setIsTestimonialDragging] = useState(false);
   const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
   const [activePollVoteId, setActivePollVoteId] = useState<string | null>(null);
@@ -568,6 +569,12 @@ export default function HomeClient() {
 
     void loadProducts();
     void loadSupportingData();
+    fetch("/api/marquee-banner", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { url?: string; radius?: number } | null) => {
+        if (data?.url) setMarqueeBanner({ url: data.url, radius: Number(data.radius ?? 16) });
+      })
+      .catch(() => {});
 
     void fetchSessionCached(PUBLIC_DATA_CACHE_KEY.heroBackgrounds, "/api/hero-backgrounds", { cache: "no-store" });
 
@@ -1123,6 +1130,16 @@ export default function HomeClient() {
 
       {activeMarquees.length > 0 ? (
       <section className={styles.section} data-animate="section">
+        {marqueeBanner.url ? (
+          <div className={styles.marqueeBannerWrap}>
+            <img
+              src={marqueeBanner.url}
+              alt="Banner marquee Tokko"
+              className={styles.marqueeBanner}
+              style={{ borderRadius: `${marqueeBanner.radius}%` }}
+            />
+          </div>
+        ) : null}
         {activeMarquees.length > 0 ? (
           <PremiumMarquee<HomeMarquee>
             items={activeMarquees}

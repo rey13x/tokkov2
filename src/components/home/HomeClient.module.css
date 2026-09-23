@@ -13,6 +13,20 @@
   overflow: hidden;
 }
 
+.marqueeBannerWrap {
+  width: 100%;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.marqueeBanner {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2.8 / 1;
+  object-fit: cover;
+  background: #f3f5f8;
+}
+
 .hero {
   position: relative;
   min-height: clamp(600px, 78vh, 870px);
