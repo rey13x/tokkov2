@@ -1313,6 +1313,15 @@
   cursor: default;
 }
 
+.orderDeleteButton {
+  background: #dc3545;
+  color: #ffffff;
+}
+
+.orderDeleteButton:hover:not(:disabled) {
+  background: #b3223b;
+}
+
 .emptyState {
   text-align: center;
   padding: 30px 20px;
@@ -1488,6 +1497,12 @@
     width: 100%;
     min-width: 0;
     justify-content: center;
+  }
+
+  .listItem > .rowActions .orderDeleteButton {
+    grid-column: 1 / -1;
+    width: min(220px, 100%);
+    justify-self: center;
   }
 
   .listItem > .rowActions button:last-child {

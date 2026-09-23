@@ -3053,7 +3053,11 @@ function AdminManagementSection() {
                       item.productType === "donation" || /donasi|donation/i.test(item.productName),
                     ) ? "Sertifikat" : isPreparingReceiptOrderId === order.id ? "Menyiapkan..." : "Struk"}
                   </button>
-                  <button type="button" onClick={() => onDeleteOrder(order.id)}>
+                  <button
+                    type="button"
+                    className={`${styles.deleteButton} ${styles.orderDeleteButton}`}
+                    onClick={() => onDeleteOrder(order.id)}
+                  >
                     Hapus
                   </button>
                 </div>
