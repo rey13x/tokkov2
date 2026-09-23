@@ -231,12 +231,15 @@
 }
 
 .floatingMeta div {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
 }
 
 .floatingMeta p {
+  width: 100%;
   font-size: 0.66rem;
   font-weight: 600;
   color: #161a23;
@@ -252,6 +255,7 @@
 }
 
 .floatingMeta i {
+  flex: 0 0 23px;
   width: 23px;
   height: 23px;
   border-radius: 50%;
