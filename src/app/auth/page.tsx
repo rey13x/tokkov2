@@ -180,7 +180,7 @@ export default function AuthPage() {
       });
 
       if (result?.error) {
-        setError("Username/Gmail atau password tidak sesuai.");
+        setError("Akun tidak terdaftar, Sobat.");
         return;
       }
 
