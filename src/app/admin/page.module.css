@@ -1490,6 +1490,12 @@
     justify-content: center;
   }
 
+  .listItem > .rowActions button:last-child {
+    grid-column: 1 / -1;
+    width: min(50%, 220px);
+    justify-self: center;
+  }
+
   .listItem label {
     display: block;
     margin-top: 8px;
