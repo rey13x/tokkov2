@@ -81,6 +81,13 @@ select {
   font: inherit;
 }
 
+.marketing-map-country-photo {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+}
+
 @keyframes onboardingZoom {
   from {
     opacity: 0;

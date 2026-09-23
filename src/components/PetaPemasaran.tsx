@@ -162,6 +162,18 @@ export default function PetaPemasaran({ fullScreen = false }: { fullScreen?: boo
   const [waktuSekarang, setWaktuSekarang] = useState(() => new Date());
   const [menuTerbuka, setMenuTerbuka] = useState(false);
   const [negaraTerpilih, setNegaraTerpilih] = useState("Indonesia");
+  const [mapPhotoUrl, setMapPhotoUrl] = useState("");
+  const [mapPhotoRadius, setMapPhotoRadius] = useState(50);
+
+  useEffect(() => {
+    try {
+      setMapPhotoUrl(window.localStorage.getItem("tokko_map_photo_url") ?? "");
+      const savedRadius = Number(window.localStorage.getItem("tokko_map_photo_radius"));
+      if (Number.isFinite(savedRadius)) {
+        setMapPhotoRadius(Math.min(50, Math.max(0, savedRadius)));
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (!menuTerbuka) {
@@ -174,6 +186,11 @@ export default function PetaPemasaran({ fullScreen = false }: { fullScreen?: boo
 
   const bukaMenuNegara = () => {
     setMenuTerbuka(true);
+  };
+  const negaraAktif = dataNegaraNavigasi.find((negara) => negara.nama === negaraTerpilih) ?? dataNegaraNavigasi[0];
+  const fotoNegara = (nama: string) => {
+    const lokasi = semuaLokasi.find((item) => item.negara === (nama === "Amerika" ? "Amerika Serikat" : nama));
+    return lokasi?.foto ?? "/maintenancelogo.jpeg";
   };
 
   useEffect(() => {
@@ -232,8 +249,12 @@ export default function PetaPemasaran({ fullScreen = false }: { fullScreen?: boo
                 setMenuTerbuka(false);
               }}
             >
-              <span className="marketing-map-full-label">{negara.nama}</span>
-              <span className="marketing-map-short-label">{singkatanNegara[negara.nama]}</span>
+              <img
+                src={mapPhotoUrl || fotoNegara(negara.nama)}
+                alt={negara.nama}
+                className="marketing-map-country-photo"
+                style={{ borderRadius: `${mapPhotoRadius}%` }}
+              />
             </button>
           ))}
         </div>
@@ -241,8 +262,14 @@ export default function PetaPemasaran({ fullScreen = false }: { fullScreen?: boo
           className="marketing-map-open"
           type="button"
           onClick={menuTerbuka ? () => setMenuTerbuka(false) : bukaMenuNegara}
+          aria-label={menuTerbuka ? "Tutup pilihan negara" : "Pilih negara"}
         >
-          {menuTerbuka ? "Tutup pilihan" : "Pilih negara"}
+          <img
+            src={mapPhotoUrl || fotoNegara(negaraAktif.nama)}
+            alt={menuTerbuka ? "Tutup pilihan" : "Pilih negara"}
+            className="marketing-map-country-photo"
+            style={{ borderRadius: `${mapPhotoRadius}%` }}
+          />
         </button>
         </div>
       </div>

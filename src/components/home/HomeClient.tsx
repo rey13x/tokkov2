@@ -1073,14 +1073,15 @@ export default function HomeClient() {
         </section>
       ) : null} */}
 
-      {storeDataReady ? (
+      {/* Team Sobat map temporarily disabled; keep this block for later reactivation. */}
+      {/* {storeDataReady ? (
         <section id="tim-marketing" className={styles.section} data-animate="section">
           <div className={styles.partnerHeader}>
-            <h2>Tim Marketing</h2>
+            <h2>Team Sobat</h2>
           </div>
           <PetaPemasaranDinamis />
         </section>
-      ) : null}
+      ) : null} */}
 
       {/* Partner testimonials temporarily disabled; the logo marquee below stays active. */}
       {/* {testimonials.length > 0 || activeMarquees.length > 0 ? (

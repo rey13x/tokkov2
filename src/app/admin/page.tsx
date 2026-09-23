@@ -40,6 +40,7 @@ type AdminSection =
   | "admins"
   | "users"
   | "profilePhotos"
+  | "mapPhoto"
   | "preview";
 
 const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
@@ -63,6 +64,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "maintenanceSettings", label: "Pemeliharaan", desc: "Buka/tutup website" },
   { id: "admins", label: "Admin", desc: "Kelola admin" },
   { id: "users", label: "User", desc: "Lihat data user & aktivitas" },
+  { id: "mapPhoto", label: "Ubah Foto", desc: "Atur foto dan radius map" },
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
 ];
 
@@ -335,6 +337,29 @@ function AdminManagementSection() {
     duration: 8000,
     sortOrder: 0,
   });
+  const [mapPhotoUrl, setMapPhotoUrl] = useState("");
+  const [mapPhotoRadius, setMapPhotoRadius] = useState(50);
+
+  useEffect(() => {
+    try {
+      setMapPhotoUrl(window.localStorage.getItem("tokko_map_photo_url") ?? "");
+      const savedRadius = Number(window.localStorage.getItem("tokko_map_photo_radius"));
+      if (Number.isFinite(savedRadius)) {
+        setMapPhotoRadius(Math.min(50, Math.max(0, savedRadius)));
+      }
+    } catch {}
+  }, []);
+
+  const onSaveMapPhoto = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      window.localStorage.setItem("tokko_map_photo_url", mapPhotoUrl.trim());
+      window.localStorage.setItem("tokko_map_photo_radius", String(mapPhotoRadius));
+      setMessage("Foto map berhasil disimpan.");
+    } catch {
+      setError("Gagal menyimpan pengaturan foto map.");
+    }
+  };
   const [previewVersion, setPreviewVersion] = useState(0);
     const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [previewOrientation, setPreviewOrientation] = useState<"portrait" | "landscape">("portrait");
@@ -6060,6 +6085,46 @@ function AdminManagementSection() {
         {activeSection === "profilePhotos" ? (
           <article className={styles.card}>
             <AdminProfilePhotosSection />
+          </article>
+        ) : null}
+
+        {activeSection === "mapPhoto" ? (
+          <article className={styles.card}>
+            <h2>Ubah Foto Map</h2>
+            <p style={{ color: "#666", marginTop: 0 }}>
+              Atur foto yang dipakai pada tombol pilihan negara dan radius sudutnya.
+            </p>
+            <form className={styles.form} onSubmit={onSaveMapPhoto}>
+              <label>
+                URL Foto
+                <input
+                  type="url"
+                  value={mapPhotoUrl}
+                  onChange={(event) => setMapPhotoUrl(event.target.value)}
+                  placeholder="https://.../foto.jpg"
+                />
+              </label>
+              <label>
+                Radius Foto: {mapPhotoRadius}%
+                <input
+                  type="range"
+                  min="0"
+                  max="50"
+                  value={mapPhotoRadius}
+                  onChange={(event) => setMapPhotoRadius(Number(event.target.value))}
+                />
+              </label>
+              <div className={styles.formActions}>
+                <button type="submit">Simpan Foto</button>
+              </div>
+            </form>
+            {mapPhotoUrl ? (
+              <img
+                src={mapPhotoUrl}
+                alt="Preview foto map"
+                style={{ width: "96px", height: "96px", objectFit: "cover", borderRadius: `${mapPhotoRadius}%` }}
+              />
+            ) : null}
           </article>
         ) : null}
 
