@@ -2772,15 +2772,14 @@ function AdminManagementSection() {
               </Link>
             </>
           ) : null}
-          <button
-            type="button"
-            onClick={onLogoutAdmin}
+          <Link
+            href="/profil"
             className={`${styles.actionLink} ${styles.iconActionLink}`}
-            title="Keluar Admin"
-            aria-label="Keluar Admin"
+            title="Buka Profil"
+            aria-label="Buka Profil"
           >
             <UserRound size={18} aria-hidden="true" />
-          </button>
+          </Link>
           <Link
             href="/"
             className={`${styles.actionLink} ${styles.iconActionLink}`}
