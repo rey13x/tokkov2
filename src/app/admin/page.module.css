@@ -817,6 +817,26 @@
   font-size: 0.75rem;
 }
 
+.managementToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.managementSearch {
+  width: min(280px, 100%);
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #d1d8e8;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #1c2434;
+  font: inherit;
+  font-size: 0.8rem;
+}
+
 .audioPreview {
   width: min(260px, 100%);
   margin-top: 6px;
@@ -1200,7 +1220,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #168c4b !important;
+  background: #0d1119 !important;
   color: #ffffff !important;
   text-decoration: none;
 }
@@ -1357,6 +1377,16 @@
   .rowActions select {
     flex: 1 1 180px;
     max-width: none;
+  }
+
+  .managementToolbar {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .managementSearch {
+    flex: 1 1 180px;
+    width: auto;
   }
 
   .cardHead {

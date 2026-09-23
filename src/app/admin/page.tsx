@@ -267,6 +267,8 @@ function AdminManagementSection() {
     const [series, setSeries] = useState<Array<{ bucket: string; totalOrders: number }>>([]);
     const [latestOrders, setLatestOrders] = useState<Array<{ id: string; userName: string; total: number; createdAt: string }>>([]);
     const [users, setUsers] = useState<any[]>([]); // Replace any with user type if available
+    const [userSearch, setUserSearch] = useState("");
+    const [orderSearch, setOrderSearch] = useState("");
     const [session, setSession] = useState<any>(null); // Replace any with session type if available
     const isLimitedAdmin = session?.user?.email?.toLowerCase() === LIMITED_ADMIN_EMAIL;
     const visibleSidebarItems = isLimitedAdmin
@@ -2735,6 +2737,15 @@ function AdminManagementSection() {
     return null;
   }
 
+  const normalizedUserSearch = userSearch.trim().toLowerCase();
+  const filteredUsers = normalizedUserSearch
+    ? users.filter((user) => [user.username, user.email, user.phone].some((value) => String(value ?? "").toLowerCase().includes(normalizedUserSearch)))
+    : users;
+  const normalizedOrderSearch = orderSearch.trim().toLowerCase();
+  const filteredOrders = normalizedOrderSearch
+    ? orders.filter((order) => [order.id, order.userName, (order as any).userEmail, (order as any).userPhone, order.status, ...(order.items ?? []).map((item) => item.productName)].some((value) => String(value ?? "").toLowerCase().includes(normalizedOrderSearch)))
+    : orders;
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
@@ -2926,12 +2937,21 @@ function AdminManagementSection() {
         <article className={styles.card}>
           <div className={styles.cardHead}>
             <h2>Kelola Status Pesanan</h2>
-            <button type="button" className={styles.secondaryButton} onClick={() => loadOrders()}>
-              Refresh
-            </button>
+            <div className={styles.managementToolbar}>
+              <input
+                className={styles.managementSearch}
+                value={orderSearch}
+                onChange={(event) => setOrderSearch(event.target.value)}
+                placeholder="Cari order, nama, nomor..."
+                aria-label="Cari order"
+              />
+              <button type="button" className={styles.secondaryButton} onClick={() => loadOrders()}>
+                Refresh
+              </button>
+            </div>
           </div>
           <div className={styles.list}>
-            {orders.map((order) => (
+            {filteredOrders.map((order) => (
               <div key={order.id} className={styles.listItem}>
                 <div className={styles.listPreview}>
                   <div>
@@ -3022,7 +3042,7 @@ function AdminManagementSection() {
                 </div>
               </div>
             ))}
-            {orders.length === 0 ? <p>Belum ada order.</p> : null}
+            {filteredOrders.length === 0 ? <p>{orders.length === 0 ? "Belum ada order." : "Order tidak ditemukan."}</p> : null}
           </div>
         </article>
         ) : null}
@@ -6175,14 +6195,23 @@ function AdminManagementSection() {
           <article className={styles.card}>
             <div className={styles.cardHead}>
               <h2>Manajemen User</h2>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => loadUsers()}
-                disabled={isLoading}
-              >
-                Refresh
-              </button>
+              <div className={styles.managementToolbar}>
+                <input
+                  className={styles.managementSearch}
+                  value={userSearch}
+                  onChange={(event) => setUserSearch(event.target.value)}
+                  placeholder="Cari user, email, nomor..."
+                  aria-label="Cari user"
+                />
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => loadUsers()}
+                  disabled={isLoading}
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
 
             <div className={styles.list}>
@@ -6208,7 +6237,7 @@ function AdminManagementSection() {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => (
+                    {filteredUsers.map((user) => (
                       <tr key={user.id} style={{ borderBottom: "1px solid #eee" }}>
                         <td data-label="Username" style={{ padding: "8px" }}>{user.username}</td>
                         <td data-label="Email" style={{ padding: "8px", fontSize: "12px" }}>{user.email}</td>
@@ -6325,6 +6354,13 @@ function AdminManagementSection() {
                         </td>
                       </tr>
                     ))}
+                    {filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} style={{ padding: "16px", textAlign: "center", color: "#999" }}>
+                          User tidak ditemukan.
+                        </td>
+                      </tr>
+                    ) : null}
                   </tbody>
                   </table>
                 </div>
