@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { withSobat } from "@/lib/user-message";
+import { getImageUploadError, DEFAULT_IMAGE_MAX_SIZE_BYTES } from "@/lib/upload-constraints";
 import styles from "./AdminProfilePhotosSection.module.css";
 
 interface ProfilePhoto {
@@ -96,6 +97,13 @@ export function AdminProfilePhotosSection() {
     
     if (!selectedFile) {
       setError("Pilih file foto terlebih dahulu");
+      return;
+    }
+
+    const validationError = getImageUploadError(selectedFile, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+    if (validationError) {
+      setError(validationError);
+      setSelectedFile(null);
       return;
     }
 

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import sharp from "sharp";
 import { requireAdmin } from "@/server/admin";
 import { listProfilePhotos, createProfilePhoto, deleteProfilePhoto } from "@/server/db";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+const MIN_IMAGE_SIZE_BYTES = 400 * 1024;
 const MAX_IMAGE_SIZE_BYTES = 450 * 1024;
 
 export async function GET() {
@@ -72,17 +74,25 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Keep the Firestore document safely below its size limit.
-      if (fileInput.size > MAX_IMAGE_SIZE_BYTES) {
-        const sizeMB = (fileInput.size / (1024 * 1024)).toFixed(2);
+      const buffer = Buffer.from(await fileInput.arrayBuffer());
+      const compressed = await sharp(buffer)
+        .rotate()
+        .resize({ width: 2400, withoutEnlargement: true })
+        .webp({ quality: 78 })
+        .toBuffer();
+      if (compressed.length < MIN_IMAGE_SIZE_BYTES) {
         return NextResponse.json(
-          { message: `Foto terlalu besar (${sizeMB}MB). Maksimal 1MB.` },
-          { status: 400 }
+          { message: "Foto terlalu kecil. Minimal 400KB. Pilih foto lain yang lebih jelas." },
+          { status: 400 },
         );
       }
-
-      const buffer = Buffer.from(await fileInput.arrayBuffer());
-      photoUrl = `data:${fileInput.type};base64,${buffer.toString("base64")}`;
+      if (compressed.length > MAX_IMAGE_SIZE_BYTES) {
+        return NextResponse.json(
+          { message: "Foto terlalu besar setelah dikompres. Coba pilih foto lain." },
+          { status: 400 },
+        );
+      }
+      photoUrl = `data:image/webp;base64,${compressed.toString("base64")}`;
     } else {
       return NextResponse.json(
         { message: "URL atau file foto diperlukan" },

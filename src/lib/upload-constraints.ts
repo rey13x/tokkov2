@@ -1,3 +1,4 @@
+export const DEFAULT_IMAGE_MIN_SIZE_BYTES = 400 * 1024;
 export const DEFAULT_IMAGE_MAX_SIZE_BYTES = 1024 * 1024;
 
 export function formatFileSize(bytes: number) {
@@ -10,6 +11,7 @@ export function formatFileSize(bytes: number) {
 export function getImageUploadError(
   file: Pick<File, "type" | "size">,
   maxSizeBytes = DEFAULT_IMAGE_MAX_SIZE_BYTES,
+  minSizeBytes = DEFAULT_IMAGE_MIN_SIZE_BYTES,
 ) {
   if (!file.type || !file.type.startsWith("image/")) {
     return "Tipe file tidak valid. Pilih gambar JPG, PNG, WEBP, atau GIF.";
@@ -17,6 +19,10 @@ export function getImageUploadError(
 
   if (file.size <= 0) {
     return "File kosong. Pilih gambar lain.";
+  }
+
+  if (file.size < minSizeBytes) {
+    return `Ukuran file terlalu kecil. Minimal ${formatFileSize(minSizeBytes)}.`;
   }
 
   if (file.size > maxSizeBytes) {

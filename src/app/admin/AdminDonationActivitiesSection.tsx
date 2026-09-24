@@ -3,6 +3,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import type { DonationActivity, DonationActivityType, StoreProduct } from "@/types/store";
 import { withSobat } from "@/lib/user-message";
+import { getImageUploadError, DEFAULT_IMAGE_MAX_SIZE_BYTES } from "@/lib/upload-constraints";
 import styles from "./page.module.css";
 
 const labels: Record<DonationActivityType, string> = { income: "Pemasukan", expense: "Pengeluaran", refund: "Pengembalian" };
@@ -63,6 +64,16 @@ export function AdminDonationActivitiesSection() {
   const uploadImage = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (file.type.startsWith("image/")) {
+      const validationError = getImageUploadError(file, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+      if (validationError) {
+        setError(validationError);
+        event.target.value = "";
+        return;
+      }
+    }
+
     setIsUploading(true);
     setError("");
     try {

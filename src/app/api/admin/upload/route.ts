@@ -1,14 +1,30 @@
 import { NextResponse } from "next/server";
+import sharp from "sharp";
 import { requireAdmin } from "@/server/admin";
 
 export const runtime = "nodejs";
 const MAX_UPLOAD_SIZE_BYTES = 8 * 1024 * 1024;
+const MIN_IMAGE_SIZE_BYTES = 400 * 1024;
 // Firestore document has ~1 MiB limit; keep inline media far below that.
 const MAX_INLINE_FILE_SIZE_BYTES = 450 * 1024;
 
 function toInlineDataUrl(file: File, buffer: Buffer) {
   const mimeType = file.type || "application/octet-stream";
   return `data:${mimeType};base64,${buffer.toString("base64")}`;
+}
+
+async function compressImage(buffer: Buffer) {
+  let width = 2400;
+  let quality = 82;
+  let output = await sharp(buffer).rotate().resize({ width, withoutEnlargement: true }).webp({ quality }).toBuffer();
+
+  while (output.length > MAX_INLINE_FILE_SIZE_BYTES && quality > 42) {
+    quality -= 8;
+    width = Math.round(width * 0.85);
+    output = await sharp(buffer).rotate().resize({ width, withoutEnlargement: true }).webp({ quality }).toBuffer();
+  }
+
+  return output;
 }
 
 export async function POST(request: Request) {
@@ -40,6 +56,23 @@ export async function POST(request: Request) {
         { message: "Ukuran file terlalu besar. Maksimal 8MB." },
         { status: 400 },
       );
+    }
+
+    if (isImage) {
+      const compressed = await compressImage(buffer);
+      if (compressed.length < MIN_IMAGE_SIZE_BYTES) {
+        return NextResponse.json(
+          { message: "Foto terlalu kecil. Minimal 400KB. Pilih foto lain yang lebih jelas." },
+          { status: 400 },
+        );
+      }
+      if (compressed.length > MAX_INLINE_FILE_SIZE_BYTES) {
+        return NextResponse.json(
+          { message: "Foto terlalu besar setelah dikompres. Coba pilih foto lain." },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json({ url: `data:image/webp;base64,${compressed.toString("base64")}` });
     }
 
     if (buffer.length > MAX_INLINE_FILE_SIZE_BYTES) {

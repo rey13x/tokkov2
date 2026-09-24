@@ -30,7 +30,10 @@ describe('image upload constraints', () => {
     const file = { type: 'image/png', size: DEFAULT_IMAGE_MAX_SIZE_BYTES + 1 } as File;
     expect(getImageUploadError(file)).toContain('Maksimal');
 
-    const validFile = { type: 'image/webp', size: 120 * 1024 } as File;
+    const tinyFile = { type: 'image/webp', size: 300 * 1024 } as File;
+    expect(getImageUploadError(tinyFile)).toContain('Minimal');
+
+    const validFile = { type: 'image/webp', size: 500 * 1024 } as File;
     expect(getImageUploadError(validFile)).toBe('');
   });
 });

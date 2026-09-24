@@ -854,6 +854,15 @@ function AdminManagementSection() {
       return;
     }
 
+    if (file.type.startsWith("image/")) {
+      const validationError = getImageUploadError(file, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+      if (validationError) {
+        setError(validationError);
+        event.target.value = "";
+        return;
+      }
+    }
+
     setError("");
     setMessage("");
     setIsUploadingProductImage(true);
@@ -878,6 +887,15 @@ function AdminManagementSection() {
       return;
     }
 
+    if (file.type.startsWith("image/")) {
+      const validationError = getImageUploadError(file, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+      if (validationError) {
+        setError(validationError);
+        event.target.value = "";
+        return;
+      }
+    }
+
     setError("");
     setMessage("");
     setIsUploadingInfoImage(true);
@@ -900,6 +918,15 @@ function AdminManagementSection() {
     const file = event.target.files?.[0];
     if (!file) {
       return;
+    }
+
+    if (file.type.startsWith("image/")) {
+      const validationError = getImageUploadError(file, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+      if (validationError) {
+        setError(validationError);
+        event.target.value = "";
+        return;
+      }
     }
 
     setError("");
@@ -981,6 +1008,15 @@ function AdminManagementSection() {
       return;
     }
 
+    if (file.type.startsWith("image/")) {
+      const validationError = getImageUploadError(file, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+      if (validationError) {
+        setError(validationError);
+        event.target.value = "";
+        return;
+      }
+    }
+
     setError("");
     setMessage("");
     setIsUploadingPrivacyBanner(true);
@@ -1003,6 +1039,15 @@ function AdminManagementSection() {
     const file = event.target.files?.[0];
     if (!file) {
       return;
+    }
+
+    if (file.type.startsWith("image/")) {
+      const validationError = getImageUploadError(file, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+      if (validationError) {
+        setError(validationError);
+        event.target.value = "";
+        return;
+      }
     }
 
     setError("");

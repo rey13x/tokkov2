@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { PortfolioItem } from "@/types/store";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import { withSobat } from "@/lib/user-message";
+import { getImageUploadError, DEFAULT_IMAGE_MAX_SIZE_BYTES } from "@/lib/upload-constraints";
 import styles from "./AdminPortfolioSection.module.css";
 
 type Props = {
@@ -52,6 +53,15 @@ export function AdminPortfolioSection({ isFileUploadEnabled, onUploadMedia }: Pr
     const file = event.target.files?.[0];
     if (!file) {
       return;
+    }
+
+    if (file.type.startsWith("image/")) {
+      const validationError = getImageUploadError(file, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+      if (validationError) {
+        setError(validationError);
+        event.target.value = "";
+        return;
+      }
     }
 
     setError("");
