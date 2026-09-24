@@ -50,6 +50,7 @@ import type {
   StoreInformation,
   StoreMarqueeItem,
   StoreProduct,
+  StoreStoryReel,
   StoreTestimonial,
 } from "@/types/store";
 import styles from "./HomeClient.module.css";
@@ -65,6 +66,7 @@ type HomeProduct = StoreProduct;
 type HomeInformation = StoreInformation;
 type HomeTestimonial = StoreTestimonial;
 type HomeMarquee = StoreMarqueeItem;
+type HomeActivity = StoreStoryReel;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
@@ -141,6 +143,7 @@ export default function HomeClient() {
   const [donationActivities, setDonationActivities] = useState<DonationActivity[]>([]);
   const [testimonials, setTestimonials] = useState<HomeTestimonial[]>([]);
   const [marquees, setMarquees] = useState<HomeMarquee[]>([]);
+  const [activities, setActivities] = useState<HomeActivity[]>([]);
   const [marqueeBanner, setMarqueeBanner] = useState<{ url: string; radius: number }>({ url: "", radius: 16 });
   const [isTestimonialDragging, setIsTestimonialDragging] = useState(false);
   const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
@@ -213,6 +216,10 @@ export default function HomeClient() {
   const activeMarquees = useMemo(() => {
     return marquees;
   }, [marquees]);
+  const visibleActivities = useMemo(
+    () => activities.filter((item) => item.isActive && item.mediaGallery.some((media) => media.url)).slice(0, 3),
+    [activities],
+  );
   const isViewportLocked = menuMounted;
   const profileImageSource =
     sessionStatus === "authenticated"
@@ -561,6 +568,7 @@ export default function HomeClient() {
         setDonationActivities(data.donationActivities ?? []);
         setTestimonials(data.testimonials ?? []);
         setMarquees(data.marquees ?? []);
+        setActivities(data.storyReels ?? []);
         setStoreDataReady(true);
       })
       .catch(() => {
@@ -1161,6 +1169,41 @@ export default function HomeClient() {
       </section>
       ) : null}
 
+      {visibleActivities.length > 0 ? (
+        <section className={styles.section} data-animate="section" id="kegiatan">
+          <div className={styles.sectionHead}>
+            <h2 className={styles.shimmerTitle}>Kegiatan Sobat</h2>
+            <Link href="/kegiatan" className={styles.inlineAction}>
+              Lihat semua <span>{">"}</span>
+            </Link>
+          </div>
+          <div className={styles.activityGrid}>
+            {visibleActivities.map((activity) => {
+              const cover = activity.mediaGallery.find((media) => media.url);
+              return (
+                <Link key={activity.id} href={`/kegiatan/${activity.id}`} className={styles.activityCard}>
+                  <div className={styles.activityImageWrap}>
+                    <FlexibleMedia
+                      src={cover?.url ?? ""}
+                      alt={cover?.alt || activity.title}
+                      fill
+                      className={styles.activityImage}
+                      sizes="(max-width: 820px) 88vw, 360px"
+                      unoptimized
+                    />
+                  </div>
+                  <div className={styles.activityBody}>
+                    <h3>{activity.title}</h3>
+                    <p>{activity.description}</p>
+                    <span className={styles.activityArrow} aria-hidden="true"><FiChevronRight /></span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
       {isMounted
         ? createPortal(
             <button
@@ -1221,6 +1264,12 @@ export default function HomeClient() {
                 </button>
                 <button type="button" onClick={() => router.push("/testimoni")} data-menu-item>
                   Testimoni
+                  <span>
+                    <FiChevronRight />
+                  </span>
+                </button>
+                <button type="button" onClick={() => { router.push("/kegiatan"); closeMenu(); }} data-menu-item>
+                  Kegiatan
                   <span>
                     <FiChevronRight />
                   </span>

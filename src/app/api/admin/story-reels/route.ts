@@ -5,7 +5,7 @@ import { createStoryReel, listStoryReels } from "@/server/store-data";
 
 const storyReelSchema = z.object({
   title: z.string().min(1).max(120),
-  description: z.string().max(500).default(""),
+  description: z.string().max(10000).default(""),
   mediaGallery: z.array(
     z.object({
       url: z.string().max(3000000),

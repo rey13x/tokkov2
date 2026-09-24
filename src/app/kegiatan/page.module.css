@@ -1,0 +1,134 @@
+.page {
+  min-height: 100vh;
+  padding: 22px clamp(14px, 4vw, 56px) 48px;
+  color: #131a2c;
+}
+
+.header {
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  align-items: center;
+  gap: 12px;
+  margin: 0 auto 28px;
+  width: min(1160px, 100%);
+}
+
+.header h1 {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  background: linear-gradient(110deg, currentColor 35%, #6684d9 50%, currentColor 65%);
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: shimmer 3.8s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 55% { background-position: 200% 0; }
+  85%, 100% { background-position: -20% 0; }
+}
+
+.backButton {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #10131a;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.backButton svg {
+  width: 20px;
+  height: 20px;
+}
+
+.headerPlaceholder {
+  width: 42px;
+  height: 42px;
+}
+
+.loading,
+.empty {
+  width: min(1160px, 100%);
+  margin: 32px auto;
+  color: #59657f;
+  text-align: center;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  width: min(1160px, 100%);
+  margin: 0 auto;
+}
+
+.card {
+  overflow: hidden;
+  border: 1px solid rgba(21, 28, 46, 0.1);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgba(26, 35, 61, 0.1);
+  cursor: pointer;
+}
+
+.imageWrap {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+
+.image {
+  object-fit: cover;
+  transition: transform 300ms ease;
+}
+
+.card:hover .image {
+  transform: scale(1.04);
+}
+
+.cardBody {
+  position: relative;
+  min-height: 136px;
+  padding: 18px 58px 18px 20px;
+}
+
+.cardBody h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.cardBody p {
+  display: -webkit-box;
+  margin: 8px 0 0;
+  overflow: hidden;
+  color: #59657f;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.arrow {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: #10131a;
+  color: #ffffff;
+}
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

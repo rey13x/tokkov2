@@ -5,7 +5,7 @@ import { deleteStoryReel, updateStoryReel } from "@/server/store-data";
 
 const updateSchema = z.object({
   title: z.string().min(1).max(120).optional(),
-  description: z.string().max(500).optional(),
+  description: z.string().max(10000).optional(),
   mediaGallery: z.array(
     z.object({
       url: z.string().max(3000000),

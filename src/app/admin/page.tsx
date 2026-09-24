@@ -54,7 +54,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
   { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
   { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
-  { id: "storyReels", label: "Story Reels", desc: "Preview scroll reels" },
+  { id: "storyReels", label: "Kegiatan Sobat", desc: "CRUD kegiatan dan artikel" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
@@ -78,6 +78,8 @@ const LIMITED_ADMIN_SECTIONS = new Set<AdminSection>([
   "products",
   "profilePhotos",
   "users",
+  "storyReels",
+  "marqueeBanner",
   "preview",
 ]);
 
@@ -1037,7 +1039,7 @@ function AdminManagementSection() {
   const loadStoryReels = async () => {
     const response = await fetch("/api/admin/story-reels", { cache: "no-store" });
     if (!response.ok) {
-      throw new Error("Gagal ambil story reels");
+      throw new Error("Gagal ambil kegiatan Sobat");
     }
     const result = (await response.json()) as { storyReels: StoreStoryReel[] };
     setStoryReels(result.storyReels);
@@ -2406,15 +2408,15 @@ function AdminManagementSection() {
       });
       const result = (await response.json()) as { message?: string };
       if (!response.ok) {
-        throw new Error(result.message ?? "Gagal simpan story reel.");
+        throw new Error(result.message ?? "Gagal simpan kegiatan Sobat.");
       }
 
-      setMessage(storyReelEditId ? "Story reel berhasil diperbarui." : "Story reel berhasil ditambahkan.");
+      setMessage(storyReelEditId ? "Kegiatan Sobat berhasil diperbarui." : "Kegiatan Sobat berhasil ditambahkan.");
       resetStoryReelForm();
       await loadStoryReels();
       bumpPreview();
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal simpan story reel.");
+      setError(error instanceof Error ? error.message : "Gagal simpan kegiatan Sobat.");
     } finally {
       setIsLoading(false);
     }
@@ -2434,7 +2436,7 @@ function AdminManagementSection() {
   };
 
   const onDeleteStoryReel = async (id: string) => {
-    if (!window.confirm("Hapus story reel ini?")) {
+    if (!window.confirm("Hapus kegiatan Sobat ini?")) {
       return;
     }
 
@@ -2446,7 +2448,7 @@ function AdminManagementSection() {
       await loadStoryReels();
       bumpPreview();
     } catch {
-      setError("Gagal hapus story reel.");
+      setError("Gagal hapus kegiatan Sobat.");
     }
   };
 
@@ -5442,7 +5444,7 @@ function AdminManagementSection() {
 
         {activeSection === "storyReels" ? (
         <article className={styles.card}>
-          <h2>{storyReelEditId ? "Edit Story Reel" : "Story Reels"}</h2>
+          <h2>{storyReelEditId ? "Edit Kegiatan Sobat" : "CRUD Kegiatan Sobat"}</h2>
           <form className={styles.form} onSubmit={onSaveStoryReel}>
             <input
               value={storyReelForm.title}
@@ -5550,7 +5552,7 @@ function AdminManagementSection() {
                 </div>
               </div>
             ))}
-            {storyReels.length === 0 ? <p>Belum ada story reel.</p> : null}
+            {storyReels.length === 0 ? <p>Belum ada kegiatan Sobat.</p> : null}
           </div>
         </article>
         ) : null}
