@@ -6,7 +6,10 @@ import {
   updateOrderStatus,
   isDonationOrder,
 } from "@/server/payment";
-import { recordDonationTotals } from "@/server/store-data";
+import {
+  recordDonationTotals,
+  updateOrderStatus as updateStoreOrderStatus,
+} from "@/server/store-data";
 import { notifyNativeUsers, sendTelegramPaymentSuccessNotification } from "@/server/notifications";
 
 export const runtime = "nodejs";
@@ -54,7 +57,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Nominal pembayaran tidak sesuai." }, { status: 409 });
   }
 
-  if (order.status !== "paid") {
+  const wasAlreadyPaid = order.status === "paid";
+  if (!wasAlreadyPaid) {
     await updateOrderStatus(order.id, "paid", {
       depositId: transactionId,
       paidAmount: amount,
@@ -65,6 +69,11 @@ export async function POST(request: Request) {
         timestamp: payload.paidAt || new Date().toISOString(),
       }),
     });
+  }
+  // Always retry the store-side sync so a payment that was saved before a stock
+  // failure can be repaired on the next webhook delivery.
+  await updateStoreOrderStatus(order.id, "paid", `Pembayaran berhasil dikonfirmasi via PayGate: ${transactionId}`);
+  if (!wasAlreadyPaid) {
     if (await isDonationOrder(order)) {
       await recordDonationTotals(order.id);
     }

@@ -391,6 +391,33 @@ export default function CartPage() {
       return;
     }
 
+    const stockShortfalls = selected
+      .filter((item) => item.product.productType === "jual_beli")
+      .map((item) => {
+        const availableStock = Math.max(0, Number(item.product.stock ?? 0));
+        return {
+          ...item,
+          availableStock,
+          preorderQuantity: Math.max(0, item.quantity - availableStock),
+        };
+      })
+      .filter((item) => item.preorderQuantity > 0);
+    const preOrderEnabled = stockShortfalls.length > 0
+      ? window.confirm([
+          "Stok produk belum mencukupi, Sobat.",
+          ...stockShortfalls.map((item) =>
+            `${item.product.name}: tersedia ${item.availableStock}, kamu order ${item.quantity}. ` +
+            `${item.preorderQuantity} unit sisanya akan dialihkan ke Pre-Order.`,
+          ),
+          "Yakin lanjut dengan Pre-Order, Sobat?",
+        ].join("\n\n"))
+      : false;
+
+    if (stockShortfalls.length > 0 && !preOrderEnabled) {
+      setError("Pesanan dibatalkan. Kamu bisa pilih produk lain atau tunggu stok tersedia lagi.");
+      return;
+    }
+
     setIsCheckoutLoading(true);
     try {
       // Step 1: Create order in database
@@ -400,6 +427,7 @@ export default function CartPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          preOrder: preOrderEnabled,
           items: selected.map((item) => ({
             productId: item.product.id,
             quantity: item.quantity,
@@ -701,6 +729,11 @@ export default function CartPage() {
                       </button>
                     </div>
                     <p className={styles.metaLine}>{item.product.category}</p>
+                    {item.product.productType === "jual_beli" ? (
+                      <p className={`${styles.stockLine} ${Number(item.product.stock ?? 0) <= 0 ? styles.stockLineSoldOut : ""}`}>
+                        {Number(item.product.stock ?? 0) <= 0 ? "Stok habis" : `Stok: ${Number(item.product.stock ?? 0)}`}
+                      </p>
+                    ) : null}
                     {item.product.productType === "donation" ? (
                       <div className={styles.donationDetails}>
                             <input

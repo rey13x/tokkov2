@@ -697,6 +697,9 @@ export async function ensureDatabase() {
       await run(
         "ALTER TABLE orders ADD COLUMN admin_note_at TEXT",
       ).catch(() => {});
+      await run(
+        "ALTER TABLE orders ADD COLUMN stock_deducted_at TEXT",
+      ).catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS testimonials (
@@ -2366,7 +2369,7 @@ export async function updateOrderStatus(
     return null;
   }
 
-  if (status === "paid" && existing.status !== "paid") {
+  if (status === "paid" && !existing.stockDeductedAt) {
     const orderItems = await listOrderItemsByOrderId(id);
     for (const item of orderItems) {
       if (item.productType !== "jual_beli") {
@@ -2374,7 +2377,7 @@ export async function updateOrderStatus(
       }
       const product = await getProductById(item.productId);
       if (!product) {
-        continue;
+        throw new Error(`Product ${item.productId} tidak ditemukan saat mengurangi stok order ${id}`);
       }
       const nextStock = Math.max(0, (product.stock ?? 0) - item.quantity);
       await run(
@@ -2382,6 +2385,10 @@ export async function updateOrderStatus(
         [nextStock, now(), item.productId],
       );
     }
+    await run(
+      "UPDATE orders SET stock_deducted_at = ? WHERE id = ? AND stock_deducted_at IS NULL",
+      [new Date().toISOString(), id],
+    );
   }
 
   await run(
@@ -2481,6 +2488,14 @@ export async function listOrders(limit = 100) {
     [Math.max(1, limit)],
   );
 
+  for (const row of res.rows) {
+    const data = row as Record<string, unknown>;
+    const reconciledAt = await reconcilePaidOrderStock(String(data.id ?? ""));
+    if (reconciledAt) {
+      data.stock_deducted_at = reconciledAt;
+    }
+  }
+
   return res.rows.map((row) => {
     const data = row as Record<string, unknown>;
     return {
@@ -2509,6 +2524,7 @@ export async function listOrders(limit = 100) {
           depositId: String(data.deposit_id ?? ""),
           paymentExpiresAt: String(data.payment_expires_at ?? ""),
           paidAt: data.paid_at ? String(data.paid_at) : undefined,
+          stockDeductedAt: data.stock_deducted_at ? String(data.stock_deducted_at) : undefined,
             adminNote: String(data.admin_note ?? ""),
             adminNoteAt: data.admin_note_at ? String(data.admin_note_at) : null,
       createdAt: new Date(Number(data.created_at)).toISOString(),
@@ -2539,12 +2555,62 @@ export async function listOrderItemsByOrderId(orderId: string) {
   });
 }
 
+async function reconcilePaidOrderStock(orderId: string) {
+  const orderResult = await run(
+    "SELECT status, stock_deducted_at FROM orders WHERE id = ? LIMIT 1",
+    [orderId],
+  );
+  const order = orderResult.rows[0] as Record<string, unknown> | undefined;
+  if (!order || order.status !== "paid" || order.stock_deducted_at) {
+    return null;
+  }
+
+  const itemResult = await run(
+    `SELECT oi.product_id, oi.quantity, p.product_type
+     FROM order_items oi
+     LEFT JOIN products p ON p.id = oi.product_id
+     WHERE oi.order_id = ?`,
+    [orderId],
+  );
+  const quantities = new Map<string, number>();
+  for (const rawItem of itemResult.rows) {
+    const item = rawItem as Record<string, unknown>;
+    const productType = String(item.product_type ?? "jual_beli");
+    if (["pekerjaan", "donation", "lms"].includes(productType)) {
+      continue;
+    }
+    const productId = String(item.product_id ?? "");
+    if (productId) {
+      quantities.set(productId, (quantities.get(productId) ?? 0) + Math.max(0, Number(item.quantity ?? 0)));
+    }
+  }
+
+  for (const [productId, quantity] of quantities) {
+    await run(
+      "UPDATE products SET stock = max(0, stock - ?), updated_at = ? WHERE id = ?",
+      [quantity, now(), productId],
+    );
+  }
+
+  const stockDeductedAt = new Date().toISOString();
+  await run(
+    "UPDATE orders SET stock_deducted_at = ?, updated_at = ? WHERE id = ? AND stock_deducted_at IS NULL",
+    [stockDeductedAt, stockDeductedAt, orderId],
+  );
+  return stockDeductedAt;
+}
+
 export async function getOrderById(id: string) {
   await ensureDatabase();
   const res = await run("SELECT * FROM orders WHERE id = ? LIMIT 1", [id]);
   const row = res.rows[0] as Record<string, unknown> | undefined;
   if (!row) {
     return null;
+  }
+
+  const reconciledAt = await reconcilePaidOrderStock(id);
+  if (reconciledAt) {
+    row.stock_deducted_at = reconciledAt;
   }
 
   return {
@@ -2574,6 +2640,7 @@ export async function getOrderById(id: string) {
       depositId: String(row.deposit_id ?? ""),
       paymentExpiresAt: String(row.payment_expires_at ?? ""),
       paidAt: row.paid_at ? String(row.paid_at) : undefined,
+      stockDeductedAt: row.stock_deducted_at ? String(row.stock_deducted_at) : undefined,
       adminNote: String(row.admin_note ?? ""),
       adminNoteAt: row.admin_note_at ? String(row.admin_note_at) : null,
     createdAt: new Date(Number(row.created_at)).toISOString(),

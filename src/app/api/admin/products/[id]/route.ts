@@ -56,6 +56,12 @@ export async function PATCH(request: Request, context: { params: Params }) {
     if (!product) {
       return NextResponse.json({ message: "Produk tidak ditemukan." }, { status: 404 });
     }
+    if (payload.stock !== undefined && product.stock !== payload.stock) {
+      return NextResponse.json(
+        { message: `Stok gagal disimpan. Nilai tersimpan: ${product.stock}, nilai diminta: ${payload.stock}.` },
+        { status: 409 },
+      );
+    }
 
     await sendTelegramActivityNotification({
       event: "admin_product_update",

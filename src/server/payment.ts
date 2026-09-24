@@ -5,6 +5,7 @@ import {
   getProductById,
   listOrderItemsByOrderId,
   updateOrderPayment as updateStoreOrderPayment,
+  updateOrderStatus as updateStoreOrderStatus,
 } from "./store-data";
 import { makeDynamicQris } from "./paygate/native";
 
@@ -259,6 +260,12 @@ export async function updateOrderStatus(
           orderId,
         ],
       );
+      if (status === "paid") {
+        const syncedOrder = await updateStoreOrderStatus(orderId, "paid", transactionData?.paymentNotes);
+        if (!syncedOrder) {
+          throw new Error(`Stok order ${orderId} gagal disinkronkan setelah pembayaran.`);
+        }
+      }
       return;
     }
 
@@ -286,6 +293,12 @@ export async function updateOrderStatus(
     }
 
     await db.collection("orders").doc(orderId).update(updatePayload);
+    if (status === "paid") {
+      const syncedOrder = await updateStoreOrderStatus(orderId, "paid", transactionData?.paymentNotes);
+      if (!syncedOrder) {
+        throw new Error(`Stok order ${orderId} gagal disinkronkan setelah pembayaran.`);
+      }
+    }
   } catch (error) {
     if (isFirestorePermissionError(error)) {
       firestoreUnavailable = true;
@@ -304,6 +317,12 @@ export async function updateOrderStatus(
           orderId,
         ],
       );
+      if (status === "paid") {
+        const syncedOrder = await updateStoreOrderStatus(orderId, "paid", transactionData?.paymentNotes);
+        if (!syncedOrder) {
+          throw new Error(`Stok order ${orderId} gagal disinkronkan setelah pembayaran.`);
+        }
+      }
       return;
     }
     console.error("Error updating order status:", error);

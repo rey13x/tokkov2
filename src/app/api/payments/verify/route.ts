@@ -8,7 +8,10 @@ import {
   generateOrderWhatsAppLink,
   generatePaymentNotes,
 } from "@/server/payment";
-import { recordDonationTotals } from "@/server/store-data";
+import {
+  recordDonationTotals,
+  updateOrderStatus as updateStoreOrderStatus,
+} from "@/server/store-data";
 import {
   sendTelegramActivityNotification,
   sendTelegramPaymentReviewNotification,
@@ -86,8 +89,13 @@ export async function POST(request: NextRequest) {
           },
         );
       }
+      // Always retry the store-side sync. A previous payment write can succeed
+      // while stock processing fails, and the idempotency marker prevents duplicates.
+      await updateStoreOrderStatus(orderId, "paid", `Pembayaran berhasil dikonfirmasi: ${actualDepositId}`);
       if (!wasAlreadyPaid) {
         await recordDonationTotals(orderId);
+      }
+      if (!wasAlreadyPaid) {
         void notifyNativeUsers({
           userId: order.userId,
           title: "Pembayaran berhasil",

@@ -623,10 +623,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "Status pembayaran gagal disimpan." }, { status: 500 });
     }
 
-    if (donationOrder) {
-      await recordDonationTotals(order.id);
-      await updateStoreOrderStatus(order.id, "sent");
-    }
+  }
+
+  // Always retry stock synchronization. The payment status may already be
+  // paid while the previous Telegram delivery failed before stock processing.
+  const syncedOrder = donationOrder
+    ? await updateStoreOrderStatus(order.id, "sent")
+    : await updateStoreOrderStatus(order.id, "paid", "Pembayaran dikonfirmasi via Telegram admin");
+  if (!syncedOrder) {
+    await telegramRequest("answerCallbackQuery", {
+      callback_query_id: callback.id,
+      text: "Pembayaran tersimpan, tetapi stok belum tersinkron. Coba klik lagi, Sobat.",
+      show_alert: true,
+    });
+    return NextResponse.json({ ok: false, error: "Stok belum tersinkron." }, { status: 500 });
+  }
+  if (donationOrder && !['paid', 'sent'].includes(order.status)) {
+    await recordDonationTotals(order.id);
   }
 
   await telegramRequest("editMessageReplyMarkup", {

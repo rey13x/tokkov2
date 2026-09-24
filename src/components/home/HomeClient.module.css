@@ -627,12 +627,17 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+  min-width: 0;
 }
 
 .sectionHead h2 {
   min-width: 0;
-  font-size: clamp(1.55rem, 2.5vw, 2.24rem);
+  flex: 1 1 auto;
+  white-space: nowrap;
+  font-size: clamp(1.5rem, 5vw, 2.7rem);
   letter-spacing: -0.02em;
+  line-height: 0.96;
+  max-width: 100%;
 }
 
 .shimmerTitle {
@@ -1088,6 +1093,18 @@
   font-size: 0.62rem;
   color: #2f9347;
   font-weight: 700;
+}
+
+.stockText {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.58rem;
+  line-height: 1.1;
+  color: #214ebd;
+}
+
+.stockText strong {
+  font-weight: 800;
 }
 
 .floatingMeta :global(.DonationTotalTicker-module__ticker) {
@@ -2148,7 +2165,13 @@
   }
 
   .sectionHead h2 {
-    font-size: 2rem;
+    font-size: clamp(1.4rem, 8vw, 2.2rem);
+    white-space: nowrap;
+  }
+
+  .inlineAction {
+    font-size: clamp(0.8rem, 3vw, 1rem);
+    flex-shrink: 0;
   }
 
   .marqueeTitle {

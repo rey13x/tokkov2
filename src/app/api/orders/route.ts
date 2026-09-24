@@ -31,6 +31,7 @@ const createOrderSchema = z.object({
       }),
     )
     .min(1),
+  preOrder: z.boolean().optional(),
 });
 
 export const runtime = "nodejs";
@@ -143,9 +144,18 @@ export async function POST(request: Request) {
       }
       if (product.productType === "jual_beli") {
         const remainingStock = Math.max(0, Number(product.stock ?? 0));
-        if (remainingStock <= 0 || item.quantity > remainingStock) {
+        const allowPreOrder = Boolean(payload.preOrder);
+
+        if (remainingStock <= 0 && !allowPreOrder) {
           return NextResponse.json(
-            { message: `Stok ${product.name} tersisa ${remainingStock}. Pilih jumlah yang masih tersedia.` },
+            { message: `Stok ${product.name} sudah habis. Pilih jumlah yang masih tersedia, Sobat.` },
+            { status: 400 },
+          );
+        }
+
+        if (remainingStock > 0 && item.quantity > remainingStock && !allowPreOrder) {
+          return NextResponse.json(
+            { message: `Stok ${product.name} tersisa ${remainingStock}. Pilih jumlah yang masih tersedia, Sobat.` },
             { status: 400 },
           );
         }

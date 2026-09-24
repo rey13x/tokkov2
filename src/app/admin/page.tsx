@@ -168,6 +168,14 @@ const defaultPaymentSettingsForm: Omit<StorePaymentSettings, "id" | "updatedAt">
 };
 const MAX_QRIS_INLINE_LENGTH = 620_000;
 
+const maskInlineMediaValue = (value?: string | null) => {
+  if (!value) {
+    return "";
+  }
+
+  return value.startsWith("data:") ? "foto-terupload.webp" : value;
+};
+
 const defaultMaintenanceSettingsForm = {
   isEnabled: false,
   message: "Website sedang dalam pemeliharaan. Mohon coba lagi nanti.",
@@ -313,6 +321,7 @@ function AdminManagementSection() {
     const [resetPasswordConfirmPassword, setResetPasswordConfirmPassword] = useState<string>("");
     const [isResettingPassword, setIsResettingPassword] = useState(false);
     const [productEditId, setProductEditId] = useState<string | null>(null);
+    const [productStockTouched, setProductStockTouched] = useState(false);
     const [priceInput, setPriceInput] = useState<string>("");
   const [adminEmails, setAdminEmails] = useState<Array<{ id: string; email: string; createdAt: number }>>([]);
   const [newAdminEmail, setNewAdminEmail] = useState("");
@@ -773,6 +782,7 @@ function AdminManagementSection() {
 
   const resetProductForm = () => {
     setProductEditId(null);
+    setProductStockTouched(false);
     setProductForm(defaultProductForm);
     setPriceInput("");
   };
@@ -1931,10 +1941,13 @@ function AdminManagementSection() {
         ? (productForm.buyNowLink ?? "").trim()
         : "";
 
+    const { stock: formStock, ...formWithoutStock } = productForm;
     let payload = {
-      ...productForm,
+      ...formWithoutStock,
       price: Number(productForm.price),
-      stock: Math.max(0, Number(productForm.stock ?? 0)),
+      ...(productEditId && !productStockTouched
+        ? {}
+        : { stock: Math.max(0, Number(formStock ?? 0)) }),
       jobApplicationLink: normalizedJobApplicationLink,
       buyNowLink: normalizedBuyNowLink,
       maxApplicants:
@@ -1956,22 +1969,30 @@ function AdminManagementSection() {
     }
 
     try {
-      const endpoint = productEditId ? `/api/admin/products/${productEditId}` : "/api/admin/products";
-      const method = productEditId ? "PATCH" : "POST";
+      const savedProductId = productEditId;
+      const endpoint = savedProductId ? `/api/admin/products/${savedProductId}` : "/api/admin/products";
+      const method = savedProductId ? "PATCH" : "POST";
       const response = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const result = (await response.json()) as { message?: string };
+      const result = (await response.json()) as { message?: string; product?: StoreProduct };
       if (!response.ok) {
         setError(result.message ?? "Gagal simpan produk.");
         return;
       }
 
-      setMessage(productEditId ? "Produk berhasil diperbarui." : "Produk baru berhasil ditambahkan.");
+      if (result.product) {
+        setProducts((current) => savedProductId
+          ? current.map((product) => product.id === savedProductId ? result.product as StoreProduct : product)
+          : [result.product as StoreProduct, ...current]);
+      }
+      setMessage(savedProductId ? "Produk berhasil diperbarui." : "Produk baru berhasil ditambahkan.");
       resetProductForm();
       await loadProducts();
+      clearStoreDataCache();
+      window.dispatchEvent(new Event("tokko:store-data-updated"));
       bumpPreview();
     } catch {
       setError("Gagal simpan produk.");
@@ -2232,6 +2253,11 @@ function AdminManagementSection() {
       setMessage("Status order berhasil diperbarui.");
       await loadOrders();
       await loadStats();
+      if (["paid", "done", "sent", "error"].includes(statusDraft)) {
+        await loadProducts();
+        clearStoreDataCache();
+        window.dispatchEvent(new Event("tokko:store-data-updated"));
+      }
     } catch {
       setError("Gagal update status order.");
     }
@@ -3064,6 +3090,7 @@ function AdminManagementSection() {
   const onEditProduct = (product: StoreProduct) => {
     setActiveSection("products");
     setProductEditId(product.id);
+    setProductStockTouched(false);
     setProductForm({
       name: product.name,
       category: product.category,
@@ -3522,7 +3549,7 @@ function AdminManagementSection() {
               required
             />
             <input
-              value={paymentSettingsForm.qrisImageUrl}
+              value={maskInlineMediaValue(paymentSettingsForm.qrisImageUrl)}
               readOnly
               placeholder="URL gambar QRIS otomatis"
               required
@@ -4002,14 +4029,18 @@ function AdminManagementSection() {
               placeholder="Nama produk"
               required
             />
-            <input
+            <select
               value={productForm.category}
               onChange={(event) =>
                 setProductForm((current) => ({ ...current, category: event.target.value }))
               }
-              placeholder="Kategori"
               required
-            />
+            >
+              <option value="" disabled>Pilih kategori produk</option>
+              <option value="App Premium">App Premium</option>
+              <option value="Jasa Digital">Jasa Digital</option>
+              <option value="Donasi">Donasi</option>
+            </select>
             <input
               value={productForm.shortDescription}
               onChange={(event) =>
@@ -4148,18 +4179,28 @@ function AdminManagementSection() {
               required
             />
             {productForm.productType !== "pekerjaan" ? (
-              <input
-                type="number"
-                min={0}
-                value={productForm.stock ?? 0}
-                onChange={(event) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    stock: Math.max(0, Number(event.target.value || 0)),
-                  }))
-                }
-                placeholder="Stok tersedia"
-              />
+              <div style={{ display: "grid", gap: "6px" }}>
+                <label htmlFor="product-stock" style={{ fontWeight: 700, color: "#1f2a37" }}>
+                  Stok Tersedia
+                </label>
+                <input
+                  id="product-stock"
+                  type="number"
+                  min={0}
+                  value={productForm.stock ?? 0}
+                  onChange={(event) => {
+                    setProductStockTouched(true);
+                    setProductForm((current) => ({
+                      ...current,
+                      stock: Math.max(0, Number(event.target.value || 0)),
+                    }));
+                  }}
+                  placeholder="Masukkan jumlah stok"
+                />
+                <small className={styles.mediaUrlHint}>
+                  Isi jumlah stok produk. Saat pembayaran berhasil, stok akan otomatis berkurang.
+                </small>
+              </div>
             ) : null}
             <input
               type="url"
@@ -4335,8 +4376,8 @@ function AdminManagementSection() {
                       {product.duration ? ` - ${product.duration}` : ""}
                     </span>
                     {product.productType !== "pekerjaan" ? (
-                      <span style={{ color: "#214ebd", fontSize: "0.85rem", fontWeight: 700 }}>
-                        Stok: {product.stock ?? 0}
+                      <span style={{ color: Number(product.stock ?? 0) <= 0 ? "#a33a22" : "#214ebd", fontSize: "0.85rem", fontWeight: 700 }}>
+                        {Number(product.stock ?? 0) <= 0 ? "Stok Habis" : `Stok: ${product.stock ?? 0}`}
                       </span>
                     ) : null}
                     {product.isHighlighted ? (
@@ -4445,7 +4486,7 @@ function AdminManagementSection() {
                 maxLength={120}
               />
             ) : null}
-            <input value={infoForm.imageUrl} readOnly placeholder="URL media informasi otomatis" />
+            <input value={maskInlineMediaValue(infoForm.imageUrl)} readOnly placeholder="URL media informasi otomatis" />
             <small className={styles.mediaUrlHint}>
               Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
             </small>
@@ -5864,7 +5905,7 @@ function AdminManagementSection() {
               />
               <div>
                 <p>{marqueeForm.label || "Preview Logo Komoditas"}</p>
-                <span>{marqueeForm.imageUrl || "URL logo akan tampil di sini"}</span>
+                <span>{maskInlineMediaValue(marqueeForm.imageUrl) || "URL logo akan tampil di sini"}</span>
               </div>
             </div>
             <div className={styles.formActions}>
@@ -5896,7 +5937,7 @@ function AdminManagementSection() {
                     />
                     <div style={{ minWidth: 0 }}>
                       <p style={{ margin: 0, fontWeight: 700 }}>{marquee.label}</p>
-                      <span style={{ marginTop: 4, wordBreak: "break-word" }}>{marquee.imageUrl}</span>
+                      <span style={{ marginTop: 4, wordBreak: "break-word" }}>{maskInlineMediaValue(marquee.imageUrl)}</span>
                     </div>
                   </div>
                 </div>
@@ -6588,7 +6629,7 @@ function AdminManagementSection() {
               placeholder="Label tanggal update"
               required
             />
-            <input value={privacyPolicyForm.bannerImageUrl} readOnly placeholder="URL banner otomatis" required />
+            <input value={maskInlineMediaValue(privacyPolicyForm.bannerImageUrl)} readOnly placeholder="URL banner otomatis" required />
             <small className={styles.mediaUrlHint}>
               Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
             </small>

@@ -1741,50 +1741,65 @@ export async function updateOrderStatus(
       return null;
     }
 
-    const currentStatus = String((doc.data() as Record<string, unknown>)?.status ?? "process");
-    if (status === "paid" && currentStatus !== "paid") {
-      const items = await listOrderItemsByOrderId(id);
-      for (const item of items) {
-        if (item.productType !== "jual_beli") {
-          continue;
-        }
-        const product = await getProductById(item.productId);
-        if (!product) {
-          continue;
-        }
-        const productRef = firestore.collection("products").doc(item.productId);
-        const productDoc = await productRef.get();
-        if (!productDoc.exists) {
-          continue;
-        }
-        const currentStock = Math.max(0, Number((productDoc.data() as Record<string, unknown>)?.stock ?? product.stock ?? 0));
-        await productRef.update({
-          stock: Math.max(0, currentStock - item.quantity),
-          updatedAt: now(),
+    const orderData = doc.data() as Record<string, unknown>;
+    const rawItems = status === "paid" && !orderData.stockDeductedAt
+      ? await listOrderItemsByOrderId(id)
+      : [];
+    const items = Array.from(rawItems.reduce((grouped, item) => {
+      const current = grouped.get(item.productId);
+      grouped.set(item.productId, {
+        ...item,
+        quantity: (current?.quantity ?? 0) + item.quantity,
+      });
+      return grouped;
+    }, new Map<string, (typeof rawItems)[number]>()).values());
+
+    await firestore.runTransaction(async (transaction: any) => {
+      const orderSnapshot = await transaction.get(ref);
+      const latestOrder = orderSnapshot.data() as Record<string, unknown>;
+      const shouldDeductStock = status === "paid" && !latestOrder.stockDeductedAt;
+      const productSnapshots = shouldDeductStock
+        ? await Promise.all(items.map((item) => transaction.get(firestore.collection("products").doc(item.productId))))
+        : [];
+
+      if (shouldDeductStock) {
+        items.forEach((item, index) => {
+          const productSnapshot = productSnapshots[index];
+          if (!productSnapshot.exists) {
+            throw new Error(`Product ${item.productId} tidak ditemukan saat mengurangi stok order ${id}`);
+          }
+          const productData = productSnapshot.data() as Record<string, unknown>;
+          const productType = String(productData.productType ?? "jual_beli");
+          if (["pekerjaan", "donation", "lms"].includes(productType)) return;
+          const currentStock = Math.max(0, Number(productData.stock ?? 0));
+          transaction.update(productSnapshot.ref, {
+            stock: Math.max(0, currentStock - item.quantity),
+            updatedAt: now(),
+          });
         });
       }
-    }
 
-    await ref.update({
-      status,
-      ...(adminNote !== undefined ? { adminNote: adminNote.trim().slice(0, 1000), adminNoteAt: now() } : {}),
-      ...(status === "process" || status === "done"
-        ? {
-            cancelRequestStatus: "none",
-            cancelConfirmedAt: null,
-          }
-        : status === "cancelled"
-          ? {
-              cancelRequestStatus: "confirmed",
-              cancelConfirmedAt: now(),
-            }
-          : {}),
-      updatedAt: now(),
+      transaction.update(ref, {
+        status,
+        ...(shouldDeductStock ? { stockDeductedAt: new Date().toISOString() } : {}),
+        ...(adminNote !== undefined ? { adminNote: adminNote.trim().slice(0, 1000), adminNoteAt: now() } : {}),
+        ...(status === "process" || status === "done"
+          ? { cancelRequestStatus: "none", cancelConfirmedAt: null }
+          : status === "cancelled"
+            ? { cancelRequestStatus: "confirmed", cancelConfirmedAt: now() }
+            : {}),
+        updatedAt: now(),
+      });
     });
     return getOrderById(id);
   } catch (error) {
     markFirestoreUnavailable(error);
-    console.error("Failed to update order status in Firestore. Falling back to local database.", error);
+    console.error("Failed to update order status in Firestore. Falling back to local database.", {
+      orderId: id,
+      status,
+      stockDeductionAttempted: status === "paid",
+      error,
+    });
     return updateOrderStatusDb(id, status, adminNote);
   }
 }
@@ -1844,6 +1859,7 @@ export async function listOrders(limit = 100) {
         telegramMessageUpdatedAt: Number(data.telegramMessageUpdatedAt ?? 0) || undefined,
         paidAt: String(data.paidAt ?? "") || undefined,
         paidAmount: Number(data.paidAmount ?? 0) || undefined,
+        stockDeductedAt: String(data.stockDeductedAt ?? "") || undefined,
         cancelRequestStatus: mapCancelRequestStatus(data.cancelRequestStatus),
         cancelRequestReason: String(data.cancelRequestReason ?? ""),
         cancelRequestedAt: toOptionalIso(data.cancelRequestedAt),
@@ -1990,6 +2006,7 @@ export async function getOrderById(id: string) {
       telegramMessageUpdatedAt: Number(data.telegramMessageUpdatedAt ?? 0) || undefined,
       paidAt: String(data.paidAt ?? "") || undefined,
       paidAmount: Number(data.paidAmount ?? 0) || undefined,
+      stockDeductedAt: String(data.stockDeductedAt ?? "") || undefined,
       cancelRequestStatus: mapCancelRequestStatus(data.cancelRequestStatus),
       cancelRequestReason: String(data.cancelRequestReason ?? ""),
       cancelRequestedAt: toOptionalIso(data.cancelRequestedAt),

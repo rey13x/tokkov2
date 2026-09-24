@@ -572,6 +572,16 @@ export default function HomeClient() {
       })
       .catch(() => {});
 
+    const handleStoreRefresh = () => {
+      clearStoreDataCache();
+      void loadProducts();
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "tokko:store-data-invalidated") {
+        handleStoreRefresh();
+      }
+    };
+
     const loadSupportingData = (event?: Event) => {
       if (event) {
         clearStoreDataCache();
@@ -594,6 +604,8 @@ export default function HomeClient() {
     };
 
     window.addEventListener("tokko:store-supporting-updated", loadSupportingData);
+    window.addEventListener("tokko:store-data-updated", handleStoreRefresh);
+    window.addEventListener("storage", handleStorage);
 
     void loadProducts();
     void loadSupportingData();
@@ -609,6 +621,8 @@ export default function HomeClient() {
     return () => {
       mounted = false;
       window.removeEventListener("tokko:store-supporting-updated", loadSupportingData);
+      window.removeEventListener("tokko:store-data-updated", handleStoreRefresh);
+      window.removeEventListener("storage", handleStorage);
     };
   }, []);
 

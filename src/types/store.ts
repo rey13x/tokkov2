@@ -310,6 +310,7 @@ export type OrderSummary = {
   transactionId?: string; // Transaction ID after payment
   paidAt?: string; // Payment timestamp
   paidAmount?: number;
+  stockDeductedAt?: string;
   receiptUrl?: string; // Generated receipt file URL
   downloadUrl?: string; // File download URL for digital products
   telegramMessageId?: number;

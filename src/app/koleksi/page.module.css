@@ -254,6 +254,18 @@
   font-weight: 700;
 }
 
+.stockText {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.58rem;
+  line-height: 1.1;
+  color: #214ebd;
+}
+
+.stockText strong {
+  font-weight: 800;
+}
+
 .floatingMeta i {
   flex: 0 0 23px;
   width: 23px;

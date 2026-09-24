@@ -12,7 +12,7 @@ import { addToCart } from "@/lib/cart";
 import { categoryToSlug } from "@/lib/category";
 import { reopenMaintenanceNotice, useMaintenanceMode } from "@/lib/maintenance-mode";
 import { getProductPath } from "@/lib/product-routing";
-import { fetchStoreData } from "@/lib/store-client";
+import { clearStoreDataCache, fetchStoreData } from "@/lib/store-client";
 import WaitLoading from "@/components/ui/WaitLoading";
 import type { StoreProduct } from "@/types/store";
 import styles from "./page.module.css";
@@ -36,10 +36,34 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
   const [cartNotice, setCartNotice] = useState("");
 
   useEffect(() => {
-    fetchStoreData()
-      .then((data) => setProducts(data.products))
-      .catch(() => {})
-      .finally(() => setIsLoadingProducts(false));
+    let mounted = true;
+    const loadProducts = () => {
+      fetchStoreData()
+        .then((data) => {
+          if (mounted) setProducts(data.products);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (mounted) setIsLoadingProducts(false);
+        });
+    };
+
+    loadProducts();
+    const handleStoreRefresh = () => {
+      clearStoreDataCache();
+      loadProducts();
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "tokko:store-data-invalidated") handleStoreRefresh();
+    };
+    window.addEventListener("tokko:store-data-updated", handleStoreRefresh);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("tokko:store-data-updated", handleStoreRefresh);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   useEffect(() => {
@@ -216,6 +240,13 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
                     ) : (
                       <span>{formatRupiah(product.price)}</span>
                     )}
+                    {product.productType === "jual_beli" ? (
+                      <small className={styles.stockText}>
+                        <strong>
+                          {Number(product.stock ?? 0) <= 0 ? "Stok habis" : `Stok: ${product.stock ?? 0}`}
+                        </strong>
+                      </small>
+                    ) : null}
                   </div>
                   <i>
                     <FiChevronRight />

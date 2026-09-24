@@ -479,7 +479,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             <>
               <p className={styles.price}>{formatRupiah(product.price)}</p>
               <p style={{ marginTop: 4, marginBottom: 0, fontSize: 14, color: "#214ebd", fontWeight: 700 }}>
-                {Number(product.stock ?? 0) <= 0 ? "Stok habis" : `Stok tersedia: ${product.stock ?? 0}`}
+                {Number(product.stock ?? 0) <= 0 ? <strong>Stok habis</strong> : `Stok tersedia: ${product.stock ?? 0}`}
               </p>
               <p className={styles.duration}>
                 Durasi: {product.duration?.trim() ? product.duration : "-"}

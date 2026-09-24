@@ -325,6 +325,17 @@
   font-size: 0.8rem;
 }
 
+.stockLine {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #2a476f;
+}
+
+.stockLineSoldOut {
+  color: #b3223b;
+}
+
 .metaLineMuted {
   color: #8a92a8;
   font-size: 0.74rem;

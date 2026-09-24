@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_MEDIA_IMAGE, getOptimizedImageSrc, resolveMediaUrl } from '../src/lib/media';
 import { shouldNotifyOrderCancellation } from '../src/lib/order-cancel';
 import { DEFAULT_IMAGE_MAX_SIZE_BYTES, getImageUploadError } from '../src/lib/upload-constraints';
 import { buildStockDeductionSummary } from '../src/lib/stock';
+import { clearSessionCached, fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from '../src/lib/public-data-cache';
 
 describe('media fallback behavior', () => {
   it('keeps empty media values empty instead of forcing the Sobat Profil fallback', () => {
@@ -48,5 +49,55 @@ describe('stock deduction notifications', () => {
     expect(summary).toContain('Kopi Premium');
     expect(summary).toContain('7 → 5');
     expect(summary).not.toContain('Donasi Dukungan');
+  });
+});
+
+describe('public data cache invalidation', () => {
+  beforeEach(() => {
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, 'window', {
+      value: {
+        sessionStorage: {
+          getItem: (key: string) => store.get(key) ?? null,
+          setItem: (key: string, value: string) => {
+            store.set(key, value);
+          },
+          removeItem: (key: string) => {
+            store.delete(key);
+          },
+        },
+      },
+      configurable: true,
+    });
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        products: [{ id: 'p1', name: 'Produk Baru', slug: 'produk-baru', stock: 8 }],
+      }),
+    }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  it('forces a fresh fetch after cache invalidation so changed stock is not stuck in session storage', async () => {
+    const staleValue = JSON.stringify({
+      value: { products: [{ id: 'p1', name: 'Produk Baru', slug: 'produk-baru', stock: 0 }] },
+      cachedAt: Date.now() - 2 * 24 * 60 * 60 * 1000,
+    });
+
+    window.sessionStorage.setItem(PUBLIC_DATA_CACHE_KEY.storeProducts, staleValue);
+
+    const result = await fetchSessionCached(PUBLIC_DATA_CACHE_KEY.storeProducts, '/api/store?productsOnly=1', {
+      cache: 'no-store',
+    });
+
+    expect(result.products[0].stock).toBe(8);
+
+    clearSessionCached(PUBLIC_DATA_CACHE_KEY.storeProducts);
+    expect(window.sessionStorage.getItem(PUBLIC_DATA_CACHE_KEY.storeProducts)).toBeNull();
   });
 });
