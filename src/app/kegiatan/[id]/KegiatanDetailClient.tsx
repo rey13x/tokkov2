@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FiArrowLeft } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
-import { fetchStoreData } from "@/lib/store-client";
+import WaitLoading from "@/components/ui/WaitLoading";
 import type { StoreStoryReel } from "@/types/store";
 import styles from "./page.module.css";
 
@@ -15,14 +15,18 @@ export default function KegiatanDetailClient() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStoreData()
-      .then((data) => setActivity((data.storyReels ?? []).find((item) => item.id === params.id) ?? null))
+    fetch(`/api/store?storyReelId=${encodeURIComponent(params.id)}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Gagal memuat kegiatan");
+        const data = (await response.json()) as { storyReel?: StoreStoryReel | null };
+        setActivity(data.storyReel ?? null);
+      })
       .catch(() => setActivity(null))
       .finally(() => setLoading(false));
   }, [params.id]);
 
   if (loading) {
-    return <main className={styles.page}><p className={styles.loading}>Tunggu ya Sobat, pastiin internet Sobat ada..</p></main>;
+    return <main className={styles.page}><WaitLoading centered text="Tunggu ya Sobat, pastiin internet Sobat ada.." /></main>;
   }
 
   if (!activity || !activity.isActive) {

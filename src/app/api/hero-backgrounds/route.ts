@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
+import { getAppMetaValue } from "@/server/db";
 
 interface HeroBackground {
   id: string;
@@ -13,11 +14,9 @@ export async function GET() {
   try {
     const firestore = getFirebaseFirestore();
     if (!firestore) {
-      // Fallback ke static data jika tidak ada database
-      const defaultBackgrounds: HeroBackground[] = [
-        { id: "bg-default", label: "Background Default", url: "/assets/backgroundv2.png", duration: 8000, sortOrder: 0 },
-      ];
-      return NextResponse.json({ backgrounds: defaultBackgrounds }, {
+      const stored = await getAppMetaValue("hero-backgrounds-v1");
+      const backgrounds = stored ? JSON.parse(stored) as HeroBackground[] : [];
+      return NextResponse.json({ backgrounds }, {
         headers: {
           "Cache-Control": "no-store",
         },
@@ -26,11 +25,7 @@ export async function GET() {
 
     const doc = await firestore.collection("heroBackgrounds").doc("config").get();
     if (!doc.exists) {
-      // Return default backgrounds
-      const defaultBackgrounds: HeroBackground[] = [
-        { id: "bg-default", label: "Background Default", url: "/assets/backgroundv2.png", duration: 8000, sortOrder: 0 },
-      ];
-      return NextResponse.json({ backgrounds: defaultBackgrounds }, {
+      return NextResponse.json({ backgrounds: [] }, {
         headers: {
           "Cache-Control": "no-store",
         },
@@ -48,12 +43,7 @@ export async function GET() {
   } catch (error) {
     console.error("Failed to get hero backgrounds:", error);
     
-    // Fallback ke default data
-    const defaultBackgrounds: HeroBackground[] = [
-      { id: "bg-default", label: "Background Default", url: "/assets/backgroundv2.png", duration: 8000, sortOrder: 0 },
-    ];
-    
-    return NextResponse.json({ backgrounds: defaultBackgrounds }, {
+    return NextResponse.json({ backgrounds: [] }, {
       headers: {
         "Cache-Control": "no-store",
       },

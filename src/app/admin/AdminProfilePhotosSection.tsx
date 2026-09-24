@@ -220,6 +220,9 @@ export function AdminProfilePhotosSection() {
             <small className={styles.hint}>
               Format: PNG, JPG, GIF, WEBP | Ukuran maksimal: 1MB
             </small>
+            <small className={styles.hint}>
+              Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom URL Foto
+            </small>
           </div>
         </form>
       )}

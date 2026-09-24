@@ -12,6 +12,7 @@ import VerifiedBadge from "@/components/VerifiedBadge";
 import { captureReceiptAsImage } from "@/lib/receipt-capture";
 import { formatRupiah } from "@/data/products";
 import { withSobat } from "@/lib/user-message";
+import { clearStoreDataCache } from "@/lib/store-client";
 import WaitLoading from "@/components/ui/WaitLoading";
 import styles from "./page.module.css";
 import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
@@ -53,7 +54,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "donationActivities", label: "Aktivitas Donasi", desc: "Pemasukan & pengeluaran" },
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
   { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
-  { id: "marquees", label: "Marquee", desc: "CRUD logo marquee" },
+  { id: "marquees", label: "Logo Komoditas", desc: "CRUD logo komoditas" },
   { id: "storyReels", label: "Kegiatan Sobat", desc: "CRUD kegiatan dan artikel" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
@@ -63,7 +64,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
     desc: "Atur konten halaman privasi",
   },
   { id: "profilePhotos", label: "Foto Profil", desc: "Kelola foto profil user" },
-  { id: "maintenanceSettings", label: "Pemeliharaan", desc: "Buka/tutup website" },
+  { id: "maintenanceSettings", label: "Homepage", desc: "Foto hero & popup iklan" },
   { id: "admins", label: "Admin", desc: "Kelola admin" },
   { id: "users", label: "User", desc: "Lihat data user & aktivitas" },
   { id: "mapPhoto", label: "Ubah Foto", desc: "Atur foto dan radius map" },
@@ -76,9 +77,11 @@ const LIMITED_ADMIN_SECTIONS = new Set<AdminSection>([
   "overview",
   "orders",
   "products",
+  "marquees",
   "profilePhotos",
   "users",
   "storyReels",
+  "maintenanceSettings",
   "marqueeBanner",
   "preview",
 ]);
@@ -345,7 +348,7 @@ function AdminManagementSection() {
     id: "",
     label: "",
     url: "",
-    duration: 8000,
+    duration: 4000,
     sortOrder: 0,
   });
   const [mapPhotoUrl, setMapPhotoUrl] = useState("");
@@ -486,11 +489,10 @@ function AdminManagementSection() {
     setMessage("");
 
     const trimmedUrl = heroBackgroundForm.url.trim();
-    const trimmedLabel = heroBackgroundForm.label.trim();
     const trimmedId = heroBackgroundForm.id.trim();
 
-    if (!trimmedUrl || !trimmedLabel) {
-      setError("URL dan label tidak boleh kosong.");
+    if (!trimmedUrl) {
+      setError("URL foto tidak boleh kosong.");
       return;
     }
 
@@ -498,10 +500,10 @@ function AdminManagementSection() {
       const payload = {
         ...heroBackgroundForm,
         id: trimmedId || `${Date.now()}`,
-        label: trimmedLabel,
+        label: heroBackgroundForm.label.trim() || "Foto Hero Homepage",
         url: trimmedUrl,
-        duration: Number(heroBackgroundForm.duration) || 8000,
-        sortOrder: Number(heroBackgroundForm.sortOrder) || 0,
+        duration: 4000,
+        sortOrder: 0,
       };
 
       const method = heroBackgroundEditId ? "PUT" : "POST";
@@ -516,7 +518,7 @@ function AdminManagementSection() {
         throw new Error(data.message || "Gagal menyimpan foto hero.");
       }
 
-      setHeroBackgroundForm({ id: "", label: "", url: "", duration: 8000, sortOrder: 0 });
+      setHeroBackgroundForm({ id: "", label: "", url: "", duration: 4000, sortOrder: 0 });
       setHeroBackgroundEditId(null);
       window.dispatchEvent(new Event("tokko:hero-backgrounds-updated"));
       const refreshed = await fetch("/api/admin/hero-backgrounds", { cache: "no-store" });
@@ -524,7 +526,7 @@ function AdminManagementSection() {
         const nextData = await refreshed.json();
         setHeroBackgrounds(nextData.backgrounds || []);
       }
-      setMessage(heroBackgroundEditId ? "Foto hero berhasil diubah." : "Foto hero berhasil ditambahkan.");
+      setMessage(heroBackgroundEditId ? "Foto hero berhasil diubah." : "Foto hero berhasil disimpan. Foto lama diganti.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal menyimpan foto hero.");
     }
@@ -927,9 +929,9 @@ function AdminManagementSection() {
         ...current,
         imageUrl: uploaded,
       }));
-      setMessage("Logo marquee berhasil diupload.");
+      setMessage("Logo komoditas berhasil diupload.");
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload logo marquee gagal.");
+      setError(uploadError instanceof Error ? uploadError.message : "Upload logo komoditas gagal.");
     } finally {
       setIsUploadingMarqueeImage(false);
       event.target.value = "";
@@ -1973,16 +1975,18 @@ function AdminManagementSection() {
       });
       const result = (await response.json()) as { message?: string };
       if (!response.ok) {
-        setError(result.message ?? "Gagal simpan logo marquee.");
+        setError(result.message ?? "Gagal simpan logo komoditas.");
         return;
       }
 
-      setMessage(marqueeEditId ? "Logo marquee berhasil diperbarui." : "Logo marquee berhasil ditambahkan.");
+      setMessage(marqueeEditId ? "Logo komoditas berhasil diperbarui." : "Logo komoditas berhasil ditambahkan.");
       resetMarqueeForm();
       await loadMarquees();
+      clearStoreDataCache();
+      window.dispatchEvent(new Event("tokko:store-supporting-updated"));
       bumpPreview();
     } catch {
-      setError("Gagal simpan logo marquee.");
+      setError("Gagal simpan logo komoditas.");
     } finally {
       setIsLoading(false);
     }
@@ -2340,6 +2344,8 @@ function AdminManagementSection() {
       resetMarqueeForm();
     }
     await loadMarquees();
+    clearStoreDataCache();
+    window.dispatchEvent(new Event("tokko:store-supporting-updated"));
     bumpPreview();
   };
 
@@ -2399,6 +2405,8 @@ function AdminManagementSection() {
       setMessage(storyReelEditId ? "Kegiatan Sobat berhasil diperbarui." : "Kegiatan Sobat berhasil ditambahkan.");
       resetStoryReelForm();
       await loadStoryReels();
+      clearStoreDataCache();
+      window.dispatchEvent(new Event("tokko:store-supporting-updated"));
       bumpPreview();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Gagal simpan kegiatan Sobat.");
@@ -2431,6 +2439,8 @@ function AdminManagementSection() {
         resetStoryReelForm();
       }
       await loadStoryReels();
+      clearStoreDataCache();
+      window.dispatchEvent(new Event("tokko:store-supporting-updated"));
       bumpPreview();
     } catch {
       setError("Gagal hapus kegiatan Sobat.");
@@ -2449,6 +2459,8 @@ function AdminManagementSection() {
       }
       setMessage(storyReel.isActive ? "Highlight kegiatan dimatikan." : "Kegiatan ditampilkan di beranda.");
       await loadStoryReels();
+      clearStoreDataCache();
+      window.dispatchEvent(new Event("tokko:store-supporting-updated"));
       bumpPreview();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Gagal mengubah highlight kegiatan.");
@@ -3268,10 +3280,11 @@ function AdminManagementSection() {
 
         {activeSection === "maintenanceSettings" ? (
         <article className={styles.card}>
+          <div className={styles.maintenanceLegacySettings}>
           <h2>Pengaturan Pemeliharaan Website</h2>
           <form className={styles.form} onSubmit={onSaveMaintenanceSettings}>
             {/* Main toggle */}
-            <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <label className={styles.maintenanceToggle}>
               <input
                 type="checkbox"
                 checked={maintenanceSettingsForm.isEnabled}
@@ -3282,12 +3295,12 @@ function AdminManagementSection() {
                   }))
                 }
               />
-              <span>🔒 Aktifkan Mode Pemeliharaan</span>
+              <span>Aktifkan Mode Pemeliharaan</span>
             </label>
 
             {/* Mode selection */}
-            <div style={{ marginTop: "12px", padding: "12px", backgroundColor: "#f9f9f9", borderRadius: "10px" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+            <div className={styles.maintenanceModeOptions}>
+              <label className={styles.maintenanceChoice}>
                 <input
                   type="radio"
                   checked={maintenanceSettingsForm.maintenanceMode === "instant"}
@@ -3298,9 +3311,9 @@ function AdminManagementSection() {
                     }))
                   }
                 />
-                <span>⚡ Tutup Sekarang (Langsung)</span>
+                <span>Tutup Sekarang (Langsung)</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <label className={styles.maintenanceChoice}>
                 <input
                   type="radio"
                   checked={maintenanceSettingsForm.maintenanceMode === "schedule"}
@@ -3311,7 +3324,7 @@ function AdminManagementSection() {
                     }))
                   }
                 />
-                <span>📅 Jadwal (Buka-Tutup per hari)</span>
+                <span>Jadwal (Buka-Tutup per hari)</span>
               </label>
             </div>
 
@@ -3325,7 +3338,6 @@ function AdminManagementSection() {
                 }))
               }
               placeholder="Pesan pemeliharaan yang akan ditampilkan ke user"
-              style={{ marginTop: "12px" }}
             />
 
             {/* Title & Subtitle */}
@@ -3364,17 +3376,17 @@ function AdminManagementSection() {
               }
               placeholder="Kunci akses (kosongkan jika tidak dibutuhkan)"
             />
-            <small style={{ color: "#666", marginTop: "-4px" }}>
+            <small className={styles.maintenanceHint}>
               Jika diisi, user perlu memasukkan kunci ini untuk mengakses website
             </small>
 
             {/* Schedule section - only show if schedule mode is selected */}
             {maintenanceSettingsForm.maintenanceMode === "schedule" && (
-              <div style={{ marginTop: "16px", borderTop: "1px solid #e0e0e0", paddingTop: "16px" }}>
-                <h3 style={{ fontSize: "0.95rem", marginBottom: "12px", fontWeight: 600 }}>📋 Jadwal Harian (Zona Jakarta/GMT+7)</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div className={styles.maintenanceSchedule}>
+                <h3>Jadwal Harian (Zona Jakarta/GMT+7)</h3>
+                <div className={styles.maintenanceTimeGrid}>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                    <label className={styles.maintenanceFieldLabel}>
                       Jam Buka (Opening Time)
                     </label>
                     <input
@@ -3388,10 +3400,10 @@ function AdminManagementSection() {
                       }
                       placeholder="09:00"
                     />
-                    <small style={{ fontSize: "0.75rem", color: "#999" }}>Contoh: 09:00</small>
+                    <small className={styles.maintenanceHint}>Contoh: 09:00</small>
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                    <label className={styles.maintenanceFieldLabel}>
                       Jam Tutup (Closing Time)
                     </label>
                     <input
@@ -3405,7 +3417,7 @@ function AdminManagementSection() {
                       }
                       placeholder="18:00"
                     />
-                    <small style={{ fontSize: "0.75rem", color: "#999" }}>Contoh: 18:00</small>
+                    <small className={styles.maintenanceHint}>Contoh: 18:00</small>
                   </div>
                 </div>
                 <small style={{ color: "#999", display: "block", marginTop: "8px" }}>
@@ -3416,64 +3428,34 @@ function AdminManagementSection() {
 
             {/* Instant mode info */}
             {maintenanceSettingsForm.maintenanceMode === "instant" && (
-              <div style={{ marginTop: "12px", padding: "12px", backgroundColor: "#e8f0ff", borderRadius: "10px", borderLeft: "4px solid #214ebd" }}>
-                <small style={{ color: "#17365d" }}>
-                  ⚠️ Mode langsung: Website akan segera tertutup. Matikan checkbox di atas untuk membuka kembali.
+              <div className={styles.maintenanceInfoBox}>
+                <small className={styles.maintenanceInfoText}>
+                  Mode langsung: Website akan segera tertutup. Matikan checkbox di atas untuk membuka kembali.
                 </small>
               </div>
             )}
 
-            <div style={{ marginTop: "20px", padding: "16px", backgroundColor: "#f8faff", borderRadius: "10px", border: "1px solid #dfe9ff" }}>
-              <h3 style={{ margin: "0 0 12px", fontSize: "1rem" }}>📸 Foto Hero Homepage</h3>
+            <div className={styles.formActions}>
+              <button type="submit" disabled={isLoading}>
+                {isLoading ? "Menyimpan..." : "Simpan Pengaturan"}
+              </button>
+              {maintenanceSettingsForm.isEnabled && maintenanceSettingsForm.maintenanceMode === "instant" && (
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => setMaintenanceSettingsForm((current) => ({ ...current, isEnabled: false }))}
+                >
+                  Buka Website Sekarang
+                </button>
+              )}
+            </div>
+
+          </form>
+          </div>
+
+            <div className={styles.homepageMediaPanel}>
+              <h3 style={{ margin: "0 0 12px", fontSize: "1rem" }}>Foto Hero Homepage</h3>
               <form className={styles.form} onSubmit={onSaveHeroBackground}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    {heroBackgroundForm.url ? (
-                      <div
-                        style={{
-                          border: "1px solid #dfe7f7",
-                          borderRadius: "12px",
-                          overflow: "hidden",
-                          background: "#fff",
-                          marginBottom: "8px",
-                        }}
-                      >
-                        <img
-                          src={heroBackgroundForm.url}
-                          alt={heroBackgroundForm.label || "Preview foto hero"}
-                          style={{
-                            width: "100%",
-                            height: 180,
-                            objectFit: "cover",
-                            display: "block",
-                            background: "#eef2ff",
-                          }}
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                  <input
-                    type="text"
-                    value={heroBackgroundForm.label}
-                    onChange={(event) =>
-                      setHeroBackgroundForm((current) => ({ ...current, label: event.target.value }))
-                    }
-                    placeholder="Label foto (contoh: Hero 1)"
-                    required
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    value={heroBackgroundForm.sortOrder}
-                    onChange={(event) =>
-                      setHeroBackgroundForm((current) => ({
-                        ...current,
-                        sortOrder: Number(event.target.value || 0),
-                      }))
-                    }
-                    placeholder="Urutan"
-                  />
-                </div>
                 <input
                   type="url"
                   value={heroBackgroundForm.url}
@@ -3483,43 +3465,23 @@ function AdminManagementSection() {
                   placeholder="URL foto hero (https://...)"
                   required
                 />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <input
-                    type="number"
-                    min={1000}
-                    max={60000}
-                    value={heroBackgroundForm.duration}
-                    onChange={(event) =>
-                      setHeroBackgroundForm((current) => ({
-                        ...current,
-                        duration: Number(event.target.value || 8000),
-                      }))
-                    }
-                    placeholder="Durasi (ms)"
-                  />
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <button
-                      type="button"
-                      style={{ backgroundColor: "#6c757d", width: "100%" }}
-                      onClick={onResetHeroBackgrounds}
-                    >
-                      Reset Default
-                    </button>
+                <small className={styles.mediaUrlHint}>
+                  Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+                </small>
+                {heroBackgroundForm.url ? (
+                  <div className={styles.heroBackgroundPreview}>
+                    <img src={heroBackgroundForm.url} alt="Preview foto hero" />
                   </div>
-                </div>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                ) : null}
+                <div className={styles.formActions}>
                   <button type="submit">
-                    {heroBackgroundEditId ? "💾 Update Foto" : "＋ Tambah Foto"}
+                    {heroBackgroundEditId ? "Simpan Perubahan" : "Simpan Foto"}
                   </button>
                   {heroBackgroundEditId && (
-                    <button
-                      type="button"
-                      style={{ backgroundColor: "#6c757d" }}
-                      onClick={() => {
-                        setHeroBackgroundEditId(null);
-                        setHeroBackgroundForm({ id: "", label: "", url: "", duration: 8000, sortOrder: 0 });
-                      }}
-                    >
+                    <button type="button" className={styles.secondaryButton} onClick={() => {
+                      setHeroBackgroundEditId(null);
+                      setHeroBackgroundForm({ id: "", label: "", url: "", duration: 4000, sortOrder: 0 });
+                    }}>
                       Batal
                     </button>
                   )}
@@ -3548,6 +3510,7 @@ function AdminManagementSection() {
                         await onReorderHeroBackground(draggedId, background.id);
                         window.sessionStorage.removeItem("draggedHeroBackgroundId");
                       }}
+                      className={styles.heroBackgroundItem}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -3580,16 +3543,16 @@ function AdminManagementSection() {
                           <small style={{ color: "#666", wordBreak: "break-all" }}>{background.url}</small>
                         </div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                        <button type="button" onClick={() => onSetHeroBackgroundPrimary(background.id)}>
+                      <div className={styles.heroBackgroundActions}>
+                        <button type="button" className={styles.secondaryButton} onClick={() => onSetHeroBackgroundPrimary(background.id)}>
                           {heroBackgrounds[0]?.id === background.id ? "Utama" : "Jadikan Utama"}
                         </button>
-                        <button type="button" onClick={() => onEditHeroBackground(background)}>
+                        <button type="button" className={styles.secondaryButton} onClick={() => onEditHeroBackground(background)}>
                           Edit
                         </button>
                         <button
                           type="button"
-                          style={{ backgroundColor: "#dc3545" }}
+                          className={styles.heroBackgroundDelete}
                           onClick={() => onDeleteHeroBackground(background.id)}
                         >
                           Hapus
@@ -3603,28 +3566,6 @@ function AdminManagementSection() {
 
             {error ? <p className={styles.errorText}>{error}</p> : null}
             {message ? <p className={styles.successText}>{message}</p> : null}
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "16px" }}>
-              <button type="submit" disabled={isLoading}>
-                {isLoading ? "Menyimpan..." : "💾 Simpan Pengaturan"}
-              </button>
-              {maintenanceSettingsForm.isEnabled && maintenanceSettingsForm.maintenanceMode === "instant" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMaintenanceSettingsForm((current) => ({
-                      ...current,
-                      isEnabled: false,
-                    }));
-                    setMaintenanceInstantAction(null);
-                  }}
-                  style={{ backgroundColor: "#28a745" }}
-                >
-                  🟢 Buka Website Sekarang
-                </button>
-              )}
-            </div>
-          </form>
         </article>
         ) : null}
 
@@ -5344,7 +5285,7 @@ function AdminManagementSection() {
 
         {activeSection === "marquees" ? (
         <article className={styles.card}>
-          <h2>{marqueeEditId ? "Edit Logo Marquee" : "CRUD Logo Marquee"}</h2>
+          <h2>{marqueeEditId ? "Edit Logo Komoditas" : "CRUD Logo Komoditas"}</h2>
           <form className={styles.form} onSubmit={onSaveMarquee}>
             <input
               value={marqueeForm.label}
@@ -5357,22 +5298,22 @@ function AdminManagementSection() {
               placeholder="Label logo"
               required
             />
-            <input
-              type="number"
-              min={0}
-              value={marqueeForm.sortOrder}
-              onChange={(event) =>
-                setMarqueeForm((current) => ({
-                  ...current,
-                  sortOrder: Number(event.target.value || 0),
-                }))
-              }
-              placeholder="Urutan tampil"
-            />
-            <input value={marqueeForm.imageUrl} readOnly placeholder="URL logo marquee otomatis" />
+            <label>
+              URL Logo Komoditas
+              <input
+                type="url"
+                value={marqueeForm.imageUrl}
+                onChange={(event) => setMarqueeForm((current) => ({ ...current, imageUrl: event.target.value }))}
+                placeholder="https://.../logo.jpg"
+                required
+              />
+              <small className={styles.mediaUrlHint}>
+                Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+              </small>
+            </label>
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
-                Upload Logo Marquee
+                Upload Logo Komoditas
                 <input type="file" accept="image/*,video/*" onChange={onSelectMarqueeImage} />
                 <small>
                   {isUploadingMarqueeImage ? "Uploading..." : "Pilih logo dari device"}
@@ -5397,7 +5338,7 @@ function AdminManagementSection() {
                 unoptimized
               />
               <div>
-                <p>{marqueeForm.label || "Preview label marquee"}</p>
+                <p>{marqueeForm.label || "Preview Logo Komoditas"}</p>
                 {/* Urutan marquee tidak tersedia */}
               </div>
             </div>
@@ -5430,11 +5371,15 @@ function AdminManagementSection() {
                     {/* Urutan dan status marquee tidak tersedia */}
                   </div>
                 </div>
-                <div className={styles.rowActions}>
+                <div className={`${styles.rowActions} ${styles.marqueeActions}`}>
                   <button type="button" onClick={() => onEditMarquee(marquee)}>
                     Edit
                   </button>
-                  <button type="button" onClick={() => onDeleteMarquee(marquee.id)}>
+                  <button
+                    type="button"
+                    className={styles.marqueeDeleteButton}
+                    onClick={() => onDeleteMarquee(marquee.id)}
+                  >
                     Hapus
                   </button>
                 </div>
@@ -6244,7 +6189,7 @@ function AdminManagementSection() {
         ) : null}
 
         {activeSection === "maintenanceSettings" ? (
-          <article className={styles.card}>
+          <article className={`${styles.card} ${styles.homepagePopupCard}`}>
             <h2>Popup Iklan</h2>
             <p style={{ color: "#666", marginTop: 0 }}>
               Atur iklan popup yang muncul saat pengguna pertama kali membuka website. Bisa pakai URL gambar langsung, tanpa harus upload file.
@@ -6266,6 +6211,9 @@ function AdminManagementSection() {
                 onChange={(event) => setAdConfig((current) => ({ ...current, link: event.target.value }))}
                 placeholder="https://..."
               />
+              <small className={styles.mediaUrlHint}>
+                Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+              </small>
             </label>
             <label style={{ display: "grid", gap: "8px", marginBottom: "12px" }}>
               Teks Tombol

@@ -77,8 +77,10 @@ export default function PremiumMarquee<T extends { id: string }>({
       if (contentWidthRef.current === 0) {
         const firstItem = track.children[0] as HTMLElement;
         if (firstItem && items.length > 0) {
-          const itemWidth = firstItem.offsetWidth;
-          const singleSetWidth = items.length * itemWidth + items.length * gap;
+          const nextSetStart = track.children[items.length] as HTMLElement | undefined;
+          const singleSetWidth = nextSetStart
+            ? nextSetStart.offsetLeft - firstItem.offsetLeft
+            : firstItem.offsetWidth * items.length + gap * Math.max(0, items.length - 1);
           contentWidthRef.current = singleSetWidth > 0 ? singleSetWidth : 1;
         }
       }

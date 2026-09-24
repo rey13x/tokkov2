@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
+import { getAppMetaValue, upsertAppMetaValue } from "@/server/db";
 import { sendTelegramActivityNotification } from "@/server/notifications";
 
 const heroBackgroundSchema = z.object({
@@ -16,11 +17,18 @@ type HeroBackground = z.infer<typeof heroBackgroundSchema>;
 
 const COLLECTION_NAME = "heroBackgrounds";
 const DOCUMENT_ID = "config";
+const LOCAL_META_KEY = "hero-backgrounds-v1";
 
 async function getHeroBackgroundsFromDb(): Promise<HeroBackground[]> {
   const firestore = getFirebaseFirestore();
   if (!firestore) {
-    return [];
+    const stored = await getAppMetaValue(LOCAL_META_KEY);
+    if (!stored) return [];
+    try {
+      return JSON.parse(stored) as HeroBackground[];
+    } catch {
+      return [];
+    }
   }
 
   try {
@@ -39,7 +47,8 @@ async function getHeroBackgroundsFromDb(): Promise<HeroBackground[]> {
 async function saveHeroBackgroundsToDb(backgrounds: HeroBackground[]): Promise<boolean> {
   const firestore = getFirebaseFirestore();
   if (!firestore) {
-    return false;
+    await upsertAppMetaValue(LOCAL_META_KEY, JSON.stringify(backgrounds));
+    return true;
   }
 
   try {
@@ -82,18 +91,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const payload = heroBackgroundSchema.parse(body);
 
-    const backgrounds = await getHeroBackgroundsFromDb();
-    
-    // Check if ID already exists
-    if (backgrounds.some((bg) => bg.id === payload.id)) {
-      return NextResponse.json(
-        { message: "ID background sudah ada. Gunakan ID yang berbeda." },
-        { status: 400 }
-      );
-    }
-
-    backgrounds.push(payload);
-    const saved = await saveHeroBackgroundsToDb(backgrounds);
+    const saved = await saveHeroBackgroundsToDb([{ ...payload, sortOrder: 0 }]);
 
     if (!saved) {
       return NextResponse.json(

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./SiteFooter.module.css";
@@ -17,13 +16,14 @@ export default function SiteFooter() {
       <div className={styles.inner}>
         <div className={styles.brand}>
           <Link href="/" aria-label="Beranda">
-            <Image
-              src="/assets/Sobat-Premium.png"
-              alt="Sobat Premium"
-              width={280}
-              height={280}
+            <video
+              src="/assets/sobatpremium2.mp4"
               className={styles.logo}
-              unoptimized
+              autoPlay
+              loop
+              muted
+              playsInline
+              aria-label="Sobat Premium"
             />
           </Link>
         </div>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FiArrowLeft, FiChevronRight } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import WaitLoading from "@/components/ui/WaitLoading";
 import { fetchStoreData } from "@/lib/store-client";
 import type { StoreStoryReel } from "@/types/store";
 import styles from "./page.module.css";
@@ -36,7 +37,7 @@ export default function KegiatanClient() {
         <div className={styles.headerPlaceholder} />
       </header>
 
-      {loading ? <p className={styles.loading}>Tunggu ya Sobat, pastiin internet Sobat ada..</p> : null}
+      {loading ? <WaitLoading centered text="Tunggu ya Sobat, pastiin internet Sobat ada.." /> : null}
       {!loading && visibleActivities.length === 0 ? <p className={styles.empty}>Belum ada kegiatan yang tersedia.</p> : null}
       <section className={styles.grid}>
         {visibleActivities.map((activity) => {

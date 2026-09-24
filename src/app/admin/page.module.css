@@ -625,6 +625,161 @@
   text-decoration: underline;
 }
 
+.maintenanceToggle,
+.maintenanceChoice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.maintenanceModeOptions,
+.maintenanceInfoBox {
+  border: 1px solid #dfe4ef;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 12px;
+}
+
+.maintenanceModeOptions {
+  display: grid;
+  gap: 10px;
+}
+
+.maintenanceSchedule {
+  border-top: 1px solid #e0e4ed;
+  padding-top: 16px;
+}
+
+.maintenanceSchedule h3 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.maintenanceTimeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.maintenanceFieldLabel {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.maintenanceHint {
+  display: block;
+  margin-top: 4px;
+  color: #68748b;
+  font-size: 0.75rem;
+}
+
+.maintenanceInfoText {
+  color: #17365d;
+}
+
+.maintenanceLegacySettings {
+  display: none;
+}
+
+.homepageMediaPanel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #dfe4ef;
+  border-radius: 8px;
+  background: #f8faff;
+}
+
+.homepageMediaPanel input {
+  border-radius: 8px;
+}
+
+.heroBackgroundPreview {
+  overflow: hidden;
+  border: 1px solid #dfe4ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.heroBackgroundPreview img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+.heroBackgroundItem {
+  border-radius: 8px !important;
+}
+
+.heroBackgroundActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+  flex: 0 0 min(430px, 48%);
+}
+
+.heroBackgroundActions button {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 999px;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.heroBackgroundDelete {
+  border: 1px solid #dc3545;
+  border-radius: 999px;
+  background: #dc3545;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.heroBackgroundDelete:hover {
+  background: #b42332;
+  border-color: #b42332;
+}
+
+@media (max-width: 760px) {
+  .heroBackgroundItem {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .heroBackgroundActions {
+    width: 100%;
+    flex-basis: auto;
+  }
+}
+
+.homepagePopupCard {
+  gap: 14px;
+}
+
+.homepagePopupCard > label {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 0 !important;
+  color: #1f2738;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.homepagePopupCard > p {
+  margin: 0;
+  color: #64708a !important;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.homepagePopupCard input {
+  border-radius: 8px;
+}
+
 .richToolbar {
   border: 1px solid #dbe2f0;
   border-radius: 10px;
@@ -968,6 +1123,22 @@
   background: #ffffff;
   font-size: 0.75rem;
   cursor: pointer;
+}
+
+.marqueeActions {
+  flex: 0 0 auto;
+}
+
+.rowActions .marqueeDeleteButton {
+  border-color: #dc3545;
+  background: #dc3545;
+  color: #ffffff;
+}
+
+.rowActions .marqueeDeleteButton:hover {
+  border-color: #b42332;
+  background: #b42332;
+  color: #ffffff;
 }
 
 .rowActions select {
@@ -1722,6 +1893,20 @@
     grid-column: 1 / -1;
     width: min(50%, 220px);
     justify-self: center;
+  }
+
+  .listItem > .marqueeActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px;
+  }
+
+  .listItem > .marqueeActions button,
+  .listItem > .marqueeActions button:last-child {
+    grid-column: auto;
+    width: 100%;
+    justify-self: stretch;
   }
 
   .listItem label {

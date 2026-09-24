@@ -4,6 +4,7 @@ import { getServerAuthSession } from "@/server/auth";
 import {
   createOrder,
   getProductById,
+  getMaintenanceSettings,
   listOrdersWithItems,
 } from "@/server/store-data";
 import {
@@ -33,6 +34,24 @@ const createOrderSchema = z.object({
 });
 
 export const runtime = "nodejs";
+
+function isMaintenanceActive(settings: Awaited<ReturnType<typeof getMaintenanceSettings>>) {
+  if (!settings.isEnabled) return false;
+  if (settings.maintenanceMode === "instant") return true;
+  if (!settings.openTime || !settings.closeTime) return false;
+
+  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const [openHour, openMinute] = settings.openTime.split(":").map(Number);
+  const [closeHour, closeMinute] = settings.closeTime.split(":").map(Number);
+  const openMinutes = openHour * 60 + openMinute;
+  const closeMinutes = closeHour * 60 + closeMinute;
+  const withinHours = openMinutes < closeMinutes
+    ? currentMinutes >= openMinutes && currentMinutes < closeMinutes
+    : currentMinutes >= openMinutes || currentMinutes < closeMinutes;
+
+  return !withinHours;
+}
 
 export async function GET() {
   const session = await getServerAuthSession();
@@ -73,6 +92,13 @@ export async function POST(request: Request) {
   const session = await getServerAuthSession();
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.user.role !== "admin" && isMaintenanceActive(await getMaintenanceSettings())) {
+    return NextResponse.json(
+      { message: "Website sedang dalam pemeliharaan. Pesanan belum dapat dibuat." },
+      { status: 503 },
+    );
   }
 
   const currentUser = await findUserById(session.user.id) ||

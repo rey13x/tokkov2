@@ -112,6 +112,12 @@
   font-size: 0.78rem;
 }
 
+.hint a {
+  color: #2870c7;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .photosSection {
   background: #f7f9fe;
   border: 1px solid #dce2ef;

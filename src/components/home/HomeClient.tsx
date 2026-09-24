@@ -25,7 +25,7 @@ import PremiumMarquee from "@/components/home/PremiumMarquee";
 import WaitLoading from "@/components/ui/WaitLoading";
 import DonationTotalTicker from "@/components/product/DonationTotalTicker";
 import { formatRupiah } from "@/data/products";
-import { HERO_BACKGROUND_URLS, HERO_CONFIG, getPhotoDuration } from "@/data/hero-backgrounds";
+import { HERO_CONFIG, getPhotoDuration } from "@/data/hero-backgrounds";
 import { CART_UPDATED_EVENT, getCartCount } from "@/lib/cart";
 import {
   STATUS_NOTIFICATION_EVENT,
@@ -43,7 +43,7 @@ import {
   requestOnboardingBoot,
   startOnboarding,
 } from "@/lib/onboarding";
-import { fetchStoreSupportingData, fetchStoreProducts } from "@/lib/store-client";
+import { clearStoreDataCache, fetchStoreSupportingData, fetchStoreProducts } from "@/lib/store-client";
 import { clearSessionCached, fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from "@/lib/public-data-cache";
 import type {
   DonationActivity,
@@ -70,7 +70,7 @@ type HomeActivity = StoreStoryReel;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
-const logoImage = "/assets/logov2.svg";
+const logoImage = "/assets/Sobat-Premium.png";
 
 function getTestimonialMediaSrc(item: HomeTestimonial) {
   return item.name.trim().toLowerCase() === "founder" ? bagasPhoto.src : item.mediaUrl;
@@ -151,13 +151,15 @@ export default function HomeClient() {
   const [profileAvatarPreview, setProfileAvatarPreview] = useState("");
   const [isHomeTutorialRunning, setIsHomeTutorialRunning] = useState(false);
   const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0);
-  const [heroBackgroundUrls, setHeroBackgroundUrls] = useState<string[]>(HERO_BACKGROUND_URLS);
+  const [isBackgroundTransitioning, setIsBackgroundTransitioning] = useState(false);
+  const hasMountedBackgroundRef = useRef(false);
+  const [heroBackgroundUrls, setHeroBackgroundUrls] = useState<string[]>([]);
   const [heroBackgroundDurations, setHeroBackgroundDurations] = useState<Record<string, number>>({
     ...Object.fromEntries(
       Object.entries(HERO_CONFIG).map(([url, config]) => [url, config.duration]),
     ),
   });
-  const heroImage = heroBackgroundUrls[currentBackgroundIndex] || "/assets/backgroundv2.png";
+  const heroImage = heroBackgroundUrls[currentBackgroundIndex] || "";
 
   useEffect(() => {
     const frameId = window.requestAnimationFrame(() => setIsMounted(true));
@@ -424,7 +426,7 @@ export default function HomeClient() {
     }
 
     const currentPhotoUrl = heroBackgroundUrls[currentBackgroundIndex] ?? heroBackgroundUrls[0];
-    const pauseDuration = heroBackgroundDurations[currentPhotoUrl] ?? getPhotoDuration(currentPhotoUrl);
+    const pauseDuration = 4000;
     const timeoutId = window.setTimeout(() => {
       setCurrentBackgroundIndex((previousIndex) => {
         const nextIndex = (previousIndex + 1) % heroBackgroundUrls.length;
@@ -434,6 +436,17 @@ export default function HomeClient() {
 
     return () => window.clearTimeout(timeoutId);
   }, [currentBackgroundIndex, heroBackgroundDurations, heroBackgroundUrls]);
+
+  useEffect(() => {
+    if (!hasMountedBackgroundRef.current) {
+      hasMountedBackgroundRef.current = true;
+      return;
+    }
+
+    setIsBackgroundTransitioning(true);
+    const timeoutId = window.setTimeout(() => setIsBackgroundTransitioning(false), 650);
+    return () => window.clearTimeout(timeoutId);
+  }, [currentBackgroundIndex]);
 
   useEffect(() => {
     const syncState = () => {
@@ -559,7 +572,11 @@ export default function HomeClient() {
       })
       .catch(() => {});
 
-    const loadSupportingData = () => fetchStoreSupportingData()
+    const loadSupportingData = (event?: Event) => {
+      if (event) {
+        clearStoreDataCache();
+      }
+      return fetchStoreSupportingData()
       .then((data) => {
         if (!mounted) {
           return;
@@ -574,6 +591,9 @@ export default function HomeClient() {
       .catch(() => {
         // keep the homepage usable even if the store API is slow or unavailable
       });
+    };
+
+    window.addEventListener("tokko:store-supporting-updated", loadSupportingData);
 
     void loadProducts();
     void loadSupportingData();
@@ -588,6 +608,7 @@ export default function HomeClient() {
 
     return () => {
       mounted = false;
+      window.removeEventListener("tokko:store-supporting-updated", loadSupportingData);
     };
   }, []);
 
@@ -900,23 +921,25 @@ export default function HomeClient() {
     <main className={`${styles.page} ${isViewportLocked ? styles.pageLocked : ""}`} ref={rootRef}>
       <section className={styles.hero} style={heroVars} data-animate="hero">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={heroImage}
-          src={heroImage}
-          alt="Latar Tokko"
-          className={styles.heroImage}
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-          }}
-        />
+        {heroImage ? (
+          <img
+            key={heroImage}
+            src={heroImage}
+            alt="Latar Sobat Premium"
+            className={`${styles.heroImage} ${isBackgroundTransitioning ? styles.heroImageChanging : ""}`}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+            }}
+          />
+        ) : null}
         <div className={styles.heroShade} />
 
         <div className={styles.heroTop} data-animate="hero">
           <Link href="/" aria-label="Beranda" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Image src={logoImage} alt="Tokko Logo" className={styles.logo} width={86} height={86} priority />
+            <Image src={logoImage} alt="Sobat Premium Logo" className={styles.logo} width={120} height={120} priority />
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {sessionStatus === "authenticated" ? (
@@ -946,10 +969,6 @@ export default function HomeClient() {
         </div>
 
         <div className={styles.heroBottom} data-animate="hero">
-          <h1 className={styles.heroTitle}>
-            <span>Tokko</span>
-            <span></span>
-          </h1>
           <div className={styles.heroSearchWrap}>
             <button
               type="button"
@@ -977,7 +996,7 @@ export default function HomeClient() {
       {bestSellerProducts.length > 0 ? (
       <section className={styles.section} data-animate="section">
         <div className={styles.sectionHead}>
-          <h2>Produk Terbaik</h2>
+          <h2 className={styles.shimmerTitle}>Produk Terbaik</h2>
           <button
             type="button"
             className={styles.inlineAction}
@@ -1008,7 +1027,7 @@ export default function HomeClient() {
       {visibleInformations.length > 0 ? (
       <section className={styles.section} data-animate="section" id="testimoni">
         <div className={styles.sectionHead}>
-          <h2>Informasi</h2>
+          <h2 className={styles.shimmerTitle}>Informasi</h2>
         </div>
         {shouldAutoSlideInformations ? (
           <PremiumMarquee<HomeInformation>
@@ -1138,11 +1157,12 @@ export default function HomeClient() {
 
       {activeMarquees.length > 0 ? (
       <section className={styles.section} data-animate="section">
+        <h2 className={styles.marqueeTitle}>Tim Sobat Premium</h2>
         {marqueeBanner.url ? (
           <div className={styles.marqueeBannerWrap}>
             <img
               src={marqueeBanner.url}
-              alt="Banner marquee Tokko"
+              alt="Banner marquee Sobat Premium"
               className={styles.marqueeBanner}
               style={{ borderRadius: `${marqueeBanner.radius}%` }}
             />
@@ -1246,7 +1266,7 @@ export default function HomeClient() {
             >
               <div className={styles.menuTop}>
                 <Link href="/" aria-label="Beranda">
-                  <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} width={60} height={60} />
+                  <Image src={logoImage} alt="Sobat Premium Logo" className={styles.menuLogo} width={60} height={60} />
                 </Link>
               </div>
 
@@ -1305,7 +1325,7 @@ export default function HomeClient() {
             >
               <div className={styles.menuTop}>
                 <Link href="/" aria-label="Beranda">
-                  <Image src={logoImage} alt="Tokko Logo" className={styles.menuLogo} width={60} height={60} />
+                  <Image src={logoImage} alt="Sobat Premium Logo" className={styles.menuLogo} width={60} height={60} />
                 </Link>
               </div>
               <nav className={styles.menuNav} aria-label="Menu produk">

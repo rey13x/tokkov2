@@ -9,10 +9,19 @@ import {
   listTestimonials,
   listDonationActivities,
 } from "@/server/store-data";
+import type { StoreStoryReel } from "@/types/store";
 
 export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;
+    const storyReelId = params.get("storyReelId")?.trim();
+    if (storyReelId) {
+      const storyReel = (await listStoryReels() as StoreStoryReel[]).find((item) => item.id === storyReelId) ?? null;
+      return NextResponse.json(
+        { storyReel },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     if (params.get("productsOnly") === "1") {
       return NextResponse.json(
         { products: await listProducts() },

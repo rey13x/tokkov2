@@ -49,4 +49,6 @@ export function fetchStoreSupportingData(): Promise<Omit<StoreData, "products">>
 
 export function clearStoreDataCache() {
   clearSessionCached(PUBLIC_DATA_CACHE_KEY.store);
+  clearSessionCached(PUBLIC_DATA_CACHE_KEY.storeProducts);
+  clearSessionCached(PUBLIC_DATA_CACHE_KEY.storeSupporting);
 }
