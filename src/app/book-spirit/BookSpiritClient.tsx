@@ -412,7 +412,7 @@ export default function BookSpiritClient() {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={session.user.image || "/assets/maintenancelogo.jpg"}
+                  src={session.user.image || "/assets/sobatprofil.jpg"}
                   alt="Profil"
                   style={{
                     borderRadius: "50%",
@@ -423,7 +423,7 @@ export default function BookSpiritClient() {
             ) : (
               <div className={styles.gifBox} aria-hidden="true">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/maintenancelogo.jpg" alt="Tokko" />
+                <img src="/assets/sobatprofil.jpg" alt="Sobat Profil" />
               </div>
             )}
           </div>

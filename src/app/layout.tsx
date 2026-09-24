@@ -27,9 +27,9 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
   themeColor: "#111319",
   icons: {
-    icon: "/assets/maintenancelogo.jpg",
-    shortcut: "/assets/maintenancelogo.jpg",
-    apple: "/assets/maintenancelogo.jpg",
+    icon: "/assets/sobatprofil.jpg",
+    shortcut: "/assets/sobatprofil.jpg",
+    apple: "/assets/sobatprofil.jpg",
   },
 };
 

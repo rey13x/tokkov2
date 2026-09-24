@@ -24,12 +24,14 @@
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  animation: shimmer 20s ease-in-out infinite;
+  animation: shimmer 5.5s linear infinite !important;
 }
 
 @keyframes shimmer {
-  0%, 55% { background-position: 200% 0; }
-  85%, 100% { background-position: -20% 0; }
+  0%, 18% { background-position: -220% 0; }
+  38% { background-position: 50% 0; }
+  62% { background-position: 120% 0; }
+  100% { background-position: 220% 0; }
 }
 
 .backButton {
@@ -41,7 +43,7 @@
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
-  background: #10131a;
+  background: #1f426d;
   color: #ffffff;
   cursor: pointer;
 }
@@ -126,7 +128,7 @@
   height: 34px;
   place-items: center;
   border-radius: 50%;
-  background: #10131a;
+  background: #1f426d;
   color: #ffffff;
 }
 

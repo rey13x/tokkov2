@@ -68,7 +68,6 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "admins", label: "Admin", desc: "Kelola admin" },
   { id: "users", label: "User", desc: "Lihat data user & aktivitas" },
   { id: "mapPhoto", label: "Ubah Foto", desc: "Atur foto dan radius map" },
-  { id: "marqueeBanner", label: "Foto Kelompok", desc: "Ubah foto kelompok di atas marquee" },
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
 ];
 
@@ -77,12 +76,12 @@ const LIMITED_ADMIN_SECTIONS = new Set<AdminSection>([
   "overview",
   "orders",
   "products",
+  "informations",
   "marquees",
   "profilePhotos",
   "users",
   "storyReels",
   "maintenanceSettings",
-  "marqueeBanner",
   "preview",
 ]);
 
@@ -135,6 +134,7 @@ const defaultStoryReelForm = {
   description: "",
   mediaGallery: [] as Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>,
   linkUrl: "",
+  buttonText: "",
   isActive: true,
   sortOrder: 0,
 };
@@ -237,6 +237,8 @@ function AdminManagementSection() {
     const [activeSection, setActiveSection] = useState<AdminSection>("overview");
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [products, setProducts] = useState<StoreProduct[]>([]);
+    const [productSearch, setProductSearch] = useState("");
+    const [productStatusFilter, setProductStatusFilter] = useState<"all" | "archived" | "active">("all");
     const [informations, setInformations] = useState<StoreInformation[]>([]);
     const [testimonials, setTestimonials] = useState<StoreTestimonial[]>([]);
     const [testimonialComments, setTestimonialComments] = useState<Record<string, StoreTestimonialComment[]>>({});
@@ -440,6 +442,15 @@ function AdminManagementSection() {
     () => latestOrders.reduce((sum, order) => sum + order.total, 0),
     [latestOrders],
   );
+  const filteredProducts = products.filter((product) => {
+    const search = productSearch.trim().toLowerCase();
+    const matchesSearch = !search || [product.name, product.category, product.shortDescription]
+      .some((value) => value.toLowerCase().includes(search));
+    const matchesStatus =
+      productStatusFilter === "all" ||
+      (productStatusFilter === "archived" ? !product.isActive : product.isActive);
+    return matchesSearch && matchesStatus;
+  });
 
   // Router
   const router = useRouter();
@@ -456,6 +467,9 @@ function AdminManagementSection() {
     const loadAdmins = async () => {
       try {
         const response = await fetch("/api/admin/emails");
+        if (response.status === 403) {
+          return;
+        }
         if (!response.ok) {
           throw new Error("Gagal load admin");
         }
@@ -1918,6 +1932,8 @@ function AdminManagementSection() {
       setMessage(infoEditId ? "Informasi berhasil diperbarui." : "Informasi berhasil ditambahkan.");
       resetInfoForm();
       await loadInformations();
+      clearStoreDataCache();
+      window.dispatchEvent(new Event("tokko:store-supporting-updated"));
       bumpPreview();
     } catch {
       setError("Gagal simpan informasi.");
@@ -2243,6 +2259,9 @@ function AdminManagementSection() {
   };
 
   const onDeleteProduct = async (id: string) => {
+    if (!window.confirm("Yakin hapus produk ini?")) {
+      return;
+    }
     await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
     if (productEditId === id) {
       resetProductForm();
@@ -2251,16 +2270,132 @@ function AdminManagementSection() {
     bumpPreview();
   };
 
+  const onToggleAllProductArchive = async () => {
+    if (products.length === 0) {
+      return;
+    }
+
+    const shouldArchive = products.some((product) => product.isActive);
+    const action = shouldArchive ? "arsipkan" : "pulihkan";
+    if (!window.confirm(`Yakin ingin ${action} semua produk?`)) {
+      return;
+    }
+
+    const responses = await Promise.all(
+      products.map((product) =>
+        fetch(`/api/admin/products/${product.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: !shouldArchive }),
+        }),
+      ),
+    );
+    if (responses.some((response) => !response.ok)) {
+      setError(`Gagal ${action} semua produk.`);
+      return;
+    }
+
+    setMessage(shouldArchive ? "Semua produk berhasil diarsipkan." : "Semua produk berhasil dipulihkan.");
+    await loadProducts();
+    clearStoreDataCache();
+    bumpPreview();
+  };
+
+  const onToggleProductArchive = async (product: StoreProduct) => {
+    const nextIsActive = !product.isActive;
+    const action = nextIsActive ? "pulihkan" : "arsipkan";
+    if (!window.confirm(`Yakin ingin ${action} produk ini?`)) {
+      return;
+    }
+
+    const response = await fetch(`/api/admin/products/${product.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: nextIsActive }),
+    });
+    if (!response.ok) {
+      setError(`Gagal ${action} produk.`);
+      return;
+    }
+
+    setMessage(nextIsActive ? "Produk berhasil dipulihkan." : "Produk berhasil diarsipkan.");
+    await loadProducts();
+    clearStoreDataCache();
+    bumpPreview();
+  };
+
   const onDeleteInformation = async (id: string) => {
+    if (!window.confirm("Yakin hapus informasi ini?")) {
+      return;
+    }
     await fetch(`/api/admin/informations/${id}`, { method: "DELETE" });
     if (infoEditId === id) {
       resetInfoForm();
     }
     await loadInformations();
+    clearStoreDataCache();
+    window.dispatchEvent(new Event("tokko:store-supporting-updated"));
+    bumpPreview();
+  };
+
+  const onToggleAllInformationArchive = async () => {
+    if (informations.length === 0) {
+      return;
+    }
+
+    const shouldArchive = informations.some((information) => information.isActive);
+    const action = shouldArchive ? "arsipkan" : "pulihkan";
+    if (!window.confirm(`Yakin ingin ${action} semua informasi?`)) {
+      return;
+    }
+
+    const responses = await Promise.all(
+      informations.map((information) =>
+        fetch(`/api/admin/informations/${information.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: !shouldArchive }),
+        }),
+      ),
+    );
+    if (responses.some((response) => !response.ok)) {
+      setError(`Gagal ${action} semua informasi.`);
+      return;
+    }
+
+    setMessage(shouldArchive ? "Semua informasi berhasil diarsipkan." : "Semua informasi berhasil dipulihkan.");
+    await loadInformations();
+    clearStoreDataCache();
+    bumpPreview();
+  };
+
+  const onToggleInformationArchive = async (information: StoreInformation) => {
+    const nextIsActive = !information.isActive;
+    const action = nextIsActive ? "pulihkan" : "arsipkan";
+    if (!window.confirm(`Yakin ingin ${action} informasi ini?`)) {
+      return;
+    }
+
+    const response = await fetch(`/api/admin/informations/${information.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: nextIsActive }),
+    });
+    if (!response.ok) {
+      setError(`Gagal ${action} informasi.`);
+      return;
+    }
+
+    setMessage(nextIsActive ? "Informasi berhasil dipulihkan." : "Informasi berhasil diarsipkan.");
+    await loadInformations();
+    clearStoreDataCache();
     bumpPreview();
   };
 
   const onDeleteTestimonial = async (id: string) => {
+    if (!window.confirm("Yakin hapus testimoni ini?")) {
+      return;
+    }
     await fetch(`/api/admin/testimonials/${id}`, { method: "DELETE" });
     if (testimonialEditId === id) {
       resetTestimonialForm();
@@ -2339,6 +2474,9 @@ function AdminManagementSection() {
   };
 
   const onDeleteMarquee = async (id: string) => {
+    if (!window.confirm("Yakin hapus logo ini?")) {
+      return;
+    }
     await fetch(`/api/admin/marquees/${id}`, { method: "DELETE" });
     if (marqueeEditId === id) {
       resetMarqueeForm();
@@ -2384,7 +2522,9 @@ function AdminManagementSection() {
       const payload = {
         title: storyReelForm.title.trim(),
         description: storyReelForm.description.trim(),
-        mediaGallery: storyReelForm.mediaGallery.filter((item) => item.url.trim()),
+        mediaGallery: storyReelForm.mediaGallery
+          .filter((item) => item.url.trim())
+          .map((item, index) => index === 0 ? { ...item, title: storyReelForm.buttonText.trim() } : item),
         linkUrl: storyReelForm.linkUrl.trim(),
         isActive: storyReelForm.isActive,
         sortOrder: storyReelForm.sortOrder,
@@ -2422,6 +2562,7 @@ function AdminManagementSection() {
       description: storyReel.description,
       mediaGallery: storyReel.mediaGallery.length > 0 ? storyReel.mediaGallery : [{ url: "", type: "image", title: "", description: "" }],
       linkUrl: storyReel.linkUrl,
+      buttonText: storyReel.mediaGallery[0]?.title || "",
       isActive: storyReel.isActive,
       sortOrder: storyReel.sortOrder,
     });
@@ -3614,8 +3755,8 @@ function AdminManagementSection() {
               placeholder="Deskripsi lengkap"
               required
             />
-            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-              <label>
+            <div className={styles.productTypeSelector}>
+              <label className={styles.productTypeOption}>
                 <input
                   type="radio"
                   name="productType"
@@ -3632,7 +3773,7 @@ function AdminManagementSection() {
                 />
                 Jual Beli
               </label>
-              <label>
+              <label className={styles.productTypeOption}>
                 <input
                   type="radio"
                   name="productType"
@@ -3647,7 +3788,7 @@ function AdminManagementSection() {
                 />
                 Pekerjaan
               </label>
-              <label>
+              <label className={styles.productTypeOption}>
                 <input
                   type="radio"
                   name="productType"
@@ -3825,8 +3966,52 @@ function AdminManagementSection() {
             </div>
           </form>
 
+          <h2 className={styles.productHistoryTitle}>Histori Produk</h2>
+          <div className={styles.managementToolbar}>
+            <input
+              className={styles.managementSearch}
+              value={productSearch}
+              onChange={(event) => setProductSearch(event.target.value)}
+              placeholder="Cari produk, kategori..."
+              aria-label="Cari produk"
+            />
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={onToggleAllProductArchive}
+              disabled={isLoading || products.length === 0}
+            >
+              {products.length > 0 && products.some((product) => product.isActive) ? "Archive" : "Unarchive"}
+            </button>
+          </div>
+          <div className={styles.productFilters}>
+            <div className={styles.productStatusFilters}>
+              <button
+                type="button"
+                className={productStatusFilter === "archived" ? styles.activeProductFilter : ""}
+                onClick={() => setProductStatusFilter("archived")}
+              >
+                Archive
+              </button>
+              <button
+                type="button"
+                className={productStatusFilter === "active" ? styles.activeProductFilter : ""}
+                onClick={() => setProductStatusFilter("active")}
+              >
+                Unarchive
+              </button>
+              <button
+                type="button"
+                className={productStatusFilter === "all" ? styles.activeProductFilter : ""}
+                onClick={() => setProductStatusFilter("all")}
+              >
+                Semua
+              </button>
+            </div>
+          </div>
+
           <div className={styles.list}>
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <div key={product.id} className={styles.listItem}>
                 <div className={styles.listPreview}>
                   <FlexibleMedia
@@ -3850,6 +4035,11 @@ function AdminManagementSection() {
                         Highlight aktif
                       </span>
                     ) : null}
+                    {!product.isActive ? (
+                      <span style={{ color: "#a33a22", fontSize: "0.85rem", fontWeight: 700 }}>
+                        Archived
+                      </span>
+                    ) : null}
                     {product.productType === "pekerjaan" ? (
                       <span style={{ color: "#666", fontSize: "0.85rem" }}>
                         Pelamar: {product.applicantCount || 0} / {product.maxApplicants ? product.maxApplicants : "∞"}
@@ -3857,12 +4047,15 @@ function AdminManagementSection() {
                     ) : null}
                   </div>
                 </div>
-                <div className={styles.rowActions}>
+                <div className={`${styles.rowActions} ${styles.productRowActions}`}>
                   <button type="button" onClick={() => onToggleProductHighlight(product)}>
                     {product.isHighlighted ? "Matikan Highlight" : "Highlight"}
                   </button>
                   <button type="button" onClick={() => onEditProduct(product)}>
                     Edit
+                  </button>
+                  <button type="button" onClick={() => onToggleProductArchive(product)}>
+                    {product.isActive ? "Archive" : "Unarchive"}
                   </button>
                   <button type="button" onClick={() => onDeleteProduct(product.id)}>
                     Hapus
@@ -3876,7 +4069,17 @@ function AdminManagementSection() {
 
         {activeSection === "informations" ? (
         <article className={styles.card}>
-          <h2>{infoEditId ? "Edit Informasi" : "CRUD Informasi"}</h2>
+          <div className={styles.cardHead}>
+            <h2>{infoEditId ? "Edit Informasi" : "CRUD Informasi"}</h2>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={onToggleAllInformationArchive}
+              disabled={informations.length === 0}
+            >
+              {informations.length > 0 && informations.some((information) => information.isActive) ? "Archive" : "Unarchive"}
+            </button>
+          </div>
           <form className={styles.form} onSubmit={onSaveInformation}>
             <select
               value={infoForm.type}
@@ -4025,6 +4228,9 @@ function AdminManagementSection() {
                       [{information.type}] {information.title}
                     </p>
                     <span>{new Date(information.createdAt).toLocaleDateString("id-ID")}</span>
+                    {!information.isActive ? (
+                      <span className={styles.archivedLabel}>Archived</span>
+                    ) : null}
                     {information.type === "poll" && information.pollOptions.length > 0 ? (
                       <div className={styles.pollSummary}>
                         <strong>
@@ -4056,12 +4262,19 @@ function AdminManagementSection() {
                     ) : null}
                   </div>
                 </div>
-                <div className={styles.rowActions}>
+                <div className={`${styles.rowActions} ${styles.informationRowActions}`}>
                   <button type="button" onClick={() => onEditInformation(information)}>
                     Edit
                   </button>
                   <button type="button" onClick={() => onDeleteInformation(information.id)}>
                     Hapus
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.informationArchiveButton}
+                    onClick={() => onToggleInformationArchive(information)}
+                  >
+                    {information.isActive ? "Archive" : "Unarchive"}
                   </button>
                 </div>
               </div>
@@ -5407,6 +5620,11 @@ function AdminManagementSection() {
               rows={3}
             />
             <input
+              value={storyReelForm.buttonText}
+              onChange={(event) => setStoryReelForm((current) => ({ ...current, buttonText: event.target.value }))}
+              placeholder="Nama button redirect (opsional)"
+            />
+            <input
               value={storyReelForm.linkUrl}
               onChange={(event) => setStoryReelForm((current) => ({ ...current, linkUrl: event.target.value }))}
               placeholder="Link tujuan (opsional)"
@@ -6157,42 +6375,11 @@ function AdminManagementSection() {
           </article>
         ) : null}
 
-        {activeSection === "marqueeBanner" ? (
-          <article className={styles.card}>
-            <h2>Foto Kelompok</h2>
-            <p style={{ color: "#666", marginTop: 0 }}>
-              Foto landscape ini tampil di atas logo marquee homepage dan bisa diganti kapan saja.
-            </p>
-            <form className={styles.form} onSubmit={onSaveMarqueeBanner}>
-              <label>
-                URL Foto
-                <input
-                  type="url"
-                  value={marqueeBannerUrl}
-                  onChange={(event) => setMarqueeBannerUrl(event.target.value)}
-                  placeholder="https://.../banner.jpg"
-                />
-                <small className={styles.mediaUrlHint}>Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas</small>
-              </label>
-              <div className={styles.formActions}>
-                <button type="submit">Simpan Foto</button>
-              </div>
-            </form>
-            {marqueeBannerUrl ? (
-              <img
-                src={marqueeBannerUrl}
-                alt="Preview foto marquee"
-                style={{ width: "100%", height: "auto", maxHeight: "420px", objectFit: "contain", background: "#f8faff", borderRadius: "16px" }}
-              />
-            ) : null}
-          </article>
-        ) : null}
-
         {activeSection === "maintenanceSettings" ? (
           <article className={`${styles.card} ${styles.homepagePopupCard}`}>
             <h2>Popup Iklan</h2>
             <p style={{ color: "#666", marginTop: 0 }}>
-              Atur iklan popup yang muncul saat pengguna pertama kali membuka website. Bisa pakai URL gambar langsung, tanpa harus upload file.
+              Atur iklan popup yang muncul saat Sobat pertama kali buka website, Sobat mendapatkan tampilan Popup.
             </p>
             <label style={{ display: "grid", gap: "8px", marginBottom: "12px" }}>
               URL Gambar

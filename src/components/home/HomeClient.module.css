@@ -16,7 +16,12 @@
 .marqueeBannerWrap {
   width: 100%;
   margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
   overflow: hidden;
+  border: 1px solid #dfe4ef;
+  border-radius: 16px;
+  background: #f3f5f8;
 }
 
 .marqueeTitle {
@@ -39,22 +44,28 @@
 }
 
 @keyframes slowTitleShimmer {
-  0%, 16% {
-    background-position: 220% center;
+  0%, 18% {
+    background-position: -220% center;
   }
-  52%, 100% {
-    background-position: -20% center;
+  38% {
+    background-position: 50% center;
+  }
+  62% {
+    background-position: 120% center;
+  }
+  100% {
+    background-position: 220% center;
   }
 }
 
 .marqueeBanner {
   display: block;
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   height: auto;
   max-height: 420px;
   object-fit: contain;
-  border-radius: 16px;
-  background: #f3f5f8;
+  border-radius: 0;
 }
 
 .hero {
@@ -636,12 +647,14 @@
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  animation: sectionTitleShimmer 20s ease-in-out infinite;
+  animation: sectionTitleShimmer 5.5s linear infinite !important;
 }
 
 @keyframes sectionTitleShimmer {
-  0%, 55% { background-position: 200% 0; }
-  85%, 100% { background-position: -20% 0; }
+  0%, 18% { background-position: -220% 0; }
+  38% { background-position: 50% 0; }
+  62% { background-position: 120% 0; }
+  100% { background-position: 220% 0; }
 }
 
 @media (min-width: 821px) {
@@ -717,7 +730,7 @@
   height: 32px;
   place-items: center;
   border-radius: 50%;
-  background: #10141d;
+  background: #1f426d;
   color: #ffffff;
 }
 
@@ -1095,7 +1108,7 @@
   width: 23px;
   height: 23px;
   border-radius: 50%;
-  background: #10141d;
+  background: #1f426d;
   color: #ffffff;
   display: grid;
   place-items: center;
@@ -1119,7 +1132,7 @@
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: #10141d;
+  background: #1f426d;
   color: #ffffff;
   cursor: pointer;
   box-shadow: 0 8px 18px rgba(10, 13, 20, 0.22);
@@ -1447,7 +1460,7 @@
   border: none;
   border-radius: 999px;
   min-height: 52px;
-  background: #11151f;
+  background: #1f426d;
   color: #ffffff;
   font-weight: 700;
   font-size: 0.95rem;
@@ -1499,7 +1512,7 @@
 }
 
 .partnerFilterChipActive {
-  background: #10141d;
+  background: #1f426d;
   color: #ffffff;
 }
 
@@ -1679,7 +1692,7 @@
 }
 
 .categoryChipActive {
-  background: #10141d;
+  background: #1f426d;
   color: #ffffff;
 }
 
@@ -1701,7 +1714,7 @@
   padding: 0;
   border: 1px solid #0d1119;
   border-radius: 999px;
-  background: #10141d;
+  background: #1f426d;
   color: #ffffff;
   display: inline-flex;
   align-items: center;
@@ -2029,7 +2042,7 @@
     min-height: 40px;
     border: 0;
     border-radius: 10px;
-    background: #11151f;
+    background: #1f426d;
     color: #ffffff;
     cursor: pointer;
     font-weight: 700;
@@ -2067,7 +2080,7 @@
   height: 48px;
   min-width: 140px;
   padding-inline: 22px;
-  background: #10141d;
+  background: #1f426d;
   color: #ffffff;
   display: inline-flex;
   align-items: center;

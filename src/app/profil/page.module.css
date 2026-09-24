@@ -53,7 +53,7 @@
   padding: 0 15px;
   display: inline-flex;
   align-items: center;
-  background: #11151f;
+  background: #1f426d;
   color: #ffffff;
   font-size: 0.78rem;
 }
@@ -161,7 +161,7 @@
 }
 
 .adminButton:hover {
-  background: #1a1f2e;
+  background: #285786;
   border-color: #8ea1cb;
   transform: scale(1.05);
 }
@@ -247,7 +247,7 @@
   border-radius: 999px;
   min-height: 40px;
   padding: 0 14px;
-  background: #10141f;
+  background: #1f426d;
   color: #ffffff;
   width: fit-content;
   cursor: pointer;
@@ -305,19 +305,20 @@
   border: none;
   border-radius: 999px;
   height: 48px;
-  background: #101319;
+  background: #1f426d;
   color: #ffffff;
   font-size: 0.92rem;
   cursor: pointer;
 }
 
 .logoutButton {
-  border: 1px solid #d3d8e5;
+  border: 1px solid #1f426d;
   border-radius: 999px;
   height: 46px;
   min-width: 180px;
   padding: 0 16px;
   background: transparent;
+  color: #1f426d;
   cursor: pointer;
 }
 
@@ -360,7 +361,7 @@
   border-radius: 999px;
   min-height: 40px;
   padding: 0 14px;
-  background: #101319;
+  background: #1f426d;
   color: #ffffff;
   width: fit-content;
   cursor: pointer;
@@ -370,7 +371,7 @@
 }
 
 .choosePhotoButton:hover {
-  background: #1a1f2e;
+  background: #285786;
   transform: scale(1.02);
 }
 
@@ -469,7 +470,7 @@
   border: none;
   border-radius: 999px;
   height: 44px;
-  background: #101319;
+  background: #1f426d;
   color: #ffffff;
   font-size: 0.92rem;
   cursor: pointer;
@@ -478,7 +479,7 @@
 }
 
 .confirmButton:hover:not(:disabled) {
-  background: #1a1f2e;
+  background: #285786;
   transform: scale(1.01);
 }
 

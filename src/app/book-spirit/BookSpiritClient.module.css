@@ -34,11 +34,11 @@
   height: 40px;
   border-radius: 999px;
   padding: 0 14px;
-  background: #10131a !important;
+  background: #1f426d !important;
   color: #ffffff !important;
   display: inline-flex;
   align-items: center;
-  border: 1px solid #10131a;
+  border: 1px solid #1f426d;
   cursor: pointer;
   font-size: 1rem;
   font-weight: 500;
@@ -481,7 +481,7 @@
   flex-direction: column;
   gap: 16px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #10131a 0%, #2a2d35 100%);
+  background: linear-gradient(135deg, #1f426d 0%, #285786 100%);
   color: #ffffff;
   padding: 32px 20px;
   text-align: center;
@@ -513,7 +513,7 @@
 }
 
 .tellStoryButton {
-  background: #11151E;
+  background: #1f426d;
   color: #ffffff;
   text-shadow: none;
   border-radius: 20px;
@@ -524,7 +524,7 @@
   width: 100%;
   min-height: 48px;
   margin: 0;
-  background: #11151E;
+  background: #1f426d;
   color: #ffffff;
   box-shadow: none;
   backdrop-filter: none;
@@ -533,8 +533,8 @@
 
 .tellStoryButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(17, 21, 30, 0.3);
-  background: #0a0d14;
+  box-shadow: 0 4px 12px rgba(31, 66, 109, 0.28);
+  background: #285786;
 }
 
 .tellStoryButton:active {

@@ -1506,7 +1506,7 @@ export default function StatusPemesananPage() {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={session?.user?.image || "/assets/maintenancelogo.jpg"}
+              src={session?.user?.image || "/assets/sobatprofil.jpg"}
               alt="Profil"
             />
           </button>

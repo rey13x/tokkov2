@@ -725,7 +725,7 @@ export default function HomeClient() {
     <article key={key} className={styles.infoCard}>
       <div className={styles.infoImageWrap}>
         <FlexibleMedia
-          src={item.imageUrl}
+          src={item.imageUrl || "/assets/sobatprofil.jpg"}
           alt={item.title}
           fill
           className={styles.infoImage}
@@ -1155,40 +1155,6 @@ export default function HomeClient() {
       </section>
       ) : null} */}
 
-      {activeMarquees.length > 0 ? (
-      <section className={styles.section} data-animate="section">
-        <h2 className={styles.marqueeTitle}>Tim Sobat Premium</h2>
-        {marqueeBanner.url ? (
-          <div className={styles.marqueeBannerWrap}>
-            <img
-              src={marqueeBanner.url}
-              alt="Banner marquee Sobat Premium"
-              className={styles.marqueeBanner}
-              style={{ borderRadius: `${marqueeBanner.radius}%` }}
-            />
-          </div>
-        ) : null}
-        {activeMarquees.length > 0 ? (
-          <PremiumMarquee<HomeMarquee>
-            items={activeMarquees}
-            speed={20}
-            gap={22}
-            className={styles.logoMarquee}
-            itemClassName={styles.logoGlyph}
-            renderItem={(item) => (
-              <FlexibleMedia
-                src={item.imageUrl}
-                alt={item.label}
-                fill
-                className={styles.logoImage}
-                sizes="58px"
-              />
-            )}
-          />
-        ) : null}
-      </section>
-      ) : null}
-
       {visibleActivities.length > 0 ? (
         <section className={styles.section} data-animate="section" id="kegiatan">
           <div className={styles.sectionHead}>
@@ -1212,7 +1178,7 @@ export default function HomeClient() {
                     }}
                   >
                     <FlexibleMedia
-                      src={cover?.url ?? ""}
+                      src={cover?.url || "/assets/sobatprofil.jpg"}
                       alt={cover?.alt || activity.title}
                       fill
                       className={styles.activityImage}
@@ -1230,6 +1196,36 @@ export default function HomeClient() {
             })}
           </div>
         </section>
+      ) : null}
+
+      {activeMarquees.length > 0 ? (
+      <section className={styles.section} data-animate="section">
+        {marqueeBanner.url ? (
+          <div className={styles.marqueeBannerWrap}>
+            <img
+              src={marqueeBanner.url}
+              alt="Banner marquee Sobat Premium"
+              className={styles.marqueeBanner}
+            />
+          </div>
+        ) : null}
+        <PremiumMarquee<HomeMarquee>
+          items={activeMarquees}
+          speed={20}
+          gap={22}
+          className={styles.logoMarquee}
+          itemClassName={styles.logoGlyph}
+          renderItem={(item) => (
+            <FlexibleMedia
+              src={item.imageUrl || "/assets/sobatprofil.jpg"}
+              alt={item.label}
+              fill
+              className={styles.logoImage}
+              sizes="58px"
+            />
+          )}
+        />
+      </section>
       ) : null}
 
       {isMounted
@@ -1275,13 +1271,13 @@ export default function HomeClient() {
                   type="button"
                   className={styles.menuFounderLink}
                   data-menu-item
-                  onClick={() => { window.open('https://byrai-three.vercel.app', '_blank'); closeMenu(); }}
+                  onClick={() => { window.open('https://www.bsi.ac.id/', '_blank'); closeMenu(); }}
                 >
                   <span
                     className={styles.menuFounderText}
                   >
                     <FiGlobe className={styles.menuFounderIcon} />
-                    <span className={styles.menuFounderLabel}>Founder</span>
+                    <span className={styles.menuFounderLabel}>Universitas Bina Sarana Informatika</span>
                   </span>
                 </button>
                 <button type="button" onClick={() => moveMenu("products", 1)} data-menu-item>
@@ -1333,26 +1329,13 @@ export default function HomeClient() {
                   type="button"
                   className={styles.menuFounderLink}
                   data-menu-item
-                  onClick={() => { window.open('https://byrai-three.vercel.app', '_blank'); closeMenu(); }}
+                  onClick={() => { window.open('https://www.bsi.ac.id/', '_blank'); closeMenu(); }}
                 >
                   <span
                     className={styles.menuFounderText}
                   >
                     <FiGlobe className={styles.menuFounderIcon} />
-                    <span className={styles.menuFounderLabel}>Founder</span>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    router.push("/paygate");
-                    closeMenu();
-                  }}
-                  data-menu-item
-                >
-                  PayGate
-                  <span>
-                    <FiChevronRight />
+                    <span className={styles.menuFounderLabel}>Universitas Bina Sarana Informatika</span>
                   </span>
                 </button>
                 {productMenuItems.map((item) => (

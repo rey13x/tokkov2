@@ -70,7 +70,7 @@ export default function DonationActivityClient() {
       <header className={styles.header}>
         <div className={styles.headerIdentity}>
           <Link href="/profil" className={styles.logoLink} aria-label="Buka profil">
-            <Image src="/assets/maintenancelogo.jpg" alt="Tokko Marketplace" width={72} height={72} className={styles.logo} priority />
+            <Image src="/assets/sobatprofil.jpg" alt="Sobat Profil" width={72} height={72} className={styles.logo} priority />
           </Link>
           <div className={styles.headerCopy}>
             <p className={styles.eyebrow}>TOKKO MARKETPLACE</p>
