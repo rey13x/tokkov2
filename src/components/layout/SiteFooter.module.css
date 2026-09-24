@@ -21,12 +21,11 @@
 }
 
 .logo {
-  border-radius: 14px;
+  width: min(220px, 42vw);
+  height: auto;
+  display: block;
+  object-fit: contain;
   opacity: 0.95;
-}
-
-.brand h2 {
-  font-size: 1.4rem;
 }
 
 .brand p {

@@ -18,21 +18,14 @@ export default function SiteFooter() {
         <div className={styles.brand}>
           <Link href="/" aria-label="Beranda">
             <Image
-              src="/assets/logo.png"
-              alt="Tokko Logo"
-              width={86}
-              height={86}
+              src="/assets/Sobat-Premium.png"
+              alt="Sobat Premium"
+              width={220}
+              height={160}
               className={styles.logo}
               unoptimized
             />
           </Link>
-          <div>
-            <h2>
-              Tokko
-              <br />
-              Marketplace
-            </h2>
-          </div>
         </div>
         <div className={styles.contactWrap}>
           <nav className={styles.links} aria-label="Footer link">
