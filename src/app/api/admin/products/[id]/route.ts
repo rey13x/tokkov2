@@ -23,6 +23,7 @@ const updateSchema = z.object({
   description: z.string().min(6).max(2000).optional(),
   duration: z.string().max(80).optional(),
   price: z.number().int().min(0).optional(),
+  stock: z.number().int().min(0).optional(),
   imageUrl: z.string().max(3000000).optional(),
   mediaGallery: z.array(
     z.object({

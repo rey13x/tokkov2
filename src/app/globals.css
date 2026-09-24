@@ -13,6 +13,14 @@
   --text-color-soft: #6b7387;
 }
 
+/* Keep the interface static for faster page rendering. */
+*,
+*::before,
+*::after {
+  animation: none !important;
+  transition: none !important;
+}
+
 :root.dark-mode {
   --bg-primary: #2a2a2a;
   --text-color: #ffffff;

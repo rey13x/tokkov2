@@ -154,12 +154,12 @@
 }
 
 .cartIconButton {
-  border: 2px solid #11151f;
+  border: 2px solid #1f426d;
   border-radius: 999px;
   width: 52px;
   height: 52px;
   background: #ffffff;
-  color: #11151f;
+  color: #1f426d;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -173,7 +173,7 @@
 }
 
 .cartIconButton:hover {
-  background: #11151f;
+  background: #1f426d;
   color: #ffffff;
 }
 

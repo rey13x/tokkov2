@@ -141,6 +141,15 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+      if (product.productType === "jual_beli") {
+        const remainingStock = Math.max(0, Number(product.stock ?? 0));
+        if (remainingStock <= 0 || item.quantity > remainingStock) {
+          return NextResponse.json(
+            { message: `Stok ${product.name} tersisa ${remainingStock}. Pilih jumlah yang masih tersedia.` },
+            { status: 400 },
+          );
+        }
+      }
 
       enrichedItems.push({
         productId: product.id,

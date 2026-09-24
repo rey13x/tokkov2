@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import sharp from "sharp";
 import { getServerAuthSession } from "@/server/auth";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
@@ -31,19 +32,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // Keep the Firestore document safely below its size limit.
-    if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    let compressed = await sharp(buffer).rotate().resize({ width: 2400, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
+    let quality = 82;
+    let width = 2400;
+    while (compressed.length > MAX_IMAGE_SIZE_BYTES && quality > 42) {
+      quality -= 8;
+      width = Math.round(width * 0.85);
+      compressed = await sharp(buffer).rotate().resize({ width, withoutEnlargement: true }).webp({ quality }).toBuffer();
+    }
+    if (compressed.length > MAX_IMAGE_SIZE_BYTES) {
       return NextResponse.json(
-        {
-          message: `Foto terlalu besar (${sizeMB}MB). Maksimal 450KB.`,
-        },
-        { status: 400 }
+        { message: "Foto terlalu besar setelah dikompres. Coba pilih foto lain." },
+        { status: 400 },
       );
     }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const mediaUrl = `data:${file.type};base64,${buffer.toString("base64")}`;
+    const mediaUrl = `data:image/webp;base64,${compressed.toString("base64")}`;
 
     return NextResponse.json({
       url: mediaUrl,

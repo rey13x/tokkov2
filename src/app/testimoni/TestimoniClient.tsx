@@ -485,7 +485,7 @@ export default function TestimoniClient({ testimonials, activeRating }: Testimon
                                 border: "none",
                                 cursor: "pointer",
                                 fontSize: "20px",
-                                color: "#17365d",
+                                color: "#1f426d",
                                 opacity: star <= editingRating ? 1 : 0.4,
                               }}
                             >

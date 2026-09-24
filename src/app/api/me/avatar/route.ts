@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
+import sharp from "sharp";
 import { getServerAuthSession } from "@/server/auth";
 import { createUser, findUserByEmail, updateUserById } from "@/server/db";
 import { updateBookStoryUserProfile, updateTestimonialUserProfile } from "@/server/store-data";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 const MAX_AVATAR_SIZE_BYTES = 450 * 1024;
-
-function toInlineDataUrl(file: File, buffer: Buffer) {
-  return `data:${file.type};base64,${buffer.toString("base64")}`;
-}
 
 export const runtime = "nodejs";
 
@@ -33,22 +30,20 @@ export async function POST(request: Request) {
       );
     }
 
-    if (file.size > MAX_AVATAR_SIZE_BYTES) {
-      return NextResponse.json(
-        { message: "Ukuran file maksimal 5MB." },
-        { status: 400 },
-      );
-    }
-
     const buffer = Buffer.from(await file.arrayBuffer());
-    if (buffer.length > MAX_AVATAR_SIZE_BYTES) {
+    const compressed = await sharp(buffer)
+      .rotate()
+      .resize({ width: 1600, withoutEnlargement: true })
+      .webp({ quality: 78 })
+      .toBuffer();
+    if (compressed.length > MAX_AVATAR_SIZE_BYTES) {
       return NextResponse.json(
-        { message: "Ukuran avatar terlalu besar untuk Firestore. Maksimal 450KB." },
+        { message: "Ukuran avatar terlalu besar setelah dikompres. Coba pilih foto lain." },
         { status: 400 },
       );
     }
 
-    const avatarUrl = toInlineDataUrl(file, buffer);
+    const avatarUrl = `data:image/webp;base64,${compressed.toString("base64")}`;
 
     let userId = session.user.id;
     if (session.user.id === "dev-admin-hardcoded") {

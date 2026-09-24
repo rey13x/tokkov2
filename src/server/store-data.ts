@@ -207,6 +207,7 @@ function mapProductDoc(
     description: String(data?.description ?? ""),
     duration: String(data?.duration ?? ""),
     price: Number(data?.price ?? 0),
+    stock: Math.max(0, Number(data?.stock ?? 0)),
     imageUrl: resolveMediaUrl(String(data?.imageUrl ?? "")),
     mediaGallery,
     isActive: Boolean(data?.isActive ?? true),
@@ -498,6 +499,7 @@ export async function createProduct(input: {
   description: string;
   duration: string;
   price: number;
+  stock?: number;
   imageUrl: string;
   mediaGallery?: Array<{ url: string; type?: "image" | "video" | "gif" }>;
   productType?: string;
@@ -516,6 +518,7 @@ export async function createProduct(input: {
     const createdAt = now();
     const slug = await getUniqueSlug(firestore, input.name);
     const mediaUrl = resolveMediaUrl(input.imageUrl);
+    const nextStock = Math.max(0, Number(input.stock ?? 0));
     const productType = input.productType === "pekerjaan" || input.productType === "donation"
       ? input.productType
       : "jual_beli";
@@ -536,6 +539,7 @@ export async function createProduct(input: {
       description: input.description,
       duration: input.duration.trim(),
       price: input.price,
+      stock: nextStock,
       imageUrl: mediaUrl,
       mediaGallery,
       isActive: true,
@@ -567,6 +571,7 @@ export async function updateProduct(
     description: string;
     duration: string;
     price: number;
+    stock?: number;
     imageUrl: string;
     mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif" }>;
     isActive: boolean;
@@ -594,7 +599,9 @@ export async function updateProduct(
     let nextSlug = String(currentData.slug ?? "");
     const nextMediaUrl =
       input.imageUrl !== undefined ? resolveMediaUrl(input.imageUrl) : undefined;
-    
+    const nextStock =
+      input.stock !== undefined ? Math.max(0, Number(input.stock ?? 0)) : undefined;
+
     // Determine the product type (use input if provided, otherwise use current)
     const currentProductType = String(currentData?.productType ?? "jual_beli") as "jual_beli" | "pekerjaan" | "donation";
     const nextProductType =
@@ -658,6 +665,7 @@ export async function updateProduct(
       ...(input.description !== undefined ? { description: input.description } : {}),
       ...(input.duration !== undefined ? { duration: input.duration.trim() } : {}),
       ...(input.price !== undefined ? { price: input.price } : {}),
+      ...(nextStock !== undefined ? { stock: nextStock } : {}),
       ...(input.isHighlighted !== undefined ? { isHighlighted: Boolean(input.isHighlighted) } : {}),
       ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
       ...(input.mediaGallery !== undefined
@@ -1731,6 +1739,30 @@ export async function updateOrderStatus(
     const doc = await ref.get();
     if (!doc.exists) {
       return null;
+    }
+
+    const currentStatus = String((doc.data() as Record<string, unknown>)?.status ?? "process");
+    if (status === "paid" && currentStatus !== "paid") {
+      const items = await listOrderItemsByOrderId(id);
+      for (const item of items) {
+        if (item.productType !== "jual_beli") {
+          continue;
+        }
+        const product = await getProductById(item.productId);
+        if (!product) {
+          continue;
+        }
+        const productRef = firestore.collection("products").doc(item.productId);
+        const productDoc = await productRef.get();
+        if (!productDoc.exists) {
+          continue;
+        }
+        const currentStock = Math.max(0, Number((productDoc.data() as Record<string, unknown>)?.stock ?? product.stock ?? 0));
+        await productRef.update({
+          stock: Math.max(0, currentStock - item.quantity),
+          updatedAt: now(),
+        });
+      }
     }
 
     await ref.update({

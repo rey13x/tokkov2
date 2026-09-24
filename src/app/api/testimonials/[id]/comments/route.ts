@@ -59,7 +59,11 @@ export async function POST(request: Request, context: { params: Params }) {
     // New comments from regular users start as unverified (admin can toggle later in admin panel)
     // Only hardcoded admin is auto-verified
     const user = await findUserById(session.user.id ?? "");
-    const isHardcodedAdmin = session.user.id === "dev-admin-hardcoded";
+    const sessionEmail = session.user.email?.toLowerCase();
+    const isHardcodedAdmin =
+      session.user.id === "dev-admin-hardcoded" ||
+      sessionEmail === "digitalawanku2@gmail.com" ||
+      sessionEmail === "sobatpremium@gmail.com";
     const isVerified = isHardcodedAdmin;
     // Ensure avatar is provided
     const userAvatarUrl = session.user.image || user?.avatarUrl || "https://via.placeholder.com/32?text=U";

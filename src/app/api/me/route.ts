@@ -29,18 +29,20 @@ function hashOtp(code: string) {
   return crypto.createHash("sha256").update(code).digest("hex");
 }
 
+const LIMITED_ADMIN_EMAIL = process.env.LIMITED_ADMIN_EMAIL?.trim().toLowerCase() || "sobatpremium@gmail.com";
+
 export async function GET() {
   const session = await getServerAuthSession();
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.id === "limited-admin-sobatpremium" || session.user.email?.toLowerCase() === "sobatpremium@gmail.com") {
+  if (session.user.id === "limited-admin-sobatpremium" || session.user.email?.toLowerCase() === LIMITED_ADMIN_EMAIL) {
     return NextResponse.json({
       username: "Sobat Premium",
-      email: "sobatpremium@gmail.com",
+      email: LIMITED_ADMIN_EMAIL,
       phone: "",
-      avatarUrl: "",
+      avatarUrl: "/assets/sobatprofil.jpg",
       role: "admin",
       pushSubscription: null,
     });

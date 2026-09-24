@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
 export default function PayGateRegisterPage() {
-  redirect("/auth?redirect=/paygate");
+  // Catatan sementara: halaman PayGate disembunyikan, bukan dihapus.
+  redirect("/");
 }

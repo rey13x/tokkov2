@@ -1,5 +1,6 @@
-import PayGatePanel from "@/components/payment/PayGatePanel";
+import { redirect } from "next/navigation";
 
 export default function PayGatePage() {
-  return <PayGatePanel routeMode="entry" />;
+  // Catatan sementara: halaman PayGate disembunyikan, bukan dihapus.
+  redirect("/");
 }

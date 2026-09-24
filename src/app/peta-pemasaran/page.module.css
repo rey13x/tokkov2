@@ -52,7 +52,7 @@
   border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.94);
-  color: #17365d;
+  color: #1f426d;
   font-size: 0.9rem;
   font-weight: 800;
   box-shadow: 0 8px 22px rgba(15, 28, 52, 0.15);
@@ -86,7 +86,7 @@
   border: 1px solid rgba(22, 27, 40, 0.16);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.96);
-  color: #17365d;
+  color: #1f426d;
   cursor: pointer;
   font: inherit;
   font-weight: 800;
@@ -119,7 +119,7 @@
   padding: 0 18px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.96);
-  color: #17365d;
+  color: #1f426d;
   font-size: 0.95rem;
   font-weight: 800;
   text-decoration: none;
@@ -129,7 +129,7 @@
 .page :global(.marketing-map-controls button:hover),
 .page :global(.marketing-map-open:hover) {
   background: #ffffff;
-  border-color: #17365d;
+  border-color: #1f426d;
 }
 
 .page :global(.marketing-map-picker-open .marketing-map-controls) {
@@ -184,7 +184,7 @@
 .brandLink {
   position: fixed;
   z-index: 1500;
-  color: #17365d;
+  color: #1f426d;
   text-decoration: none;
   font-weight: 800;
 }
@@ -201,7 +201,7 @@
   min-height: 100dvh;
   place-items: center;
   margin: 0;
-  color: #17365d;
+  color: #1f426d;
   font-weight: 800;
 }
 

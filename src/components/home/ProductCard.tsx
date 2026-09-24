@@ -85,6 +85,11 @@ const ProductCard = memo(function ProductCard({
             ) : (
               <span>{formatRupiah(product.price)}</span>
             )}
+            {product.productType === "jual_beli" ? (
+              <small style={{ display: "block", fontSize: 11, opacity: 0.8, marginTop: 2 }}>
+                {Number(product.stock ?? 0) <= 0 ? "Stok habis" : `Stok: ${product.stock ?? 0}`}
+              </small>
+            ) : null}
           </div>
           <i>
             <FiChevronRight />

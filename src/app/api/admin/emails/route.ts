@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
-import { getServerAuthSession } from "@/server/auth";
+import { getAdminIdentity } from "@/server/admin";
 import { getAdminEmails, addAdminEmail, removeAdminEmail } from "@/server/db";
 
 const MAIN_ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase() ?? "digitalawanku@gmail.com";
 
 export async function GET() {
   try {
-    const session = await getServerAuthSession();
+    const admin = await getAdminIdentity();
 
     // Only main admin can access this
-    if (!session?.user?.email || session.user.email.toLowerCase() !== MAIN_ADMIN_EMAIL) {
+    if (!admin?.email || admin.email.toLowerCase() !== MAIN_ADMIN_EMAIL) {
       return NextResponse.json(
         { message: "Unauthorized" },
         { status: 403 },
@@ -29,10 +29,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerAuthSession();
+    const admin = await getAdminIdentity();
 
     // Only main admin can access this
-    if (!session?.user?.email || session.user.email.toLowerCase() !== MAIN_ADMIN_EMAIL) {
+    if (!admin?.email || admin.email.toLowerCase() !== MAIN_ADMIN_EMAIL) {
       return NextResponse.json(
         { message: "Unauthorized" },
         { status: 403 },
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const success = await addAdminEmail(normalized, session.user.email);
+    const success = await addAdminEmail(normalized, admin.email);
 
     if (!success) {
       return NextResponse.json(
@@ -79,10 +79,10 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const session = await getServerAuthSession();
+    const admin = await getAdminIdentity();
 
     // Only main admin can access this
-    if (!session?.user?.email || session.user.email.toLowerCase() !== MAIN_ADMIN_EMAIL) {
+    if (!admin?.email || admin.email.toLowerCase() !== MAIN_ADMIN_EMAIL) {
       return NextResponse.json(
         { message: "Unauthorized" },
         { status: 403 },

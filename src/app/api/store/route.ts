@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   getPaymentSettings,
-  listInformations,
+  listActiveInformations,
   listMarquees,
   listProducts,
   getPrivacyPolicyPage,
@@ -25,13 +25,13 @@ export async function GET(request: Request) {
     if (params.get("productsOnly") === "1") {
       return NextResponse.json(
         { products: await listProducts() },
-        { headers: { "Cache-Control": "public, max-age=5, s-maxage=10, stale-while-revalidate=60" } },
+        { headers: { "Cache-Control": "no-store" } },
       );
     }
 
     const [products, informations, testimonials, marquees, storyReels, paymentSettings, privacyPolicy, donationActivities] = await Promise.all([
       params.get("withoutProducts") === "1" ? Promise.resolve([]) : listProducts(),
-      listInformations(),
+      listActiveInformations(),
       listTestimonials(),
       listMarquees(),
       listStoryReels(),

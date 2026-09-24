@@ -38,7 +38,7 @@
   min-height: 40px;
   padding: 0 14px;
   border-radius: 999px;
-  background: #10131a;
+  background: #1f426d;
   color: #ffffff;
   display: inline-flex;
   align-items: center;
@@ -84,8 +84,8 @@
 .clearHistoryIconButton {
   width: 40px;
   height: 40px;
-  border-color: #10131a;
-  background: #10131a;
+  border-color: #1f426d;
+  background: #1f426d;
   color: #ffffff;
 }
 

@@ -54,7 +54,7 @@ export default function KegiatanDetailClient() {
       return;
     }
 
-    window.location.href = destination;
+    window.location.assign(destination);
   };
 
   return (

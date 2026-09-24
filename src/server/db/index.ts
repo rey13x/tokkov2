@@ -157,6 +157,7 @@ function mapProduct(row: Record<string, unknown>): StoreProduct {
     description: String(row.description),
     duration: String(row.duration ?? ""),
     price: Number(row.price),
+    stock: Math.max(0, Number(row.stock ?? 0)),
     imageUrl: resolveMediaUrl(String(row.image_url ?? "")),
     mediaGallery,
     isActive: Number(row.is_active) === 1,
@@ -535,6 +536,7 @@ export async function ensureDatabase() {
           description TEXT NOT NULL,
           duration TEXT NOT NULL DEFAULT '',
           price INTEGER NOT NULL,
+          stock INTEGER NOT NULL DEFAULT 0,
           image_url TEXT NOT NULL,
           is_active INTEGER NOT NULL DEFAULT 1,
           product_type TEXT NOT NULL DEFAULT 'jual_beli',
@@ -571,6 +573,9 @@ export async function ensureDatabase() {
       ).catch(() => {});
       await run(
         "ALTER TABLE products ADD COLUMN donation_total INTEGER NOT NULL DEFAULT 0",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE products ADD COLUMN stock INTEGER NOT NULL DEFAULT 0",
       ).catch(() => {});
       await run(
         "ALTER TABLE products ADD COLUMN is_highlighted INTEGER NOT NULL DEFAULT 0",
@@ -1588,6 +1593,7 @@ export async function createProduct(input: {
   description: string;
   duration: string;
   price: number;
+  stock?: number;
   imageUrl: string;
   mediaGallery?: Array<{ url: string; type?: "image" | "video" | "gif" }>;
   productType?: string;
@@ -1615,6 +1621,7 @@ export async function createProduct(input: {
   }
 
   const mediaUrl = resolveMediaUrl(input.imageUrl);
+  const safeStock = Math.max(0, Number(input.stock ?? 0));
   const productType = input.productType === "pekerjaan" || input.productType === "donation"
     ? input.productType
     : "jual_beli";
@@ -1628,8 +1635,8 @@ export async function createProduct(input: {
 
   await run(
     `INSERT INTO products
-      (id, slug, name, category, short_description, description, duration, price, image_url, media_gallery, is_active, product_type, job_application_link, max_applicants, applicant_count, buy_now_link, donation_total, is_highlighted, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 0, ?, 0, ?, ?, ?)`,
+      (id, slug, name, category, short_description, description, duration, price, stock, image_url, media_gallery, is_active, product_type, job_application_link, max_applicants, applicant_count, buy_now_link, donation_total, is_highlighted, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 0, ?, 0, ?, ?, ?)`,
     [
       id,
       slug,
@@ -1639,6 +1646,7 @@ export async function createProduct(input: {
       input.description,
       input.duration.trim(),
       input.price,
+      safeStock,
       mediaUrl,
       JSON.stringify(mediaGallery),
       productType,
@@ -1662,6 +1670,7 @@ export async function updateProduct(
     description: string;
     duration: string;
     price: number;
+    stock: number;
     imageUrl: string;
     mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif" }>;
     isActive: boolean;
@@ -1681,6 +1690,8 @@ export async function updateProduct(
   const nextName = input.name ?? current.name;
   const nextMediaUrl =
     input.imageUrl === undefined ? current.imageUrl : resolveMediaUrl(input.imageUrl);
+  const nextStock =
+    input.stock === undefined ? current.stock : Math.max(0, Number(input.stock ?? 0));
   const nextSlug =
     nextName !== current.name
       ? `${slugify(nextName)}-${Math.floor(Math.random() * 900 + 100)}`
@@ -1720,7 +1731,7 @@ export async function updateProduct(
 
   await run(
     `UPDATE products
-    SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, image_url = ?, media_gallery = ?, is_active = ?, product_type = ?, job_application_link = ?, max_applicants = ?, buy_now_link = ?, is_highlighted = ?, updated_at = ?
+    SET slug = ?, name = ?, category = ?, short_description = ?, description = ?, duration = ?, price = ?, stock = ?, image_url = ?, media_gallery = ?, is_active = ?, product_type = ?, job_application_link = ?, max_applicants = ?, buy_now_link = ?, is_highlighted = ?, updated_at = ?
      WHERE id = ?`,
     [
       nextSlug,
@@ -1730,6 +1741,7 @@ export async function updateProduct(
       input.description ?? current.description,
       input.duration?.trim() ?? current.duration,
       input.price ?? current.price,
+      nextStock,
       nextMediaUrl,
       mediaGalleryJson,
       input.isActive === undefined ? Number(current.isActive) : Number(input.isActive),
@@ -2352,6 +2364,24 @@ export async function updateOrderStatus(
   const existing = await getOrderById(id);
   if (!existing) {
     return null;
+  }
+
+  if (status === "paid" && existing.status !== "paid") {
+    const orderItems = await listOrderItemsByOrderId(id);
+    for (const item of orderItems) {
+      if (item.productType !== "jual_beli") {
+        continue;
+      }
+      const product = await getProductById(item.productId);
+      if (!product) {
+        continue;
+      }
+      const nextStock = Math.max(0, (product.stock ?? 0) - item.quantity);
+      await run(
+        "UPDATE products SET stock = ?, updated_at = ? WHERE id = ?",
+        [nextStock, now(), item.productId],
+      );
+    }
   }
 
   await run(

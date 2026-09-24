@@ -59,7 +59,7 @@
   padding: 0 12px;
   display: inline-flex;
   align-items: center;
-  background: #11151f;
+  background: #1f426d;
   color: #ffffff;
   font-size: 0.8rem;
   cursor: pointer;
@@ -198,8 +198,8 @@
 }
 
 .sidebarButtonActive {
-  background: #10161f;
-  border-color: #10161f;
+  background: #1f426d;
+  border-color: #1f426d;
 }
 
 .sidebarButtonActive strong,
@@ -406,11 +406,32 @@
   resize: vertical;
 }
 
+.productTypeSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.productTypeOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.productTypeOption input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
 .form button {
   border: none;
   border-radius: 999px;
   height: 42px;
-  background: #10141d;
+  background: #1f426d;
   color: #ffffff;
   cursor: pointer;
 }
@@ -551,7 +572,7 @@
   margin-top: 8px;
   border: 0;
   border-radius: 999px;
-  background: #10141d;
+  background: #1f426d;
   color: #ffffff;
   font-weight: 800;
   cursor: pointer;
@@ -572,6 +593,24 @@
   flex: 0 0 auto;
   justify-content: space-between;
   min-width: 150px;
+}
+
+.activityAdminCard .form input,
+.activityAdminCard .form textarea,
+.activityAdminCard .form select {
+  min-height: 48px;
+  padding: 11px 16px;
+  border-radius: 16px;
+}
+
+.activityAdminCard .form textarea {
+  min-height: 112px;
+}
+
+.activityAdminCard .form button {
+  min-height: 46px;
+  height: auto;
+  border-radius: 14px;
 }
 
 .storyMediaCardBody input,
@@ -689,12 +728,33 @@
   gap: 12px;
   padding: 16px;
   border: 1px solid #dfe4ef;
-  border-radius: 8px;
+  border-radius: 16px;
   background: #f8faff;
 }
 
-.homepageMediaPanel input {
-  border-radius: 8px;
+.homepageMediaPanel input:not([type="checkbox"]),
+.homepagePopupCard input:not([type="checkbox"]) {
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 11px 16px;
+  border: 1px solid #d6dbe8 !important;
+  border-radius: 16px !important;
+  background: #ffffff;
+  color: #1c2434;
+  outline: none;
+}
+
+.homepageMediaPanel input:not([type="checkbox"]):focus,
+.homepagePopupCard input:not([type="checkbox"]):focus {
+  border-color: #1f426d !important;
+  box-shadow: 0 0 0 3px rgba(31, 66, 109, 0.12);
+}
+
+.homepageMediaPanel .form button,
+.homepagePopupCard .primaryButton {
+  min-height: 46px;
+  height: auto;
+  border-radius: 14px;
 }
 
 .heroBackgroundPreview {
@@ -758,6 +818,7 @@
 
 .homepagePopupCard {
   gap: 14px;
+  border-radius: 16px;
 }
 
 .homepagePopupCard > label {
@@ -774,10 +835,6 @@
   color: #64708a !important;
   font-size: 0.84rem;
   line-height: 1.45;
-}
-
-.homepagePopupCard input {
-  border-radius: 8px;
 }
 
 .richToolbar {
@@ -1185,6 +1242,64 @@
   font-size: 0.8rem;
 }
 
+.productFilters {
+  margin: 0 0 16px;
+}
+
+.productHistoryTitle {
+  margin: 24px 0 12px;
+  color: #11151e;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.informationRowActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  gap: 8px;
+}
+
+.informationRowActions button {
+  width: 100%;
+}
+
+.informationRowActions .informationArchiveButton {
+  grid-column: 1 / -1;
+  width: min(50%, 220px);
+  justify-self: center;
+}
+
+.archivedLabel {
+  display: block;
+  color: #a33a22;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.productStatusFilters {
+  display: flex;
+  gap: 8px;
+}
+
+.productStatusFilters button {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid #d1d8e8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1c2434;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.productStatusFilters .activeProductFilter {
+  border-color: #1f426d;
+  background: #1f426d;
+  color: #ffffff;
+}
+
 .managementHint {
   margin: 8px 0 0;
   color: #6b748d;
@@ -1328,7 +1443,7 @@
   padding: 0 14px;
   border: none;
   border-radius: 999px;
-  background: #10141d;
+  background: #1f426d;
   color: #ffffff;
   cursor: pointer;
 }
@@ -1463,7 +1578,7 @@
   border: none;
   border-radius: 10px;
   padding: 12px 20px;
-  background: #11151f;
+  background: #1f426d;
   color: #ffffff;
   font-size: 0.9rem;
   cursor: pointer;
@@ -1471,7 +1586,7 @@
 }
 
 .submitButton:hover:not(:disabled) {
-  background: #1a1f2e;
+  background: #285786;
 }
 
 .submitButton:disabled {
@@ -1893,6 +2008,12 @@
     grid-column: 1 / -1;
     width: min(50%, 220px);
     justify-self: center;
+  }
+
+  .listItem > .productRowActions button:last-child {
+    grid-column: auto;
+    width: 100%;
+    justify-self: stretch;
   }
 
   .listItem > .marqueeActions {

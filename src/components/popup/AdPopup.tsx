@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 const AD_POPUP_STORAGE_KEY = "adConfig";
+const AD_DISMISSED_STORAGE_KEY = "adDismissed";
 
 interface AdConfig {
   image?: string;
@@ -77,7 +78,12 @@ export default function AdPopup() {
       };
 
       const mediaUrl = normalizedConfig.image || normalizedConfig.mediaUrl || normalizedConfig.videoUrl || normalizedConfig.url || "";
-      const shouldShow = Boolean(mediaUrl && normalizedConfig.enabled);
+      const dismissed = window.localStorage.getItem(AD_DISMISSED_STORAGE_KEY) === "true";
+      const shouldShow = Boolean(
+        mediaUrl &&
+          normalizedConfig.enabled &&
+          (!normalizedConfig.showOnce || !dismissed),
+      );
 
       setConfig(normalizedConfig);
       setVisible(shouldShow);
@@ -121,6 +127,9 @@ export default function AdPopup() {
 
   const handleClose = () => {
     setVisible(false);
+    if (config?.showOnce) {
+      window.localStorage.setItem(AD_DISMISSED_STORAGE_KEY, "true");
+    }
   };
 
   return (

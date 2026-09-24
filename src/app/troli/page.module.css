@@ -55,7 +55,7 @@
   padding: 0 14px;
   display: inline-flex;
   align-items: center;
-  background: #10131a;
+  background: #1f426d;
   color: #ffffff;
   font-size: 0.78rem;
 }
@@ -188,7 +188,7 @@
 }
 
 .categoryChipActive {
-  background: #10131a;
+  background: #1f426d;
   color: #ffffff;
 }
 
@@ -451,14 +451,14 @@
 
 .actionPrimary {
   border: none;
-  background: #050608;
+  background: #1f426d;
   color: #ffffff;
 }
 
 .actionSecondary {
-  border: 1px solid #10131a;
+  border: 1px solid #1f426d;
   background: #ffffff;
-  color: #10131a;
+  color: #1f426d;
 }
 
 .actionDanger {
@@ -469,7 +469,7 @@
 
 .actionBlack {
   border: none;
-  background: #10131a;
+  background: #1f426d;
   color: #ffffff;
 }
 

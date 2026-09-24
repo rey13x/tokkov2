@@ -90,7 +90,7 @@
   border-radius: 12px;
   height: 40px;
   padding: 0 16px;
-  background: #101319;
+  background: #1f426d;
   color: #ffffff;
   cursor: pointer;
   font-weight: 500;
@@ -99,7 +99,7 @@
 }
 
 .field button:hover:not(:disabled) {
-  background: #1a1f2e;
+  background: #285786;
 }
 
 .field button:disabled {
@@ -245,8 +245,8 @@
 }
 
 .tabActive {
-  color: #101319;
-  border-bottom-color: #101319;
+  color: #1f426d;
+  border-bottom-color: #1f426d;
 }
 
 .fileInputWrapper {
@@ -291,7 +291,7 @@
   border-radius: 12px;
   height: 40px;
   padding: 0 16px;
-  background: #101319;
+  background: #1f426d;
   color: #ffffff;
   cursor: pointer;
   font-weight: 500;
@@ -301,7 +301,7 @@
 }
 
 .uploadButton:hover:not(:disabled) {
-  background: #1a1f2e;
+  background: #285786;
 }
 
 .uploadButton:disabled {

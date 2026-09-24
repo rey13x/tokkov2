@@ -11,6 +11,8 @@ import { sendTelegramActivityNotification } from "@/server/notifications";
 
 export const runtime = "nodejs";
 
+const LIMITED_ADMIN_EMAIL = process.env.LIMITED_ADMIN_EMAIL?.trim().toLowerCase() || "sobatpremium@gmail.com";
+
 export async function GET() {
   const session = await getServerAuthSession();
   if (session?.user?.id && session.user.role === "admin" && session.user.email) {
@@ -20,7 +22,7 @@ export async function GET() {
       user: {
         uid: session.user.id,
         email: session.user.email,
-        adminScope: session.user.email.toLowerCase() === "sobatpremium@gmail.com" ? "limited" : "full",
+        adminScope: session.user.email.toLowerCase() === LIMITED_ADMIN_EMAIL ? "limited" : "full",
       },
     });
   }
@@ -37,7 +39,7 @@ export async function GET() {
         user: {
           uid: decoded.uid,
           email: decoded.email,
-          adminScope: decoded.email.toLowerCase() === "sobatpremium@gmail.com" ? "limited" : "full",
+          adminScope: decoded.email.toLowerCase() === LIMITED_ADMIN_EMAIL ? "limited" : "full",
         },
       });
     }

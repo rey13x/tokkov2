@@ -10,6 +10,7 @@ const updateSchema = z.object({
   imageUrl: z.string().max(3000000).optional(),
   watermarkText: z.string().max(120).optional(),
   pollOptions: z.array(z.string().min(1).max(80)).optional(),
+  isActive: z.boolean().optional(),
 });
 
 type Params = Promise<{ id: string }>;

@@ -9,7 +9,7 @@ const testimonialSchema = z.object({
   roleLabel: z.string().max(80).default(""),
   message: z.string().min(6).max(4000),
   rating: z.number().int().min(1).max(5),
-  mediaUrl: z.string().max(3000000).default("/assets/logo.png"),
+  mediaUrl: z.string().max(3000000).default(""),
   audioUrl: z.string().max(3000000).default("/assets/notif.mp3"),
 });
 
