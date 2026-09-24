@@ -5445,7 +5445,7 @@ function AdminManagementSection() {
         ) : null}
 
         {activeSection === "storyReels" ? (
-        <article className={styles.card}>
+        <article className={`${styles.card} ${styles.activityAdminCard}`}>
           <h2>{storyReelEditId ? "Edit Kegiatan Sobat" : "CRUD Kegiatan Sobat"}</h2>
           <form className={styles.form} onSubmit={onSaveStoryReel}>
             <input
@@ -5517,6 +5517,7 @@ function AdminManagementSection() {
               ) : null}
             </div>
           </form>
+          <h3 className={styles.activityListTitle}>List Kegiatan</h3>
           <div className={styles.list}>
             {storyReels.map((reel) => (
               <div key={reel.id} className={styles.listItem}>
