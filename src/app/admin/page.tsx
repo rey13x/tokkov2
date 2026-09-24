@@ -11,6 +11,7 @@ import FlexibleMedia from "@/components/media/FlexibleMedia";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { captureReceiptAsImage } from "@/lib/receipt-capture";
 import { formatRupiah } from "@/data/products";
+import { getImageUploadError, DEFAULT_IMAGE_MAX_SIZE_BYTES } from "@/lib/upload-constraints";
 import { withSobat } from "@/lib/user-message";
 import { clearStoreDataCache } from "@/lib/store-client";
 import WaitLoading from "@/components/ui/WaitLoading";
@@ -57,7 +58,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
   { id: "marquees", label: "Logo Komoditas", desc: "CRUD logo komoditas" },
   { id: "footerLinks", label: "Footer Link", desc: "CRUD link footer" },
-  { id: "storyReels", label: "Kegiatan Sobat", desc: "CRUD kegiatan dan artikel" },
+  { id: "storyReels", label: "Sobat Artikel", desc: "CRUD kegiatan dan artikel" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
@@ -73,7 +74,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
 ];
 
-const LIMITED_ADMIN_EMAIL = "sobatpremium@gmail.com";
+const LIMITED_ADMIN_EMAIL = (process.env.NEXT_PUBLIC_LIMITED_ADMIN_EMAIL ?? process.env.LIMITED_ADMIN_EMAIL ?? "sobatpremium@gmail.com").trim().toLowerCase();
 const LIMITED_ADMIN_SECTIONS = new Set<AdminSection>([
   "overview",
   "orders",
@@ -96,6 +97,7 @@ const defaultProductForm = {
   description: "",
   duration: "",
   price: 0,
+  stock: 0,
   imageUrl: "",
   mediaGallery: [] as Array<{ url: string; type?: "image" | "video" | "gif" }>,
   productType: "jual_beli" as "jual_beli" | "pekerjaan" | "donation" | "lms",
@@ -948,6 +950,13 @@ function AdminManagementSection() {
       return;
     }
 
+    const validationError = getImageUploadError(file, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+    if (validationError) {
+      setError(validationError);
+      event.target.value = "";
+      return;
+    }
+
     setError("");
     setMessage("");
     setIsUploadingMarqueeImage(true);
@@ -1062,7 +1071,7 @@ function AdminManagementSection() {
   const loadStoryReels = async () => {
     const response = await fetch("/api/admin/story-reels", { cache: "no-store" });
     if (!response.ok) {
-      throw new Error("Gagal ambil kegiatan Sobat");
+      throw new Error("Gagal ambil Sobat Artikel");
     }
     const result = (await response.json()) as { storyReels: StoreStoryReel[] };
     setStoryReels(result.storyReels);
@@ -1880,6 +1889,7 @@ function AdminManagementSection() {
     let payload = {
       ...productForm,
       price: Number(productForm.price),
+      stock: Math.max(0, Number(productForm.stock ?? 0)),
       jobApplicationLink: normalizedJobApplicationLink,
       buyNowLink: normalizedBuyNowLink,
       maxApplicants:
@@ -2630,17 +2640,17 @@ function AdminManagementSection() {
       });
       const result = (await response.json()) as { message?: string };
       if (!response.ok) {
-        throw new Error(result.message ?? "Gagal simpan kegiatan Sobat.");
+        throw new Error(result.message ?? "Gagal simpan Sobat Artikel.");
       }
 
-      setMessage(storyReelEditId ? "Kegiatan Sobat berhasil diperbarui." : "Kegiatan Sobat berhasil ditambahkan.");
+      setMessage(storyReelEditId ? "Sobat Artikel berhasil diperbarui." : "Sobat Artikel berhasil ditambahkan.");
       resetStoryReelForm();
       await loadStoryReels();
       clearStoreDataCache();
       window.dispatchEvent(new Event("tokko:store-supporting-updated"));
       bumpPreview();
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal simpan kegiatan Sobat.");
+      setError(error instanceof Error ? error.message : "Gagal simpan Sobat Artikel.");
     } finally {
       setIsLoading(false);
     }
@@ -2661,7 +2671,7 @@ function AdminManagementSection() {
   };
 
   const onDeleteStoryReel = async (id: string) => {
-    if (!window.confirm("Hapus kegiatan Sobat ini?")) {
+    if (!window.confirm("Hapus Sobat Artikel ini?")) {
       return;
     }
 
@@ -2675,7 +2685,7 @@ function AdminManagementSection() {
       window.dispatchEvent(new Event("tokko:store-supporting-updated"));
       bumpPreview();
     } catch {
-      setError("Gagal hapus kegiatan Sobat.");
+      setError("Gagal hapus Sobat Artikel.");
     }
   };
 
@@ -2990,6 +3000,7 @@ function AdminManagementSection() {
       description: product.description,
       duration: product.duration ?? "",
       price: product.price,
+      stock: product.stock ?? 0,
       imageUrl: product.imageUrl,
       mediaGallery: product.mediaGallery ?? [],
       productType: product.productType || "jual_beli",
@@ -4065,6 +4076,20 @@ function AdminManagementSection() {
               placeholder="Harga (Rp)"
               required
             />
+            {productForm.productType !== "pekerjaan" ? (
+              <input
+                type="number"
+                min={0}
+                value={productForm.stock ?? 0}
+                onChange={(event) =>
+                  setProductForm((current) => ({
+                    ...current,
+                    stock: Math.max(0, Number(event.target.value || 0)),
+                  }))
+                }
+                placeholder="Stok tersedia"
+              />
+            ) : null}
             <input value={productForm.imageUrl} readOnly placeholder="URL media produk otomatis" />
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
@@ -4222,6 +4247,11 @@ function AdminManagementSection() {
                       {product.category}
                       {product.duration ? ` - ${product.duration}` : ""}
                     </span>
+                    {product.productType !== "pekerjaan" ? (
+                      <span style={{ color: "#214ebd", fontSize: "0.85rem", fontWeight: 700 }}>
+                        Stok: {product.stock ?? 0}
+                      </span>
+                    ) : null}
                     {product.isHighlighted ? (
                       <span style={{ color: "#17365d", fontSize: "0.85rem", fontWeight: 700 }}>
                         Highlight aktif
@@ -5716,6 +5746,16 @@ function AdminManagementSection() {
                 Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
               </small>
             </label>
+            <label className={styles.mediaUrlHint} style={{ display: "block", marginTop: "8px" }}>
+              Pilih file logo lokal (maks. 1 MB)
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={onSelectMarqueeImage}
+                disabled={isUploadingMarqueeImage}
+                style={{ marginTop: "6px", width: "100%" }}
+              />
+            </label>
             <div className={styles.previewCard}>
               <FlexibleMedia
                 src={marqueeForm.imageUrl?.trim() || ""}
@@ -5785,7 +5825,7 @@ function AdminManagementSection() {
 
         {activeSection === "storyReels" ? (
         <article className={`${styles.card} ${styles.activityAdminCard}`}>
-          <h2>{storyReelEditId ? "Edit Kegiatan Sobat" : "CRUD Kegiatan Sobat"}</h2>
+          <h2>{storyReelEditId ? "Edit Sobat Artikel" : "CRUD Sobat Artikel"}</h2>
           <form className={styles.form} onSubmit={onSaveStoryReel}>
             <input
               value={storyReelForm.title}
@@ -5796,7 +5836,7 @@ function AdminManagementSection() {
             <textarea
               value={storyReelForm.description}
               onChange={(event) => setStoryReelForm((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Isi Kegiatan Sobat"
+              placeholder="Isi Sobat Artikel"
               rows={3}
             />
             <input
@@ -5863,36 +5903,41 @@ function AdminManagementSection() {
           </form>
           <h3 className={styles.activityListTitle}>List Kegiatan</h3>
           <div className={styles.list}>
-            {storyReels.map((reel) => (
-              <div key={reel.id} className={styles.listItem}>
-                <div className={styles.listPreview}>
-                  <FlexibleMedia
-                    src={reel.mediaGallery.find((media) => media.url)?.url ?? "/assets/logo.png"}
-                    alt={reel.title}
-                    width={56}
-                    height={56}
-                    className={styles.listThumb}
-                    unoptimized
-                  />
-                  <div>
-                    <p><strong>{reel.title}</strong></p>
-                    <span>{reel.description}</span>
-                    <span>{reel.mediaGallery.length} media</span>
-                    {reel.isActive ? (
-                      <span className={styles.activityHighlightLabel}>Highlight aktif</span>
-                    ) : null}
+            {storyReels.map((reel) => {
+              const previewMedia = reel.mediaGallery.find((media) => (media.url || media.linkUrl)?.trim());
+              const previewMediaSrc = previewMedia?.url?.trim() || previewMedia?.linkUrl?.trim() || "";
+
+              return (
+                <div key={reel.id} className={styles.listItem}>
+                  <div className={styles.listPreview}>
+                    <FlexibleMedia
+                      src={previewMediaSrc}
+                      alt={reel.title}
+                      width={56}
+                      height={56}
+                      className={styles.listThumb}
+                      unoptimized
+                    />
+                    <div>
+                      <p><strong>{reel.title}</strong></p>
+                      <span>{reel.description}</span>
+                      <span>{reel.mediaGallery.length} media</span>
+                      {reel.isActive ? (
+                        <span className={styles.activityHighlightLabel}>Highlight aktif</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className={styles.rowActions}>
+                    <button type="button" onClick={() => onToggleStoryReelHighlight(reel)}>
+                      {reel.isActive ? "Matikan Highlight" : "Highlight"}
+                    </button>
+                    <button type="button" onClick={() => onEditStoryReel(reel)}>Edit</button>
+                    <button type="button" onClick={() => onDeleteStoryReel(reel.id)}>Hapus</button>
                   </div>
                 </div>
-                <div className={styles.rowActions}>
-                  <button type="button" onClick={() => onToggleStoryReelHighlight(reel)}>
-                    {reel.isActive ? "Matikan Highlight" : "Highlight"}
-                  </button>
-                  <button type="button" onClick={() => onEditStoryReel(reel)}>Edit</button>
-                  <button type="button" onClick={() => onDeleteStoryReel(reel.id)}>Hapus</button>
-                </div>
-              </div>
-            ))}
-            {storyReels.length === 0 ? <p>Belum ada kegiatan Sobat.</p> : null}
+              );
+            })}
+            {storyReels.length === 0 ? <p>Belum ada Sobat Artikel.</p> : null}
           </div>
         </article>
         ) : null}
