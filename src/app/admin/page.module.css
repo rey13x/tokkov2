@@ -1990,6 +1990,18 @@
   flex: 1 1 0;
 }
 
+.activityHighlightLabel {
+  color: #17365d !important;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.activityAdminCard .rowActions button:last-child {
+  border-color: #a71b37 !important;
+  background: #a71b37 !important;
+  color: #ffffff !important;
+}
+
 @media (max-width: 760px) {
   .activityAdminCard .listItem > .rowActions {
     display: flex !important;

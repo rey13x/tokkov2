@@ -2454,6 +2454,24 @@ function AdminManagementSection() {
     }
   };
 
+  const onToggleStoryReelHighlight = async (storyReel: StoreStoryReel) => {
+    try {
+      const response = await fetch(`/api/admin/story-reels/${storyReel.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !storyReel.isActive }),
+      });
+      if (!response.ok) {
+        throw new Error("Gagal mengubah highlight kegiatan.");
+      }
+      setMessage(storyReel.isActive ? "Highlight kegiatan dimatikan." : "Kegiatan ditampilkan di beranda.");
+      await loadStoryReels();
+      bumpPreview();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Gagal mengubah highlight kegiatan.");
+    }
+  };
+
   const onApproveBookStory = async (storyId: string) => {
     try {
       setIsLoading(true);
@@ -5522,13 +5540,27 @@ function AdminManagementSection() {
             {storyReels.map((reel) => (
               <div key={reel.id} className={styles.listItem}>
                 <div className={styles.listPreview}>
+                  <FlexibleMedia
+                    src={reel.mediaGallery.find((media) => media.url)?.url ?? "/assets/logo.png"}
+                    alt={reel.title}
+                    width={56}
+                    height={56}
+                    className={styles.listThumb}
+                    unoptimized
+                  />
                   <div>
                     <p><strong>{reel.title}</strong></p>
                     <span>{reel.description}</span>
                     <span>{reel.mediaGallery.length} media</span>
+                    {reel.isActive ? (
+                      <span className={styles.activityHighlightLabel}>Highlight aktif</span>
+                    ) : null}
                   </div>
                 </div>
                 <div className={styles.rowActions}>
+                  <button type="button" onClick={() => onToggleStoryReelHighlight(reel)}>
+                    {reel.isActive ? "Matikan Highlight" : "Highlight"}
+                  </button>
                   <button type="button" onClick={() => onEditStoryReel(reel)}>Edit</button>
                   <button type="button" onClick={() => onDeleteStoryReel(reel.id)}>Hapus</button>
                 </div>
