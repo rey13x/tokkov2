@@ -21,7 +21,7 @@ export default function SiteFooter() {
               src="/assets/Sobat-Premium.png"
               alt="Sobat Premium"
               width={280}
-              height={108}
+              height={280}
               className={styles.logo}
               unoptimized
             />

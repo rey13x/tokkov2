@@ -20,11 +20,18 @@
   gap: 10px;
 }
 
-.logo {
-  width: min(280px, 48vw);
-  height: clamp(82px, 9vw, 108px);
+.brand a {
   display: block;
-  object-fit: fill;
+  width: min(280px, 48vw);
+  height: clamp(130px, 25vw, 160px);
+  overflow: hidden;
+}
+
+.logo {
+  width: 100%;
+  height: auto;
+  display: block;
+  transform: translateY(-20%);
   opacity: 0.95;
 }
 
