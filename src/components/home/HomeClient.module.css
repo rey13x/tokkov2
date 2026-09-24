@@ -600,7 +600,7 @@
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  animation: sectionTitleShimmer 8s ease-in-out infinite;
+  animation: sectionTitleShimmer 14s ease-in-out infinite;
 }
 
 @keyframes sectionTitleShimmer {
