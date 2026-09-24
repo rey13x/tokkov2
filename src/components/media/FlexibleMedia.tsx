@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { DEFAULT_MEDIA_IMAGE, isVideoMediaUrl, resolveMediaUrl } from "@/lib/media";
+import { DEFAULT_MEDIA_IMAGE, getOptimizedImageSrc, isVideoMediaUrl, resolveMediaUrl } from "@/lib/media";
 
 type FlexibleMediaProps = {
   src?: string | null;
@@ -30,8 +31,19 @@ export default function FlexibleMedia({
   fallbackSrc = DEFAULT_MEDIA_IMAGE,
   controls = false,
 }: FlexibleMediaProps) {
-  const resolvedSrc = resolveMediaUrl(src) || fallbackSrc;
+  const [hasImageError, setHasImageError] = useState(false);
+  const normalizedSrc = src?.trim() ?? "";
+  const resolvedSrc = normalizedSrc || (fallbackSrc?.trim() ? fallbackSrc : "");
   const isVideo = isVideoMediaUrl(resolvedSrc);
+  const imageSrc = resolvedSrc ? getOptimizedImageSrc(resolvedSrc) : "";
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [resolvedSrc]);
+
+  if (!resolvedSrc) {
+    return null;
+  }
 
   if (isVideo) {
     const style = fill
@@ -52,23 +64,30 @@ export default function FlexibleMedia({
     );
   }
 
+  const safeSrc = hasImageError ? (fallbackSrc?.trim() || "") : (imageSrc || fallbackSrc || "");
+
+  if (!safeSrc) {
+    return null;
+  }
+
   if (fill) {
     return (
       <Image
-        src={resolvedSrc || fallbackSrc}
+        src={safeSrc}
         alt={alt}
         fill
         className={className}
         sizes={sizes}
         priority={priority}
         unoptimized={unoptimized}
+        onError={() => setHasImageError(true)}
       />
     );
   }
 
   return (
     <Image
-      src={resolvedSrc || fallbackSrc}
+      src={safeSrc}
       alt={alt}
       width={width}
       height={height}
@@ -76,6 +95,7 @@ export default function FlexibleMedia({
       sizes={sizes}
       priority={priority}
       unoptimized={unoptimized}
+      onError={() => setHasImageError(true)}
     />
   );
 }

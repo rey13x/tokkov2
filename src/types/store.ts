@@ -113,6 +113,7 @@ export type StoreInformation = {
   watermarkText?: string;
   pollOptions: string[];
   pollVotes: Record<string, number>;
+  isActive: boolean;
   createdAt: string;
 };
 
@@ -163,6 +164,15 @@ export type CommentReactionSummary = {
   emoji: string;
   count: number;
   userReacted: boolean; // whether current user reacted with this emoji
+};
+
+export type FooterSocialLink = {
+  id: string;
+  label: string;
+  url: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
 };
 
 export type StoreMarqueeItem = {

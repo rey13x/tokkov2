@@ -17,7 +17,7 @@ import WaitLoading from "@/components/ui/WaitLoading";
 import styles from "./page.module.css";
 import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
 import { AdminDonationActivitiesSection } from "./AdminDonationActivitiesSection";
-import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StoreStoryReel, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary, InformationType } from "@/types/store";
+import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StoreStoryReel, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary, InformationType, FooterSocialLink } from "@/types/store";
 
 const AD_POPUP_STORAGE_KEY = "adConfig";
 
@@ -33,6 +33,7 @@ type AdminSection =
   | "testimonials"
   | "testimonialComments"
   | "marquees"
+  | "footerLinks"
   | "storyReels"
   | "bookStories"
   | "paymentSettings"
@@ -55,6 +56,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
   { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
   { id: "marquees", label: "Logo Komoditas", desc: "CRUD logo komoditas" },
+  { id: "footerLinks", label: "Footer Link", desc: "CRUD link footer" },
   { id: "storyReels", label: "Kegiatan Sobat", desc: "CRUD kegiatan dan artikel" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
@@ -78,6 +80,7 @@ const LIMITED_ADMIN_SECTIONS = new Set<AdminSection>([
   "products",
   "informations",
   "marquees",
+  "footerLinks",
   "profilePhotos",
   "users",
   "storyReels",
@@ -92,7 +95,7 @@ const defaultProductForm = {
   description: "",
   duration: "",
   price: 0,
-  imageUrl: "/assets/logo.png",
+  imageUrl: "",
   mediaGallery: [] as Array<{ url: string; type?: "image" | "video" | "gif" }>,
   productType: "jual_beli" as "jual_beli" | "pekerjaan" | "donation" | "lms",
   jobApplicationLink: "",
@@ -105,7 +108,7 @@ const defaultInfoForm = {
   type: "update" as InformationType,
   title: "",
   body: "",
-  imageUrl: "/assets/logo.png",
+  imageUrl: "",
   watermarkText: "CONTOH SERTIFIKAT",
   pollOptions: ["", ""],
 };
@@ -116,7 +119,7 @@ const defaultTestimonialForm = {
   roleLabel: "Founder Tokko",
   message: "",
   rating: 5,
-  mediaUrl: "/assets/logo.png",
+  mediaUrl: "",
   audioUrl: "/assets/notif.mp3",
   linkedProducts: [] as Array<{ productId: string; productName: string }>,
   likeCount: 0,
@@ -125,7 +128,14 @@ const defaultTestimonialForm = {
 
 const defaultMarqueeForm = {
   label: "",
-  imageUrl: "/assets/logo.png",
+  imageUrl: "",
+  sortOrder: 0,
+};
+
+const defaultFooterLinkForm = {
+  label: "",
+  url: "",
+  isActive: true,
   sortOrder: 0,
 };
 
@@ -276,6 +286,7 @@ function AdminManagementSection() {
     const [selectedCommentsToCopy, setSelectedCommentsToCopy] = useState<Set<string>>(new Set());
     const [targetTestimonialId, setTargetTestimonialId] = useState<string>("");
     const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
+    const [footerLinks, setFooterLinks] = useState<FooterSocialLink[]>([]);
     const [storyReels, setStoryReels] = useState<StoreStoryReel[]>([]);
     const [orders, setOrders] = useState<OrderSummary[]>([]);
     const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<string, string>>({});
@@ -338,6 +349,8 @@ function AdminManagementSection() {
   const [testimonialEditId, setTestimonialEditId] = useState<string | null>(null);
   const [marqueeForm, setMarqueeForm] = useState(defaultMarqueeForm);
   const [marqueeEditId, setMarqueeEditId] = useState<string | null>(null);
+  const [footerLinkForm, setFooterLinkForm] = useState(defaultFooterLinkForm);
+  const [footerLinkEditId, setFooterLinkEditId] = useState<string | null>(null);
   const [storyReelForm, setStoryReelForm] = useState(defaultStoryReelForm);
   const [storyReelEditId, setStoryReelEditId] = useState<string | null>(null);
   const [privacyPolicyForm, setPrivacyPolicyForm] = useState(defaultPrivacyPolicyForm);
@@ -1034,6 +1047,15 @@ function AdminManagementSection() {
     }
     const result = (await response.json()) as { marquees: StoreMarqueeItem[] };
     setMarquees(result.marquees);
+  };
+
+  const loadFooterLinks = async () => {
+    const response = await fetch("/api/admin/footer-links", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil footer link");
+    }
+    const result = (await response.json()) as { links: FooterSocialLink[] };
+    setFooterLinks(result.links);
   };
 
   const loadStoryReels = async () => {
@@ -1808,6 +1830,7 @@ function AdminManagementSection() {
       informations: loadInformations,
       testimonials: loadTestimonials,
       marquees: loadMarquees,
+      footerLinks: loadFooterLinks,
       storyReels: loadStoryReels,
       bookStories: async () => Promise.all([loadBookStories(), loadApprovedBookStories(), loadStoryReports()]),
       paymentSettings: loadPaymentSettings,
@@ -2487,6 +2510,71 @@ function AdminManagementSection() {
     clearStoreDataCache();
     window.dispatchEvent(new Event("tokko:store-supporting-updated"));
     bumpPreview();
+  };
+
+  const onSaveFooterLink = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const label = footerLinkForm.label.trim();
+    const url = footerLinkForm.url.trim();
+
+    if (!label || !url) {
+      setError("Label dan URL footer wajib diisi.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/admin/footer-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: footerLinkEditId || undefined,
+          label,
+          url,
+          isActive: footerLinkForm.isActive,
+          sortOrder: Number(footerLinkForm.sortOrder) || 0,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal menyimpan link footer");
+      }
+
+      setFooterLinkForm(defaultFooterLinkForm);
+      setFooterLinkEditId(null);
+      setMessage(data.message || "Link footer berhasil disimpan");
+      await loadFooterLinks();
+      window.dispatchEvent(new Event("tokko:store-supporting-updated"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menyimpan link footer");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onDeleteFooterLink = async (id: string) => {
+    if (!window.confirm("Yakin hapus link footer ini?")) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/admin/footer-links?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || "Gagal hapus link footer");
+      }
+      setMessage(data.message || "Link footer berhasil dihapus");
+      await loadFooterLinks();
+      window.dispatchEvent(new Event("tokko:store-supporting-updated"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal hapus link footer");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const onAddStoryReelMediaRow = () => {
@@ -3419,6 +3507,119 @@ function AdminManagementSection() {
             </div>
           </form>
         </article>
+        ) : null}
+
+        {activeSection === "footerLinks" ? (
+          <article className={styles.card}>
+            <h2>Link Footer</h2>
+            <form className={styles.form} onSubmit={onSaveFooterLink}>
+              <div className={styles.formGrid}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Label link</label>
+                  <input
+                    type="text"
+                    value={footerLinkForm.label}
+                    onChange={(event) =>
+                      setFooterLinkForm((current) => ({ ...current, label: event.target.value }))
+                    }
+                    placeholder="Contoh: WhatsApp"
+                    required
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>URL link</label>
+                  <input
+                    type="url"
+                    value={footerLinkForm.url}
+                    onChange={(event) =>
+                      setFooterLinkForm((current) => ({ ...current, url: event.target.value }))
+                    }
+                    placeholder="https://..."
+                    required
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Urutan</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={footerLinkForm.sortOrder}
+                    onChange={(event) =>
+                      setFooterLinkForm((current) => ({ ...current, sortOrder: Number(event.target.value || 0) }))
+                    }
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <label className={styles.checkField}>
+                <input
+                  type="checkbox"
+                  checked={footerLinkForm.isActive}
+                  onChange={(event) =>
+                    setFooterLinkForm((current) => ({ ...current, isActive: event.target.checked }))
+                  }
+                />
+                <span>Aktif ditampilkan</span>
+              </label>
+
+              <div className={styles.formActions}>
+                <button type="submit" disabled={isLoading}>
+                  {footerLinkEditId ? "Simpan Perubahan" : "Tambah Link"}
+                </button>
+                {footerLinkEditId && (
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => {
+                      setFooterLinkEditId(null);
+                      setFooterLinkForm(defaultFooterLinkForm);
+                    }}
+                  >
+                    Batal
+                  </button>
+                )}
+              </div>
+            </form>
+
+            <div className={styles.list}>
+              {footerLinks.length === 0 ? (
+                <p className={styles.emptyState}>Belum ada link footer yang ditambahkan.</p>
+              ) : (
+                footerLinks.map((link) => (
+                  <div key={link.id} className={styles.listItem}>
+                    <div className={styles.listPreview}>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ margin: 0, fontWeight: 700 }}>{link.label}</p>
+                        <span style={{ marginTop: 4, wordBreak: "break-word" }}>{link.url}</span>
+                        <span style={{ marginTop: 4 }}>Urutan: {link.sortOrder} • {link.isActive ? "Aktif" : "Nonaktif"}</span>
+                      </div>
+                    </div>
+                    <div className={`${styles.rowActions} ${styles.marqueeActions}`}>
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={() => {
+                          setFooterLinkEditId(link.id);
+                          setFooterLinkForm({
+                            label: link.label,
+                            url: link.url,
+                            isActive: link.isActive,
+                            sortOrder: link.sortOrder,
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button type="button" className={styles.dangerButton} onClick={() => onDeleteFooterLink(link.id)}>
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </article>
         ) : null}
 
         {activeSection === "maintenanceSettings" ? (
@@ -5526,35 +5727,19 @@ function AdminManagementSection() {
                 Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
               </small>
             </label>
-            {isFileUploadEnabled ? (
-              <label className={styles.fileField}>
-                Upload Logo Komoditas
-                <input type="file" accept="image/*,video/*" onChange={onSelectMarqueeImage} />
-                <small>
-                  {isUploadingMarqueeImage ? "Uploading..." : "Pilih logo dari device"}
-                </small>
-              </label>
-            ) : null}
-            {/*
-            <label className={styles.checkField}>
-              <input
-                type="checkbox"
-              />
-              Aktif ditampilkan di beranda
-            </label>
-            */}
             <div className={styles.previewCard}>
               <FlexibleMedia
-                src={marqueeForm.imageUrl}
+                src={marqueeForm.imageUrl?.trim() || ""}
                 alt={marqueeForm.label || "Preview logo marquee"}
                 width={72}
                 height={72}
                 className={styles.previewImage}
                 unoptimized
+                fallbackSrc=""
               />
               <div>
                 <p>{marqueeForm.label || "Preview Logo Komoditas"}</p>
-                {/* Urutan marquee tidak tersedia */}
+                <span>{marqueeForm.imageUrl || "URL logo akan tampil di sini"}</span>
               </div>
             </div>
             <div className={styles.formActions}>
@@ -5569,21 +5754,25 @@ function AdminManagementSection() {
             </div>
           </form>
 
+          <h3 style={{ margin: "18px 0 12px", fontSize: "1.1rem", color: "#1d2437" }}>Judul Histori Logo</h3>
           <div className={styles.list}>
             {marquees.map((marquee) => (
               <div key={marquee.id} className={styles.listItem}>
-                <div className={styles.listPreview}>
-                  <FlexibleMedia
-                    src={marquee.imageUrl}
-                    alt={marquee.label}
-                    width={56}
-                    height={56}
-                    className={styles.listThumb}
-                    unoptimized
-                  />
-                  <div>
-                    <p>{marquee.label}</p>
-                    {/* Urutan dan status marquee tidak tersedia */}
+                <div className={styles.listPreview} style={{ alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                    <FlexibleMedia
+                      src={marquee.imageUrl?.trim() || ""}
+                      alt={marquee.label}
+                      width={56}
+                      height={56}
+                      className={styles.listThumb}
+                      unoptimized
+                      fallbackSrc=""
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ margin: 0, fontWeight: 700 }}>{marquee.label}</p>
+                      <span style={{ marginTop: 4, wordBreak: "break-word" }}>{marquee.imageUrl}</span>
+                    </div>
                   </div>
                 </div>
                 <div className={`${styles.rowActions} ${styles.marqueeActions}`}>

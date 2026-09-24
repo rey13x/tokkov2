@@ -1,4 +1,4 @@
-export const DEFAULT_MEDIA_IMAGE = "/assets/logo.png";
+export const DEFAULT_MEDIA_IMAGE = "/assets/sobatprofil.jpg";
 
 const VIDEO_EXTENSIONS = [
   ".mp4",
@@ -17,16 +17,31 @@ function cleanMediaUrl(value: string) {
 
 export function resolveMediaUrl(value?: string | null) {
   const candidate = typeof value === "string" ? value.trim() : "";
-  return candidate || DEFAULT_MEDIA_IMAGE;
+  return candidate || "";
 }
 
 export function isVideoMediaUrl(value?: string | null) {
   const resolved = resolveMediaUrl(value);
   const normalized = cleanMediaUrl(resolved);
 
+  if (!normalized) {
+    return false;
+  }
+
   if (normalized.startsWith("data:video/")) {
     return true;
   }
 
   return VIDEO_EXTENSIONS.some((ext) => normalized.endsWith(ext));
+}
+
+export function getOptimizedImageSrc(value?: string | null) {
+  const resolved = resolveMediaUrl(value);
+  if (!resolved) {
+    return "";
+  }
+  if (!/^https?:\/\//i.test(resolved)) {
+    return resolved;
+  }
+  return `/api/media/optimized?url=${encodeURIComponent(resolved)}`;
 }
