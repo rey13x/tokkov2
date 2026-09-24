@@ -351,8 +351,6 @@ function AdminManagementSection() {
   const [mapPhotoUrl, setMapPhotoUrl] = useState("");
   const [mapPhotoRadius, setMapPhotoRadius] = useState(50);
   const [marqueeBannerUrl, setMarqueeBannerUrl] = useState("");
-  const [marqueeBannerRadius, setMarqueeBannerRadius] = useState(16);
-  const [isUploadingMarqueeBanner, setIsUploadingMarqueeBanner] = useState(false);
 
   useEffect(() => {
     try {
@@ -370,7 +368,6 @@ function AdminManagementSection() {
       .then((data: { url?: string; radius?: number } | null) => {
         if (!data) return;
         setMarqueeBannerUrl(data.url ?? "");
-        setMarqueeBannerRadius(Number(data.radius ?? 16));
       })
       .catch(() => {});
   }, []);
@@ -391,7 +388,7 @@ function AdminManagementSection() {
     const response = await fetch("/api/admin/marquee-banner", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: marqueeBannerUrl, radius: marqueeBannerRadius }),
+      body: JSON.stringify({ url: marqueeBannerUrl, radius: 16 }),
     });
     if (!response.ok) {
       setError("Gagal menyimpan foto marquee.");
@@ -400,20 +397,6 @@ function AdminManagementSection() {
     setMessage("Foto marquee berhasil disimpan.");
   };
 
-  const onUploadMarqueeBanner = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setIsUploadingMarqueeBanner(true);
-    try {
-      setMarqueeBannerUrl(await uploadMedia(file, "marquee-banner"));
-      setMessage("Foto berhasil diupload. Klik Simpan Foto untuk menerapkan.");
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload foto gagal.");
-    } finally {
-      setIsUploadingMarqueeBanner(false);
-      event.target.value = "";
-    }
-  };
   const [previewVersion, setPreviewVersion] = useState(0);
     const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [previewOrientation, setPreviewOrientation] = useState<"portrait" | "landscape">("portrait");
@@ -6237,11 +6220,6 @@ function AdminManagementSection() {
             </p>
             <form className={styles.form} onSubmit={onSaveMarqueeBanner}>
               <label>
-                Upload Foto
-                <input type="file" accept="image/*" onChange={onUploadMarqueeBanner} disabled={isUploadingMarqueeBanner} />
-                <small>{isUploadingMarqueeBanner ? "Mengupload..." : "Pilih foto landscape dari perangkat"}</small>
-              </label>
-              <label>
                 URL Foto
                 <input
                   type="url"
@@ -6249,16 +6227,7 @@ function AdminManagementSection() {
                   onChange={(event) => setMarqueeBannerUrl(event.target.value)}
                   placeholder="https://.../banner.jpg"
                 />
-              </label>
-              <label>
-                Radius Foto: {marqueeBannerRadius}%
-                <input
-                  type="range"
-                  min="0"
-                  max="50"
-                  value={marqueeBannerRadius}
-                  onChange={(event) => setMarqueeBannerRadius(Number(event.target.value))}
-                />
+                <small className={styles.mediaUrlHint}>Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas</small>
               </label>
               <div className={styles.formActions}>
                 <button type="submit">Simpan Foto</button>
@@ -6268,7 +6237,7 @@ function AdminManagementSection() {
               <img
                 src={marqueeBannerUrl}
                 alt="Preview foto marquee"
-                style={{ width: "100%", aspectRatio: "2.8 / 1", objectFit: "cover", borderRadius: `${marqueeBannerRadius}%` }}
+                style={{ width: "100%", aspectRatio: "2.8 / 1", objectFit: "contain", background: "#f8faff", borderRadius: "16px" }}
               />
             ) : null}
           </article>

@@ -580,7 +580,7 @@ export default function HomeClient() {
     fetch("/api/marquee-banner", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((data: { url?: string; radius?: number } | null) => {
-        if (data?.url) setMarqueeBanner({ url: data.url, radius: Number(data.radius ?? 16) });
+        if (data?.url) setMarqueeBanner({ url: data.url, radius: 16 });
       })
       .catch(() => {});
 
