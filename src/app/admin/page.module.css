@@ -1977,25 +1977,6 @@
   border-color: #555555;
 }
 
-/* Admin actions use one accent; destructive actions keep their warning red. */
-.page button {
-  background: #dc8cc5 !important;
-  border-color: #dc8cc5 !important;
-  color: #111522 !important;
-  font-weight: 800;
-}
-
-.page button.deleteAll,
-.page button.orderDeleteButton,
-.page button[style*="#f44336"],
-.page button[style*="#dc3545"],
-.page button[style*="#be2040"],
-.page button[style*="#a71b37"] {
-  background: #a71b37 !important;
-  border-color: #a71b37 !important;
-  color: #ffffff !important;
-}
-
 .activityAdminCard .rowActions {
   display: flex !important;
   flex-direction: row !important;
