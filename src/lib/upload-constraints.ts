@@ -1,5 +1,5 @@
-export const DEFAULT_IMAGE_MIN_SIZE_BYTES = 400 * 1024;
-export const DEFAULT_IMAGE_MAX_SIZE_BYTES = 1024 * 1024;
+export const DEFAULT_IMAGE_MIN_SIZE_BYTES = 0;
+export const DEFAULT_IMAGE_MAX_SIZE_BYTES = 450 * 1024;
 
 export function formatFileSize(bytes: number) {
   if (bytes >= 1024 * 1024) {

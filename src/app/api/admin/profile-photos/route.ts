@@ -4,7 +4,6 @@ import { requireAdmin } from "@/server/admin";
 import { listProfilePhotos, createProfilePhoto, deleteProfilePhoto } from "@/server/db";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
-const MIN_IMAGE_SIZE_BYTES = 400 * 1024;
 const MAX_IMAGE_SIZE_BYTES = 450 * 1024;
 
 export async function GET() {
@@ -80,15 +79,9 @@ export async function POST(request: NextRequest) {
         .resize({ width: 2400, withoutEnlargement: true })
         .webp({ quality: 78 })
         .toBuffer();
-      if (compressed.length < MIN_IMAGE_SIZE_BYTES) {
-        return NextResponse.json(
-          { message: "Foto terlalu kecil. Minimal 400KB. Pilih foto lain yang lebih jelas." },
-          { status: 400 },
-        );
-      }
       if (compressed.length > MAX_IMAGE_SIZE_BYTES) {
         return NextResponse.json(
-          { message: "Foto terlalu besar setelah dikompres. Coba pilih foto lain." },
+          { message: "Foto terlalu besar setelah dikompres. Maksimal 450KB." },
           { status: 400 },
         );
       }

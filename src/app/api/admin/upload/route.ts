@@ -4,8 +4,7 @@ import { requireAdmin } from "@/server/admin";
 
 export const runtime = "nodejs";
 const MAX_UPLOAD_SIZE_BYTES = 8 * 1024 * 1024;
-const MIN_IMAGE_SIZE_BYTES = 400 * 1024;
-// Firestore document has ~1 MiB limit; keep inline media far below that.
+// Lebih baik menerima foto kecil asal tetap di bawah batas maksimal 450KB.
 const MAX_INLINE_FILE_SIZE_BYTES = 450 * 1024;
 
 function toInlineDataUrl(file: File, buffer: Buffer) {
@@ -60,15 +59,9 @@ export async function POST(request: Request) {
 
     if (isImage) {
       const compressed = await compressImage(buffer);
-      if (compressed.length < MIN_IMAGE_SIZE_BYTES) {
-        return NextResponse.json(
-          { message: "Foto terlalu kecil. Minimal 400KB. Pilih foto lain yang lebih jelas." },
-          { status: 400 },
-        );
-      }
       if (compressed.length > MAX_INLINE_FILE_SIZE_BYTES) {
         return NextResponse.json(
-          { message: "Foto terlalu besar setelah dikompres. Coba pilih foto lain." },
+          { message: "Foto terlalu besar setelah dikompres. Maksimal 450KB." },
           { status: 400 },
         );
       }

@@ -26,14 +26,14 @@ describe('order cancellation notifications', () => {
 });
 
 describe('image upload constraints', () => {
-  it('limits logo upload size so heavy images are rejected early', () => {
-    const file = { type: 'image/png', size: DEFAULT_IMAGE_MAX_SIZE_BYTES + 1 } as File;
-    expect(getImageUploadError(file)).toContain('Maksimal');
+  it('accepts smaller images and only rejects files above the 450KB cap', () => {
+    const tooLargeFile = { type: 'image/png', size: DEFAULT_IMAGE_MAX_SIZE_BYTES + 1 } as File;
+    expect(getImageUploadError(tooLargeFile)).toContain('Maksimal');
 
     const tinyFile = { type: 'image/webp', size: 300 * 1024 } as File;
-    expect(getImageUploadError(tinyFile)).toContain('Minimal');
+    expect(getImageUploadError(tinyFile)).toBe('');
 
-    const validFile = { type: 'image/webp', size: 500 * 1024 } as File;
+    const validFile = { type: 'image/webp', size: 450 * 1024 } as File;
     expect(getImageUploadError(validFile)).toBe('');
   });
 });
