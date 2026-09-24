@@ -183,6 +183,7 @@ function mapInfo(row: Record<string, unknown>): StoreInformation {
     watermarkText: String(row.watermark_text ?? ""),
     pollOptions,
     pollVotes,
+    isActive: Number(row.is_active ?? 1) === 1,
     createdAt: new Date(Number(row.created_at)).toISOString(),
   };
 }
@@ -585,6 +586,7 @@ export async function ensureDatabase() {
           watermark_text TEXT NOT NULL DEFAULT 'CONTOH SERTIFIKAT',
           poll_options TEXT NOT NULL DEFAULT '[]',
           poll_votes TEXT NOT NULL DEFAULT '{}',
+          is_active INTEGER NOT NULL DEFAULT 1,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
@@ -594,6 +596,9 @@ export async function ensureDatabase() {
       ).catch(() => {});
       await run(
         "ALTER TABLE informations ADD COLUMN watermark_text TEXT NOT NULL DEFAULT 'CONTOH SERTIFIKAT'",
+      ).catch(() => {});
+      await run(
+        "ALTER TABLE informations ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
       ).catch(() => {});
       await run(
         `CREATE TABLE IF NOT EXISTS donation_activities (
@@ -1756,6 +1761,12 @@ export async function listInformations() {
   return res.rows.map((row) => mapInfo(row as Record<string, unknown>));
 }
 
+export async function listActiveInformations() {
+  await ensureDatabase();
+  const res = await run("SELECT * FROM informations WHERE is_active = 1 ORDER BY created_at DESC");
+  return res.rows.map((row) => mapInfo(row as Record<string, unknown>));
+}
+
 export async function getInformationById(id: string) {
   await ensureDatabase();
   const res = await run("SELECT * FROM informations WHERE id = ? LIMIT 1", [id]);
@@ -1778,8 +1789,8 @@ export async function createInformation(input: {
   const pollVotes = input.type === "poll" ? normalizePollVotes(pollOptions, {}) : {};
   await run(
     `INSERT INTO informations
-      (id, type, title, body, image_url, watermark_text, poll_options, poll_votes, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, type, title, body, image_url, watermark_text, poll_options, poll_votes, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.type,
@@ -1789,6 +1800,7 @@ export async function createInformation(input: {
       input.watermarkText,
       JSON.stringify(pollOptions),
       JSON.stringify(pollVotes),
+      1,
       now(),
       now(),
     ],
@@ -1806,6 +1818,7 @@ export async function updateInformation(
     imageUrl: string;
     watermarkText?: string;
     pollOptions: string[];
+    isActive?: boolean;
   }>,
 ) {
   await ensureDatabase();
@@ -1825,7 +1838,7 @@ export async function updateInformation(
 
   await run(
     `UPDATE informations
-    SET type = ?, title = ?, body = ?, image_url = ?, watermark_text = ?, poll_options = ?, poll_votes = ?, updated_at = ?
+    SET type = ?, title = ?, body = ?, image_url = ?, watermark_text = ?, poll_options = ?, poll_votes = ?, is_active = ?, updated_at = ?
      WHERE id = ?`,
     [
       nextType,
@@ -1835,6 +1848,7 @@ export async function updateInformation(
       nextWatermarkText,
       JSON.stringify(nextPollOptions),
       JSON.stringify(nextPollVotes),
+      input.isActive === undefined ? Number(current.isActive) : Number(input.isActive),
       now(),
       id,
     ],
