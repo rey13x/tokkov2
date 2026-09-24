@@ -2597,6 +2597,32 @@ function AdminManagementSection() {
     window.setTimeout(() => storyMediaRefs.current[nextIndex]?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
   };
 
+  const onSelectStoryReelMediaImage = async (event: ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const validationError = getImageUploadError(file, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+    if (validationError) {
+      setError(validationError);
+      event.target.value = "";
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    try {
+      const uploaded = await uploadMedia(file, "story-reels");
+      onUpdateStoryReelMedia(index, "url", uploaded);
+      setMessage("Foto Sobat Artikel berhasil diupload.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload foto Sobat Artikel gagal.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   const onRemoveStoryReelMediaRow = (index: number) => {
     setStoryReelForm((current) => ({
       ...current,
@@ -3810,7 +3836,7 @@ function AdminManagementSection() {
                   required
                 />
                 <small className={styles.mediaUrlHint}>
-                  Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+                  Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
                 </small>
                 {heroBackgroundForm.url ? (
                   <div className={styles.heroBackgroundPreview}>
@@ -5743,7 +5769,7 @@ function AdminManagementSection() {
                 required
               />
               <small className={styles.mediaUrlHint}>
-                Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+                Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
               </small>
             </label>
             <label className={styles.mediaUrlHint} style={{ display: "block", marginTop: "8px" }}>
@@ -5873,7 +5899,18 @@ function AdminManagementSection() {
                         onChange={(event) => onUpdateStoryReelMedia(index, "url", event.target.value)}
                         placeholder="URL media (foto/video/gif)"
                       />
-                      <span>Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas</span>
+                      <span>
+                        Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+                      </span>
+                    </label>
+                    <label className={styles.storyMediaTypeField}>
+                      <span>Choose File</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        onChange={(event) => onSelectStoryReelMediaImage(event, index)}
+                        style={{ width: "100%" }}
+                      />
                     </label>
                     <label className={styles.storyMediaTypeField}>
                       <span>Jenis media</span>
@@ -6624,7 +6661,7 @@ function AdminManagementSection() {
                 placeholder="https://..."
               />
               <small className={styles.mediaUrlHint}>
-                Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+                Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
               </small>
             </label>
             <label style={{ display: "grid", gap: "8px", marginBottom: "12px" }}>
