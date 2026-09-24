@@ -938,20 +938,49 @@
 }
 
 .previewCard {
-  border: 1px solid #dce3f1;
+  border: none;
   border-radius: 12px;
-  padding: 8px 10px;
+  padding: 0;
   display: flex;
   align-items: center;
   gap: 10px;
+  background: transparent;
 }
 
 .previewImage {
   width: 72px;
   height: 72px;
-  border-radius: 10px;
+  border-radius: 12px;
   object-fit: cover;
   display: block;
+  border: none;
+  background: transparent;
+}
+
+.storyMediaInlinePreview {
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.storyMediaInlinePreviewEmpty {
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7a8699;
+  font-size: 0.78rem;
+  text-align: center;
+  padding: 8px;
 }
 
 .previewCard p {

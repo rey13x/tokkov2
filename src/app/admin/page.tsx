@@ -5975,7 +5975,7 @@ function AdminManagementSection() {
                     </label>
                     <div style={{ margin: "12px 0", display: "flex", justifyContent: "center" }}>
                       {item.url?.trim() ? (
-                        <div style={{ width: 120, height: 120, borderRadius: 12, overflow: "hidden", border: "1px solid #dfe6ee", background: "#f6f8fb", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <div className={styles.storyMediaInlinePreview}>
                           <FlexibleMedia
                             src={item.url}
                             alt={item.title || `Preview media ${index + 1}`}
@@ -5987,7 +5987,7 @@ function AdminManagementSection() {
                           />
                         </div>
                       ) : (
-                        <div style={{ width: 120, height: 120, borderRadius: 12, border: "1px dashed #c8d0dd", background: "#f9fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#7a8699", fontSize: "0.8rem", textAlign: "center", padding: "8px" }}>
+                        <div className={styles.storyMediaInlinePreviewEmpty}>
                           Preview foto akan muncul di sini
                         </div>
                       )}
