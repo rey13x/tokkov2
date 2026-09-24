@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import QRCode from "qrcode";
+import { buildStockDeductionSummary } from "@/lib/stock";
 import { getFirebaseAdminApp, getFirebaseFirestore } from "@/server/firebase-admin";
 import { listUsersWithPushSubscription } from "@/server/db";
 import { getOrderById, getProductById, listOrderItemsByOrderId } from "@/server/store-data";
@@ -551,6 +552,25 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
     console.error("Failed to send Telegram payment channel notification:", error);
   });
 
+  const stockDeductionItems = [] as Array<{ productName: string; productType?: string; quantity: number; previousStock: number; currentStock: number }>;
+  for (const item of items) {
+    if (item.productType !== "jual_beli") {
+      continue;
+    }
+
+    const product = await getProductById(item.productId);
+    const currentStock = Math.max(0, Number(product?.stock ?? 0));
+    const previousStock = Math.max(0, currentStock + Number(item.quantity ?? 0));
+    stockDeductionItems.push({
+      productName: item.productName,
+      productType: item.productType,
+      quantity: item.quantity,
+      previousStock,
+      currentStock,
+    });
+  }
+
+  const stockSummary = buildStockDeductionSummary(stockDeductionItems);
   const text = [
     "✅ <b>PEMBAYARAN BERHASIL</b>",
     "",
@@ -563,6 +583,9 @@ export async function sendTelegramPaymentSuccessNotification(payload: {
     order && !isDonation ? `<b>Pajak</b>         : Rp 500` : null,
     `<b>Status</b>        : ${payload.preOrder ? "Sudah Bayar | Pre-Order" : telegramStatusLabel("paid")}`,
     `<b>Waktu</b>         : ${escapeTelegramHtml(formatAuditDate())}`,
+    stockSummary ? "" : null,
+    stockSummary ? "📦 <b>Stok otomatis berkurang</b>" : null,
+    stockSummary || null,
   ].filter((line): line is string => Boolean(line)).join("\n");
   const adminOrderUrl = buildAdminOrderUrl(payload.orderId);
   const paymentSuccessKeyboard = {

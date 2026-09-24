@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_MEDIA_IMAGE, getOptimizedImageSrc, resolveMediaUrl } from '../src/lib/media';
 import { shouldNotifyOrderCancellation } from '../src/lib/order-cancel';
 import { DEFAULT_IMAGE_MAX_SIZE_BYTES, getImageUploadError } from '../src/lib/upload-constraints';
+import { buildStockDeductionSummary } from '../src/lib/stock';
 
 describe('media fallback behavior', () => {
   it('keeps empty media values empty instead of forcing the Sobat Profil fallback', () => {
@@ -31,5 +32,18 @@ describe('image upload constraints', () => {
 
     const validFile = { type: 'image/webp', size: 120 * 1024 } as File;
     expect(getImageUploadError(validFile)).toBe('');
+  });
+});
+
+describe('stock deduction notifications', () => {
+  it('summarizes paid-order stock deductions for admin telegram alerts', () => {
+    const summary = buildStockDeductionSummary([
+      { productName: 'Kopi Premium', productType: 'jual_beli', quantity: 2, previousStock: 7, currentStock: 5 },
+      { productName: 'Donasi Dukungan', productType: 'donation', quantity: 1, previousStock: 0, currentStock: 0 },
+    ]);
+
+    expect(summary).toContain('Kopi Premium');
+    expect(summary).toContain('7 → 5');
+    expect(summary).not.toContain('Donasi Dukungan');
   });
 });
