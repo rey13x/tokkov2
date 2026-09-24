@@ -58,7 +58,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
   { id: "marquees", label: "Logo Komoditas", desc: "CRUD logo komoditas" },
   { id: "footerLinks", label: "Footer Link", desc: "CRUD link footer" },
-  { id: "storyReels", label: "Sobat Artikel", desc: "CRUD kegiatan dan artikel" },
+  { id: "storyReels", label: "Sobat News", desc: "CRUD berita dan update" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
@@ -1116,7 +1116,7 @@ function AdminManagementSection() {
   const loadStoryReels = async () => {
     const response = await fetch("/api/admin/story-reels", { cache: "no-store" });
     if (!response.ok) {
-      throw new Error("Gagal ambil Sobat Artikel");
+      throw new Error("Gagal ambil Sobat News");
     }
     const result = (await response.json()) as { storyReels: StoreStoryReel[] };
     setStoryReels(result.storyReels);
@@ -2660,9 +2660,9 @@ function AdminManagementSection() {
     try {
       const uploaded = await uploadMedia(file, "story-reels");
       onUpdateStoryReelMedia(index, "url", uploaded);
-      setMessage("Foto Sobat Artikel berhasil diupload.");
+      setMessage("Foto Sobat News berhasil diupload.");
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload foto Sobat Artikel gagal.");
+      setError(uploadError instanceof Error ? uploadError.message : "Upload foto Sobat News gagal.");
     } finally {
       event.target.value = "";
     }
@@ -2711,17 +2711,17 @@ function AdminManagementSection() {
       });
       const result = (await response.json()) as { message?: string };
       if (!response.ok) {
-        throw new Error(result.message ?? "Gagal simpan Sobat Artikel.");
+        throw new Error(result.message ?? "Gagal simpan Sobat News.");
       }
 
-      setMessage(storyReelEditId ? "Sobat Artikel berhasil diperbarui." : "Sobat Artikel berhasil ditambahkan.");
+      setMessage(storyReelEditId ? "Sobat News berhasil diperbarui." : "Sobat News berhasil ditambahkan.");
       resetStoryReelForm();
       await loadStoryReels();
       clearStoreDataCache();
       window.dispatchEvent(new Event("tokko:store-supporting-updated"));
       bumpPreview();
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Gagal simpan Sobat Artikel.");
+      setError(error instanceof Error ? error.message : "Gagal simpan Sobat News.");
     } finally {
       setIsLoading(false);
     }
@@ -2742,7 +2742,7 @@ function AdminManagementSection() {
   };
 
   const onDeleteStoryReel = async (id: string) => {
-    if (!window.confirm("Hapus Sobat Artikel ini?")) {
+    if (!window.confirm("Hapus Sobat News ini?")) {
       return;
     }
 
@@ -2756,7 +2756,7 @@ function AdminManagementSection() {
       window.dispatchEvent(new Event("tokko:store-supporting-updated"));
       bumpPreview();
     } catch {
-      setError("Gagal hapus Sobat Artikel.");
+      setError("Gagal hapus Sobat News.");
     }
   };
 
@@ -5906,7 +5906,7 @@ function AdminManagementSection() {
 
         {activeSection === "storyReels" ? (
         <article className={`${styles.card} ${styles.activityAdminCard}`}>
-          <h2>{storyReelEditId ? "Edit Sobat Artikel" : "CRUD Sobat Artikel"}</h2>
+          <h2>{storyReelEditId ? "Edit Sobat News" : "CRUD Sobat News"}</h2>
           <form className={styles.form} onSubmit={onSaveStoryReel}>
             <input
               value={storyReelForm.title}
@@ -5917,7 +5917,7 @@ function AdminManagementSection() {
             <textarea
               value={storyReelForm.description}
               onChange={(event) => setStoryReelForm((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Isi Sobat Artikel"
+              placeholder="Isi Sobat News"
               rows={3}
             />
             <input
@@ -6029,7 +6029,7 @@ function AdminManagementSection() {
                 </div>
               );
             })}
-            {storyReels.length === 0 ? <p>Belum ada Sobat Artikel.</p> : null}
+            {storyReels.length === 0 ? <p>Belum ada Sobat News.</p> : null}
           </div>
         </article>
         ) : null}

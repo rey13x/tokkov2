@@ -1158,7 +1158,7 @@ export default function HomeClient() {
       {visibleActivities.length > 0 ? (
         <section className={styles.section} data-animate="section" id="kegiatan">
           <div className={styles.sectionHead}>
-            <h2 className={styles.shimmerTitle}>Kegiatan Sobat</h2>
+            <h2 className={styles.shimmerTitle}>Sobat News</h2>
             <Link href="/kegiatan" className={styles.inlineAction}>
               Lihat semua <span>{">"}</span>
             </Link>

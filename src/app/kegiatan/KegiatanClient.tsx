@@ -37,7 +37,7 @@ export default function KegiatanClient() {
       return;
     }
 
-    window.location.href = destination;
+    window.location.assign(destination);
   };
 
   const visibleActivities = useMemo(
@@ -52,7 +52,7 @@ export default function KegiatanClient() {
           <FiArrowLeft />
           <span>Kembali</span>
         </button>
-        <h1>Kegiatan Sobat</h1>
+        <h1>Sobat News</h1>
         <div className={styles.headerPlaceholder} />
       </header>
 
