@@ -6,6 +6,7 @@ import {
 } from "@/server/store-data";
 import { verifyPaymentStatus } from "@/server/payment";
 import { sendTelegramActivityNotification } from "@/server/notifications";
+import { shouldNotifyOrderCancellation } from "@/lib/order-cancel";
 
 type Params = Promise<{ id: string }>;
 
@@ -17,6 +18,8 @@ export async function DELETE(request: Request, context: { params: Params }) {
 
   try {
     const { id } = await context.params;
+    const body = await request.json().catch(() => ({} as { source?: string; reason?: string }));
+    const cancelSource = typeof body?.source === "string" ? body.source : "user";
     const order = await getOrderById(id);
     
     if (!order) {
@@ -63,18 +66,20 @@ export async function DELETE(request: Request, context: { params: Params }) {
       return NextResponse.json({ message: "Gagal menghapus order." }, { status: 500 });
     }
 
-    await sendTelegramActivityNotification({
-      event: "order_cancelled",
-      actorName: session.user.username || session.user.name || order.userName || "User",
-      actorEmail: session.user.email ?? order.userEmail,
-      actorPhone: session.user.phone ?? order.userPhone,
-      description: `Order ${id} dibatalkan dan dihapus dari sistem.`,
-      metadata: [
-        `Order ID: ${id}`,
-        `Total: Rp ${order.total}`,
-        `Status sebelumnya: ${order.status}`,
-      ],
-    });
+    if (shouldNotifyOrderCancellation(cancelSource)) {
+      await sendTelegramActivityNotification({
+        event: "order_cancelled",
+        actorName: session.user.username || session.user.name || order.userName || "User",
+        actorEmail: session.user.email ?? order.userEmail,
+        actorPhone: session.user.phone ?? order.userPhone,
+        description: `Order ${id} dibatalkan dan dihapus dari sistem.`,
+        metadata: [
+          `Order ID: ${id}`,
+          `Total: Rp ${order.total}`,
+          `Status sebelumnya: ${order.status}`,
+        ],
+      });
+    }
 
     return NextResponse.json({ success: true, message: "Order berhasil dibatalkan." });
   } catch (error) {

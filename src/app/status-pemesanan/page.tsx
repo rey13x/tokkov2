@@ -489,6 +489,7 @@ export default function StatusPemesananPage() {
           const deleteResponse = await fetch(`/api/orders/${order.id}/delete`, {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ source: "expired_qris_cleanup", reason: "Waktu QRIS habis" }),
           });
           if (deleteResponse.ok) {
             removedOrderIds.push(order.id);
@@ -1265,6 +1266,7 @@ export default function StatusPemesananPage() {
         const deleteResponse = await fetch(`/api/orders/${activePaymentOrder.id}/delete`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: "expired_qris_cleanup", reason: "Waktu QRIS habis" }),
         });
         if (!deleteResponse.ok) {
           const deleteResult = (await deleteResponse.json().catch(() => null)) as { message?: string } | null;
