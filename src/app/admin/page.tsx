@@ -67,7 +67,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "admins", label: "Admin", desc: "Kelola admin" },
   { id: "users", label: "User", desc: "Lihat data user & aktivitas" },
   { id: "mapPhoto", label: "Ubah Foto", desc: "Atur foto dan radius map" },
-  { id: "marqueeBanner", label: "Foto Marquee", desc: "Ubah banner di atas marquee" },
+  { id: "marqueeBanner", label: "Foto Kelompok", desc: "Ubah foto kelompok di atas marquee" },
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
 ];
 
@@ -391,10 +391,10 @@ function AdminManagementSection() {
       body: JSON.stringify({ url: marqueeBannerUrl, radius: 16 }),
     });
     if (!response.ok) {
-      setError("Gagal menyimpan foto marquee.");
+      setError("Gagal menyimpan foto kelompok.");
       return;
     }
-    setMessage("Foto marquee berhasil disimpan.");
+    setMessage("Foto kelompok berhasil disimpan.");
   };
 
   const [previewVersion, setPreviewVersion] = useState(0);
@@ -6214,7 +6214,7 @@ function AdminManagementSection() {
 
         {activeSection === "marqueeBanner" ? (
           <article className={styles.card}>
-            <h2>Foto Marquee</h2>
+            <h2>Foto Kelompok</h2>
             <p style={{ color: "#666", marginTop: 0 }}>
               Foto landscape ini tampil di atas logo marquee homepage dan bisa diganti kapan saja.
             </p>

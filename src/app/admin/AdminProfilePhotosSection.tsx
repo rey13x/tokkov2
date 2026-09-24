@@ -194,7 +194,7 @@ export function AdminProfilePhotosSection() {
               </button>
             </div>
             <small className={styles.hint}>
-              Gunakan URL foto yang sudah di-upload atau link public
+              Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
             </small>
           </div>
         </form>
