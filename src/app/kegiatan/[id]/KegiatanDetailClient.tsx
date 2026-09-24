@@ -38,24 +38,58 @@ export default function KegiatanDetailClient() {
     );
   }
 
+  const openLink = (target: string | undefined) => {
+    const destination = target?.trim();
+    if (!destination) {
+      return;
+    }
+
+    if (/^https?:\/\//i.test(destination) || destination.startsWith("//")) {
+      window.open(destination, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (destination.startsWith("/")) {
+      router.push(destination);
+      return;
+    }
+
+    window.location.href = destination;
+  };
+
   return (
     <main className={styles.page}>
       <button type="button" className={styles.backButton} onClick={() => router.back()}><FiArrowLeft /> Kembali</button>
       <article className={styles.article}>
         <h1>{activity.title}</h1>
-        {activity.mediaGallery.filter((media) => media.url).map((media, index) => (
-          <div
-            key={`${media.url}-${index}`}
-            className={styles.mediaWrap}
-            onClick={() => {
-              if (activity.linkUrl.trim()) window.location.href = activity.linkUrl.trim();
-            }}
-            role={activity.linkUrl.trim() ? "link" : undefined}
-            tabIndex={activity.linkUrl.trim() ? 0 : undefined}
-          >
-            <FlexibleMedia src={media.url} alt={media.alt || activity.title} fill className={styles.media} sizes="(max-width: 900px) 100vw, 900px" unoptimized />
-          </div>
-        ))}
+        {activity.mediaGallery.filter((media) => (media.url || media.linkUrl)?.trim()).map((media, index) => {
+          const mediaSrc = media.url?.trim() || media.linkUrl?.trim() || "";
+          const destination = media.linkUrl?.trim() || activity.linkUrl?.trim();
+
+          return (
+            <div
+              key={`${mediaSrc}-${index}`}
+              className={styles.mediaWrap}
+              onClick={() => openLink(destination)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  openLink(destination);
+                }
+              }}
+              role="button"
+              tabIndex={destination ? 0 : -1}
+              aria-label={destination ? `Buka tautan kegiatan ${activity.title}` : undefined}
+            >
+              <FlexibleMedia src={mediaSrc} alt={media.alt || activity.title} fill className={styles.media} sizes="(max-width: 900px) 100vw, 900px" unoptimized />
+            </div>
+          );
+        })}
+        {activity.linkUrl.trim() ? (
+          <a className={styles.activityLinkButton} href={activity.linkUrl.trim()} target="_blank" rel="noreferrer noopener">
+            {activity.mediaGallery.find((media) => (media.url || media.linkUrl)?.trim())?.title?.trim() || "Buka Link"}
+          </a>
+        ) : null}
         <div className={styles.content}>
           {activity.description.split(/\n{2,}/).map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
         </div>

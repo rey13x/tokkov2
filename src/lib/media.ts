@@ -1,4 +1,4 @@
-export const DEFAULT_MEDIA_IMAGE = "/assets/sobatprofil.jpg";
+export const DEFAULT_MEDIA_IMAGE = "";
 
 const VIDEO_EXTENSIONS = [
   ".mp4",

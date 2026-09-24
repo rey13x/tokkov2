@@ -725,7 +725,7 @@ export default function HomeClient() {
     <article key={key} className={styles.infoCard}>
       <div className={styles.infoImageWrap}>
         <FlexibleMedia
-          src={item.imageUrl || "/assets/sobatprofil.jpg"}
+          src={item.imageUrl || ""}
           alt={item.title}
           fill
           className={styles.infoImage}
@@ -1178,7 +1178,7 @@ export default function HomeClient() {
                     }}
                   >
                     <FlexibleMedia
-                      src={cover?.url || "/assets/sobatprofil.jpg"}
+                      src={cover?.url?.trim() || cover?.linkUrl?.trim() || ""}
                       alt={cover?.alt || activity.title}
                       fill
                       className={styles.activityImage}
@@ -1217,11 +1217,12 @@ export default function HomeClient() {
           itemClassName={styles.logoGlyph}
           renderItem={(item) => (
             <FlexibleMedia
-              src={item.imageUrl || "/assets/sobatprofil.jpg"}
+              src={item.imageUrl?.trim() || ""}
               alt={item.label}
               fill
               className={styles.logoImage}
               sizes="58px"
+              fallbackSrc=""
             />
           )}
         />

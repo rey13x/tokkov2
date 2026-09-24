@@ -3051,7 +3051,7 @@ function AdminManagementSection() {
     setMarqueeEditId(marquee.id);
     setMarqueeForm({
       label: marquee.label,
-      imageUrl: marquee.imageUrl || "/assets/logo.png",
+      imageUrl: marquee.imageUrl || "",
       sortOrder: (typeof marquee.sortOrder === "number" ? marquee.sortOrder : 0),
     });
   };

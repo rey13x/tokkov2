@@ -21,8 +21,27 @@ export default function KegiatanClient() {
       .finally(() => setLoading(false));
   }, []);
 
+  const openDestination = (target: string | undefined) => {
+    const destination = target?.trim();
+    if (!destination) {
+      return;
+    }
+
+    if (/^https?:\/\//i.test(destination) || destination.startsWith("//")) {
+      window.open(destination, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (destination.startsWith("/")) {
+      router.push(destination);
+      return;
+    }
+
+    window.location.href = destination;
+  };
+
   const visibleActivities = useMemo(
-    () => activities.filter((item) => item.isActive && item.mediaGallery.some((media) => media.url)),
+    () => activities.filter((item) => item.isActive && item.mediaGallery.some((media) => (media.url || media.linkUrl)?.trim())),
     [activities],
   );
 
@@ -41,18 +60,24 @@ export default function KegiatanClient() {
       {!loading && visibleActivities.length === 0 ? <p className={styles.empty}>Belum ada kegiatan yang tersedia.</p> : null}
       <section className={styles.grid}>
         {visibleActivities.map((activity) => {
-          const cover = activity.mediaGallery.find((media) => media.url);
+          const cover = activity.mediaGallery.find((media) => (media.url || media.linkUrl)?.trim()) ?? activity.mediaGallery[0];
+          const imageSrc = cover?.url?.trim() || cover?.linkUrl?.trim() || "";
+          const destination = activity.linkUrl?.trim() || cover?.linkUrl?.trim();
+
           return (
-            <article key={activity.id} className={styles.card} onClick={() => router.push(`/kegiatan/${activity.id}`)}>
-              <div
-                className={styles.imageWrap}
-                onClick={(event) => {
-                  if (!activity.linkUrl.trim()) return;
-                  event.stopPropagation();
-                  window.location.href = activity.linkUrl.trim();
-                }}
-              >
-                <FlexibleMedia src={cover?.url ?? ""} alt={cover?.alt || activity.title} fill className={styles.image} sizes="(max-width: 760px) 100vw, 50vw" unoptimized />
+            <article
+              key={activity.id}
+              className={styles.card}
+              onClick={() => {
+                if (destination) {
+                  openDestination(destination);
+                  return;
+                }
+                router.push(`/kegiatan/${activity.id}`);
+              }}
+            >
+              <div className={styles.imageWrap}>
+                <FlexibleMedia src={imageSrc} alt={cover?.alt || activity.title} fill className={styles.image} sizes="(max-width: 760px) 100vw, 50vw" unoptimized />
               </div>
               <div className={styles.cardBody}>
                 <h2>{activity.title}</h2>
