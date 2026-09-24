@@ -1,20 +1,20 @@
 .footer {
   position: relative;
   isolation: isolate;
-  margin-top: 0;
+  margin-top: 18px;
   background: #eaf0ff;
   color: #17203a;
-  padding: 36px 14px 24px;
+  padding: 42px 14px 24px;
 }
 
 .footer::before {
   content: "";
   position: absolute;
   z-index: -1;
-  top: -14px;
+  top: -26px;
   left: -6%;
   width: 112%;
-  height: 30px;
+  height: 52px;
   border-radius: 50% 50% 0 0 / 100% 100% 0 0;
   background: #eaf0ff;
 }
@@ -93,7 +93,7 @@
 
 @media (max-width: 760px) {
   .footer {
-    padding-top: 34px;
+    padding-top: 40px;
   }
 
   .inner {
