@@ -1,4 +1,6 @@
 .page {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
   width: 100%;
   padding: 20px clamp(14px, 2.2vw, 30px) 38px;
