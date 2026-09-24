@@ -6,6 +6,7 @@ export const runtime = "nodejs";
 const MAX_UPLOAD_SIZE_BYTES = 8 * 1024 * 1024;
 // Lebih baik menerima foto kecil asal tetap di bawah batas maksimal 450KB.
 const MAX_INLINE_FILE_SIZE_BYTES = 450 * 1024;
+const TARGET_INLINE_FILE_SIZE_BYTES = 220 * 1024;
 
 function toInlineDataUrl(file: File, buffer: Buffer) {
   const mimeType = file.type || "application/octet-stream";
@@ -13,13 +14,13 @@ function toInlineDataUrl(file: File, buffer: Buffer) {
 }
 
 async function compressImage(buffer: Buffer) {
-  let width = 2400;
-  let quality = 82;
+  let width = 1800;
+  let quality = 68;
   let output = await sharp(buffer).rotate().resize({ width, withoutEnlargement: true }).webp({ quality }).toBuffer();
 
-  while (output.length > MAX_INLINE_FILE_SIZE_BYTES && quality > 42) {
+  while ((output.length > MAX_INLINE_FILE_SIZE_BYTES || output.length > TARGET_INLINE_FILE_SIZE_BYTES) && quality > 32) {
     quality -= 8;
-    width = Math.round(width * 0.85);
+    width = Math.round(width * 0.8);
     output = await sharp(buffer).rotate().resize({ width, withoutEnlargement: true }).webp({ quality }).toBuffer();
   }
 

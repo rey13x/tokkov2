@@ -74,11 +74,24 @@ export async function POST(request: NextRequest) {
       }
 
       const buffer = Buffer.from(await fileInput.arrayBuffer());
-      const compressed = await sharp(buffer)
+      let quality = 68;
+      let width = 1800;
+      let compressed = await sharp(buffer)
         .rotate()
-        .resize({ width: 2400, withoutEnlargement: true })
-        .webp({ quality: 78 })
+        .resize({ width, withoutEnlargement: true })
+        .webp({ quality })
         .toBuffer();
+
+      while ((compressed.length > MAX_IMAGE_SIZE_BYTES || compressed.length > 220 * 1024) && quality > 32) {
+        quality -= 8;
+        width = Math.round(width * 0.8);
+        compressed = await sharp(buffer)
+          .rotate()
+          .resize({ width, withoutEnlargement: true })
+          .webp({ quality })
+          .toBuffer();
+      }
+
       if (compressed.length > MAX_IMAGE_SIZE_BYTES) {
         return NextResponse.json(
           { message: "Foto terlalu besar setelah dikompres. Maksimal 450KB." },

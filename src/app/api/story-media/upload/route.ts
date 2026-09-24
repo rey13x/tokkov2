@@ -33,12 +33,12 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    let compressed = await sharp(buffer).rotate().resize({ width: 2400, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
-    let quality = 82;
-    let width = 2400;
-    while (compressed.length > MAX_IMAGE_SIZE_BYTES && quality > 42) {
+    let compressed = await sharp(buffer).rotate().resize({ width: 1800, withoutEnlargement: true }).webp({ quality: 68 }).toBuffer();
+    let quality = 68;
+    let width = 1800;
+    while ((compressed.length > MAX_IMAGE_SIZE_BYTES || compressed.length > 220 * 1024) && quality > 32) {
       quality -= 8;
-      width = Math.round(width * 0.85);
+      width = Math.round(width * 0.8);
       compressed = await sharp(buffer).rotate().resize({ width, withoutEnlargement: true }).webp({ quality }).toBuffer();
     }
     if (compressed.length > MAX_IMAGE_SIZE_BYTES) {

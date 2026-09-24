@@ -31,11 +31,24 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const compressed = await sharp(buffer)
+    let quality = 68;
+    let width = 1500;
+    let compressed = await sharp(buffer)
       .rotate()
-      .resize({ width: 1600, withoutEnlargement: true })
-      .webp({ quality: 78 })
+      .resize({ width, withoutEnlargement: true })
+      .webp({ quality })
       .toBuffer();
+
+    while ((compressed.length > MAX_AVATAR_SIZE_BYTES || compressed.length > 220 * 1024) && quality > 32) {
+      quality -= 8;
+      width = Math.round(width * 0.8);
+      compressed = await sharp(buffer)
+        .rotate()
+        .resize({ width, withoutEnlargement: true })
+        .webp({ quality })
+        .toBuffer();
+    }
+
     if (compressed.length > MAX_AVATAR_SIZE_BYTES) {
       return NextResponse.json(
         { message: "Ukuran avatar terlalu besar setelah dikompres. Coba pilih foto lain." },
