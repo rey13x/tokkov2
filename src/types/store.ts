@@ -14,6 +14,7 @@ export type StoreProduct = {
   description: string;
   duration: string;
   price: number;
+  stock: number;
   imageUrl: string; // Primary/featured image
   mediaGallery?: ProductMediaItem[]; // Additional media (photos, videos, gifs)
   isActive: boolean;
