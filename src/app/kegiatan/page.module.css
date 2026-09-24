@@ -5,8 +5,7 @@
 }
 
 .header {
-  display: grid;
-  grid-template-columns: 42px 1fr 42px;
+  display: flex;
   align-items: center;
   gap: 12px;
   margin: 0 auto 28px;
@@ -14,10 +13,11 @@
 }
 
 .header h1 {
+  flex: 1 1 auto;
   min-width: 0;
   margin: 0;
-  text-align: center;
-  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  text-align: left;
+  font-size: clamp(1.85rem, 3vw, 2.6rem);
   white-space: nowrap;
   background: linear-gradient(110deg, #131a2c 35%, #6684d9 50%, #131a2c 65%);
   background-size: 220% 100%;
@@ -33,10 +33,12 @@
 }
 
 .backButton {
-  display: grid;
-  width: 42px;
+  display: inline-flex;
+  width: auto;
   height: 42px;
-  place-items: center;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
   border: 0;
   border-radius: 50%;
   background: #10131a;
@@ -50,8 +52,7 @@
 }
 
 .headerPlaceholder {
-  width: 42px;
-  height: 42px;
+  display: none;
 }
 
 .loading,
@@ -131,11 +132,21 @@
 
 @media (max-width: 760px) {
   .header {
-    grid-template-columns: 42px minmax(0, 1fr) 0;
+    gap: 12px;
+  }
+
+  .backButton {
+    width: 42px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .backButton span {
+    display: none;
   }
 
   .header h1 {
-    font-size: 1.35rem;
+    font-size: 1.55rem;
     overflow: visible;
   }
 

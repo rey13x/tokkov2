@@ -30,6 +30,7 @@ export default function KegiatanClient() {
       <header className={styles.header}>
         <button type="button" className={styles.backButton} onClick={() => router.back()} aria-label="Kembali">
           <FiArrowLeft />
+          <span>Kembali</span>
         </button>
         <h1>Kegiatan Sobat</h1>
         <div className={styles.headerPlaceholder} />
