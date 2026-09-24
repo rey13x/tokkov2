@@ -32,6 +32,7 @@ export default function FlexibleMedia({
   controls = false,
 }: FlexibleMediaProps) {
   const [hasImageError, setHasImageError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const normalizedSrc = src?.trim() ?? "";
   const resolvedSrc = normalizedSrc || (fallbackSrc?.trim() ? fallbackSrc : "");
   const isVideo = isVideoMediaUrl(resolvedSrc);
@@ -39,6 +40,7 @@ export default function FlexibleMedia({
 
   useEffect(() => {
     setHasImageError(false);
+    setIsLoading(true);
   }, [resolvedSrc]);
 
   if (!resolvedSrc) {
@@ -70,32 +72,27 @@ export default function FlexibleMedia({
     return null;
   }
 
+  const imageProps = {
+    src: safeSrc,
+    alt,
+    className,
+    sizes,
+    priority,
+    unoptimized,
+    onError: () => {
+      setHasImageError(true);
+      setIsLoading(false);
+    },
+    onLoad: () => setIsLoading(false),
+    style: {
+      opacity: isLoading ? 0.6 : 1,
+      transition: "opacity 180ms ease",
+    } as const,
+  };
+
   if (fill) {
-    return (
-      <Image
-        src={safeSrc}
-        alt={alt}
-        fill
-        className={className}
-        sizes={sizes}
-        priority={priority}
-        unoptimized={unoptimized}
-        onError={() => setHasImageError(true)}
-      />
-    );
+    return <Image {...imageProps} fill />;
   }
 
-  return (
-    <Image
-      src={safeSrc}
-      alt={alt}
-      width={width}
-      height={height}
-      className={className}
-      sizes={sizes}
-      priority={priority}
-      unoptimized={unoptimized}
-      onError={() => setHasImageError(true)}
-    />
-  );
+  return <Image {...imageProps} width={width} height={height} />;
 }
