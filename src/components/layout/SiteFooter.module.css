@@ -1,11 +1,26 @@
 .footer {
+  position: relative;
+  isolation: isolate;
   margin-top: 0;
   background: #eaf0ff;
   color: #17203a;
-  padding: 18px 14px 24px;
+  padding: 48px 14px 24px;
+}
+
+.footer::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -34px;
+  left: -6%;
+  width: 112%;
+  height: 70px;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: #eaf0ff;
 }
 
 .inner {
+  position: relative;
   width: min(1200px, 100%);
   margin: 0 auto;
   display: flex;
@@ -78,7 +93,7 @@
 
 @media (max-width: 760px) {
   .footer {
-    padding-top: 14px;
+    padding-top: 42px;
   }
 
   .inner {
