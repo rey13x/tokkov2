@@ -8,7 +8,12 @@ import styles from "./SiteFooter.module.css";
 export default function SiteFooter() {
   const pathname = usePathname();
 
-  if (pathname === "/paygate" || pathname.startsWith("/paygate/")) {
+  if (
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
+    pathname === "/paygate" ||
+    pathname.startsWith("/paygate/")
+  ) {
     return null;
   }
 
