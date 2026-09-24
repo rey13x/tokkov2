@@ -1,6 +1,6 @@
 .footer {
   margin-top: 0;
-  background: #33446f;
+  background: #25304a;
   color: #ffffff;
   padding: 18px 14px 24px;
 }
@@ -51,7 +51,7 @@
 }
 
 .links a {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.86);
   font-size: 0.9rem;
 }
 
@@ -70,7 +70,7 @@
 }
 
 .policyLinks a {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 0.84rem;
   text-decoration: underline;
   text-underline-offset: 3px;
