@@ -140,6 +140,7 @@
 .sidebar {
   position: relative;
   align-self: start;
+  z-index: 20;
 }
 
 .sidebarToggle {
@@ -147,6 +148,9 @@
 }
 
 .sidebarCard {
+  position: sticky;
+  top: 12px;
+  z-index: 20;
   border-radius: 14px;
   background: #ffffff;
   box-shadow: 0 12px 24px rgba(13, 17, 32, 0.08);
@@ -166,6 +170,10 @@
 .sidebarNav {
   display: grid;
   gap: 7px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .sidebarButton {
@@ -1885,9 +1893,9 @@
     width: 240px;
     height: 100vh;
     background: #ffffff;
-    z-index: 999;
+    z-index: 9999;
     transition: left 0.3s ease;
-    overflow-y: auto;
+    overflow: hidden;
     box-shadow: 2px 0 12px rgba(13, 17, 32, 0.15);
   }
 
@@ -1912,7 +1920,15 @@
   }
 
   .sidebarCard {
+    position: static;
+    height: 100%;
+    box-sizing: border-box;
     padding-top: 50px;
+  }
+
+  .sidebarNav {
+    max-height: calc(100vh - 92px);
+    overflow-y: auto;
   }
 }
 
