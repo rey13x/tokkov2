@@ -1753,8 +1753,7 @@ function AdminManagementSection() {
         if (requestedSection === "products" && requestedAction === "create") {
           resetProductForm();
         }
-        const initialLoads = [loadProducts(), loadOrders(), loadStats()];
-        await Promise.allSettled(initialLoads);
+        void Promise.allSettled([loadProducts(), loadOrders(), loadStats()]);
         setInitialDashboardLoading(false);
       })
       .catch(() => {
