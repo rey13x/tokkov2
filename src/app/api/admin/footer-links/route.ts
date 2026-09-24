@@ -59,7 +59,7 @@ const footerLinkSchema = z.object({
 
 function normalizeFooterLinks(raw: unknown): FooterSocialLink[] {
   if (!Array.isArray(raw)) {
-    return defaultFooterLinks;
+    return [];
   }
 
   const parsed = raw
@@ -86,6 +86,7 @@ function normalizeFooterLinks(raw: unknown): FooterSocialLink[] {
 
   return parsed
     .slice()
+    .filter((item) => item.isActive !== false && item.url.trim())
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
     .map((item, index) => ({ ...item, sortOrder: Number(item.sortOrder ?? index) }));
 }
@@ -93,14 +94,14 @@ function normalizeFooterLinks(raw: unknown): FooterSocialLink[] {
 async function readFooterLinks() {
   const raw = await getAppMetaValue(FOOTER_LINKS_KEY);
   if (!raw) {
-    return [...defaultFooterLinks];
+    return [];
   }
 
   try {
     const parsed = JSON.parse(raw);
     return normalizeFooterLinks(parsed);
   } catch {
-    return [...defaultFooterLinks];
+    return [];
   }
 }
 

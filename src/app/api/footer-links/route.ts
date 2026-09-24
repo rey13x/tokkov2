@@ -49,7 +49,7 @@ const defaultFooterLinks: FooterSocialLink[] = [
 
 function normalizeFooterLinks(raw: unknown): FooterSocialLink[] {
   if (!Array.isArray(raw)) {
-    return defaultFooterLinks;
+    return [];
   }
 
   const parsed = raw
@@ -74,19 +74,20 @@ function normalizeFooterLinks(raw: unknown): FooterSocialLink[] {
     })
     .filter(Boolean) as FooterSocialLink[];
 
-  const sanitized = parsed.filter((item) => item.isActive !== false && item.url.trim());
-  return sanitized.length ? sanitized.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)) : defaultFooterLinks;
+  return parsed
+    .filter((item) => item.isActive !== false && item.url.trim())
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 }
 
 export async function GET() {
   const raw = await getAppMetaValue(FOOTER_LINKS_KEY);
   if (!raw) {
-    return NextResponse.json({ links: defaultFooterLinks });
+    return NextResponse.json({ links: [] });
   }
 
   try {
     return NextResponse.json({ links: normalizeFooterLinks(JSON.parse(raw)) });
   } catch {
-    return NextResponse.json({ links: defaultFooterLinks });
+    return NextResponse.json({ links: [] });
   }
 }

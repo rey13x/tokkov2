@@ -6,52 +6,9 @@ import { useEffect, useState } from "react";
 import type { FooterSocialLink } from "@/types/store";
 import styles from "./SiteFooter.module.css";
 
-const DEFAULT_FOOTER_LINKS: FooterSocialLink[] = [
-  {
-    id: "default-whatsapp",
-    label: "WhatsApp",
-    url: "https://wa.me/6285121579597?text=Halo%20Founder%20aku%20dari%20website%20Tokko%20%F0%9F%91%8B%F0%9F%8F%BB",
-    isActive: true,
-    sortOrder: 0,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "default-instagram",
-    label: "Instagram",
-    url: "https://www.instagram.com/sixsevenrai/",
-    isActive: true,
-    sortOrder: 1,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "default-telegram",
-    label: "Saluran Telegram",
-    url: "https://t.me/tokkomarketplace",
-    isActive: true,
-    sortOrder: 2,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "default-whatsapp-channel",
-    label: "Saluran Whatsapp",
-    url: "https://whatsapp.com/channel/0029VbCXa1ADDmFMNzoE6b0k",
-    isActive: true,
-    sortOrder: 3,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "default-founder",
-    label: "Founder",
-    url: "https://byrai-three.vercel.app",
-    isActive: true,
-    sortOrder: 4,
-    createdAt: new Date().toISOString(),
-  },
-];
-
 export default function SiteFooter() {
   const pathname = usePathname();
-  const [footerLinks, setFooterLinks] = useState<FooterSocialLink[]>(DEFAULT_FOOTER_LINKS);
+  const [footerLinks, setFooterLinks] = useState<FooterSocialLink[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -65,14 +22,14 @@ export default function SiteFooter() {
         if (!isMounted) {
           return;
         }
-        const normalizedLinks = (data.links || DEFAULT_FOOTER_LINKS)
+        const normalizedLinks = (data.links ?? [])
           .filter((item) => item && item.isActive !== false && item.url?.trim())
           .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-        setFooterLinks(normalizedLinks.length ? normalizedLinks : DEFAULT_FOOTER_LINKS);
+        setFooterLinks(normalizedLinks);
       })
       .catch(() => {
         if (isMounted) {
-          setFooterLinks(DEFAULT_FOOTER_LINKS);
+          setFooterLinks([]);
         }
       });
 
