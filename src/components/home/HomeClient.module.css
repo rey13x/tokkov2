@@ -40,21 +40,15 @@
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: slowTitleShimmer 24s ease-in-out infinite;
+  animation: slowTitleShimmer 18s linear infinite;
 }
 
 @keyframes slowTitleShimmer {
-  0%, 18% {
-    background-position: -220% center;
-  }
-  38% {
-    background-position: 50% center;
-  }
-  62% {
-    background-position: 120% center;
+  0% {
+    background-position: 220% center;
   }
   100% {
-    background-position: 220% center;
+    background-position: -220% center;
   }
 }
 
@@ -647,14 +641,12 @@
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  animation: sectionTitleShimmer 5.5s linear infinite !important;
+  animation: sectionTitleShimmer 16s linear infinite !important;
 }
 
 @keyframes sectionTitleShimmer {
-  0%, 18% { background-position: -220% 0; }
-  38% { background-position: 50% 0; }
-  62% { background-position: 120% 0; }
-  100% { background-position: 220% 0; }
+  0% { background-position: 220% 0; }
+  100% { background-position: -220% 0; }
 }
 
 @media (min-width: 821px) {

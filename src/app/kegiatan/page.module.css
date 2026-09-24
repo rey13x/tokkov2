@@ -24,14 +24,12 @@
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  animation: shimmer 5.5s linear infinite !important;
+  animation: shimmer 16s linear infinite !important;
 }
 
 @keyframes shimmer {
-  0%, 18% { background-position: -220% 0; }
-  38% { background-position: 50% 0; }
-  62% { background-position: 120% 0; }
-  100% { background-position: 220% 0; }
+  0% { background-position: 220% 0; }
+  100% { background-position: -220% 0; }
 }
 
 .backButton {
