@@ -22,8 +22,10 @@
 .marqueeBanner {
   display: block;
   width: 100%;
-  aspect-ratio: 2.8 / 1;
-  object-fit: cover;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+  border-radius: 16px;
   background: #f3f5f8;
 }
 
@@ -674,7 +676,7 @@
   height: 32px;
   place-items: center;
   border-radius: 50%;
-  background: #e8a3d5;
+  background: #10141d;
   color: #ffffff;
 }
 
@@ -1052,7 +1054,7 @@
   width: 23px;
   height: 23px;
   border-radius: 50%;
-  background: #e8a3d5;
+  background: #10141d;
   color: #ffffff;
   display: grid;
   place-items: center;
@@ -1076,7 +1078,7 @@
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: #e8a3d5;
+  background: #10141d;
   color: #ffffff;
   cursor: pointer;
   box-shadow: 0 8px 18px rgba(10, 13, 20, 0.22);
@@ -1456,7 +1458,7 @@
 }
 
 .partnerFilterChipActive {
-  background: #e8a3d5;
+  background: #10141d;
   color: #ffffff;
 }
 
@@ -1636,7 +1638,7 @@
 }
 
 .categoryChipActive {
-  background: #e8a3d5;
+  background: #10141d;
   color: #ffffff;
 }
 
@@ -1658,7 +1660,7 @@
   padding: 0;
   border: 1px solid #0d1119;
   border-radius: 999px;
-  background: #e8a3d5;
+  background: #10141d;
   color: #ffffff;
   display: inline-flex;
   align-items: center;
@@ -2024,7 +2026,7 @@
   height: 48px;
   min-width: 140px;
   padding-inline: 22px;
-  background: #e8a3d5;
+  background: #10141d;
   color: #ffffff;
   display: inline-flex;
   align-items: center;

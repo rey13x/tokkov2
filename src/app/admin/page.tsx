@@ -6237,7 +6237,7 @@ function AdminManagementSection() {
               <img
                 src={marqueeBannerUrl}
                 alt="Preview foto marquee"
-                style={{ width: "100%", aspectRatio: "2.8 / 1", objectFit: "contain", background: "#f8faff", borderRadius: "16px" }}
+                style={{ width: "100%", height: "auto", maxHeight: "420px", objectFit: "contain", background: "#f8faff", borderRadius: "16px" }}
               />
             ) : null}
           </article>
