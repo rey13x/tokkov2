@@ -2366,6 +2366,7 @@ function AdminManagementSection() {
     setMessage(shouldArchive ? "Semua informasi berhasil diarsipkan." : "Semua informasi berhasil dipulihkan.");
     await loadInformations();
     clearStoreDataCache();
+    window.dispatchEvent(new Event("tokko:store-supporting-updated"));
     bumpPreview();
   };
 
@@ -2389,6 +2390,7 @@ function AdminManagementSection() {
     setMessage(nextIsActive ? "Informasi berhasil dipulihkan." : "Informasi berhasil diarsipkan.");
     await loadInformations();
     clearStoreDataCache();
+    window.dispatchEvent(new Event("tokko:store-supporting-updated"));
     bumpPreview();
   };
 
