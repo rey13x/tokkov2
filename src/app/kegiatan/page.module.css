@@ -24,7 +24,7 @@
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  animation: shimmer 14s ease-in-out infinite;
+  animation: shimmer 20s ease-in-out infinite;
 }
 
 @keyframes shimmer {
@@ -130,8 +130,13 @@
 }
 
 @media (max-width: 760px) {
+  .header {
+    grid-template-columns: 42px minmax(0, 1fr) 0;
+  }
+
   .header h1 {
-    font-size: 1.55rem;
+    font-size: 1.35rem;
+    overflow: visible;
   }
 
   .grid {
