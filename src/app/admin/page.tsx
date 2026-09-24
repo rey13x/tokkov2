@@ -449,6 +449,7 @@ function AdminManagementSection() {
   const [selectedAITestimonialId, setSelectedAITestimonialId] = useState<string>("");
   const privacyEditorRef = useRef<HTMLDivElement | null>(null);
   const notificationRef = useRef<HTMLDivElement | null>(null);
+  const storyMediaRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const totalRevenue = useMemo(
     () => latestOrders.reduce((sum, order) => sum + order.total, 0),
     [latestOrders],
@@ -2360,10 +2361,12 @@ function AdminManagementSection() {
   };
 
   const onAddStoryReelMediaRow = () => {
+    const nextIndex = storyReelForm.mediaGallery.length;
     setStoryReelForm((current) => ({
       ...current,
       mediaGallery: [...current.mediaGallery, { url: "", type: "image", title: "", description: "" }],
     }));
+    window.setTimeout(() => storyMediaRefs.current[nextIndex]?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
   };
 
   const onRemoveStoryReelMediaRow = (index: number) => {
@@ -5448,21 +5451,14 @@ function AdminManagementSection() {
             <input
               value={storyReelForm.title}
               onChange={(event) => setStoryReelForm((current) => ({ ...current, title: event.target.value }))}
-              placeholder="Judul reel"
+              placeholder="Judul Kegiatan"
               required
             />
             <textarea
               value={storyReelForm.description}
               onChange={(event) => setStoryReelForm((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Deskripsi singkat"
+              placeholder="Isi Kegiatan Sobat"
               rows={3}
-            />
-            <input
-              type="number"
-              min={0}
-              value={storyReelForm.sortOrder}
-              onChange={(event) => setStoryReelForm((current) => ({ ...current, sortOrder: Number(event.target.value || 0) }))}
-              placeholder="Urutan tampil"
             />
             <input
               value={storyReelForm.linkUrl}
@@ -5479,7 +5475,7 @@ function AdminManagementSection() {
             </label>
             <div className={styles.storyMediaScroller}>
               {storyReelForm.mediaGallery.map((item, index) => (
-                <div key={`${index}-${item.url}`} className={styles.storyMediaCard}>
+                <div key={`${index}-${item.url}`} className={styles.storyMediaCard} ref={(element) => { storyMediaRefs.current[index] = element; }}>
                   <div className={styles.storyMediaCardHeader}>
                     <span>Media {index + 1}</span>
                     <button type="button" className={styles.secondaryButton} onClick={() => onRemoveStoryReelMediaRow(index)}>
@@ -5487,46 +5483,32 @@ function AdminManagementSection() {
                     </button>
                   </div>
                   <div className={styles.storyMediaCardBody}>
-                    <input
-                      value={item.url}
-                      onChange={(event) => onUpdateStoryReelMedia(index, "url", event.target.value)}
-                      placeholder="URL media (foto/video/gif)"
-                    />
-                    <select value={item.type ?? "image"} onChange={(event) => onUpdateStoryReelMedia(index, "type", event.target.value)}>
-                      <option value="image">Foto</option>
-                      <option value="video">Video</option>
-                      <option value="gif">GIF</option>
-                    </select>
-                    <input
-                      value={item.alt ?? ""}
-                      onChange={(event) => onUpdateStoryReelMedia(index, "alt", event.target.value)}
-                      placeholder="Alt text"
-                    />
-                    <input
-                      value={item.title ?? ""}
-                      onChange={(event) => onUpdateStoryReelMedia(index, "title", event.target.value)}
-                      placeholder="Judul media"
-                    />
-                    <input
-                      value={item.description ?? ""}
-                      onChange={(event) => onUpdateStoryReelMedia(index, "description", event.target.value)}
-                      placeholder="Deskripsi media"
-                    />
-                    <input
-                      value={item.linkUrl ?? ""}
-                      onChange={(event) => onUpdateStoryReelMedia(index, "linkUrl", event.target.value)}
-                      placeholder="Link item (opsional)"
-                    />
+                    <label className={styles.storyMediaUrlField}>
+                      <input
+                        value={item.url}
+                        onChange={(event) => onUpdateStoryReelMedia(index, "url", event.target.value)}
+                        placeholder="URL media (foto/video/gif)"
+                      />
+                      <span>Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas</span>
+                    </label>
+                    <label className={styles.storyMediaTypeField}>
+                      <span>Jenis media</span>
+                      <select value={item.type ?? "image"} onChange={(event) => onUpdateStoryReelMedia(index, "type", event.target.value)}>
+                        <option value="image">Foto</option>
+                        <option value="video">Video</option>
+                        <option value="gif">GIF</option>
+                      </select>
+                    </label>
                   </div>
                 </div>
               ))}
             </div>
-            <button type="button" className={styles.secondaryButton} onClick={onAddStoryReelMediaRow}>
+            <button type="button" className={styles.storyMediaAddButton} onClick={onAddStoryReelMediaRow}>
               Tambah media
             </button>
             <div className={styles.formActions}>
               <button type="submit" disabled={isLoading}>
-                {storyReelEditId ? "Simpan Perubahan" : "Tambah Reel"}
+                {storyReelEditId ? "Simpan Perubahan" : "Tambah Kegiatan"}
               </button>
               {storyReelEditId ? (
                 <button type="button" className={styles.secondaryButton} onClick={resetStoryReelForm}>

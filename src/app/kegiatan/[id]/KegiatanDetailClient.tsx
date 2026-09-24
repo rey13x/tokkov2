@@ -40,7 +40,15 @@ export default function KegiatanDetailClient() {
       <article className={styles.article}>
         <h1>{activity.title}</h1>
         {activity.mediaGallery.filter((media) => media.url).map((media, index) => (
-          <div key={`${media.url}-${index}`} className={styles.mediaWrap}>
+          <div
+            key={`${media.url}-${index}`}
+            className={styles.mediaWrap}
+            onClick={() => {
+              if (activity.linkUrl.trim()) window.location.href = activity.linkUrl.trim();
+            }}
+            role={activity.linkUrl.trim() ? "link" : undefined}
+            tabIndex={activity.linkUrl.trim() ? 0 : undefined}
+          >
             <FlexibleMedia src={media.url} alt={media.alt || activity.title} fill className={styles.media} sizes="(max-width: 900px) 100vw, 900px" unoptimized />
           </div>
         ))}

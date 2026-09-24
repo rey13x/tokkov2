@@ -1182,7 +1182,15 @@ export default function HomeClient() {
               const cover = activity.mediaGallery.find((media) => media.url);
               return (
                 <Link key={activity.id} href={`/kegiatan/${activity.id}`} className={styles.activityCard}>
-                  <div className={styles.activityImageWrap}>
+                  <div
+                    className={styles.activityImageWrap}
+                    onClick={(event) => {
+                      if (!activity.linkUrl.trim()) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      window.location.href = activity.linkUrl.trim();
+                    }}
+                  >
                     <FlexibleMedia
                       src={cover?.url ?? ""}
                       alt={cover?.alt || activity.title}

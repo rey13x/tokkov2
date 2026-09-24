@@ -43,7 +43,14 @@ export default function KegiatanClient() {
           const cover = activity.mediaGallery.find((media) => media.url);
           return (
             <article key={activity.id} className={styles.card} onClick={() => router.push(`/kegiatan/${activity.id}`)}>
-              <div className={styles.imageWrap}>
+              <div
+                className={styles.imageWrap}
+                onClick={(event) => {
+                  if (!activity.linkUrl.trim()) return;
+                  event.stopPropagation();
+                  window.location.href = activity.linkUrl.trim();
+                }}
+              >
                 <FlexibleMedia src={cover?.url ?? ""} alt={cover?.alt || activity.title} fill className={styles.image} sizes="(max-width: 760px) 100vw, 50vw" unoptimized />
               </div>
               <div className={styles.cardBody}>

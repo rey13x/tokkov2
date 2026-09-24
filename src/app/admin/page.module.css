@@ -510,6 +510,43 @@
   gap: 8px;
 }
 
+.storyMediaUrlField {
+  display: grid;
+  gap: 6px;
+}
+
+.storyMediaUrlField span {
+  color: #2870c7;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.storyMediaUrlField a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.storyMediaTypeField {
+  display: grid;
+  gap: 6px;
+  color: #59657f;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.storyMediaAddButton {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: #e8a3d5;
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .storyMediaCardBody input,
 .storyMediaCardBody select {
   width: 100%;
