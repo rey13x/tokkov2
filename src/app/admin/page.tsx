@@ -5973,6 +5973,25 @@ function AdminManagementSection() {
                         Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
                       </small>
                     </label>
+                    <div style={{ margin: "12px 0", display: "flex", justifyContent: "center" }}>
+                      {item.url?.trim() ? (
+                        <div style={{ width: 120, height: 120, borderRadius: 12, overflow: "hidden", border: "1px solid #dfe6ee", background: "#f6f8fb", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <FlexibleMedia
+                            src={item.url}
+                            alt={item.title || `Preview media ${index + 1}`}
+                            width={120}
+                            height={120}
+                            className={styles.previewImage}
+                            unoptimized
+                            fallbackSrc=""
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ width: 120, height: 120, borderRadius: 12, border: "1px dashed #c8d0dd", background: "#f9fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#7a8699", fontSize: "0.8rem", textAlign: "center", padding: "8px" }}>
+                          Preview foto akan muncul di sini
+                        </div>
+                      )}
+                    </div>
                     <label className={styles.storyMediaTypeField}>
                       <span>Choose File</span>
                       <input
@@ -6027,6 +6046,7 @@ function AdminManagementSection() {
                       height={56}
                       className={styles.listThumb}
                       unoptimized
+                      fallbackSrc=""
                     />
                     <div>
                       <p><strong>{reel.title}</strong></p>
