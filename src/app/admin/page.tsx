@@ -50,15 +50,16 @@ type AdminSection =
 
 const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "overview", label: "Dashboard", desc: "Statistik & order" },
+  { id: "users", label: "User", desc: "Lihat data user & aktivitas" },
   { id: "orders", label: "Order", desc: "Status pesanan user" },
   { id: "products", label: "Produk", desc: "CRUD produk" },
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
-  { id: "donationActivities", label: "Aktivitas Donasi", desc: "Pemasukan & pengeluaran" },
-  { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
-  { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
   { id: "marquees", label: "Logo Komoditas", desc: "CRUD logo komoditas" },
   { id: "footerLinks", label: "Footer Link", desc: "CRUD link footer" },
   { id: "storyReels", label: "Sobat News", desc: "CRUD berita dan update" },
+  { id: "donationActivities", label: "Aktivitas Donasi", desc: "Pemasukan & pengeluaran" },
+  { id: "testimonials", label: "Testimonial", desc: "CRUD testimonial" },
+  { id: "testimonialComments", label: "Komentar Testimoni", desc: "Hapus komentar" },
   { id: "bookStories", label: "Testimoni", desc: "Setujui cerita user" },
   { id: "paymentSettings", label: "Pembayaran", desc: "Atur QRIS" },
   {
@@ -69,7 +70,6 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "profilePhotos", label: "Foto Profil", desc: "Kelola foto profil user" },
   { id: "maintenanceSettings", label: "Homepage", desc: "Foto hero & popup iklan" },
   { id: "admins", label: "Admin", desc: "Kelola admin" },
-  { id: "users", label: "User", desc: "Lihat data user & aktivitas" },
   { id: "mapPhoto", label: "Ubah Foto", desc: "Atur foto dan radius map" },
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
 ];
@@ -3881,7 +3881,7 @@ function AdminManagementSection() {
                   required
                 />
                 <small className={styles.mediaUrlHint}>
-                  Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+                  Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
                 </small>
                 {heroBackgroundForm.url ? (
                   <div className={styles.heroBackgroundPreview}>
@@ -4172,11 +4172,17 @@ function AdminManagementSection() {
               }
               placeholder="URL media utama produk"
             />
+            <small className={styles.mediaUrlHint}>
+              Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+            </small>
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
                 Upload Media Produk (Foto/Video)
                 <input type="file" accept="image/*,video/*" onChange={onSelectProductImage} />
                 <small>{isUploadingProductImage ? "Uploading..." : "Pilih file media dari device"}</small>
+                <small className={styles.mediaUrlHint}>
+                  Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+                </small>
               </label>
             ) : null}
 
@@ -4440,11 +4446,17 @@ function AdminManagementSection() {
               />
             ) : null}
             <input value={infoForm.imageUrl} readOnly placeholder="URL media informasi otomatis" />
+            <small className={styles.mediaUrlHint}>
+              Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+            </small>
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
                 Upload Media Informasi (Foto/Video)
                 <input type="file" accept="image/*,video/*" onChange={onSelectInfoImage} />
                 <small>{isUploadingInfoImage ? "Uploading..." : "Pilih file media dari device"}</small>
+                <small className={styles.mediaUrlHint}>
+                  Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+                </small>
               </label>
             ) : null}
             {infoForm.type === "poll" ? (
@@ -5824,7 +5836,7 @@ function AdminManagementSection() {
                 required
               />
               <small className={styles.mediaUrlHint}>
-                Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+                Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
               </small>
             </label>
             <label className={styles.mediaUrlHint} style={{ display: "block", marginTop: "8px" }}>
@@ -5836,6 +5848,9 @@ function AdminManagementSection() {
                 disabled={isUploadingMarqueeImage}
                 style={{ marginTop: "6px", width: "100%" }}
               />
+              <small className={styles.mediaUrlHint}>
+                Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+              </small>
             </label>
             <div className={styles.previewCard}>
               <FlexibleMedia
@@ -5954,9 +5969,9 @@ function AdminManagementSection() {
                         onChange={(event) => onUpdateStoryReelMedia(index, "url", event.target.value)}
                         placeholder="URL media (foto/video/gif)"
                       />
-                      <span>
-                        Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
-                      </span>
+                      <small className={styles.mediaUrlHint}>
+                        Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+                      </small>
                     </label>
                     <label className={styles.storyMediaTypeField}>
                       <span>Choose File</span>
@@ -5966,6 +5981,9 @@ function AdminManagementSection() {
                         onChange={(event) => onSelectStoryReelMediaImage(event, index)}
                         style={{ width: "100%" }}
                       />
+                      <small className={styles.mediaUrlHint}>
+                        Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+                      </small>
                     </label>
                     <label className={styles.storyMediaTypeField}>
                       <span>Jenis media</span>
@@ -6551,12 +6569,18 @@ function AdminManagementSection() {
               required
             />
             <input value={privacyPolicyForm.bannerImageUrl} readOnly placeholder="URL banner otomatis" required />
+            <small className={styles.mediaUrlHint}>
+              Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+            </small>
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
                 Upload Banner Kebijakan Privasi
                 <input type="file" accept="image/*" onChange={onSelectPrivacyBanner} />
                 <small>
                   {isUploadingPrivacyBanner ? "Uploading..." : "Pilih file banner dari device"}
+                </small>
+                <small className={styles.mediaUrlHint}>
+                  Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
                 </small>
               </label>
             ) : null}
@@ -6667,6 +6691,9 @@ function AdminManagementSection() {
                   onChange={(event) => setMapPhotoUrl(event.target.value)}
                   placeholder="https://.../foto.jpg"
                 />
+                <small className={styles.mediaUrlHint}>
+                  Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+                </small>
               </label>
               <label>
                 Radius Foto: {mapPhotoRadius}%
@@ -6706,6 +6733,9 @@ function AdminManagementSection() {
                 onChange={(event) => setAdConfig((current) => ({ ...current, image: event.target.value }))}
                 placeholder="https://.../gambar.jpg"
               />
+              <small className={styles.mediaUrlHint}>
+                Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+              </small>
             </label>
             <label style={{ display: "grid", gap: "8px", marginBottom: "12px" }}>
               Link Tujuan
@@ -6715,9 +6745,6 @@ function AdminManagementSection() {
                 onChange={(event) => setAdConfig((current) => ({ ...current, link: event.target.value }))}
                 placeholder="https://..."
               />
-              <small className={styles.mediaUrlHint}>
-                Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
-              </small>
             </label>
             <label style={{ display: "grid", gap: "8px", marginBottom: "12px" }}>
               Teks Tombol
