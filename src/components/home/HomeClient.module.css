@@ -595,7 +595,7 @@
 }
 
 .shimmerTitle {
-  background: linear-gradient(110deg, currentColor 35%, rgba(255, 255, 255, 0.9) 50%, currentColor 65%);
+  background: linear-gradient(110deg, #131a2c 35%, #6c86dc 50%, #131a2c 65%);
   background-size: 220% 100%;
   background-clip: text;
   -webkit-background-clip: text;
