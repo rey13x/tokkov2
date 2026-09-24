@@ -30,7 +30,7 @@ export default function PrivacyPolicyError({
               borderRadius: 999,
               height: 38,
               padding: "0 14px",
-              background: "#1b1d44",
+              background: "#e8a3d5",
               color: "#fff",
               cursor: "pointer",
             }}

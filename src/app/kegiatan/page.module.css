@@ -41,7 +41,7 @@
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
-  background: #10131a;
+  background: #e8a3d5;
   color: #ffffff;
   cursor: pointer;
 }
@@ -126,7 +126,7 @@
   height: 34px;
   place-items: center;
   border-radius: 50%;
-  background: #10131a;
+  background: #e8a3d5;
   color: #ffffff;
 }
 

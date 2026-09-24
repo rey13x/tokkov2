@@ -329,7 +329,7 @@
 }
 
 .authTabs .authTabActive {
-  background: #1b1d44;
+  background: #e8a3d5;
   color: #ffffff;
 }
 
@@ -1125,12 +1125,12 @@
 .authDescription { color: #11151e; font-size: .96rem; }
 .authPanel .authTabs { margin-top: 18px; border-radius: 999px; padding: 4px; background: transparent; gap: 6px; }
 .authPanel .authTabs button { height: 42px; border-radius: 999px; color: #30384b; }
-.authPanel .authTabs .authTabActive { border-radius: 999px; background: #1b1d44; color: #fff; }
+.authPanel .authTabs .authTabActive { border-radius: 999px; background: #e8a3d5; color: #fff; font-weight: 700; }
 .authPanel .setupForm { margin-top: 18px; gap: 12px; }
 .authPanel .setupForm label { gap: 8px; font-size: .92rem; color: #1d2538; font-weight: 600; }
 .authPanel .setupForm input { height: 50px; border: 2px solid #c5c8d0; border-radius: 18px; background: #fff; font-weight: 500; }
 .authPanel .setupForm input:focus { border-color: #8896cc; }
-.authPanel .primaryButton { margin-top: 2px; min-height: 52px; border-radius: 20px; background: #1b1d44; font-size: 1.02rem; }
+.authPanel .primaryButton { margin-top: 2px; min-height: 52px; border-radius: 20px; background: #e8a3d5; color: #fff; font-size: 1.02rem; font-weight: 700; }
 .authHelper { margin-top: 16px; color: #6a7288; font-size: .9rem; text-align: center; }
 .authHelper a { color: inherit; text-decoration: underline; }
 .authBackButton { margin: 16px auto 0; border: 0; background: transparent; color: #5562cc; cursor: pointer; font-size: 1rem; }

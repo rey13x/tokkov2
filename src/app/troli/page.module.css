@@ -55,7 +55,7 @@
   padding: 0 14px;
   display: inline-flex;
   align-items: center;
-  background: #10131a;
+  background: #e8a3d5;
   color: #ffffff;
   font-size: 0.78rem;
 }
@@ -188,7 +188,7 @@
 }
 
 .categoryChipActive {
-  background: #10131a;
+  background: #e8a3d5;
   color: #ffffff;
 }
 
@@ -469,7 +469,7 @@
 
 .actionBlack {
   border: none;
-  background: #10131a;
+  background: #e8a3d5;
   color: #ffffff;
 }
 

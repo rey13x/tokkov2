@@ -1338,7 +1338,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #0d1119 !important;
+  background: #e8a3d5 !important;
   color: #ffffff !important;
   text-decoration: none;
 }
@@ -1351,7 +1351,7 @@
   justify-content: center;
   flex: 0 0 32px;
   border-radius: 8px;
-  background: #0d1119;
+  background: #e8a3d5;
   color: #ffffff;
   text-decoration: none;
 }

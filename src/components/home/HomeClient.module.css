@@ -674,7 +674,7 @@
   height: 32px;
   place-items: center;
   border-radius: 50%;
-  background: #10131a;
+  background: #e8a3d5;
   color: #ffffff;
 }
 
@@ -1052,7 +1052,7 @@
   width: 23px;
   height: 23px;
   border-radius: 50%;
-  background: #10131a;
+  background: #e8a3d5;
   color: #ffffff;
   display: grid;
   place-items: center;
@@ -1076,7 +1076,7 @@
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: #10131a;
+  background: #e8a3d5;
   color: #ffffff;
   cursor: pointer;
   box-shadow: 0 8px 18px rgba(10, 13, 20, 0.22);
@@ -1456,7 +1456,7 @@
 }
 
 .partnerFilterChipActive {
-  background: #10131a;
+  background: #e8a3d5;
   color: #ffffff;
 }
 
@@ -1636,7 +1636,7 @@
 }
 
 .categoryChipActive {
-  background: #10131a;
+  background: #e8a3d5;
   color: #ffffff;
 }
 
@@ -1658,7 +1658,7 @@
   padding: 0;
   border: 1px solid #0d1119;
   border-radius: 999px;
-  background: #0d1119;
+  background: #e8a3d5;
   color: #ffffff;
   display: inline-flex;
   align-items: center;
@@ -2024,7 +2024,7 @@
   height: 48px;
   min-width: 140px;
   padding-inline: 22px;
-  background: #0d1119;
+  background: #e8a3d5;
   color: #ffffff;
   display: inline-flex;
   align-items: center;
