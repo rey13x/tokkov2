@@ -4116,7 +4116,17 @@ function AdminManagementSection() {
                 placeholder="Stok tersedia"
               />
             ) : null}
-            <input value={productForm.imageUrl} readOnly placeholder="URL media produk otomatis" />
+            <input
+              type="url"
+              value={productForm.imageUrl}
+              onChange={(event) =>
+                setProductForm((current) => ({
+                  ...current,
+                  imageUrl: event.target.value,
+                }))
+              }
+              placeholder="URL media utama produk"
+            />
             {isFileUploadEnabled ? (
               <label className={styles.fileField}>
                 Upload Media Produk (Foto/Video)
@@ -4133,7 +4143,7 @@ function AdminManagementSection() {
               </p>
 
               {productForm.mediaGallery.map((media, index) => (
-                <div key={`${media.url}-${index}`} className={styles.mediaGalleryRow}>
+                <div key={`${media.url || "empty"}-${index}`} className={styles.mediaGalleryRow}>
                   <input
                     type="url"
                     className={styles.mediaGalleryInput}
