@@ -259,7 +259,7 @@ const PRIVACY_POLICY_PAGE_ID = "main";
 const defaultPrivacyPolicyPage: Omit<StorePrivacyPolicyPage, "id" | "updatedAt"> = {
   title: "Kebijakan Privasi & Sertifikasi Layanan",
   updatedLabel: "Terakhir diperbarui: 28 Februari 2026",
-  bannerImageUrl: "/assets/background.jpg",
+  bannerImageUrl: "/assets/sobatpremium2.mp4",
   contentHtml: `
 <h2>Kebijakan Privasi</h2>
 <p>Tokko berkomitmen menjaga keamanan dan kerahasiaan data pelanggan.</p>
@@ -793,14 +793,14 @@ export async function ensureDatabase() {
           id TEXT PRIMARY KEY,
           title TEXT NOT NULL,
           updated_label TEXT NOT NULL,
-          banner_image_url TEXT NOT NULL DEFAULT '/assets/background.jpg',
+          banner_image_url TEXT NOT NULL DEFAULT '/assets/sobatpremium2.mp4',
           content_html TEXT NOT NULL,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
       );
       await run(
-        "ALTER TABLE privacy_policy_pages ADD COLUMN banner_image_url TEXT NOT NULL DEFAULT '/assets/background.jpg'",
+        "ALTER TABLE privacy_policy_pages ADD COLUMN banner_image_url TEXT NOT NULL DEFAULT '/assets/sobatpremium2.mp4'",
       ).catch(() => {});
       await run(
         "ALTER TABLE privacy_policy_pages ADD COLUMN updated_label TEXT NOT NULL DEFAULT 'Terakhir diperbarui: 28 Februari 2026'",

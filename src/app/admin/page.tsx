@@ -84,6 +84,7 @@ const LIMITED_ADMIN_SECTIONS = new Set<AdminSection>([
   "profilePhotos",
   "users",
   "storyReels",
+  "privacyPolicy",
   "maintenanceSettings",
   "preview",
 ]);
@@ -152,7 +153,7 @@ const defaultStoryReelForm = {
 const defaultPrivacyPolicyForm = {
   title: "Kebijakan Privasi & Sertifikasi Layanan",
   updatedLabel: "Terakhir diperbarui: 28 Februari 2026",
-  bannerImageUrl: "/assets/background.jpg",
+  bannerImageUrl: "/assets/sobatpremium2.mp4",
   contentHtml: "<p>Tulis isi kebijakan privasi di sini.</p>",
 };
 
@@ -3538,18 +3539,6 @@ function AdminManagementSection() {
                     required
                   />
                 </div>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Urutan</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={footerLinkForm.sortOrder}
-                    onChange={(event) =>
-                      setFooterLinkForm((current) => ({ ...current, sortOrder: Number(event.target.value || 0) }))
-                    }
-                    placeholder="0"
-                  />
-                </div>
               </div>
 
               <label className={styles.checkField}>
@@ -3592,7 +3581,7 @@ function AdminManagementSection() {
                       <div style={{ minWidth: 0 }}>
                         <p style={{ margin: 0, fontWeight: 700 }}>{link.label}</p>
                         <span style={{ marginTop: 4, wordBreak: "break-word" }}>{link.url}</span>
-                        <span style={{ marginTop: 4 }}>Urutan: {link.sortOrder} • {link.isActive ? "Aktif" : "Nonaktif"}</span>
+                        <span style={{ marginTop: 4 }}>{link.isActive ? "Aktif" : "Nonaktif"}</span>
                       </div>
                     </div>
                     <div className={`${styles.rowActions} ${styles.marqueeActions}`}>

@@ -47,6 +47,7 @@ import {
   listOrdersWithItems as listOrdersWithItemsDb,
   listAllProducts as listAllProductsDb,
   listInformations as listInformationsDb,
+  listActiveInformations as listActiveInformationsDb,
   listDonationActivities as listDonationActivitiesDb,
   updateDonationActivityTelegram as updateDonationActivityTelegramDb,
   listOrders as listOrdersDb,
@@ -236,6 +237,7 @@ function mapInformationDoc(
     watermarkText: String(data?.watermarkText ?? ""),
     pollOptions,
     pollVotes: normalizePollVotes(pollOptions, data?.pollVotes),
+    isActive: Boolean(data?.isActive ?? true),
     createdAt: new Date(Number(data?.createdAt ?? now())).toISOString(),
   };
 }
@@ -306,7 +308,7 @@ function defaultPrivacyPolicyPage(): StorePrivacyPolicyPage {
     id: "main",
     title: "Kebijakan Privasi & Sertifikasi Layanan",
     updatedLabel: "Terakhir diperbarui: 28 Februari 2026",
-    bannerImageUrl: "/assets/background.jpg",
+    bannerImageUrl: "/assets/sobatpremium2.mp4",
     contentHtml: `
 <h2>Kebijakan Privasi</h2>
 <p>Tokko berkomitmen menjaga keamanan dan kerahasiaan data pelanggan.</p>
@@ -743,6 +745,27 @@ export async function listInformations() {
   }
 }
 
+export async function listActiveInformations() {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return listActiveInformationsDb();
+  }
+
+  try {
+    const snapshot = await firestore
+      .collection("informations")
+      .orderBy("createdAt", "desc")
+      .get();
+    return snapshot.docs
+      .map((doc: any) => mapInformationDoc(doc.id, doc.data() as Record<string, unknown>))
+      .filter((information: StoreInformation) => information.isActive);
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to read active informations from Firestore. Falling back to local database.", error);
+    return listActiveInformationsDb();
+  }
+}
+
 export async function createInformation(input: {
   type: InformationType;
   title: string;
@@ -770,6 +793,7 @@ export async function createInformation(input: {
       watermarkText: input.watermarkText,
       pollOptions,
       pollVotes,
+      isActive: true,
       createdAt,
       updatedAt: createdAt,
     });
@@ -794,6 +818,7 @@ export async function updateInformation(
     imageUrl: string;
     watermarkText?: string;
     pollOptions: string[];
+    isActive?: boolean;
   }>,
 ) {
   const firestore = getFirestoreOrNull();
@@ -825,6 +850,7 @@ export async function updateInformation(
       ...(nextMediaUrl !== undefined ? { imageUrl: nextMediaUrl } : {}),
       ...(input.watermarkText !== undefined ? { watermarkText: input.watermarkText } : {}),
       ...(input.pollOptions !== undefined ? { pollOptions: nextPollOptions } : {}),
+      ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
       pollVotes: nextPollVotes,
       updatedAt: now(),
     });

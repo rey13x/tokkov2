@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
+import FlexibleMedia from "@/components/media/FlexibleMedia";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { fetchStoreData } from "@/lib/store-client";
 import styles from "./page.module.css";
@@ -9,7 +9,7 @@ import styles from "./page.module.css";
 const FALLBACK_POLICY = {
   title: "Kebijakan Privasi & Sertifikasi Layanan",
   updatedLabel: "Terakhir diperbarui: 28 Februari 2026",
-  bannerImageUrl: "/assets/backgroundv2.png",
+  bannerImageUrl: "/assets/sobatpremium2.mp4",
   contentHtml: "<h2>Kebijakan Privasi</h2><p>Konten sedang dimuat.</p>",
 };
 
@@ -63,13 +63,14 @@ export default function PrivacyCertificationClient() {
         <h1>{policy.title || FALLBACK_POLICY.title}</h1>
         <p className={styles.meta}>{policy.updatedLabel || FALLBACK_POLICY.updatedLabel}</p>
         <div className={styles.bannerWrap}>
-          <Image
+          <FlexibleMedia
             src={sanitizeBannerSrc(policy.bannerImageUrl || "")}
             alt={policy.title || FALLBACK_POLICY.title}
             width={320}
             height={46}
             className={styles.bannerImage}
             unoptimized
+            controls={false}
           />
         </div>
         <section
