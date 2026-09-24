@@ -4181,7 +4181,7 @@ function AdminManagementSection() {
                 <input type="file" accept="image/*,video/*" onChange={onSelectProductImage} />
                 <small>{isUploadingProductImage ? "Uploading..." : "Pilih file media dari device"}</small>
                 <small className={styles.mediaUrlHint}>
-                  Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+                  Upload foto disini: <a href="https://imagecompressor.11zon.com/id/compress-jpg/compress-jpg-to-450kb" target="_blank" rel="noreferrer">https://imagecompressor.11zon.com</a> lalu Choose File kembali foto Sobat diatas.
                 </small>
               </label>
             ) : null}
@@ -4455,7 +4455,7 @@ function AdminManagementSection() {
                 <input type="file" accept="image/*,video/*" onChange={onSelectInfoImage} />
                 <small>{isUploadingInfoImage ? "Uploading..." : "Pilih file media dari device"}</small>
                 <small className={styles.mediaUrlHint}>
-                  Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+                  Upload foto disini: <a href="https://imagecompressor.11zon.com/id/compress-jpg/compress-jpg-to-450kb" target="_blank" rel="noreferrer">https://imagecompressor.11zon.com</a> lalu Choose File kembali foto Sobat diatas.
                 </small>
               </label>
             ) : null}
@@ -5849,7 +5849,7 @@ function AdminManagementSection() {
                 style={{ marginTop: "6px", width: "100%" }}
               />
               <small className={styles.mediaUrlHint}>
-                Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+                Upload foto disini: <a href="https://imagecompressor.11zon.com/id/compress-jpg/compress-jpg-to-450kb" target="_blank" rel="noreferrer">https://imagecompressor.11zon.com</a> lalu Choose File kembali foto Sobat diatas.
               </small>
             </label>
             <div className={styles.previewCard}>
@@ -5982,7 +5982,7 @@ function AdminManagementSection() {
                         style={{ width: "100%" }}
                       />
                       <small className={styles.mediaUrlHint}>
-                        Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+                        Upload foto disini: <a href="https://imagecompressor.11zon.com/id/compress-jpg/compress-jpg-to-450kb" target="_blank" rel="noreferrer">https://imagecompressor.11zon.com</a> lalu Choose File kembali foto Sobat diatas.
                       </small>
                     </label>
                     <label className={styles.storyMediaTypeField}>
@@ -6580,7 +6580,7 @@ function AdminManagementSection() {
                   {isUploadingPrivacyBanner ? "Uploading..." : "Pilih file banner dari device"}
                 </small>
                 <small className={styles.mediaUrlHint}>
-                  Upload foto disini: <a href="https://www.iloveimg.com/id/kompres-gambar" target="_blank" rel="noreferrer">https://www.iloveimg.com/id/kompres-gambar</a> lalu Choose File kembali foto Sobat diatas.
+                  Upload foto disini: <a href="https://imagecompressor.11zon.com/id/compress-jpg/compress-jpg-to-450kb" target="_blank" rel="noreferrer">https://imagecompressor.11zon.com</a> lalu Choose File kembali foto Sobat diatas.
                 </small>
               </label>
             ) : null}
