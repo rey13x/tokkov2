@@ -551,19 +551,10 @@
   margin-top: 8px;
   border: 0;
   border-radius: 999px;
-  background: #e8a3d5;
+  background: #10141d;
   color: #ffffff;
   font-weight: 800;
   cursor: pointer;
-}
-
-.activityAdminCard .form button,
-.activityAdminCard .secondaryButton,
-.activityAdminCard .rowActions button {
-  border-color: #e8a3d5;
-  background: #e8a3d5 !important;
-  color: #111522 !important;
-  font-weight: 800;
 }
 
 .activityListTitle {
@@ -1411,7 +1402,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #e8a3d5 !important;
+  background: #0d1119 !important;
   color: #ffffff !important;
   text-decoration: none;
 }
@@ -1424,7 +1415,7 @@
   justify-content: center;
   flex: 0 0 32px;
   border-radius: 8px;
-  background: #e8a3d5;
+  background: #0d1119;
   color: #ffffff;
   text-decoration: none;
 }
@@ -1994,12 +1985,6 @@
   color: #17365d !important;
   font-size: 0.85rem;
   font-weight: 700;
-}
-
-.activityAdminCard .rowActions button:last-child {
-  border-color: #a71b37 !important;
-  background: #a71b37 !important;
-  color: #ffffff !important;
 }
 
 @media (max-width: 760px) {
