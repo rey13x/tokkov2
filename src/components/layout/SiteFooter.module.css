@@ -21,10 +21,10 @@
 }
 
 .logo {
-  width: min(220px, 42vw);
-  height: auto;
+  width: min(280px, 48vw);
+  height: clamp(82px, 9vw, 108px);
   display: block;
-  object-fit: contain;
+  object-fit: fill;
   opacity: 0.95;
 }
 

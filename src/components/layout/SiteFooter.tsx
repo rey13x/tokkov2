@@ -20,8 +20,8 @@ export default function SiteFooter() {
             <Image
               src="/assets/Sobat-Premium.png"
               alt="Sobat Premium"
-              width={220}
-              height={160}
+              width={280}
+              height={108}
               className={styles.logo}
               unoptimized
             />
