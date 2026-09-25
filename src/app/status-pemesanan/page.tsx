@@ -1946,7 +1946,7 @@ export default function StatusPemesananPage() {
             </p>
             <button
               type="button"
-              className={styles.popupCloseButton}
+              className={`${styles.popupCloseButton} ${styles.backToCartButton}`}
               id="tutorial-receipt-back-to-cart"
               onClick={onTutorialReceiptBackToCart}
             >

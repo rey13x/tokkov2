@@ -38,7 +38,7 @@
   min-height: 40px;
   padding: 0 14px;
   border-radius: 999px;
-  background: #1f426d;
+  background: #246bce;
   color: #ffffff;
   display: inline-flex;
   align-items: center;
@@ -412,9 +412,9 @@
 
 .adminConfirmationButton {
   min-height: 42px;
-  border: 1px solid #10131a;
+  border: 1px solid #246bce;
   border-radius: 18px;
-  background: #10131a;
+  background: #246bce;
   color: #ffffff;
   font-size: 0.78rem;
   cursor: pointer;
@@ -434,9 +434,9 @@
   width: 42px;
   min-width: 42px;
   height: 42px;
-  border: 1px solid #10131a;
+  border: 1px solid #246bce;
   border-radius: 50%;
-  background: #10131a;
+  background: #246bce;
   color: #fff;
   cursor: pointer;
   display: inline-flex;
@@ -1094,6 +1094,10 @@
   font-size: 0.86rem;
   font-weight: 800;
   cursor: pointer;
+}
+
+.backToCartButton {
+  background: #246bce;
 }
 
 .popupCloseButton:disabled {

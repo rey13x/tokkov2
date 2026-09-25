@@ -110,6 +110,12 @@
   color: #5f6780;
 }
 
+.actionButton.emptyStatusButton {
+  width: auto;
+  padding: 0 18px;
+  border-radius: 999px;
+}
+
 .cartLayout {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.65fr);

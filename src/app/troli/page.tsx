@@ -581,8 +581,8 @@ export default function CartPage() {
         <Link href="/profil" className={styles.profileShortcut} aria-label="Buka profil" title="Buka profil">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/assets/maintenancelogo.jpg"
-            alt="Logo Tokko"
+            src="/assets/sobatprofil.jpg"
+            alt="Foto profil Sobat"
           />
         </Link>
         <h1>Troli</h1>
@@ -595,10 +595,10 @@ export default function CartPage() {
       {isClient && !isStoreLoading && !isJobApplicationsLoading && detailedItems.length === 0 && freelanceJobApplications.length === 0 ? (
         <section className={styles.emptyState}>
           <h2>Troli masih kosong</h2>
-          <p>Pilih Produknya dulu ya</p>
+          <p>Pilih Produknya dulu ya, Sobat</p>
           <button
             type="button"
-            className={`${styles.actionButton} ${styles.actionPrimary}`}
+            className={`${styles.actionButton} ${styles.actionPrimary} ${styles.emptyStatusButton}`}
             onClick={onOpenStatusPage}
             data-onboarding="cart-open-status"
           >
