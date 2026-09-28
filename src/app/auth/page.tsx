@@ -418,21 +418,6 @@ export default function AuthPage({ initialMode = "signin" }: { initialMode?: "si
               />
             </label>
             <label className={styles.field}>
-              <span className={styles.fieldLabel}>
-                No Telepon
-                <span className={styles.phoneHint}>*Pastikan menggunakan Nomor Whatsapp aktif ya!</span>
-              </span>
-              <input
-                type="tel"
-                inputMode="tel"
-                value={signupPhone}
-                onChange={(event) => setSignupPhone(event.target.value)}
-                placeholder="Nomor telepon kamu"
-                maxLength={20}
-                required
-              />
-            </label>
-            <label className={styles.field}>
               Password
               <div className={styles.passwordField}>
                 <input
@@ -483,6 +468,21 @@ export default function AuthPage({ initialMode = "signin" }: { initialMode?: "si
                 onChange={(event) => setSignupEmail(event.target.value)}
                 placeholder="Gmail kamu"
                 autoComplete="email"
+                required
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>
+                No Telepon
+                <span className={styles.phoneHint}>*Pastikan menggunakan Nomor Whatsapp aktif ya!</span>
+              </span>
+              <input
+                type="tel"
+                inputMode="tel"
+                value={signupPhone}
+                onChange={(event) => setSignupPhone(event.target.value)}
+                placeholder="Nomor telepon kamu"
+                maxLength={20}
                 required
               />
             </label>
