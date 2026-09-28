@@ -50,7 +50,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.replace("/auth?redirect=/profil");
+      router.replace("/auth/masuk?redirect=/profil");
     }
   }, [router, status]);
 

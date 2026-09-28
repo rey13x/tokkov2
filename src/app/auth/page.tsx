@@ -85,27 +85,21 @@ function ButtonLoading() {
   return <span className={styles.buttonSpinner} aria-label="Loading" role="status" />;
 }
 
-export default function AuthPage() {
+export default function AuthPage({ initialMode = "signin" }: { initialMode?: "signin" | "signup" }) {
   const router = useRouter();
   const { status } = useSession();
   const googleUiEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "false";
-  const canUseEmailOtp = process.env.NEXT_PUBLIC_EMAIL_OTP_ENABLED === "true";
   const forgotPasswordEnabled = false;
 
-  const [mode, setMode] = useState<AuthMode>("signin");
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const [signupUsername, setSignupUsername] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
-  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
-  const [signupCode, setSignupCode] = useState("");
-  const [isCodeSent, setIsCodeSent] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [isForgotPasswordSubmitting, setIsForgotPasswordSubmitting] = useState(false);
@@ -171,6 +165,17 @@ export default function AuthPage() {
       .catch(() => router.replace(redirectTarget));
   }, [status, redirectReady, router, redirectTarget, resolveRedirectAfterAuth]);
 
+  const changeAuthMode = (nextMode: "signin" | "signup") => {
+    setMode(nextMode);
+    setError("");
+    setSuccess("");
+    setForgotPasswordError("");
+    setForgotPasswordSuccess("");
+    const path = nextMode === "signup" ? "/auth/daftar" : "/auth/masuk";
+    const query = redirectTarget === "/" ? "" : `?redirect=${encodeURIComponent(redirectTarget)}`;
+    router.push(`${path}${query}`);
+  };
+
   const onSignIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
@@ -198,38 +203,6 @@ export default function AuthPage() {
     }
   };
 
-  const onRequestCode = async () => {
-    setError("");
-    setSuccess("");
-    setIsRequestingCode(true);
-
-    try {
-      const response = await fetch("/api/auth/signup/request-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: signupUsername,
-          email: signupEmail,
-          phone: signupPhone,
-          password: signupPassword,
-          confirmPassword: signupConfirmPassword,
-        }),
-      });
-      const result = (await response.json()) as { message?: string };
-      if (!response.ok) {
-        setError(result.message ?? "Gagal kirim kode verifikasi.");
-        return;
-      }
-
-      setIsCodeSent(true);
-      setSuccess(result.message ?? "Kode verifikasi sudah dikirim.");
-    } catch {
-      setError("Gagal kirim kode verifikasi.");
-    } finally {
-      setIsRequestingCode(false);
-    }
-  };
-
   const onSignUp = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
@@ -238,47 +211,25 @@ export default function AuthPage() {
     let registrationCompleted = false;
 
     try {
-      if (!canUseEmailOtp) {
-        const registerResponse = await fetch("/api/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: signupUsername,
-            email: signupEmail,
-            phone: signupPhone,
-            password: signupPassword,
-            confirmPassword: signupConfirmPassword,
-            deviceId,
-          }),
-        });
-        let registerResult: { message?: string } = {};
-        try {
-          registerResult = (await registerResponse.json()) as { message?: string };
-        } catch {}
-        if (!registerResponse.ok) {
-          setError(registerResult.message ?? "Pendaftaran gagal.");
-          return;
-        }
-        registrationCompleted = true;
-      } else {
-        const verifyResponse = await fetch("/api/auth/signup/verify-code", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: signupEmail,
-            code: signupCode,
-          }),
-        });
-        let verifyResult: { message?: string } = {};
-        try {
-          verifyResult = (await verifyResponse.json()) as { message?: string };
-        } catch {}
-        if (!verifyResponse.ok) {
-          setError(verifyResult.message ?? "Verifikasi kode gagal.");
-          return;
-        }
-        registrationCompleted = true;
+      const registerResponse = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: signupEmail,
+          phone: signupPhone,
+          password: signupPassword,
+          deviceId,
+        }),
+      });
+      let registerResult: { message?: string } = {};
+      try {
+        registerResult = (await registerResponse.json()) as { message?: string };
+      } catch {}
+      if (!registerResponse.ok) {
+        setError(registerResult.message ?? "Pendaftaran gagal.");
+        return;
       }
+      registrationCompleted = true;
 
       try {
         const loginResult = await signIn("credentials", {
@@ -402,41 +353,21 @@ export default function AuthPage() {
         <div className={styles.banner}>
           {Array.from({ length: 9 }).map((_, index) => (
             <div key={`logo-${index}`} className={styles.bannerLogoWrap}>
-              <Image src="/assets/logo.png" alt="" width={22} height={22} className={styles.bannerLogo} />
+              <Image src="/assets/sobatprofil.jpg" alt="" width={22} height={22} className={styles.bannerLogo} />
             </div>
           ))}
         </div>
 
         <header className={styles.headerBlock}>
-          <h1>Masuk</h1>
+          <h1>{mode === "signup" ? "Daftar Akun" : "Masuk"}</h1>
           <p className={styles.description}>Masuk atau daftar Akun buat lanjut Belanja.</p>
         </header>
 
         <div className={`${styles.modeSwitch} ${!forgotPasswordEnabled ? styles.modeSwitchSingle : ""}`}>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("signin");
-              setError("");
-              setSuccess("");
-              setForgotPasswordError("");
-              setForgotPasswordSuccess("");
-            }}
-            className={mode === "signin" ? styles.modeActive : ""}
-          >
+          <button type="button" onClick={() => changeAuthMode("signin")} className={mode === "signin" ? styles.modeActive : ""}>
             Masuk
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("signup");
-              setError("");
-              setSuccess("");
-              setForgotPasswordError("");
-              setForgotPasswordSuccess("");
-            }}
-            className={mode === "signup" ? styles.modeActive : ""}
-          >
+          <button type="button" onClick={() => changeAuthMode("signup")} className={mode === "signup" ? styles.modeActive : ""}>
             Daftar
           </button>
           {forgotPasswordEnabled && (
@@ -487,6 +418,21 @@ export default function AuthPage() {
               />
             </label>
             <label className={styles.field}>
+              <span className={styles.fieldLabel}>
+                No Telepon
+                <span className={styles.phoneHint}>*Pastikan menggunakan Nomor Whatsapp aktif ya!</span>
+              </span>
+              <input
+                type="tel"
+                inputMode="tel"
+                value={signupPhone}
+                onChange={(event) => setSignupPhone(event.target.value)}
+                placeholder="Nomor telepon kamu"
+                maxLength={20}
+                required
+              />
+            </label>
+            <label className={styles.field}>
               Password
               <div className={styles.passwordField}>
                 <input
@@ -530,32 +476,13 @@ export default function AuthPage() {
         ) : (
           <form className={styles.form} onSubmit={onSignUp}>
             <label className={styles.field}>
-              Username
-              <input
-                type="text"
-                value={signupUsername}
-                onChange={(event) => setSignupUsername(event.target.value)}
-                placeholder="Username kamu"
-                required
-              />
-            </label>
-            <label className={styles.field}>
               Email
               <input
                 type="email"
                 value={signupEmail}
                 onChange={(event) => setSignupEmail(event.target.value)}
                 placeholder="Gmail kamu"
-                required
-              />
-            </label>
-            <label className={styles.field}>
-              No Telepon
-              <input
-                type="tel"
-                value={signupPhone}
-                onChange={(event) => setSignupPhone(event.target.value)}
-                placeholder="Nomor telepon kamu"
+                autoComplete="email"
                 required
               />
             </label>
@@ -567,6 +494,8 @@ export default function AuthPage() {
                   value={signupPassword}
                   onChange={(event) => setSignupPassword(event.target.value)}
                   placeholder="Password kamu"
+                  autoComplete="new-password"
+                  minLength={6}
                   required
                 />
                 <button
@@ -583,66 +512,12 @@ export default function AuthPage() {
                 </button>
               </div>
             </label>
-            <label className={styles.field}>
-              Konfirmasi Password
-              <div className={styles.passwordField}>
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={signupConfirmPassword}
-                  onChange={(event) => setSignupConfirmPassword(event.target.value)}
-                  placeholder="Ulangi password kamu"
-                  required
-                />
-                <button
-                  type="button"
-                  className={styles.passwordToggle}
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                >
-                  {showConfirmPassword ? (
-                    <AiOutlineEyeInvisible className={styles.eyeIcon} />
-                  ) : (
-                    <AiOutlineEye className={styles.eyeIcon} />
-                  )}
-                </button>
-              </div>
-            </label>
-            {canUseEmailOtp ? (
-              <>
-                <button
-                  type="button"
-                  className={styles.returnButton}
-                  onClick={onRequestCode}
-                  disabled={isRequestingCode}
-                >
-                  {isRequestingCode
-                    ? "Mengirim kode..."
-                    : isCodeSent
-                      ? "Kirim Ulang Kode"
-                      : "Kirim Kode Verifikasi"}
-                </button>
-                <label className={styles.field}>
-                  Kode Verifikasi
-                  <input
-                    type="text"
-                    value={signupCode}
-                    onChange={(event) => setSignupCode(event.target.value)}
-                    placeholder="Masukkan 6 digit kode"
-                    inputMode="numeric"
-                    maxLength={6}
-                    required
-                  />
-                </label>
-              </>
-            ) : (
-              <p className={styles.disabledInfo}>Mode daftar cepat aktif: tanpa OTP email.</p>
-            )}
             {error ? <p className={styles.errorText}>{error}</p> : null}
             {success ? <p className={styles.successText}>{success}</p> : null}
             <button
               type="submit"
               className={styles.submitButton}
-              disabled={isSubmitting || (canUseEmailOtp && !isCodeSent)}
+              disabled={isSubmitting}
             >
               {isSubmitting ? <ButtonLoading /> : "Daftar dan Masuk"}
             </button>

@@ -106,7 +106,7 @@ export default function KoleksiPage({ category }: KoleksiPageProps = {}) {
 
     if (status === "unauthenticated") {
       const categoryPath = activeCategory === "Semua" ? "/koleksi" : `/koleksi/${categoryToSlug(activeCategory)}`;
-      router.push(`/auth?redirect=${encodeURIComponent(categoryPath)}`);
+      router.push(`/auth/masuk?redirect=${encodeURIComponent(categoryPath)}`);
       return;
     }
 

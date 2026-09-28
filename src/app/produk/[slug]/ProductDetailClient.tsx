@@ -272,7 +272,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           }),
         );
       }
-      router.push(`/auth?redirect=${encodeURIComponent(getProductPath(product))}`);
+      router.push(`/auth/masuk?redirect=${encodeURIComponent(getProductPath(product))}`);
       return;
     }
 
@@ -586,7 +586,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                   <span style={{ color: "#d32f2f", fontWeight: "500" }}>Posisi ini sudah penuh</span>
                 ) : status === "unauthenticated" ? (
                   <>
-                    Anda harus <Link href={`/auth?redirect=${encodeURIComponent(getProductPath(product))}`} style={{ color: "#4a5fe3", textDecoration: "underline" }}>login terlebih dahulu</Link> untuk melamar pekerjaan ini.
+                    Anda harus <Link href={`/auth/masuk?redirect=${encodeURIComponent(getProductPath(product))}`} style={{ color: "#4a5fe3", textDecoration: "underline" }}>login terlebih dahulu</Link> untuk melamar pekerjaan ini.
                   </>
                 ) : (
                   <>Klik tombol Saya mau untuk melamar pekerjaan ini.</>

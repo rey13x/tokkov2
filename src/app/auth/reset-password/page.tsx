@@ -98,7 +98,7 @@ export default function ResetPasswordPage() {
       
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        router.replace("/auth");
+        router.replace("/auth/masuk");
       }, 2000);
     } catch {
       setMessage("Gagal mereset password");
@@ -115,7 +115,7 @@ export default function ResetPasswordPage() {
             <h1 className={styles.title}>Reset Password Gagal</h1>
             <p className={styles.message}>{message}</p>
             <button
-              onClick={() => router.replace("/auth")}
+              onClick={() => router.replace("/auth/masuk")}
               className={styles.button}
             >
               Balik ke Masuk
@@ -167,7 +167,7 @@ export default function ResetPasswordPage() {
             </form>
 
             <p className={styles.help}>
-              <a href="/auth">Balik ke Masuk</a>
+              <a href="/auth/masuk">Balik ke Masuk</a>
             </p>
           </div>
         )}

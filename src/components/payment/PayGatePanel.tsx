@@ -211,7 +211,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
     const loadSeq = ++loadSeqRef.current;
     setError("");
     if (!sessionUserId) {
-      router.replace("/auth?redirect=/paygate");
+      router.replace("/auth/masuk?redirect=/paygate");
       return;
     }
     try {
@@ -222,7 +222,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
       ]);
 
       if (accountResponse.status === 401) {
-        window.location.href = "/auth?redirect=/paygate";
+        window.location.href = "/auth/masuk?redirect=/paygate";
         return;
       }
 
@@ -462,7 +462,7 @@ export default function PayGatePanel({ routeMode = "entry" }: { routeMode?: PayG
     setPaygatePassword("");
     setPaygateAuthMode("login");
     if (payGateSessionKey) window.localStorage.removeItem(payGateSessionKey);
-    await signOut({ callbackUrl: "/auth" });
+    await signOut({ callbackUrl: "/auth/masuk" });
     setError("");
   }
 

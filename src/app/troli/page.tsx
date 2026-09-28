@@ -374,7 +374,7 @@ export default function CartPage() {
     }
 
     if (status !== "authenticated") {
-      router.push("/auth?redirect=/status-pemesanan");
+      router.push("/auth/masuk?redirect=/status-pemesanan");
       return;
     }
 
@@ -429,7 +429,7 @@ export default function CartPage() {
     }
 
     if (status !== "authenticated") {
-      router.push("/auth?redirect=/troli");
+      router.push("/auth/masuk?redirect=/troli");
       return;
     }
 

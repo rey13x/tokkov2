@@ -408,7 +408,7 @@ export default function StatusPemesananPage() {
         setError("");
         return;
       }
-      router.push("/auth?redirect=/status-pemesanan");
+      router.push("/auth/masuk?redirect=/status-pemesanan");
       return;
     }
 

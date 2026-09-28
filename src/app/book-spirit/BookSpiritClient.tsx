@@ -107,7 +107,7 @@ export default function BookSpiritClient() {
 
   const handleTellStory = async () => {
     if (!session?.user?.email) {
-      router.push("/auth");
+      router.push("/auth/masuk");
       return;
     }
 
@@ -118,7 +118,7 @@ export default function BookSpiritClient() {
       const response = await fetch("/api/book-stories/purchased-products", { cache: "no-store" });
       const data = (await response.json()) as { products?: Array<{ id: string; name: string }>; message?: string };
       if (response.status === 401) {
-        router.push("/auth");
+        router.push("/auth/masuk");
         return;
       }
       if (!response.ok) {

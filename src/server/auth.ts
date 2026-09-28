@@ -138,8 +138,8 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   pages: {
-    signIn: "/auth",
-    error: "/auth",
+    signIn: "/auth/masuk",
+    error: "/auth/masuk",
   },
   providers,
   events: {

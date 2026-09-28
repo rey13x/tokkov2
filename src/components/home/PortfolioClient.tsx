@@ -130,7 +130,7 @@ export default function PortfolioClient() {
               <button
                 type="button"
                 className={styles.profileShortcut}
-                onClick={() => router.push("/auth")}
+                onClick={() => router.push("/auth/masuk")}
                 aria-label="Login"
               >
                 <FiUser />

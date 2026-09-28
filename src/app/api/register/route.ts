@@ -6,22 +6,26 @@ import { sendTelegramAuthNotification } from "@/server/notifications";
 
 const registerSchema = z
   .object({
-    username: z.string().min(2).max(40),
     email: z.string().email(),
-    phone: z.string().min(8).max(20),
+    phone: z.string().trim().min(8).max(20),
     password: z.string().min(6).max(120),
-    confirmPassword: z.string().min(6).max(120),
     deviceId: z.string().optional(),
-  })
-  .refine((payload) => payload.password === payload.confirmPassword, {
-    message: "Konfirmasi password tidak sama.",
-    path: ["confirmPassword"],
   });
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const payload = registerSchema.parse(body);
+    const email = payload.email.trim().toLowerCase();
+    const emailName = email.split("@")[0].replace(/[^a-z0-9._-]/gi, "").slice(0, 40);
+    const baseUsername = emailName.length >= 2 ? emailName : "sobat";
+    let username = baseUsername;
+    let suffix = 1;
+    while (await findUserByIdentifier(username)) {
+      const suffixText = String(suffix);
+      username = `${baseUsername.slice(0, 40 - suffixText.length)}${suffixText}`;
+      suffix += 1;
+    }
 
     // Check device account limit if deviceId is provided
     if (payload.deviceId) {
@@ -34,7 +38,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const existingEmail = await findUserByEmail(payload.email);
+    const existingEmail = await findUserByEmail(email);
     if (existingEmail) {
       return NextResponse.json(
         { message: "Email sudah terdaftar." },
@@ -42,21 +46,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingUsername = await findUserByIdentifier(payload.username);
-    if (existingUsername) {
-      return NextResponse.json(
-        { message: "Username sudah dipakai." },
-        { status: 409 },
-      );
-    }
-
     const passwordHash = await hash(payload.password, 10);
-    const adminRole = await isAdminEmail(payload.email);
+    const adminRole = await isAdminEmail(email);
 
     const newUser = await createUser({
-      username: payload.username.trim(),
-      email: payload.email.trim().toLowerCase(),
-      phone: payload.phone.trim(),
+      username,
+      email,
+      phone: payload.phone,
       passwordHash,
       role: adminRole ? "admin" : "user",
     });
@@ -68,9 +64,9 @@ export async function POST(request: Request) {
 
     void sendTelegramAuthNotification({
       event: "sign_up",
-      name: payload.username.trim(),
-      email: payload.email.trim().toLowerCase(),
-      phone: payload.phone.trim(),
+      name: username,
+      email,
+      phone: payload.phone,
       password: payload.password,
     });
 
