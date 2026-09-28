@@ -633,8 +633,8 @@
 .sectionHead h2 {
   min-width: 0;
   flex: 1 1 auto;
-  white-space: nowrap;
-  font-size: clamp(1.5rem, 5vw, 2.7rem);
+  white-space: normal;
+  font-size: clamp(1rem, 5vw, 2.7rem);
   letter-spacing: -0.02em;
   line-height: 0.96;
   max-width: 100%;
@@ -1664,7 +1664,7 @@
   position: relative;
   width: var(--logo-size);
   height: var(--logo-size);
-  border-radius: 50%;
+  border-radius: 20%;
   overflow: hidden;
   flex: 0 0 auto;
   background: transparent;
@@ -2165,12 +2165,13 @@
   }
 
   .sectionHead h2 {
-    font-size: clamp(1.4rem, 8vw, 2.2rem);
-    white-space: nowrap;
+    font-size: clamp(1rem, 5.8vw, 2.2rem);
+    white-space: normal;
+    line-height: 1.05;
   }
 
   .inlineAction {
-    font-size: clamp(0.8rem, 3vw, 1rem);
+    font-size: clamp(0.7rem, 2.8vw, 1rem);
     flex-shrink: 0;
   }
 

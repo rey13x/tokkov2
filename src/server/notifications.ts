@@ -479,6 +479,9 @@ export async function sendTelegramOrderNotification(payload: {
   userPhone: string;
   total: number;
   items: Array<{ productName: string; quantity: number; unitPrice: number; productType?: string }>;
+  voucherCode?: string;
+  voucherPercentage?: number;
+  voucherDiscount?: number;
 }) {
   const isDonation = payload.items.some((item) => item.productType === "donation");
   const lines = payload.items
@@ -490,7 +493,15 @@ export async function sendTelegramOrderNotification(payload: {
   const taxableSubtotal = payload.items
     .filter((item) => item.productType !== "donation")
     .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const subtotal = payload.items
+    .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   const tax = taxableSubtotal > 0 ? 500 : 0;
+  const voucherLines = payload.voucherCode
+    ? [
+        `<b>Voucher</b>   : ${escapeTelegramHtml(payload.voucherCode)}${payload.voucherPercentage ? ` (${payload.voucherPercentage}%)` : ""}`,
+        `<b>Diskon</b>    : -Rp ${Math.max(0, payload.voucherDiscount ?? 0).toLocaleString("id-ID")}`,
+      ]
+    : [];
 
   const text = [
     isDonation ? "💙 <b>DONASI MASUK</b>" : "📣 <b>ORDERAN MASUK</b>",
@@ -504,7 +515,8 @@ export async function sendTelegramOrderNotification(payload: {
     "<b>Detail Produk</b>",
     lines,
     "",
-    `<b>Subtotal</b>  : Rp ${(payload.total - tax).toLocaleString("id-ID")}`,
+    `<b>Subtotal</b>  : Rp ${subtotal.toLocaleString("id-ID")}`,
+    ...voucherLines,
     `<b>Pajak</b>     : Rp ${tax.toLocaleString("id-ID")}`,
     `<b>Total</b>     : Rp ${payload.total.toLocaleString("id-ID")}`,
   ].join("\n");
@@ -790,6 +802,14 @@ export async function sendFirebaseWebPushMessage(payload: {
   url?: string;
   data?: Record<string, string>;
 }) {
+  if (process.env.FIREBASE_WEB_PUSH_ENABLED !== "1") {
+    return false;
+  }
+
+  if (process.env.DISABLE_FIREBASE_NOTIFICATIONS === "1" || process.env.TELEGRAM_ONLY_NOTIFICATIONS === "1") {
+    return false;
+  }
+
   if (!payload.token) {
     return false;
   }

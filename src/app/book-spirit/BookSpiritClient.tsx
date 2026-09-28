@@ -25,6 +25,8 @@ export default function BookSpiritClient() {
   const [stories, setStories] = useState<BookStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [isCheckingTestimonialPurchase, setIsCheckingTestimonialPurchase] = useState(false);
+  const [purchasedTestimonialProducts, setPurchasedTestimonialProducts] = useState<Array<{ id: string; name: string }>>([]);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const [replyTo, setReplyTo] = useState<Record<string, { id: string; name: string } | null>>({});
@@ -103,14 +105,41 @@ export default function BookSpiritClient() {
     return matchesRating && matchesProduct;
   });
 
-  const handleTellStory = () => {
+  const handleTellStory = async () => {
     if (!session?.user?.email) {
       router.push("/auth");
-    } else {
+      return;
+    }
+
+    if (isCheckingTestimonialPurchase) return;
+    setIsCheckingTestimonialPurchase(true);
+
+    try {
+      const response = await fetch("/api/book-stories/purchased-products", { cache: "no-store" });
+      const data = (await response.json()) as { products?: Array<{ id: string; name: string }>; message?: string };
+      if (response.status === 401) {
+        router.push("/auth");
+        return;
+      }
+      if (!response.ok) {
+        showUserAlert(data.message || "Gagal memeriksa riwayat pembelian.");
+        return;
+      }
+      if (!data.products?.length) {
+        showUserAlert("Kamu belum beli produk, Sobat.");
+        return;
+      }
+
+      setPurchasedTestimonialProducts(data.products);
       setShowModal(true);
       if (maintenanceGuideStep === 1) {
         setMaintenanceGuideStep(2);
       }
+    } catch (error) {
+      console.error("Failed to check testimonial purchase eligibility:", error);
+      showUserAlert("Gagal memeriksa riwayat pembelian. Coba lagi ya.");
+    } finally {
+      setIsCheckingTestimonialPurchase(false);
     }
   };
 
@@ -151,6 +180,9 @@ export default function BookSpiritClient() {
       actor.userName === "Tokko Marketplace"
     );
   };
+
+  const isVerifiedCommentActor = (comment: BookStory["comments"][number]) =>
+    isVerifiedActor(comment) || comment.userEmail?.trim().toLowerCase() === "sobatpremium@gmail.com";
 
   const handleAddComment = async (storyId: string) => {
     const text = commentText[storyId]?.trim();
@@ -309,10 +341,10 @@ export default function BookSpiritClient() {
       className={`${styles.commentItem} ${isReply ? styles.commentReply : ""}`}
     >
       <div className={styles.commentHeaderRow}>
-        <p className={isVerifiedActor(comment) ? styles.commentAuthorVerified : styles.commentAuthor}>
+        <p className={isVerifiedCommentActor(comment) ? styles.commentAuthorVerified : styles.commentAuthor}>
           {comment.userName}
         </p>
-        {isVerifiedActor(comment) ? (
+        {isVerifiedCommentActor(comment) ? (
           <span className={styles.commentBadgeWrap} title="Terverifikasi">
             <VerifiedBadge />
           </span>
@@ -398,9 +430,10 @@ export default function BookSpiritClient() {
               type="button"
               className={styles.tellStoryButton}
               onClick={handleTellStory}
+              disabled={isCheckingTestimonialPurchase}
               data-maintenance-guide="write-testimoni"
             >
-              Isi Testimoni
+              {isCheckingTestimonialPurchase ? "Memeriksa pembelian..." : "Isi Testimoni"}
             </button>
             {session?.user ? (
               <button
@@ -897,6 +930,7 @@ export default function BookSpiritClient() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         onSubmitted={handleStorySubmitted}
+        availableProducts={purchasedTestimonialProducts}
       />
       {maintenanceGuideStep > 0 ? (
         <div

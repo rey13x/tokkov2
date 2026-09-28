@@ -6,11 +6,16 @@ import { deleteStoryReel, updateStoryReel } from "@/server/store-data";
 const updateSchema = z.object({
   title: z.string().min(1).max(120).optional(),
   description: z.string().max(10000).optional(),
+  author: z.string().max(120).optional(),
+  location: z.string().max(160).optional(),
+  publishedAt: z.string().datetime().optional(),
   mediaGallery: z.array(
     z.object({
       url: z.string().max(3000000),
       type: z.enum(["image", "video", "gif"]).optional(),
       alt: z.string().max(200).optional(),
+      title: z.string().max(200).optional(),
+      description: z.string().max(2000).optional(),
       linkUrl: z.string().max(3000000).optional(),
     }),
   ).optional(),

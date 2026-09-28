@@ -10,6 +10,7 @@ import {
   listDonationActivities,
 } from "@/server/store-data";
 import type { StoreStoryReel } from "@/types/store";
+import { findStoryReelBySlug } from "@/lib/story-reel";
 
 export async function GET(request: Request) {
   try {
@@ -17,6 +18,15 @@ export async function GET(request: Request) {
     const storyReelId = params.get("storyReelId")?.trim();
     if (storyReelId) {
       const storyReel = (await listStoryReels() as StoreStoryReel[]).find((item) => item.id === storyReelId) ?? null;
+      return NextResponse.json(
+        { storyReel },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    const storyReelSlug = params.get("storyReelSlug")?.trim();
+    if (storyReelSlug) {
+      const activeStoryReels = (await listStoryReels() as StoreStoryReel[]).filter((item) => item.isActive);
+      const storyReel = findStoryReelBySlug(activeStoryReels, storyReelSlug);
       return NextResponse.json(
         { storyReel },
         { headers: { "Cache-Control": "no-store" } },

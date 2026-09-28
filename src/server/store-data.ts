@@ -8,6 +8,7 @@ import type {
   PortfolioItem,
   HomepageConfig,
   StoreInformation,
+  StoreVoucher,
   StoreMarqueeItem,
   StoreOrderDetail,
   StoreStoryReel,
@@ -69,6 +70,8 @@ import {
 } from "@/server/db";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
 import { resolveMediaUrl } from "@/lib/media";
+import { hasStoryReelContentChanged } from "@/lib/story-reel";
+import { getTestimonialPurchasedProducts } from "@/lib/testimonial-purchases";
 
 const now = () => Date.now();
 const ORDER_TAX_AMOUNT = 500;
@@ -292,10 +295,24 @@ function mapStoryReelDoc(
       }))
     : [];
 
+  const dateToIso = (value: unknown, fallback: unknown = now()) => {
+    const timestamp = typeof value === "number" ? value : new Date(String(value ?? "")).getTime();
+    const fallbackTimestamp = typeof fallback === "number" ? fallback : new Date(String(fallback ?? "")).getTime();
+    return new Date(Number.isFinite(timestamp) ? timestamp : fallbackTimestamp).toISOString();
+  };
+  const createdAt = dateToIso(data?.createdAt);
+  const editedAt = data?.editedAt === null || data?.editedAt === undefined
+    ? null
+    : dateToIso(data.editedAt);
+
   return {
     id,
     title: String(data?.title ?? ""),
     description: String(data?.description ?? ""),
+    author: String(data?.author ?? ""),
+    location: String(data?.location ?? ""),
+    publishedAt: dateToIso(data?.publishedAt, createdAt),
+    editedAt,
     mediaGallery,
     linkUrl: String(data?.linkUrl ?? ""),
     isActive: Boolean(data?.isActive ?? true),
@@ -751,6 +768,137 @@ export async function listInformations() {
     );
     return listInformationsDb();
   }
+}
+
+function normalizeVoucherRecord(raw: unknown): StoreVoucher | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const candidate = raw as Record<string, unknown>;
+  const code = String(candidate.code ?? "").trim();
+  if (!code) {
+    return null;
+  }
+
+  const percentage = Math.max(0, Number(candidate.percentage ?? 0));
+  const isActive = Boolean(candidate.isActive ?? true);
+  const validUntil = typeof candidate.validUntil === "string" ? candidate.validUntil : null;
+
+  return {
+    id: String(candidate.id ?? crypto.randomUUID()),
+    code: code.toUpperCase(),
+    description: String(candidate.description ?? ""),
+    percentage,
+    isActive: isActive && (!validUntil || new Date(validUntil).getTime() >= Date.now()),
+    validUntil,
+    createdAt: String(candidate.createdAt ?? new Date().toISOString()),
+  };
+}
+
+export async function listVouchers(): Promise<StoreVoucher[]> {
+  const raw = await getAppMetaValueDb("vouchers");
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const vouchers = Array.isArray(parsed) ? parsed.map((item) => normalizeVoucherRecord(item)).filter(Boolean) as StoreVoucher[] : [];
+    const activeVouchers = vouchers.map((voucher) => ({
+      ...voucher,
+      isActive: Boolean(voucher.isActive) && (!voucher.validUntil || new Date(voucher.validUntil).getTime() >= Date.now()),
+    }));
+    await upsertAppMetaValueDb("vouchers", JSON.stringify(activeVouchers));
+    return activeVouchers;
+  } catch {
+    return [];
+  }
+}
+
+export async function listActiveVouchers(): Promise<StoreVoucher[]> {
+  return (await listVouchers()).filter((voucher) => voucher.isActive);
+}
+
+export async function getVoucherByCode(code: string): Promise<StoreVoucher | null> {
+  const normalized = code.trim().toUpperCase();
+  if (!normalized) {
+    return null;
+  }
+
+  return (await listVouchers()).find((voucher) => voucher.code.toUpperCase() === normalized) ?? null;
+}
+
+export async function createVoucher(input: {
+  code: string;
+  description: string;
+  percentage: number;
+  validUntil: string | null;
+  isActive?: boolean;
+}) {
+  const current = await listVouchers();
+  const id = crypto.randomUUID();
+  const validUntil = input.validUntil && !Number.isNaN(new Date(input.validUntil).getTime())
+    ? new Date(input.validUntil).toISOString()
+    : null;
+  const next = {
+    id,
+    code: input.code.trim().toUpperCase(),
+    description: input.description.trim(),
+    percentage: Math.max(1, Math.min(100, Number(input.percentage ?? 0))),
+    validUntil,
+    isActive: (input.isActive !== undefined ? Boolean(input.isActive) : true) &&
+      (!validUntil || new Date(validUntil).getTime() > Date.now()),
+    createdAt: new Date().toISOString(),
+  } satisfies StoreVoucher;
+
+  const updated = [...current, next];
+  await upsertAppMetaValueDb("vouchers", JSON.stringify(updated));
+  return next;
+}
+
+export async function updateVoucher(
+  id: string,
+  input: Partial<{
+    code: string;
+    description: string;
+    percentage: number;
+    validUntil: string | null;
+    isActive: boolean;
+  }>,
+) {
+  const current = await listVouchers();
+  const index = current.findIndex((voucher) => voucher.id === id);
+  if (index < 0) {
+    return null;
+  }
+
+  const next = {
+    ...current[index],
+    code: (input.code ?? current[index].code).trim().toUpperCase(),
+    description: (input.description ?? current[index].description).trim(),
+    percentage: Math.max(1, Math.min(100, Number(input.percentage ?? current[index].percentage))),
+    validUntil: input.validUntil === undefined
+      ? current[index].validUntil
+      : input.validUntil && !Number.isNaN(new Date(input.validUntil).getTime())
+        ? new Date(input.validUntil).toISOString()
+        : null,
+    isActive: input.isActive === undefined ? current[index].isActive : Boolean(input.isActive),
+  } satisfies StoreVoucher;
+
+  if (next.validUntil && new Date(next.validUntil).getTime() <= Date.now()) {
+    next.isActive = false;
+  }
+
+  const updated = current.map((voucher) => voucher.id === id ? next : voucher);
+  await upsertAppMetaValueDb("vouchers", JSON.stringify(updated));
+  return next;
+}
+
+export async function deleteVoucher(id: string) {
+  const current = await listVouchers();
+  const filtered = current.filter((voucher) => voucher.id !== id);
+  await upsertAppMetaValueDb("vouchers", JSON.stringify(filtered));
 }
 
 export async function listActiveInformations() {
@@ -1326,6 +1474,9 @@ export async function listStoryReels() {
 export async function createStoryReel(input: {
   title: string;
   description: string;
+  author?: string;
+  location?: string;
+  publishedAt?: string;
   mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
   linkUrl: string;
   isActive: boolean;
@@ -1347,6 +1498,10 @@ export async function createStoryReel(input: {
     await firestore.collection("storyReels").doc(id).set({
       title: input.title.trim(),
       description: input.description.trim(),
+      author: input.author?.trim() ?? "",
+      location: input.location?.trim() ?? "",
+      publishedAt: input.publishedAt ?? new Date(createdAt).toISOString(),
+      editedAt: null,
       mediaGallery,
       linkUrl: input.linkUrl.trim(),
       isActive: Boolean(input.isActive),
@@ -1369,6 +1524,9 @@ export async function updateStoryReel(
   input: Partial<{
     title: string;
     description: string;
+    author: string;
+    location: string;
+    publishedAt: string;
     mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
     linkUrl: string;
     isActive: boolean;
@@ -1387,20 +1545,29 @@ export async function updateStoryReel(
       return null;
     }
 
+    const currentStoryReel = mapStoryReelDoc(current.id, current.data() as Record<string, unknown>);
     const nextMediaGallery = input.mediaGallery === undefined
       ? undefined
       : input.mediaGallery.map((item) => ({
           ...item,
           url: resolveMediaUrl(item.url),
         }));
+    const contentChanged = hasStoryReelContentChanged(currentStoryReel, {
+      ...input,
+      ...(nextMediaGallery !== undefined ? { mediaGallery: nextMediaGallery } : {}),
+    });
 
     await ref.update({
       ...(input.title !== undefined ? { title: input.title.trim() } : {}),
       ...(input.description !== undefined ? { description: input.description.trim() } : {}),
+      ...(input.author !== undefined ? { author: input.author.trim() } : {}),
+      ...(input.location !== undefined ? { location: input.location.trim() } : {}),
+      ...(input.publishedAt !== undefined ? { publishedAt: input.publishedAt } : {}),
       ...(nextMediaGallery !== undefined ? { mediaGallery: nextMediaGallery } : {}),
       ...(input.linkUrl !== undefined ? { linkUrl: input.linkUrl.trim() } : {}),
       ...(input.isActive !== undefined ? { isActive: Boolean(input.isActive) } : {}),
       ...(input.sortOrder !== undefined ? { sortOrder: Math.max(0, Math.floor(input.sortOrder)) } : {}),
+      ...(contentChanged ? { editedAt: now() } : {}),
       updatedAt: now(),
     });
 
@@ -1647,6 +1814,9 @@ export async function createOrder(input: {
     donationName?: string;
     donationMessage?: string;
   }>;
+  voucherCode?: string;
+  voucherPercentage?: number;
+  voucherDiscount?: number;
 }) {
   const firestore = getFirestoreOrNull();
   if (!firestore) {
@@ -1661,7 +1831,7 @@ export async function createOrder(input: {
       .filter((item) => item.productType !== "donation")
       .reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
     const tax = taxableSubtotal > 0 ? ORDER_TAX_AMOUNT : 0;
-    const total = subtotal + tax;
+    const total = Math.max(0, subtotal + tax - (input.voucherDiscount ?? 0));
 
     await firestore.collection("orders").doc(id).set({
       userId: input.userId,
@@ -1671,6 +1841,9 @@ export async function createOrder(input: {
       total,
       subtotal,
       tax,
+      voucherCode: input.voucherCode ?? null,
+      voucherPercentage: input.voucherPercentage ?? null,
+      voucherDiscount: input.voucherDiscount ?? 0,
       status: "process",
       cancelRequestStatus: "none",
       cancelRequestReason: "",
@@ -1846,6 +2019,9 @@ export async function listOrders(limit = 100) {
         userEmail: String(data.userEmail ?? ""),
         userPhone: String(data.userPhone ?? ""),
         total: Number(data.total ?? 0),
+        voucherCode: String(data.voucherCode ?? "") || undefined,
+        voucherPercentage: Number(data.voucherPercentage ?? 0) || undefined,
+        voucherDiscount: Number(data.voucherDiscount ?? 0),
         status: String(data.status ?? "new"),
         paymentMethod: data.paymentMethod as "static_qris" | "dynamic_qris" | undefined,
         qrImage: String(data.qrImage ?? ""),
@@ -1993,6 +2169,9 @@ export async function getOrderById(id: string) {
       userEmail: String(data.userEmail ?? ""),
       userPhone: String(data.userPhone ?? ""),
       total: Number(data.total ?? 0),
+      voucherCode: String(data.voucherCode ?? "") || undefined,
+      voucherPercentage: Number(data.voucherPercentage ?? 0) || undefined,
+      voucherDiscount: Number(data.voucherDiscount ?? 0),
       status: String(data.status ?? "new"),
       paymentMethod: data.paymentMethod as "static_qris" | "dynamic_qris" | undefined,
       qrImage: String(data.qrImage ?? ""),
@@ -2120,6 +2299,11 @@ export async function listOrdersWithItems(limit = 100) {
     );
     return listOrdersWithItemsDb(limit);
   }
+}
+
+export async function listTestimonialPurchasedProducts(userEmail: string) {
+  const orders = await listOrdersWithItems(1000);
+  return getTestimonialPurchasedProducts(orders, userEmail);
 }
 
 export async function getOrderStatsLastHours(hours = 12) {

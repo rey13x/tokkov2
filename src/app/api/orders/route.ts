@@ -5,8 +5,10 @@ import {
   createOrder,
   getProductById,
   getMaintenanceSettings,
+  getVoucherByCode,
   listOrdersWithItems,
 } from "@/server/store-data";
+import { calculateVoucherDiscount, isVoucherCodeValid, normalizeVoucherCode } from "@/lib/voucher";
 import {
   findUserByEmail,
   findUserById,
@@ -32,6 +34,7 @@ const createOrderSchema = z.object({
     )
     .min(1),
   preOrder: z.boolean().optional(),
+  voucherCode: z.string().trim().max(40).optional(),
 });
 
 export const runtime = "nodejs";
@@ -105,9 +108,25 @@ export async function POST(request: Request) {
   const currentUser = await findUserById(session.user.id) ||
     (session.user.email ? await findUserByEmail(session.user.email.trim().toLowerCase()) : null);
 
+  if (session.user.role !== "admin" && !(currentUser?.phone ?? session.user.phone ?? "").trim()) {
+    return NextResponse.json(
+      { message: "Lengkapi nomor telepon di profil sebelum membuat pesanan.", redirectUrl: "/profil?requiredPhone=1&redirect=%2Ftroli" },
+      { status: 403 },
+    );
+  }
+
   try {
     const body = await request.json();
     const payload = createOrderSchema.parse(body);
+    const voucher = payload.voucherCode
+      ? await getVoucherByCode(normalizeVoucherCode(payload.voucherCode))
+      : null;
+    if (payload.voucherCode && !isVoucherCodeValid(voucher)) {
+      return NextResponse.json(
+        { message: "Kode Voucher udah gak berlaku sobat." },
+        { status: 400 },
+      );
+    }
 
     const enrichedItems: Array<{
       productId: string;
@@ -176,12 +195,22 @@ export async function POST(request: Request) {
       });
     }
 
+    const voucherEligibleSubtotal = enrichedItems
+      .filter((item) => item.productType !== "donation")
+      .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    const voucherDiscount = voucher
+      ? calculateVoucherDiscount(voucherEligibleSubtotal, voucher)
+      : 0;
+
     const created = await createOrder({
       userId: currentUser?.id ?? session.user.id,
       userName: currentUser?.username || session.user.username || session.user.name || "User",
       userEmail: currentUser?.email ?? session.user.email ?? "-",
       userPhone: currentUser?.phone ?? session.user.phone ?? "",
       items: enrichedItems,
+      voucherCode: voucher?.code,
+      voucherPercentage: voucher?.percentage,
+      voucherDiscount,
     });
 
     const createdAt = new Date().toISOString();
@@ -193,6 +222,9 @@ export async function POST(request: Request) {
       userPhone: currentUser?.phone ?? session.user.phone ?? "",
       total: created.total,
       items: enrichedItems,
+      voucherCode: voucher?.code,
+      voucherPercentage: voucher?.percentage,
+      voucherDiscount,
     }).catch((notificationError) => {
       console.error("Telegram order notification failed:", notificationError);
       return null;

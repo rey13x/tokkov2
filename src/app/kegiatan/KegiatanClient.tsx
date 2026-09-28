@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { FiArrowLeft, FiChevronRight } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import WaitLoading from "@/components/ui/WaitLoading";
+import StoryReelMetadata from "@/components/StoryReelMetadata";
 import { fetchStoreData } from "@/lib/store-client";
+import { getStoryReelSlug } from "@/lib/story-reel";
 import type { StoreStoryReel } from "@/types/store";
 import styles from "./page.module.css";
 
@@ -57,7 +59,7 @@ export default function KegiatanClient() {
       </header>
 
       {loading ? <WaitLoading centered text="Tunggu ya Sobat, pastiin internet Sobat ada.." /> : null}
-      {!loading && visibleActivities.length === 0 ? <p className={styles.empty}>Belum ada kegiatan yang tersedia.</p> : null}
+      {!loading && visibleActivities.length === 0 ? <p className={styles.empty}>Belum ada Sobat News yang tersedia.</p> : null}
       <section className={styles.grid}>
         {visibleActivities.map((activity) => {
           const cover = activity.mediaGallery.find((media) => (media.url || media.linkUrl)?.trim()) ?? activity.mediaGallery[0];
@@ -73,13 +75,14 @@ export default function KegiatanClient() {
                   openDestination(destination);
                   return;
                 }
-                router.push(`/kegiatan/${activity.id}`);
+                router.push(`/sobatnews/${getStoryReelSlug(activity, visibleActivities)}`);
               }}
             >
               <div className={styles.imageWrap}>
                 <FlexibleMedia src={imageSrc} alt={cover?.alt || activity.title} fill className={styles.image} sizes="(max-width: 760px) 100vw, 50vw" unoptimized />
               </div>
               <div className={styles.cardBody}>
+                <StoryReelMetadata story={activity} />
                 <h2>{activity.title}</h2>
                 <p>{activity.description}</p>
                 <span className={styles.arrow}><FiChevronRight /></span>

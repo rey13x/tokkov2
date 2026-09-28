@@ -1730,6 +1730,12 @@ export default function StatusPemesananPage() {
                 <span>Akun: {order.userName}</span>
                 <span>Email: {order.userEmail}</span>
                 <span>HP: {order.userPhone || "-"}</span>
+                {order.voucherCode || Number(order.voucherDiscount ?? 0) > 0 ? (
+                  <span className={styles.voucherOrderNote}>
+                    Voucher {order.voucherCode ? `${order.voucherCode}${order.voucherPercentage ? ` (${order.voucherPercentage}%)` : ""}` : "digunakan"}
+                    {Number(order.voucherDiscount ?? 0) > 0 ? ` · potongan ${formatRupiah(Number(order.voucherDiscount))}` : ""}
+                  </span>
+                ) : null}
                 <strong>Total: {formatRupiah(order.total)}</strong>
                 <span>
                   Pembatalan:{" "}

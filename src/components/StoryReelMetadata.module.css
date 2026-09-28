@@ -1,0 +1,15 @@
+.metadata {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 10px;
+  color: #59657f;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.metadata strong {
+  color: #214ebd;
+  font-weight: 700;
+}

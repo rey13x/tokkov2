@@ -15,6 +15,7 @@ import type {
   StoreTestimonial,
 } from "@/types/store";
 import { resolveMediaUrl } from "@/lib/media";
+import { hasStoryReelContentChanged } from "@/lib/story-reel";
 import { getFirebaseFirestore } from "@/server/firebase-admin";
 
 const now = () => Date.now();
@@ -243,15 +244,25 @@ function mapStoryReel(row: Record<string, unknown>): StoreStoryReel {
     }
   }
 
+  const createdAt = new Date(Number(row.created_at ?? now())).toISOString();
+  const publishedAtValue = String(row.published_at ?? "");
+  const publishedAtDate = new Date(publishedAtValue);
+
   return {
     id: String(row.id),
     title: String(row.title ?? ""),
     description: String(row.description ?? ""),
+    author: String(row.author ?? ""),
+    location: String(row.location ?? ""),
+    publishedAt: Number.isNaN(publishedAtDate.getTime()) ? createdAt : publishedAtDate.toISOString(),
+    editedAt: row.edited_at === null || row.edited_at === undefined
+      ? null
+      : new Date(Number(row.edited_at)).toISOString(),
     mediaGallery,
     linkUrl: String(row.link_url ?? ""),
     isActive: Number(row.is_active ?? 1) === 1,
     sortOrder: Number(row.sort_order ?? 0),
-    createdAt: new Date(Number(row.created_at ?? now())).toISOString(),
+    createdAt,
   };
 }
 
@@ -700,6 +711,9 @@ export async function ensureDatabase() {
       await run(
         "ALTER TABLE orders ADD COLUMN stock_deducted_at TEXT",
       ).catch(() => {});
+      await run("ALTER TABLE orders ADD COLUMN voucher_code TEXT").catch(() => {});
+      await run("ALTER TABLE orders ADD COLUMN voucher_percentage INTEGER").catch(() => {});
+      await run("ALTER TABLE orders ADD COLUMN voucher_discount INTEGER NOT NULL DEFAULT 0").catch(() => {});
 
       await run(
         `CREATE TABLE IF NOT EXISTS testimonials (
@@ -782,10 +796,18 @@ export async function ensureDatabase() {
           link_url TEXT NOT NULL DEFAULT '',
           is_active INTEGER NOT NULL DEFAULT 1,
           sort_order INTEGER NOT NULL DEFAULT 0,
+          author TEXT NOT NULL DEFAULT '',
+          location TEXT NOT NULL DEFAULT '',
+          published_at TEXT,
+          edited_at INTEGER,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
       );
+      await run("ALTER TABLE story_reels ADD COLUMN author TEXT NOT NULL DEFAULT ''").catch(() => {});
+      await run("ALTER TABLE story_reels ADD COLUMN location TEXT NOT NULL DEFAULT ''").catch(() => {});
+      await run("ALTER TABLE story_reels ADD COLUMN published_at TEXT").catch(() => {});
+      await run("ALTER TABLE story_reels ADD COLUMN edited_at INTEGER").catch(() => {});
       await run(
         "ALTER TABLE marquees ADD COLUMN image_url TEXT NOT NULL DEFAULT '/assets/logo.png'",
       ).catch(() => {});
@@ -2173,6 +2195,9 @@ export async function getStoryReelById(id: string) {
 export async function createStoryReel(input: {
   title: string;
   description: string;
+  author?: string;
+  location?: string;
+  publishedAt?: string;
   mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
   linkUrl: string;
   isActive: boolean;
@@ -2187,12 +2212,15 @@ export async function createStoryReel(input: {
 
   await run(
     `INSERT INTO story_reels
-      (id, title, description, media_gallery, link_url, is_active, sort_order, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, title, description, author, location, published_at, edited_at, media_gallery, link_url, is_active, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.title.trim(),
       input.description.trim(),
+      input.author?.trim() ?? "",
+      input.location?.trim() ?? "",
+      input.publishedAt ?? new Date().toISOString(),
       JSON.stringify(mediaGallery),
       input.linkUrl.trim(),
       Number(input.isActive),
@@ -2210,6 +2238,9 @@ export async function updateStoryReel(
   input: Partial<{
     title: string;
     description: string;
+    author: string;
+    location: string;
+    publishedAt: string;
     mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
     linkUrl: string;
     isActive: boolean;
@@ -2228,14 +2259,27 @@ export async function updateStoryReel(
         ...item,
         url: resolveMediaUrl(item.url),
       }));
+  const contentChanged = hasStoryReelContentChanged(current, {
+    ...input,
+    ...(input.mediaGallery !== undefined ? { mediaGallery: nextMediaGallery } : {}),
+  });
+  const nextTitle = input.title?.trim() ?? current.title;
+  const nextDescription = input.description?.trim() ?? current.description;
+  const nextAuthor = input.author?.trim() ?? current.author;
+  const nextLocation = input.location?.trim() ?? current.location;
+  const nextPublishedAt = input.publishedAt ?? current.publishedAt;
 
   await run(
     `UPDATE story_reels
-     SET title = ?, description = ?, media_gallery = ?, link_url = ?, is_active = ?, sort_order = ?, updated_at = ?
+     SET title = ?, description = ?, author = ?, location = ?, published_at = ?, edited_at = ?, media_gallery = ?, link_url = ?, is_active = ?, sort_order = ?, updated_at = ?
      WHERE id = ?`,
     [
-      input.title?.trim() ?? current.title,
-      input.description?.trim() ?? current.description,
+      nextTitle,
+      nextDescription,
+      nextAuthor,
+      nextLocation,
+      nextPublishedAt,
+      contentChanged ? now() : current.editedAt ? new Date(current.editedAt).getTime() : null,
       JSON.stringify(nextMediaGallery),
       input.linkUrl === undefined ? current.linkUrl : input.linkUrl.trim(),
       input.isActive === undefined ? Number(current.isActive) : Number(input.isActive),
@@ -2317,6 +2361,9 @@ export async function createOrder(input: {
     donationName?: string;
     donationMessage?: string;
   }>;
+  voucherCode?: string;
+  voucherPercentage?: number;
+  voucherDiscount?: number;
 }) {
   await ensureDatabase();
   const id = randomId();
@@ -2324,13 +2371,13 @@ export async function createOrder(input: {
   const taxableSubtotal = input.items
     .filter((item) => item.productType !== "donation")
     .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-  const total = subtotal + (taxableSubtotal > 0 ? 500 : 0);
+  const total = Math.max(0, subtotal + (taxableSubtotal > 0 ? 500 : 0) - (input.voucherDiscount ?? 0));
 
   await run(
     `INSERT INTO orders
-      (id, user_id, user_name, user_email, user_phone, total, status, cancel_request_status, cancel_request_reason, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'process', 'none', '', ?)`,
-    [id, input.userId, input.userName, input.userEmail, input.userPhone, total, now()],
+      (id, user_id, user_name, user_email, user_phone, total, status, cancel_request_status, cancel_request_reason, created_at, voucher_code, voucher_percentage, voucher_discount)
+     VALUES (?, ?, ?, ?, ?, ?, 'process', 'none', '', ?, ?, ?, ?)`,
+    [id, input.userId, input.userName, input.userEmail, input.userPhone, total, now(), input.voucherCode ?? null, input.voucherPercentage ?? null, input.voucherDiscount ?? 0],
   );
 
   for (const item of input.items) {
@@ -2504,6 +2551,9 @@ export async function listOrders(limit = 100) {
       userEmail: String(data.user_email),
       userPhone: String(data.user_phone ?? ""),
       total: Number(data.total),
+      voucherCode: String(data.voucher_code ?? "") || undefined,
+      voucherPercentage: Number(data.voucher_percentage ?? 0) || undefined,
+      voucherDiscount: Number(data.voucher_discount ?? 0),
       status: String(data.status),
       cancelRequestStatus:
         String(data.cancel_request_status ?? "none") as "none" | "requested" | "confirmed",
@@ -2620,6 +2670,9 @@ export async function getOrderById(id: string) {
     userEmail: String(row.user_email),
     userPhone: String(row.user_phone ?? ""),
     total: Number(row.total ?? 0),
+    voucherCode: String(row.voucher_code ?? "") || undefined,
+    voucherPercentage: Number(row.voucher_percentage ?? 0) || undefined,
+    voucherDiscount: Number(row.voucher_discount ?? 0),
     status: String(row.status ?? "new"),
     cancelRequestStatus:
       String(row.cancel_request_status ?? "none") as "none" | "requested" | "confirmed",

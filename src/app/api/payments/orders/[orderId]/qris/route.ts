@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerAuthSession } from "@/server/auth";
 import { createDynamicQRCode } from "@/server/payment";
-import { getOrderById, listOrderItemsByOrderId, updateOrderPayment } from "@/server/store-data";
-
-const ORDER_TAX_AMOUNT = 500;
+import { getOrderById, updateOrderPayment } from "@/server/store-data";
+import { findUserById } from "@/server/db";
 
 export async function POST(
   _request: NextRequest,
@@ -23,22 +22,18 @@ export async function POST(
     if (order.userId !== session.user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const user = await findUserById(session.user.id);
+    if (session.user.role !== "admin" && !(user?.phone ?? session.user.phone ?? "").trim()) {
+      return NextResponse.json(
+        { error: "Lengkapi nomor telepon di profil sebelum melanjutkan pembayaran.", redirectUrl: "/profil?requiredPhone=1&redirect=%2Ftroli" },
+        { status: 403 },
+      );
+    }
     if (["paid", "sent"].includes(order.status)) {
       return NextResponse.json({ error: "Order ini sudah dibayar." }, { status: 409 });
     }
 
-    const items = await listOrderItemsByOrderId(orderId);
-    const calculatedSubtotal = items.reduce((sum, item) => {
-      const unitPrice = item.productType === "donation"
-        ? item.donationAmount ?? item.unitPrice
-        : item.unitPrice;
-      return sum + unitPrice * item.quantity;
-    }, 0);
-    const calculatedTaxableSubtotal = items
-      .filter((item) => item.productType !== "donation")
-      .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-    const calculatedTotal = calculatedSubtotal + (calculatedTaxableSubtotal > 0 ? ORDER_TAX_AMOUNT : 0);
-    const paymentAmount = Math.round(calculatedTotal > 0 ? calculatedTotal : order.total);
+    const paymentAmount = Math.max(0, Math.round(Number(order.total ?? 0)));
 
     const qrResponse = await createDynamicQRCode({
       userId: session.user.id,

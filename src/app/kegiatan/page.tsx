@@ -1,5 +1,5 @@
-import KegiatanClient from "./KegiatanClient";
+import { redirect } from "next/navigation";
 
 export default function KegiatanPage() {
-  return <KegiatanClient />;
+  redirect("/sobatnews");
 }

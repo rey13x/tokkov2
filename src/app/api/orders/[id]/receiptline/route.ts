@@ -83,10 +83,15 @@ export async function GET(_request: Request, context: { params: Params }) {
 
     const rows = items.map((item) => `<tr><td>${escapeHtml(item.productName)}</td><td>${item.quantity}</td><td>${formatRupiah(item.unitPrice)}</td><td>${formatRupiah(item.unitPrice * item.quantity)}</td></tr>`).join("");
     const total = Number(order.total ?? 0);
+    const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
     const taxableSubtotal = items
       .filter((item) => item.productType !== "donation")
       .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
     const tax = taxableSubtotal > 0 ? 500 : 0;
+    const voucherDiscount = Math.max(0, Number(order.voucherDiscount ?? subtotal + tax - total));
+    const voucherCodeLine = order.voucherCode
+      ? `<div class="voucher">KODE VOUCHER: ${escapeHtml(order.voucherCode)}${order.voucherPercentage ? ` (${order.voucherPercentage}%)` : ""}</div>`
+      : "";
     const qr = await receiptlineQr(order.id);
     const logoUrl = "/assets/maintenancelogo.jpg";
     const signatureUrl = "/assets/TTDev-trans.png";
@@ -147,10 +152,10 @@ body{margin:0;background:#edf0f4;color:#111;font-family:Georgia,"Times New Roman
 
     const styledHtml = html.replace(/<script>[\s\S]*?<\/script>/gi, "").replace(
       "</style>",
-      "@page{size:A4 portrait;margin:0}body{font-family:Arial,\"Helvetica Neue\",sans-serif}.receipt{width:min(420px,100%);padding:24px 22px}.brand img{width:84px;height:84px;border-radius:50%;object-fit:cover}.brand h1{font-family:Arial,\"Helvetica Neue\",sans-serif;font-weight:800}.qr{width:240px;height:240px;transform:translate(-8px,10px)}.qr svg{width:240px;height:240px}.founder img{width:130px;height:60px}.tax{margin-top:10px;text-align:right;color:#5d6674;font-size:14px}.total{margin-top:6px}</style>",
+      "@page{size:A4 portrait;margin:0}body{font-family:Arial,\"Helvetica Neue\",sans-serif}.receipt{width:min(420px,100%);padding:24px 22px}.brand img{width:84px;height:84px;border-radius:50%;object-fit:cover}.brand h1{font-family:Arial,\"Helvetica Neue\",sans-serif;font-weight:800}.qr{width:240px;height:240px;transform:translate(-8px,10px)}.qr svg{width:240px;height:240px}.founder img{width:130px;height:60px}.subtotal,.voucher,.discount,.tax{margin-top:8px;text-align:right;color:#5d6674;font-size:14px}.voucher{font-weight:700;color:#214ebd}.discount{color:#15803d}.total{margin-top:6px}</style>",
     ).replace(
       '<div class="total">TOTAL:',
-      `<div class="tax">PAJAK: ${formatRupiah(tax)}</div><div class="total">TOTAL:`,
+      `<div class="subtotal">SUBTOTAL: ${formatRupiah(subtotal)}</div>${voucherCodeLine}${voucherDiscount > 0 ? `<div class="discount">DISKON VOUCHER: -${formatRupiah(voucherDiscount)}</div>` : ""}<div class="tax">PAJAK: ${formatRupiah(tax)}</div><div class="total">TOTAL:`,
     );
     return new NextResponse(styledHtml, { headers: { "Content-Type": "text/html; charset=utf-8", "Content-Disposition": `attachment; filename="tokkomarketplace-struk-${order.id}.html"`, "Cache-Control": "no-store" } });
   } catch (error) {

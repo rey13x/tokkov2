@@ -6,11 +6,16 @@ import { createStoryReel, listStoryReels } from "@/server/store-data";
 const storyReelSchema = z.object({
   title: z.string().min(1).max(120),
   description: z.string().max(10000).default(""),
+  author: z.string().max(120).default(""),
+  location: z.string().max(160).default(""),
+  publishedAt: z.string().datetime().optional(),
   mediaGallery: z.array(
     z.object({
       url: z.string().max(3000000),
       type: z.enum(["image", "video", "gif"]).optional(),
       alt: z.string().max(200).optional(),
+      title: z.string().max(200).optional(),
+      description: z.string().max(2000).optional(),
       linkUrl: z.string().max(3000000).optional(),
     }),
   ).default([]),

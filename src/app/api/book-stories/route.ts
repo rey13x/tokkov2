@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerAuthSession } from "@/server/auth";
-import { createBookStory } from "@/server/store-data";
+import { createBookStory, listTestimonialPurchasedProducts } from "@/server/store-data";
 import { findUserById } from "@/server/db";
 
 const submitStorySchema = z.object({
@@ -38,6 +38,30 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const payload = submitStorySchema.parse(body);
+    const purchasedProducts = session.user.role === "admin"
+      ? null
+      : await listTestimonialPurchasedProducts(session.user.email);
+
+    if (purchasedProducts && purchasedProducts.length === 0) {
+      return NextResponse.json(
+        { message: "Kamu belum beli produk, Sobat." },
+        { status: 403 },
+      );
+    }
+
+    const linkedProducts = purchasedProducts
+      ? (payload.linkedProducts ?? []).map((product) => {
+          const purchasedProduct = purchasedProducts.find((item) => item.id === product.id);
+          return purchasedProduct ? { id: purchasedProduct.id, name: purchasedProduct.name } : null;
+        })
+      : payload.linkedProducts;
+
+    if (linkedProducts?.some((product) => product === null)) {
+      return NextResponse.json(
+        { message: "Produk testimoni harus berasal dari produk yang pernah kamu beli." },
+        { status: 400 },
+      );
+    }
 
     // Get user avatar URL from database
     const user = await findUserById(session.user.id).catch(() => null);
@@ -53,7 +77,7 @@ export async function POST(request: Request) {
       story: payload.story,
       photos: payload.photos,
       rating: payload.rating,
-      linkedProducts: payload.linkedProducts,
+      linkedProducts: linkedProducts as typeof payload.linkedProducts,
       elements: payload.elements,
     });
 

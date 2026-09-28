@@ -30,6 +30,14 @@ export async function POST(request: Request) {
     return auth.response;
   }
 
+  if (
+    process.env.FIREBASE_WEB_PUSH_ENABLED !== "1" ||
+    process.env.DISABLE_FIREBASE_NOTIFICATIONS === "1" ||
+    process.env.TELEGRAM_ONLY_NOTIFICATIONS === "1"
+  ) {
+    return NextResponse.json({ message: "Notifikasi FCM sedang dinonaktifkan." }, { status: 410 });
+  }
+
   try {
     const body = await request.json();
     const title = String(body.title || "").trim();
@@ -46,14 +54,12 @@ export async function POST(request: Request) {
     }
 
     const sendResults = await Promise.all(
-      subscribers.map(async (subscriber) => {
-        return sendFirebaseWebPushMessage({
-          token: subscriber.pushSubscription,
-          title,
-          body: message,
-          url,
-        });
-      }),
+      subscribers.map(async (subscriber) => sendFirebaseWebPushMessage({
+        token: subscriber.pushSubscription,
+        title,
+        body: message,
+        url,
+      })),
     );
 
     const sentCount = sendResults.filter(Boolean).length;

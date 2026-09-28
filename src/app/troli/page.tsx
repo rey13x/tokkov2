@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { withSobat } from "@/lib/user-message";
+import { calculateVoucherDiscount, normalizeVoucherCode } from "@/lib/voucher";
 import type { CallBackProps, Step } from "react-joyride";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import AppOnboardingJoyride from "@/components/onboarding/AppOnboardingJoyride";
@@ -88,6 +89,9 @@ export default function CartPage() {
   const setError = (value: unknown) => setRawError(withSobat(value));
   const setSuccess = (value: unknown) => setRawSuccess(withSobat(value));
   const [paymentConsent, setPaymentConsent] = useState(false);
+  const [voucherCode, setVoucherCode] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; description: string; percentage: number } | null>(null);
+  const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
   const [invalidDonationNameSlug, setInvalidDonationNameSlug] = useState<string | null>(null);
   const [isCartTutorialRunning, setIsCartTutorialRunning] = useState(false);
   const [cartTutorialStage, setCartTutorialStage] = useState<OnboardingStage | null>(null);
@@ -271,7 +275,10 @@ export default function CartPage() {
     .filter((item) => item.selected && item.product.productType !== "donation")
     .reduce((total, item) => total + item.lineTotal, 0);
   const tax = taxableSubtotal > 0 ? TAX_AMOUNT : 0;
-  const total = subtotal + tax;
+  const voucherDiscount = appliedVoucher
+    ? calculateVoucherDiscount(taxableSubtotal, { ...appliedVoucher, isActive: true, validUntil: null })
+    : 0;
+  const total = Math.max(0, subtotal + tax - voucherDiscount);
   const hasSelectedDonation = detailedItems.some(
     (item) => item.selected && item.product.productType === "donation",
   );
@@ -304,6 +311,41 @@ export default function CartPage() {
         item.slug === slug ? { ...item, selected: !item.selected } : item,
       ),
     );
+  };
+
+  const onApplyVoucher = async () => {
+    const code = normalizeVoucherCode(voucherCode);
+    setError("");
+    setSuccess("");
+    if (!code) {
+      setError("Masukkan kode voucher terlebih dahulu.");
+      return;
+    }
+
+    setIsApplyingVoucher(true);
+    try {
+      const response = await fetch("/api/vouchers/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const result = await response.json() as {
+        message?: string;
+        voucher?: { code: string; description: string; percentage: number };
+      };
+      if (!response.ok || !result.voucher) {
+        setAppliedVoucher(null);
+        setError(result.message ?? "Kode Voucher tidak dapat digunakan sobat.");
+        return;
+      }
+      setVoucherCode(result.voucher.code);
+      setAppliedVoucher(result.voucher);
+      setSuccess(`Voucher ${result.voucher.code} berhasil digunakan.`);
+    } catch {
+      setError("Gagal memeriksa voucher. Coba lagi ya.");
+    } finally {
+      setIsApplyingVoucher(false);
+    }
   };
 
   const onOpenStatusPage = () => {
@@ -435,6 +477,7 @@ export default function CartPage() {
             donationName: item.product.productType === "donation" ? item.donationName : undefined,
             donationMessage: item.product.productType === "donation" ? item.donationMessage : undefined,
           })),
+          voucherCode: appliedVoucher?.code,
         }),
       });
 
@@ -786,6 +829,33 @@ export default function CartPage() {
               <span>Pajak</span>
               <strong>{formatRupiah(tax)}</strong>
             </div>
+            <div className={styles.voucherForm}>
+              <label htmlFor="cart-voucher-code">Kode Voucher</label>
+              <div className={styles.voucherInputRow}>
+                <input
+                  id="cart-voucher-code"
+                  value={voucherCode}
+                  onChange={(event) => {
+                    setVoucherCode(event.target.value);
+                    if (appliedVoucher && normalizeVoucherCode(event.target.value) !== appliedVoucher.code) {
+                      setAppliedVoucher(null);
+                    }
+                  }}
+                  placeholder="Masukkan kode"
+                  autoComplete="off"
+                />
+                <button type="button" onClick={onApplyVoucher} disabled={isApplyingVoucher || !voucherCode.trim()}>
+                  {appliedVoucher ? "Terapkan lagi" : isApplyingVoucher ? "Memeriksa..." : "Pakai"}
+                </button>
+              </div>
+              {appliedVoucher ? <p>{appliedVoucher.description} ({appliedVoucher.percentage}%)</p> : null}
+            </div>
+            {voucherDiscount > 0 ? (
+              <div className={styles.summaryRow}>
+                <span>Diskon Voucher</span>
+                <strong>-{formatRupiah(voucherDiscount)}</strong>
+              </div>
+            ) : null}
             <hr />
             <div className={styles.summaryRowTotal}>
               <span>Total</span>

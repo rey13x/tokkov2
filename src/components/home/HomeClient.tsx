@@ -20,6 +20,8 @@ import {
 } from "react-icons/fi";
 import bagasPhoto from "@/app/assets/Bagas.jpg";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
+import StoryReelMetadata from "@/components/StoryReelMetadata";
+import { getStoryReelSlug } from "@/lib/story-reel";
 import ProductCard from "@/components/home/ProductCard";
 import PremiumMarquee from "@/components/home/PremiumMarquee";
 import WaitLoading from "@/components/ui/WaitLoading";
@@ -1170,10 +1172,10 @@ export default function HomeClient() {
       ) : null} */}
 
       {visibleActivities.length > 0 ? (
-        <section className={styles.section} data-animate="section" id="kegiatan">
+        <section className={styles.section} data-animate="section" id="sobatnews">
           <div className={styles.sectionHead}>
             <h2 className={styles.shimmerTitle}>Sobat News</h2>
-            <Link href="/kegiatan" className={styles.inlineAction}>
+            <Link href="/sobatnews" className={styles.inlineAction}>
               Lihat semua <span>{">"}</span>
             </Link>
           </div>
@@ -1181,7 +1183,7 @@ export default function HomeClient() {
             {visibleActivities.map((activity) => {
               const cover = activity.mediaGallery.find((media) => media.url);
               return (
-                <Link key={activity.id} href={`/kegiatan/${activity.id}`} className={styles.activityCard}>
+                <Link key={activity.id} href={`/sobatnews/${getStoryReelSlug(activity, visibleActivities)}`} className={styles.activityCard}>
                   <div
                     className={styles.activityImageWrap}
                     onClick={(event) => {
@@ -1201,6 +1203,7 @@ export default function HomeClient() {
                     />
                   </div>
                   <div className={styles.activityBody}>
+                    <StoryReelMetadata story={activity} />
                     <h3>{activity.title}</h3>
                     <p>{activity.description}</p>
                     <span className={styles.activityArrow} aria-hidden="true"><FiChevronRight /></span>
@@ -1307,8 +1310,8 @@ export default function HomeClient() {
                     <FiChevronRight />
                   </span>
                 </button>
-                <button type="button" onClick={() => { router.push("/kegiatan"); closeMenu(); }} data-menu-item>
-                  Kegiatan
+                <button type="button" onClick={() => { router.push("/sobatnews"); closeMenu(); }} data-menu-item>
+                  Sobat News
                   <span>
                     <FiChevronRight />
                   </span>

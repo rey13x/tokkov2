@@ -45,7 +45,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const isApplyingRef = useRef(false); // Prevent concurrent job applications
   const lastApplyTimeRef = useRef(0); // Rate limiting
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const { isMaintenanceEnabled } = useMaintenanceMode();
 
   const [quantity, setQuantity] = useState(1);
@@ -116,7 +116,12 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   }, []);
 
   useEffect(() => {
-    if (status !== "authenticated" || hasHandledPendingRef.current || typeof window === "undefined") {
+    if (
+      status !== "authenticated" ||
+      hasHandledPendingRef.current ||
+      typeof window === "undefined" ||
+      (session?.user?.role !== "admin" && !session?.user?.phone?.trim())
+    ) {
       return;
     }
 
@@ -190,7 +195,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     } catch {
       window.sessionStorage.removeItem(PENDING_CART_ACTION_KEY);
     }
-  }, [status, product.slug, product.id, router]);
+  }, [status, session?.user?.phone, session?.user?.role, product.slug, product.id, router]);
 
   const onAddToCart = (redirectToCart = false, requestedDonationAmount?: number) => {
     if (isMaintenanceEnabled) {
@@ -206,6 +211,22 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     const safeDonationAmount = product.productType === "donation" ? requestedDonationAmount : undefined;
     if (product.productType === "donation" && (!safeDonationAmount || safeDonationAmount < 1)) {
       setDonationError("Masukkan jumlah donasi terlebih dahulu.");
+      return;
+    }
+
+    if (status === "authenticated" && session?.user?.role !== "admin" && !session?.user?.phone?.trim()) {
+      window.sessionStorage.setItem(
+        PENDING_CART_ACTION_KEY,
+        JSON.stringify({
+          slug: product.slug,
+          quantity,
+          donationAmount: safeDonationAmount,
+          donationName: "",
+          redirectToCart,
+        }),
+      );
+      const redirect = `${window.location.pathname}${window.location.search}`;
+      router.replace(`/profil?requiredPhone=1&redirect=${encodeURIComponent(redirect)}`);
       return;
     }
 

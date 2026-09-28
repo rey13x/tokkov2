@@ -442,6 +442,14 @@
   gap: 8px;
 }
 
+.productCrudForm .formActions > button:not(.secondaryButton) {
+  background: #214ebd;
+}
+
+.productCrudForm .formActions > button:not(.secondaryButton):hover:not(:disabled) {
+  background: #173d9a;
+}
+
 .secondaryButton {
   border: 1px solid #d1d8e8;
   border-radius: 999px;
@@ -1299,6 +1307,74 @@
   justify-self: center;
 }
 
+.voucherForm {
+  display: grid;
+  gap: 8px;
+}
+
+.voucherFields {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(180px, 1.4fr) minmax(100px, 0.55fr) minmax(200px, 1.1fr);
+  gap: 8px;
+}
+
+.voucherFields input {
+  min-width: 0;
+}
+
+.voucherActiveToggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  min-height: 24px;
+  color: #4b556e;
+  font-size: 0.78rem;
+}
+
+.voucherActiveToggle input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  min-height: 15px;
+  flex: 0 0 15px;
+  margin: 0;
+  padding: 0;
+  accent-color: #214ebd;
+}
+
+.voucherListItem {
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.voucherDetails {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.voucherDetails strong {
+  color: #1a2235;
+  font-size: 0.9rem;
+}
+
+.voucherDetails span,
+.voucherDetails small {
+  color: #5f6782;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.voucherRowActions {
+  flex: 0 0 auto;
+}
+
+.voucherHistoryTitle {
+  margin: 2px 0 -4px;
+  color: #1a2235;
+  font-size: 0.95rem;
+}
+
 .archivedLabel {
   display: block;
   color: #a33a22;
@@ -2000,6 +2076,20 @@
     align-items: stretch;
     gap: 12px;
     padding: 12px;
+  }
+
+  .listItem.voucherListItem {
+    align-items: stretch;
+  }
+
+  .voucherFields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .voucherRowActions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
   }
 
   .listPreview {

@@ -603,6 +603,53 @@
   gap: 8px;
 }
 
+.voucherForm {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 4px 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.voucherInputRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.voucherInputRow input {
+  min-width: 0;
+  height: 40px;
+  border: 1px solid #d8dce5;
+  border-radius: 999px;
+  padding: 0 10px;
+  font: inherit;
+}
+
+.voucherInputRow button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #1f426d;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.voucherInputRow button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.voucherForm p {
+  margin: 0;
+  color: #24734a;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
 .paymentPanel h4 {
   font-size: 1rem;
 }

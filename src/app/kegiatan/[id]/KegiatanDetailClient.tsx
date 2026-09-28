@@ -5,17 +5,18 @@ import { useParams, useRouter } from "next/navigation";
 import { FiArrowLeft } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import WaitLoading from "@/components/ui/WaitLoading";
+import StoryReelMetadata from "@/components/StoryReelMetadata";
 import type { StoreStoryReel } from "@/types/store";
 import styles from "./page.module.css";
 
 export default function KegiatanDetailClient() {
   const router = useRouter();
-  const params = useParams<{ id: string }>();
+  const params = useParams<{ slug: string }>();
   const [activity, setActivity] = useState<StoreStoryReel | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/store?storyReelId=${encodeURIComponent(params.id)}`, { cache: "no-store" })
+    fetch(`/api/store?storyReelSlug=${encodeURIComponent(params.slug)}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Gagal memuat kegiatan");
         const data = (await response.json()) as { storyReel?: StoreStoryReel | null };
@@ -23,7 +24,7 @@ export default function KegiatanDetailClient() {
       })
       .catch(() => setActivity(null))
       .finally(() => setLoading(false));
-  }, [params.id]);
+  }, [params.slug]);
 
   if (loading) {
     return <main className={styles.page}><WaitLoading centered text="Tunggu ya Sobat, pastiin internet Sobat ada.." /></main>;
@@ -85,6 +86,7 @@ export default function KegiatanDetailClient() {
             </div>
           );
         })}
+        <StoryReelMetadata story={activity} />
         {activity.linkUrl.trim() ? (
           <a className={styles.activityLinkButton} href={activity.linkUrl.trim()} target="_blank" rel="noreferrer noopener">
             {activity.mediaGallery.find((media) => (media.url || media.linkUrl)?.trim())?.title?.trim() || "Buka Link"}

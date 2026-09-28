@@ -118,6 +118,16 @@ export type StoreInformation = {
   createdAt: string;
 };
 
+export type StoreVoucher = {
+  id: string;
+  code: string;
+  description: string;
+  percentage: number;
+  isActive: boolean;
+  validUntil: string | null;
+  createdAt: string;
+};
+
 export type StoreTestimonial = {
   id: string;
   userId?: string;
@@ -198,6 +208,10 @@ export type StoreStoryReel = {
   id: string;
   title: string;
   description: string;
+  author: string;
+  location: string;
+  publishedAt: string;
+  editedAt: string | null;
   mediaGallery: StoreStoryMediaItem[];
   linkUrl: string;
   isActive: boolean;
@@ -289,6 +303,9 @@ export type OrderSummary = {
   userEmail: string;
   userPhone: string;
   total: number;
+  voucherCode?: string;
+  voucherPercentage?: number;
+  voucherDiscount?: number;
   status: string;
   items?: StoreOrderItem[];
   cancelRequestStatus?: "none" | "requested" | "confirmed";

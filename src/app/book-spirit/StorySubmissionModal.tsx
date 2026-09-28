@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { IoClose } from "react-icons/io5";
 import { FiCamera } from "react-icons/fi";
 import { MdStar } from "react-icons/md";
@@ -11,9 +11,10 @@ type Props = {
   isOpen: boolean;
   onClose: () => void;
   onSubmitted?: () => void;
+  availableProducts: Array<{ id: string; name: string }>;
 };
 
-export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: Props) {
+export default function StorySubmissionModal({ isOpen, onClose, onSubmitted, availableProducts }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setRawMessage] = useState("");
   const setMessage = (value: unknown) => setRawMessage(withSobat(value));
@@ -23,29 +24,9 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
   const [rating, setRating] = useState(0); // 0-5, 0 means disabled
   const [linkedProducts, setLinkedProducts] = useState<Array<{id: string; name: string}>>([]);
-  const [availableProducts, setAvailableProducts] = useState<Array<{id: string; name: string}>>([]);
   const [showProductPicker, setShowProductPicker] = useState(false);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    // Load available products
-    const loadProducts = async () => {
-      try {
-        const response = await fetch("/api/store", { cache: "no-store" });
-        if (response.ok) {
-          const data = (await response.json()) as { products?: Array<{ id: string; name: string; isActive?: boolean }> };
-          setAvailableProducts((data.products || []).filter((product) => product.isActive !== false));
-        }
-      } catch (error) {
-        console.error("Failed to load products:", error);
-      }
-    };
-    
-    if (isOpen) {
-      loadProducts();
-    }
-  }, [isOpen]);
 
   const applyEditorCommand = (command: string, value?: string) => {
     if (!editorRef.current) return;
@@ -146,9 +127,9 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
   };
 
   const addProduct = (product: {id: string; name: string}) => {
-    if (!linkedProducts.find(p => p.id === product.id)) {
-      setLinkedProducts([...linkedProducts, product]);
-    }
+    setLinkedProducts((current) => current.some((item) => item.id === product.id)
+      ? current
+      : [...current, product]);
     setShowProductPicker(false);
   };
 
@@ -430,13 +411,13 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
                   onClick={() => setRating(rating > 0 ? 0 : 1)}
                   style={{
                     padding: "6px 12px",
-                    border: `2px solid ${rating > 0 ? "#11151E" : "#e0e0e0"}`,
+                    border: `2px solid ${rating > 0 ? "#214ebd" : "#e0e0e0"}`,
                     borderRadius: "6px",
-                    background: rating > 0 ? "#11151E" : "transparent",
+                    background: rating > 0 ? "#214ebd" : "transparent",
                     cursor: "pointer",
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: rating > 0 ? "#11151E" : "#666",
+                    color: rating > 0 ? "#ffffff" : "#4b556e",
                     transition: "all 0.2s ease",
                   }}
                 >
@@ -470,62 +451,25 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
             {/* Product Picker Section */}
             <div className={styles.formSection}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                <label style={{ fontSize: "14px", fontWeight: 600 }}>Produk:</label>
+                    <label className={styles.productLabel}>Produk:</label>
                 <button
                   type="button"
                   onClick={() => setShowProductPicker(!showProductPicker)}
-                  style={{
-                    padding: "6px 12px",
-                    border: "2px solid #11151E",
-                    borderRadius: "6px",
-                    background: "#11151E",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#11151E",
-                    transition: "all 0.2s ease",
-                  }}
+                      className={styles.productPickerToggle}
                 >
                   {showProductPicker ? "- Tutup" : "+ Pilih Produk"}
                 </button>
               </div>
 
               {showProductPicker && availableProducts.length > 0 && (
-                <div style={{
-                  border: "1px solid #e0e0e0",
-                  borderRadius: "8px",
-                  padding: "12px",
-                  marginBottom: "12px",
-                  maxHeight: "200px",
-                  overflowY: "auto",
-                  background: "#f9f9f9",
-                }}>
+                <div className={styles.productPicker}>
                   {availableProducts.map((product) => (
                     <button
                       key={product.id}
                       type="button"
                       onClick={() => addProduct(product)}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        padding: "8px 12px",
-                        textAlign: "left",
-                        border: "1px solid #e0e0e0",
-                        borderRadius: "6px",
-                        marginBottom: "8px",
-                        background: "#fff",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease",
-                        fontSize: "13px",
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = "#11151E";
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#11151E";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = "#11151E";
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#e0e0e0";
-                      }}
+                      className={styles.productOption}
+                      aria-pressed={linkedProducts.some((item) => item.id === product.id)}
                     >
                       {product.name}
                     </button>
@@ -536,31 +480,13 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted }: P
               {linkedProducts.length > 0 && (
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                   {linkedProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        padding: "6px 10px",
-                        background: "#11151E",
-                        border: "1px solid #11151E",
-                        borderRadius: "16px",
-                        fontSize: "12px",
-                      }}
-                    >
+                    <div key={product.id} className={styles.linkedProductChip}>
                       <span>{product.name}</span>
                       <button
                         type="button"
                         onClick={() => removeProduct(product.id)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          padding: 0,
-                          fontSize: "16px",
-                          color: "#11151E",
-                        }}
+                        className={styles.removeLinkedProduct}
+                        aria-label={`Hapus ${product.name}`}
                       >
                         <IoClose />
                       </button>

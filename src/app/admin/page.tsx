@@ -34,6 +34,7 @@ type AdminSection =
   | "testimonials"
   | "testimonialComments"
   | "marquees"
+  | "vouchers"
   | "footerLinks"
   | "storyReels"
   | "bookStories"
@@ -55,6 +56,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "products", label: "Produk", desc: "CRUD produk" },
   { id: "informations", label: "Informasi", desc: "CRUD informasi" },
   { id: "marquees", label: "Logo Komoditas", desc: "CRUD logo komoditas" },
+  { id: "vouchers", label: "Voucher", desc: "CRUD voucher diskon" },
   { id: "footerLinks", label: "Footer Link", desc: "CRUD link footer" },
   { id: "storyReels", label: "Sobat News", desc: "CRUD berita dan update" },
   { id: "donationActivities", label: "Aktivitas Donasi", desc: "Pemasukan & pengeluaran" },
@@ -81,6 +83,7 @@ const LIMITED_ADMIN_SECTIONS = new Set<AdminSection>([
   "products",
   "informations",
   "marquees",
+  "vouchers",
   "footerLinks",
   "profilePhotos",
   "users",
@@ -135,6 +138,14 @@ const defaultMarqueeForm = {
   sortOrder: 0,
 };
 
+const defaultVoucherForm = {
+  code: "",
+  description: "",
+  percentage: 10,
+  validUntil: "",
+  isActive: true,
+};
+
 const defaultFooterLinkForm = {
   label: "",
   url: "",
@@ -145,6 +156,9 @@ const defaultFooterLinkForm = {
 const defaultStoryReelForm = {
   title: "",
   description: "",
+  author: "",
+  location: "",
+  publishedAt: "",
   mediaGallery: [] as Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>,
   linkUrl: "",
   buttonText: "",
@@ -193,6 +207,16 @@ function formatRupiahInput(value: string) {
     return "";
   }
   return new Intl.NumberFormat("id-ID").format(Number(digits));
+}
+
+function formatDateTimeLocal(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
 }
 
 function parseRupiahInput(value: string) {
@@ -297,6 +321,7 @@ function AdminManagementSection() {
     const [selectedCommentsToCopy, setSelectedCommentsToCopy] = useState<Set<string>>(new Set());
     const [targetTestimonialId, setTargetTestimonialId] = useState<string>("");
     const [marquees, setMarquees] = useState<StoreMarqueeItem[]>([]);
+    const [vouchers, setVouchers] = useState<Array<{ id: string; code: string; description: string; percentage: number; isActive: boolean; validUntil: string | null; createdAt: string }>>([]);
     const [footerLinks, setFooterLinks] = useState<FooterSocialLink[]>([]);
     const [storyReels, setStoryReels] = useState<StoreStoryReel[]>([]);
     const [orders, setOrders] = useState<OrderSummary[]>([]);
@@ -361,6 +386,8 @@ function AdminManagementSection() {
   const [testimonialEditId, setTestimonialEditId] = useState<string | null>(null);
   const [marqueeForm, setMarqueeForm] = useState(defaultMarqueeForm);
   const [marqueeEditId, setMarqueeEditId] = useState<string | null>(null);
+  const [voucherForm, setVoucherForm] = useState(defaultVoucherForm);
+  const [voucherEditId, setVoucherEditId] = useState<string | null>(null);
   const [footerLinkForm, setFooterLinkForm] = useState(defaultFooterLinkForm);
   const [footerLinkEditId, setFooterLinkEditId] = useState<string | null>(null);
   const [storyReelForm, setStoryReelForm] = useState(defaultStoryReelForm);
@@ -802,6 +829,11 @@ function AdminManagementSection() {
     setMarqueeForm(defaultMarqueeForm);
   };
 
+  const resetVoucherForm = () => {
+    setVoucherEditId(null);
+    setVoucherForm(defaultVoucherForm);
+  };
+
   const resetStoryReelForm = () => {
     setStoryReelEditId(null);
     setStoryReelForm(defaultStoryReelForm);
@@ -1112,6 +1144,15 @@ function AdminManagementSection() {
     }
     const result = (await response.json()) as { marquees: StoreMarqueeItem[] };
     setMarquees(result.marquees);
+  };
+
+  const loadVouchers = async () => {
+    const response = await fetch("/api/admin/vouchers", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Gagal ambil voucher");
+    }
+    const result = (await response.json()) as { vouchers: Array<{ id: string; code: string; description: string; percentage: number; isActive: boolean; validUntil: string | null; createdAt: string }> };
+    setVouchers(result.vouchers ?? []);
   };
 
   const loadFooterLinks = async () => {
@@ -1895,6 +1936,7 @@ function AdminManagementSection() {
       informations: loadInformations,
       testimonials: loadTestimonials,
       marquees: loadMarquees,
+      vouchers: loadVouchers,
       footerLinks: loadFooterLinks,
       storyReels: loadStoryReels,
       bookStories: async () => Promise.all([loadBookStories(), loadApprovedBookStories(), loadStoryReports()]),
@@ -2103,6 +2145,43 @@ function AdminManagementSection() {
       bumpPreview();
     } catch {
       setError("Gagal simpan logo komoditas.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onSaveVoucher = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const endpoint = voucherEditId ? `/api/admin/vouchers/${voucherEditId}` : "/api/admin/vouchers";
+      const method = voucherEditId ? "PATCH" : "POST";
+      const payload = {
+        ...voucherForm,
+        code: voucherForm.code.trim(),
+        description: voucherForm.description.trim(),
+        percentage: Number(voucherForm.percentage || 0),
+        validUntil: voucherForm.validUntil || null,
+      };
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        setError(result.message ?? "Gagal simpan voucher.");
+        return;
+      }
+
+      setMessage(voucherEditId ? "Voucher berhasil diperbarui." : "Voucher berhasil ditambahkan.");
+      resetVoucherForm();
+      await loadVouchers();
+    } catch {
+      setError("Gagal simpan voucher.");
     } finally {
       setIsLoading(false);
     }
@@ -2443,6 +2522,39 @@ function AdminManagementSection() {
     bumpPreview();
   };
 
+  const onDeleteVoucher = async (id: string) => {
+    if (!window.confirm("Yakin hapus voucher ini?")) {
+      return;
+    }
+    const response = await fetch(`/api/admin/vouchers/${id}`, { method: "DELETE" });
+    const result = (await response.json()) as { message?: string };
+    if (!response.ok) {
+      setError(result.message ?? "Gagal hapus voucher.");
+      return;
+    }
+    if (voucherEditId === id) {
+      resetVoucherForm();
+    }
+    await loadVouchers();
+    setMessage(result.message ?? "Voucher berhasil dihapus.");
+  };
+
+  const onToggleVoucherArchive = async (voucher: { id: string; isActive: boolean }) => {
+    const nextIsActive = !voucher.isActive;
+    const response = await fetch(`/api/admin/vouchers/${voucher.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: nextIsActive }),
+    });
+    const result = (await response.json()) as { message?: string };
+    if (!response.ok) {
+      setError(result.message ?? "Gagal ubah status voucher.");
+      return;
+    }
+    await loadVouchers();
+    setMessage(result.message ?? (nextIsActive ? "Voucher dipulihkan." : "Voucher di-archive."));
+  };
+
   const onToggleAllInformationArchive = async () => {
     if (informations.length === 0) {
       return;
@@ -2720,6 +2832,9 @@ function AdminManagementSection() {
       const payload = {
         title: storyReelForm.title.trim(),
         description: storyReelForm.description.trim(),
+        author: storyReelForm.author.trim(),
+        location: storyReelForm.location.trim(),
+        ...(storyReelForm.publishedAt ? { publishedAt: new Date(storyReelForm.publishedAt).toISOString() } : {}),
         mediaGallery: storyReelForm.mediaGallery
           .filter((item) => item.url.trim())
           .map((item, index) => index === 0 ? { ...item, title: storyReelForm.buttonText.trim() } : item),
@@ -2758,6 +2873,9 @@ function AdminManagementSection() {
     setStoryReelForm({
       title: storyReel.title,
       description: storyReel.description,
+      author: storyReel.author,
+      location: storyReel.location,
+      publishedAt: formatDateTimeLocal(storyReel.publishedAt || storyReel.createdAt),
       mediaGallery: storyReel.mediaGallery.length > 0 ? storyReel.mediaGallery : [{ url: "", type: "image", title: "", description: "" }],
       linkUrl: storyReel.linkUrl,
       buttonText: storyReel.mediaGallery[0]?.title || "",
@@ -4020,7 +4138,7 @@ function AdminManagementSection() {
             </button>
           </div>
 
-          <form className={styles.form} onSubmit={onSaveProduct}>
+          <form className={`${styles.form} ${styles.productCrudForm}`} onSubmit={onSaveProduct}>
             <input
               value={productForm.name}
               onChange={(event) =>
@@ -4637,6 +4755,81 @@ function AdminManagementSection() {
             ))}
           </div>
         </article>
+        ) : null}
+
+        {activeSection === "vouchers" ? (
+          <article className={styles.card}>
+            <div className={styles.cardHead}>
+              <h2>{voucherEditId ? "Edit Voucher" : "CRUD Voucher"}</h2>
+            </div>
+            <form className={`${styles.form} ${styles.voucherForm}`} onSubmit={onSaveVoucher}>
+              <div className={styles.voucherFields}>
+                <input
+                  value={voucherForm.code}
+                  onChange={(event) => setVoucherForm((current) => ({ ...current, code: event.target.value }))}
+                  placeholder="Kode voucher"
+                  aria-label="Kode voucher"
+                  required
+                />
+                <input
+                  value={voucherForm.description}
+                  onChange={(event) => setVoucherForm((current) => ({ ...current, description: event.target.value }))}
+                  placeholder="Deskripsi singkat"
+                  aria-label="Deskripsi voucher"
+                  required
+                />
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={voucherForm.percentage}
+                  onChange={(event) => setVoucherForm((current) => ({ ...current, percentage: Number(event.target.value) || 0 }))}
+                  placeholder="Diskon %"
+                  aria-label="Persentase diskon"
+                  required
+                />
+                <input
+                  type="datetime-local"
+                  value={voucherForm.validUntil ? formatDateTimeLocal(voucherForm.validUntil) : ""}
+                  onChange={(event) => setVoucherForm((current) => ({ ...current, validUntil: event.target.value ? new Date(event.target.value).toISOString() : "" }))}
+                  aria-label="Berlaku sampai"
+                />
+              </div>
+              <label className={`${styles.checkboxRow} ${styles.voucherActiveToggle}`}>
+                <input
+                  type="checkbox"
+                  checked={voucherForm.isActive}
+                  onChange={(event) => setVoucherForm((current) => ({ ...current, isActive: event.target.checked }))}
+                />
+                <span>Aktif</span>
+              </label>
+              <div className={styles.formActions}>
+                <button type="submit" disabled={isLoading}>{voucherEditId ? "Simpan Perubahan" : "Tambah Voucher"}</button>
+                {voucherEditId ? <button type="button" className={styles.secondaryButton} onClick={resetVoucherForm}>Batal Edit</button> : null}
+              </div>
+            </form>
+
+            <h3 className={styles.voucherHistoryTitle}>Histori Voucher</h3>
+            <div className={styles.list}>
+              {vouchers.map((voucher) => (
+                <div key={voucher.id} className={`${styles.listItem} ${styles.voucherListItem}`}>
+                  <div className={styles.voucherDetails}>
+                    <strong style={{ fontSize: `${Math.max(0.68, 0.9 - Math.max(0, voucher.code.length - 10) * 0.018)}rem` }}>
+                      {voucher.code}
+                    </strong>
+                    <span>{voucher.percentage}% diskon · {voucher.description}</span>
+                    <small>{voucher.validUntil ? `Sampai ${new Date(voucher.validUntil).toLocaleString("id-ID")}` : "Tanpa batas waktu"}</small>
+                    {!voucher.isActive ? <span className={styles.archivedLabel}>Diarsipkan</span> : null}
+                    </div>
+                  <div className={`${styles.rowActions} ${styles.voucherRowActions}`}>
+                    <button type="button" onClick={() => { setVoucherEditId(voucher.id); setVoucherForm({ code: voucher.code, description: voucher.description, percentage: voucher.percentage, validUntil: voucher.validUntil ?? "", isActive: voucher.isActive }); }}>Edit</button>
+                    <button type="button" onClick={() => onDeleteVoucher(voucher.id)}>Hapus</button>
+                    <button type="button" onClick={() => onToggleVoucherArchive(voucher)}>{voucher.isActive ? "Archive" : "Unarchive"}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </article>
         ) : null}
 
         {activeSection === "donationActivities" ? <AdminDonationActivitiesSection /> : null}
@@ -5977,6 +6170,24 @@ function AdminManagementSection() {
               rows={3}
             />
             <input
+              value={storyReelForm.author}
+              onChange={(event) => setStoryReelForm((current) => ({ ...current, author: event.target.value }))}
+              placeholder="Penulis"
+            />
+            <input
+              value={storyReelForm.location}
+              onChange={(event) => setStoryReelForm((current) => ({ ...current, location: event.target.value }))}
+              placeholder="Lokasi"
+            />
+            <label className={styles.formGroup}>
+              <span>Tanggal dan jam upload</span>
+              <input
+                type="datetime-local"
+                value={storyReelForm.publishedAt}
+                onChange={(event) => setStoryReelForm((current) => ({ ...current, publishedAt: event.target.value }))}
+              />
+            </label>
+            <input
               value={storyReelForm.buttonText}
               onChange={(event) => setStoryReelForm((current) => ({ ...current, buttonText: event.target.value }))}
               placeholder="Nama button redirect (opsional)"
@@ -6071,7 +6282,7 @@ function AdminManagementSection() {
               ) : null}
             </div>
           </form>
-          <h3 className={styles.activityListTitle}>List Kegiatan</h3>
+          <h3 className={styles.activityListTitle}>Histori Sobat News</h3>
           <div className={styles.list}>
             {storyReels.map((reel) => {
               const previewMedia = reel.mediaGallery.find((media) => (media.url || media.linkUrl)?.trim());
@@ -6091,8 +6302,12 @@ function AdminManagementSection() {
                     />
                     <div>
                       <p><strong>{reel.title}</strong></p>
+                      <span>Penulis: {reel.author || "Sobat News"}</span>
+                      <span>{reel.location || "Lokasi belum diatur"}</span>
+                      <span>{new Date(reel.publishedAt || reel.createdAt).toLocaleString("id-ID")}</span>
                       <span>{reel.description}</span>
                       <span>{reel.mediaGallery.length} media</span>
+                      {reel.editedAt ? <span className={styles.activityHighlightLabel}>Diedit</span> : null}
                       {reel.isActive ? (
                         <span className={styles.activityHighlightLabel}>Highlight aktif</span>
                       ) : null}
