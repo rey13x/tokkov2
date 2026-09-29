@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { withSobat } from "@/lib/user-message";
 import { getImageUploadError, DEFAULT_IMAGE_MAX_SIZE_BYTES } from "@/lib/upload-constraints";
@@ -25,11 +25,6 @@ export function AdminProfilePhotosSection() {
   const setError = (value: unknown) => setRawError(withSobat(value));
   const [uploadMode, setUploadMode] = useState<"url" | "file">("url");
 
-  // Fetch photos on mount
-  useEffect(() => {
-    fetchPhotos();
-  }, []);
-
   // Auto-dismiss messages
   useEffect(() => {
     if (message) {
@@ -45,20 +40,40 @@ export function AdminProfilePhotosSection() {
     }
   }, [error]);
 
-  const fetchPhotos = async () => {
+  const fetchPhotos = useCallback(async (showLoading = true) => {
     try {
-      setIsLoading(true);
+      if (showLoading) setIsLoading(true);
       const response = await fetch("/api/admin/profile-photos");
-      if (!response.ok) throw new Error("Failed to fetch photos");
-      
-      const data = await response.json();
-      setPhotos(data.photos || []);
+      const data = await response.json().catch(() => null) as {
+        photos?: ProfilePhoto[];
+        message?: string;
+      } | null;
+
+      if (!response.ok) {
+        const errorMessage = response.status === 401
+          ? "Sesi admin telah berakhir. Silakan masuk kembali."
+          : response.status === 403
+            ? "Akun ini tidak memiliki izin untuk mengelola foto profil."
+            : data?.message || "Gagal mengambil foto profil.";
+        throw new Error(errorMessage);
+      }
+
+      setPhotos(data?.photos || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal mengambil foto profil");
+      setError(err instanceof TypeError
+        ? "Tidak dapat terhubung ke server. Periksa koneksi lalu coba lagi."
+        : err instanceof Error
+          ? err.message
+          : "Gagal mengambil foto profil.");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Fetch photos on mount
+  useEffect(() => {
+    void Promise.resolve().then(() => fetchPhotos(false));
+  }, [fetchPhotos]);
 
   const handleAddPhotoByUrl = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,7 +182,14 @@ export function AdminProfilePhotosSection() {
       <h2 className={styles.title}>Kelola Foto Profil</h2>
 
       {message && <div className={styles.success}>{message}</div>}
-      {error && <div className={styles.error}>{error}</div>}
+      {error && (
+        <div className={styles.error} role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={() => void fetchPhotos()}>
+            Coba lagi
+          </button>
+        </div>
+      )}
 
       <div className={styles.tabsContainer}>
         <button

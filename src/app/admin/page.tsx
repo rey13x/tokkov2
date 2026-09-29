@@ -3410,7 +3410,7 @@ function AdminManagementSection() {
 
         <section className={styles.content}>
       {activeSection === "overview" ? (
-      <section className={styles.sectionGrid}>
+      <section className={`${styles.sectionGrid} ${styles.overviewGrid}`}>
         <article className={styles.card}>
           <h2>Statistik Utama</h2>
           <div className={styles.quickStats}>

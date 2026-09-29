@@ -31,6 +31,22 @@
   margin-bottom: 16px;
   font-size: 0.85rem;
   animation: slideIn 0.3s ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.error button {
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 @keyframes slideIn {
