@@ -8,12 +8,12 @@ import WaitLoading from "@/components/ui/WaitLoading";
 import StoryReelMetadata from "@/components/StoryReelMetadata";
 import { fetchStoreData } from "@/lib/store-client";
 import { getStoryReelSlug } from "@/lib/story-reel";
-import type { StoreStoryReel } from "@/types/store";
+import type { PublicStoreStoryReel } from "@/types/store";
 import styles from "./page.module.css";
 
 export default function KegiatanClient() {
   const router = useRouter();
-  const [activities, setActivities] = useState<StoreStoryReel[]>([]);
+  const [activities, setActivities] = useState<PublicStoreStoryReel[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

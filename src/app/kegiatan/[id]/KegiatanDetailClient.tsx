@@ -6,20 +6,21 @@ import { FiArrowLeft } from "react-icons/fi";
 import FlexibleMedia from "@/components/media/FlexibleMedia";
 import WaitLoading from "@/components/ui/WaitLoading";
 import StoryReelMetadata from "@/components/StoryReelMetadata";
-import type { StoreStoryReel } from "@/types/store";
+import type { PublicStoreStoryReel } from "@/types/store";
+import StoryQuiz from "./StoryQuiz";
 import styles from "./page.module.css";
 
 export default function KegiatanDetailClient() {
   const router = useRouter();
   const params = useParams<{ slug: string }>();
-  const [activity, setActivity] = useState<StoreStoryReel | null>(null);
+  const [activity, setActivity] = useState<PublicStoreStoryReel | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch(`/api/store?storyReelSlug=${encodeURIComponent(params.slug)}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Gagal memuat kegiatan");
-        const data = (await response.json()) as { storyReel?: StoreStoryReel | null };
+        const data = (await response.json()) as { storyReel?: PublicStoreStoryReel | null };
         setActivity(data.storyReel ?? null);
       })
       .catch(() => setActivity(null))
@@ -95,6 +96,7 @@ export default function KegiatanDetailClient() {
         <div className={styles.content}>
           {activity.description.split(/\n{2,}/).map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
         </div>
+        {activity.quiz?.questions.length ? <StoryQuiz storyId={activity.id} quiz={activity.quiz} /> : null}
       </article>
     </main>
   );

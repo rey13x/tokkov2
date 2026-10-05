@@ -11,6 +11,7 @@ import type {
   StoreMarqueeItem,
   StorePrivacyPolicyPage,
   StoreProduct,
+  StoreStoryQuiz,
   StoreStoryReel,
   StoreTestimonial,
 } from "@/types/store";
@@ -247,6 +248,13 @@ function mapStoryReel(row: Record<string, unknown>): StoreStoryReel {
   const createdAt = new Date(Number(row.created_at ?? now())).toISOString();
   const publishedAtValue = String(row.published_at ?? "");
   const publishedAtDate = new Date(publishedAtValue);
+  let quiz: StoreStoryQuiz | null = null;
+  try {
+    const parsedQuiz = JSON.parse(String(row.quiz_json ?? "null"));
+    if (parsedQuiz && typeof parsedQuiz === "object") {
+      quiz = parsedQuiz as StoreStoryQuiz;
+    }
+  } catch {}
 
   return {
     id: String(row.id),
@@ -259,6 +267,7 @@ function mapStoryReel(row: Record<string, unknown>): StoreStoryReel {
       ? null
       : new Date(Number(row.edited_at)).toISOString(),
     mediaGallery,
+    quiz,
     linkUrl: String(row.link_url ?? ""),
     isActive: Number(row.is_active ?? 1) === 1,
     sortOrder: Number(row.sort_order ?? 0),
@@ -800,6 +809,7 @@ export async function ensureDatabase() {
           location TEXT NOT NULL DEFAULT '',
           published_at TEXT,
           edited_at INTEGER,
+          quiz_json TEXT NOT NULL DEFAULT 'null',
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )`,
@@ -808,6 +818,23 @@ export async function ensureDatabase() {
       await run("ALTER TABLE story_reels ADD COLUMN location TEXT NOT NULL DEFAULT ''").catch(() => {});
       await run("ALTER TABLE story_reels ADD COLUMN published_at TEXT").catch(() => {});
       await run("ALTER TABLE story_reels ADD COLUMN edited_at INTEGER").catch(() => {});
+      await run("ALTER TABLE story_reels ADD COLUMN quiz_json TEXT NOT NULL DEFAULT 'null'").catch(() => {});
+      await run(
+        `CREATE TABLE IF NOT EXISTS story_quiz_attempts (
+          session_id TEXT PRIMARY KEY,
+          expires_at INTEGER NOT NULL,
+          submitted INTEGER NOT NULL DEFAULT 0
+        )`,
+      );
+      await run(
+        `CREATE TABLE IF NOT EXISTS story_quiz_answers (
+          session_id TEXT NOT NULL,
+          question_id TEXT NOT NULL,
+          option_index INTEGER NOT NULL,
+          is_correct INTEGER NOT NULL,
+          PRIMARY KEY (session_id, question_id)
+        )`,
+      );
       await run(
         "ALTER TABLE marquees ADD COLUMN image_url TEXT NOT NULL DEFAULT '/assets/logo.png'",
       ).catch(() => {});
@@ -2192,6 +2219,57 @@ export async function getStoryReelById(id: string) {
   return row ? mapStoryReel(row) : null;
 }
 
+export type StoryQuizAttemptAnswer = { questionId: string; optionIndex: number; isCorrect: boolean };
+
+export async function createStoryQuizAttempt(sessionId: string, expiresAt: number) {
+  await ensureDatabase();
+  const currentTime = now();
+  await run(
+    "DELETE FROM story_quiz_answers WHERE session_id IN (SELECT session_id FROM story_quiz_attempts WHERE expires_at < ?)",
+    [currentTime],
+  );
+  await run("DELETE FROM story_quiz_attempts WHERE expires_at < ?", [currentTime]);
+  const result = await run(
+    "INSERT INTO story_quiz_attempts (session_id, expires_at, submitted) VALUES (?, ?, 0) ON CONFLICT(session_id) DO NOTHING",
+    [sessionId, expiresAt],
+  );
+  return result.rowsAffected === 1;
+}
+
+export async function saveStoryQuizAttemptAnswer(sessionId: string, expiresAt: number, answer: StoryQuizAttemptAnswer) {
+  await ensureDatabase();
+  const result = await run(
+    `INSERT OR IGNORE INTO story_quiz_answers (session_id, question_id, option_index, is_correct)
+     SELECT ?, ?, ?, ? WHERE EXISTS (
+       SELECT 1 FROM story_quiz_attempts WHERE session_id = ? AND expires_at >= ? AND submitted = 0
+     )`,
+    [sessionId, answer.questionId, answer.optionIndex, Number(answer.isCorrect), sessionId, now()],
+  );
+  return result.rowsAffected === 1;
+}
+
+export async function listStoryQuizAttemptAnswers(sessionId: string): Promise<StoryQuizAttemptAnswer[]> {
+  await ensureDatabase();
+  const result = await run(
+    "SELECT question_id, option_index, is_correct FROM story_quiz_answers WHERE session_id = ? ORDER BY rowid ASC",
+    [sessionId],
+  );
+  return result.rows.map((row) => ({
+    questionId: String(row.question_id),
+    optionIndex: Number(row.option_index),
+    isCorrect: Number(row.is_correct) === 1,
+  }));
+}
+
+export async function finishStoryQuizAttempt(sessionId: string, expiresAt: number) {
+  await ensureDatabase();
+  const result = await run(
+    "UPDATE story_quiz_attempts SET submitted = 1 WHERE session_id = ? AND expires_at >= ? AND submitted = 0",
+    [sessionId, now()],
+  );
+  return result.rowsAffected === 1 && expiresAt >= now();
+}
+
 export async function createStoryReel(input: {
   title: string;
   description: string;
@@ -2199,6 +2277,7 @@ export async function createStoryReel(input: {
   location?: string;
   publishedAt?: string;
   mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
+  quiz?: StoreStoryQuiz | null;
   linkUrl: string;
   isActive: boolean;
   sortOrder: number;
@@ -2212,8 +2291,8 @@ export async function createStoryReel(input: {
 
   await run(
     `INSERT INTO story_reels
-      (id, title, description, author, location, published_at, edited_at, media_gallery, link_url, is_active, sort_order, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
+      (id, title, description, author, location, published_at, edited_at, media_gallery, quiz_json, link_url, is_active, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.title.trim(),
@@ -2222,6 +2301,7 @@ export async function createStoryReel(input: {
       input.location?.trim() ?? "",
       input.publishedAt ?? new Date().toISOString(),
       JSON.stringify(mediaGallery),
+      JSON.stringify(input.quiz ?? null),
       input.linkUrl.trim(),
       Number(input.isActive),
       Math.max(0, Math.floor(input.sortOrder)),
@@ -2242,6 +2322,7 @@ export async function updateStoryReel(
     location: string;
     publishedAt: string;
     mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
+    quiz: StoreStoryQuiz | null;
     linkUrl: string;
     isActive: boolean;
     sortOrder: number;
@@ -2259,9 +2340,11 @@ export async function updateStoryReel(
         ...item,
         url: resolveMediaUrl(item.url),
       }));
+  const nextQuiz = input.quiz === undefined ? current.quiz ?? null : input.quiz;
   const contentChanged = hasStoryReelContentChanged(current, {
     ...input,
     ...(input.mediaGallery !== undefined ? { mediaGallery: nextMediaGallery } : {}),
+    ...(input.quiz !== undefined ? { quiz: nextQuiz } : {}),
   });
   const nextTitle = input.title?.trim() ?? current.title;
   const nextDescription = input.description?.trim() ?? current.description;
@@ -2271,7 +2354,7 @@ export async function updateStoryReel(
 
   await run(
     `UPDATE story_reels
-     SET title = ?, description = ?, author = ?, location = ?, published_at = ?, edited_at = ?, media_gallery = ?, link_url = ?, is_active = ?, sort_order = ?, updated_at = ?
+      SET title = ?, description = ?, author = ?, location = ?, published_at = ?, edited_at = ?, media_gallery = ?, quiz_json = ?, link_url = ?, is_active = ?, sort_order = ?, updated_at = ?
      WHERE id = ?`,
     [
       nextTitle,
@@ -2281,6 +2364,7 @@ export async function updateStoryReel(
       nextPublishedAt,
       contentChanged ? now() : current.editedAt ? new Date(current.editedAt).getTime() : null,
       JSON.stringify(nextMediaGallery),
+      JSON.stringify(nextQuiz),
       input.linkUrl === undefined ? current.linkUrl : input.linkUrl.trim(),
       input.isActive === undefined ? Number(current.isActive) : Number(input.isActive),
       input.sortOrder === undefined

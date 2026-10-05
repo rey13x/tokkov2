@@ -5,7 +5,7 @@ import type {
   StorePrivacyPolicyPage,
   StoreProduct,
     DonationActivity,
-  StoreStoryReel,
+  PublicStoreStoryReel,
   StoreTestimonial,
 } from "@/types/store";
 import {
@@ -19,7 +19,7 @@ export type StoreData = {
   informations: StoreInformation[];
   testimonials: StoreTestimonial[];
   marquees?: StoreMarqueeItem[];
-  storyReels?: StoreStoryReel[];
+  storyReels?: PublicStoreStoryReel[];
   paymentSettings?: StorePaymentSettings | null;
   privacyPolicy?: StorePrivacyPolicyPage | null;
   donationActivities?: DonationActivity[];
@@ -47,8 +47,11 @@ export function fetchStoreSupportingData(): Promise<Omit<StoreData, "products">>
   );
 }
 
-export function clearStoreDataCache() {
-  clearSessionCached(PUBLIC_DATA_CACHE_KEY.store);
-  clearSessionCached(PUBLIC_DATA_CACHE_KEY.storeProducts);
-  clearSessionCached(PUBLIC_DATA_CACHE_KEY.storeSupporting);
+export function clearStoreDataCache(broadcastInvalidation = true) {
+  clearSessionCached(PUBLIC_DATA_CACHE_KEY.store, false);
+  clearSessionCached(PUBLIC_DATA_CACHE_KEY.storeProducts, false);
+  clearSessionCached(PUBLIC_DATA_CACHE_KEY.storeSupporting, false);
+  if (broadcastInvalidation && typeof window !== "undefined" && window.localStorage) {
+    window.localStorage.setItem("tokko:store-data-invalidated", String(Date.now()));
+  }
 }

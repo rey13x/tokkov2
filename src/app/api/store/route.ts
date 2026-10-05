@@ -11,6 +11,7 @@ import {
 } from "@/server/store-data";
 import type { StoreStoryReel } from "@/types/store";
 import { findStoryReelBySlug } from "@/lib/story-reel";
+import { toPublicStoryReel } from "@/lib/story-reel-quiz";
 
 export async function GET(request: Request) {
   try {
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
     if (storyReelId) {
       const storyReel = (await listStoryReels() as StoreStoryReel[]).find((item) => item.id === storyReelId) ?? null;
       return NextResponse.json(
-        { storyReel },
+        { storyReel: storyReel ? toPublicStoryReel(storyReel) : null },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
       const activeStoryReels = (await listStoryReels() as StoreStoryReel[]).filter((item) => item.isActive);
       const storyReel = findStoryReelBySlug(activeStoryReels, storyReelSlug);
       return NextResponse.json(
-        { storyReel },
+        { storyReel: storyReel ? toPublicStoryReel(storyReel) : null },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -51,7 +52,16 @@ export async function GET(request: Request) {
     ]);
 
     return NextResponse.json(
-      { products, informations, testimonials, marquees, storyReels, paymentSettings, privacyPolicy, donationActivities },
+      {
+        products,
+        informations,
+        testimonials,
+        marquees,
+        storyReels: (storyReels as StoreStoryReel[]).map(toPublicStoryReel),
+        paymentSettings,
+        privacyPolicy,
+        donationActivities,
+      },
       {
         headers: {
           "Cache-Control": "public, max-age=5, s-maxage=10, stale-while-revalidate=60",

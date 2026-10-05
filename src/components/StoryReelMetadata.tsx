@@ -6,7 +6,7 @@ function formatUploadTime(value: string) {
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
 }
 
-export default function StoryReelMetadata({ story }: { story: StoreStoryReel }) {
+export default function StoryReelMetadata({ story }: { story: Pick<StoreStoryReel, "author" | "location" | "publishedAt" | "editedAt" | "createdAt"> }) {
   const publishedAt = formatUploadTime(story.publishedAt || story.createdAt);
 
   return (

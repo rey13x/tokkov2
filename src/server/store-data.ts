@@ -11,6 +11,7 @@ import type {
   StoreVoucher,
   StoreMarqueeItem,
   StoreOrderDetail,
+  StoreStoryQuiz,
   StoreStoryReel,
   StoreOrderItem,
   StorePaymentSettings,
@@ -65,6 +66,11 @@ import {
   updateTestimonial as updateTestimonialDb,
   upsertPrivacyPolicyPage as upsertPrivacyPolicyPageDb,
   voteInformationPoll as voteInformationPollDb,
+  createStoryQuizAttempt as createStoryQuizAttemptDb,
+  saveStoryQuizAttemptAnswer as saveStoryQuizAttemptAnswerDb,
+  listStoryQuizAttemptAnswers as listStoryQuizAttemptAnswersDb,
+  finishStoryQuizAttempt as finishStoryQuizAttemptDb,
+  type StoryQuizAttemptAnswer,
   ensureDatabase,
   run,
 } from "@/server/db";
@@ -106,6 +112,109 @@ function markFirestoreUnavailable(error: unknown) {
     console.warn(
       "Firestore access disabled due to permission denied. Falling back to local database for the remainder of this process.",
     );
+  }
+}
+
+export async function createStoryQuizAttempt(sessionId: string, expiresAt: number) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return createStoryQuizAttemptDb(sessionId, expiresAt);
+  }
+
+  try {
+    const expiredAttempts = await firestore.collection("storyQuizAttempts")
+      .where("expiresAt", "<", now())
+      .limit(100)
+      .get();
+    if (!expiredAttempts.empty) {
+      const cleanup = firestore.batch();
+      expiredAttempts.docs.forEach((doc: any) => cleanup.delete(doc.ref));
+      await cleanup.commit();
+    }
+
+    return await firestore.runTransaction(async (transaction: any) => {
+      const ref = firestore.collection("storyQuizAttempts").doc(sessionId);
+      const current = await transaction.get(ref);
+      if (current.exists) {
+        return false;
+      }
+      transaction.set(ref, { expiresAt, submitted: false, answers: {}, createdAt: now() });
+      return true;
+    });
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to create quiz attempt in Firestore. Falling back to local database.", error);
+    return createStoryQuizAttemptDb(sessionId, expiresAt);
+  }
+}
+
+export async function saveStoryQuizAttemptAnswer(
+  sessionId: string,
+  expiresAt: number,
+  answer: StoryQuizAttemptAnswer,
+) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return saveStoryQuizAttemptAnswerDb(sessionId, expiresAt, answer);
+  }
+
+  try {
+    return await firestore.runTransaction(async (transaction: any) => {
+      const ref = firestore.collection("storyQuizAttempts").doc(sessionId);
+      const current = await transaction.get(ref);
+      const data = current.data() as { expiresAt?: number; submitted?: boolean; answers?: Record<string, StoryQuizAttemptAnswer> } | undefined;
+      const answers = data?.answers ?? {};
+      if (!current.exists || Number(data?.expiresAt) !== expiresAt || expiresAt < now() || data?.submitted || answer.questionId in answers) {
+        return false;
+      }
+      transaction.update(ref, { answers: { ...answers, [answer.questionId]: answer } });
+      return true;
+    });
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to save quiz answer in Firestore. Falling back to local database.", error);
+    return saveStoryQuizAttemptAnswerDb(sessionId, expiresAt, answer);
+  }
+}
+
+export async function listStoryQuizAttemptAnswers(sessionId: string): Promise<StoryQuizAttemptAnswer[]> {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return listStoryQuizAttemptAnswersDb(sessionId);
+  }
+
+  try {
+    const snapshot = await firestore.collection("storyQuizAttempts").doc(sessionId).get();
+    const data = snapshot.data() as { answers?: Record<string, StoryQuizAttemptAnswer> } | undefined;
+    return Object.values(data?.answers ?? {});
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to read quiz answers from Firestore. Falling back to local database.", error);
+    return listStoryQuizAttemptAnswersDb(sessionId);
+  }
+}
+
+export async function finishStoryQuizAttempt(sessionId: string, expiresAt: number) {
+  const firestore = getFirestoreOrNull();
+  if (!firestore) {
+    return finishStoryQuizAttemptDb(sessionId, expiresAt);
+  }
+
+  try {
+    return await firestore.runTransaction(async (transaction: any) => {
+      const ref = firestore.collection("storyQuizAttempts").doc(sessionId);
+      const current = await transaction.get(ref);
+      const data = current.data() as { expiresAt?: number; submitted?: boolean } | undefined;
+      if (!current.exists || Number(data?.expiresAt) !== expiresAt || expiresAt < now() || data?.submitted) {
+        return false;
+      }
+      transaction.update(ref, { submitted: true, submittedAt: now() });
+      return true;
+    });
+  } catch (error) {
+    markFirestoreUnavailable(error);
+    console.error("Failed to finish quiz attempt in Firestore. Falling back to local database.", error);
+    return finishStoryQuizAttemptDb(sessionId, expiresAt);
   }
 }
 
@@ -304,6 +413,9 @@ function mapStoryReelDoc(
   const editedAt = data?.editedAt === null || data?.editedAt === undefined
     ? null
     : dateToIso(data.editedAt);
+  const quiz = data?.quiz && typeof data.quiz === "object"
+    ? data.quiz as StoreStoryQuiz
+    : null;
 
   return {
     id,
@@ -314,6 +426,7 @@ function mapStoryReelDoc(
     publishedAt: dateToIso(data?.publishedAt, createdAt),
     editedAt,
     mediaGallery,
+    quiz,
     linkUrl: String(data?.linkUrl ?? ""),
     isActive: Boolean(data?.isActive ?? true),
     sortOrder: Number(data?.sortOrder ?? 0),
@@ -1478,6 +1591,7 @@ export async function createStoryReel(input: {
   location?: string;
   publishedAt?: string;
   mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
+  quiz?: StoreStoryQuiz | null;
   linkUrl: string;
   isActive: boolean;
   sortOrder: number;
@@ -1503,6 +1617,7 @@ export async function createStoryReel(input: {
       publishedAt: input.publishedAt ?? new Date(createdAt).toISOString(),
       editedAt: null,
       mediaGallery,
+      quiz: input.quiz ?? null,
       linkUrl: input.linkUrl.trim(),
       isActive: Boolean(input.isActive),
       sortOrder: Math.max(0, Math.floor(input.sortOrder)),
@@ -1528,6 +1643,7 @@ export async function updateStoryReel(
     location: string;
     publishedAt: string;
     mediaGallery: Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>;
+    quiz: StoreStoryQuiz | null;
     linkUrl: string;
     isActive: boolean;
     sortOrder: number;
@@ -1552,9 +1668,11 @@ export async function updateStoryReel(
           ...item,
           url: resolveMediaUrl(item.url),
         }));
+      const nextQuiz = input.quiz === undefined ? currentStoryReel.quiz ?? null : input.quiz;
     const contentChanged = hasStoryReelContentChanged(currentStoryReel, {
       ...input,
       ...(nextMediaGallery !== undefined ? { mediaGallery: nextMediaGallery } : {}),
+        ...(input.quiz !== undefined ? { quiz: nextQuiz } : {}),
     });
 
     await ref.update({
@@ -1564,6 +1682,7 @@ export async function updateStoryReel(
       ...(input.location !== undefined ? { location: input.location.trim() } : {}),
       ...(input.publishedAt !== undefined ? { publishedAt: input.publishedAt } : {}),
       ...(nextMediaGallery !== undefined ? { mediaGallery: nextMediaGallery } : {}),
+      ...(input.quiz !== undefined ? { quiz: nextQuiz } : {}),
       ...(input.linkUrl !== undefined ? { linkUrl: input.linkUrl.trim() } : {}),
       ...(input.isActive !== undefined ? { isActive: Boolean(input.isActive) } : {}),
       ...(input.sortOrder !== undefined ? { sortOrder: Math.max(0, Math.floor(input.sortOrder)) } : {}),

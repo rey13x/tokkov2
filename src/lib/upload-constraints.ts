@@ -1,5 +1,7 @@
+import { MAX_IMAGE_SOURCE_SIZE_BYTES } from "./image-upload";
+
 export const DEFAULT_IMAGE_MIN_SIZE_BYTES = 0;
-export const DEFAULT_IMAGE_MAX_SIZE_BYTES = 450 * 1024;
+export const DEFAULT_IMAGE_MAX_SIZE_BYTES = MAX_IMAGE_SOURCE_SIZE_BYTES;
 
 export function formatFileSize(bytes: number) {
   if (bytes >= 1024 * 1024) {

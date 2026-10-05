@@ -5,7 +5,7 @@ const pendingRequests = new Map<string, Promise<unknown>>();
 export const PUBLIC_DATA_CACHE_KEY = {
   store: "tokko_store_data_cache_v3",
   storeProducts: "tokko_store_products_cache_v2",
-  storeSupporting: "tokko_store_supporting_cache_v1",
+  storeSupporting: "tokko_store_supporting_cache_v2",
   heroBackgrounds: "tokko_hero_backgrounds_cache_v2",
   portfolio: "tokko_portfolio_cache_v1",
   bookStories: "tokko_book_stories_cache_v1",
@@ -49,8 +49,10 @@ function writeSessionCache<T>(key: string, value: T) {
 export function fetchSessionCached<T>(key: string, url: string, init?: RequestInit): Promise<T> {
   const ttlMs = key === PUBLIC_DATA_CACHE_KEY.store || key === PUBLIC_DATA_CACHE_KEY.storeProducts
     ? 0
-    : key === PUBLIC_DATA_CACHE_KEY.heroBackgrounds || key === PUBLIC_DATA_CACHE_KEY.storeSupporting
+    : key === PUBLIC_DATA_CACHE_KEY.heroBackgrounds
     ? 24 * 60 * 60_000
+    : key === PUBLIC_DATA_CACHE_KEY.storeSupporting
+      ? 60_000
     : key === PUBLIC_DATA_CACHE_KEY.bookStories
     ? 24 * 60 * 60_000
       : 5 * 60_000;
@@ -93,13 +95,16 @@ export function fetchSessionCached<T>(key: string, url: string, init?: RequestIn
   return request;
 }
 
-export function clearSessionCached(key: string) {
+export function clearSessionCached(key: string, broadcastInvalidation = true) {
   memoryCache.delete(key);
   memoryCacheTimes.delete(key);
   pendingRequests.delete(key);
   if (typeof window !== "undefined") {
     window.sessionStorage.removeItem(key);
-    if ((key === PUBLIC_DATA_CACHE_KEY.store || key === PUBLIC_DATA_CACHE_KEY.storeProducts) && window.localStorage) {
+    const storeDataKey = key === PUBLIC_DATA_CACHE_KEY.store ||
+      key === PUBLIC_DATA_CACHE_KEY.storeProducts ||
+      key === PUBLIC_DATA_CACHE_KEY.storeSupporting;
+    if (broadcastInvalidation && storeDataKey && window.localStorage) {
       window.localStorage.setItem("tokko:store-data-invalidated", String(Date.now()));
     }
   }

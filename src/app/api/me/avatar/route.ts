@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import sharp from "sharp";
 import { getServerAuthSession } from "@/server/auth";
 import { createUser, findUserByEmail, updateUserById } from "@/server/db";
 import { updateBookStoryUserProfile, updateTestimonialUserProfile } from "@/server/store-data";
+import { compressImageToWebp } from "@/server/image-compression";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
-const MAX_AVATAR_SIZE_BYTES = 450 * 1024;
+const MAX_SOURCE_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
 
 export const runtime = "nodejs";
 
@@ -30,26 +30,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    let quality = 68;
-    let width = 1500;
-    let compressed = await sharp(buffer)
-      .rotate()
-      .resize({ width, withoutEnlargement: true })
-      .webp({ quality })
-      .toBuffer();
-
-    while ((compressed.length > MAX_AVATAR_SIZE_BYTES || compressed.length > 220 * 1024) && quality > 32) {
-      quality -= 8;
-      width = Math.round(width * 0.8);
-      compressed = await sharp(buffer)
-        .rotate()
-        .resize({ width, withoutEnlargement: true })
-        .webp({ quality })
-        .toBuffer();
+    if (file.size > MAX_SOURCE_IMAGE_SIZE_BYTES) {
+      return NextResponse.json({ message: "Ukuran file terlalu besar. Maksimal 8MB." }, { status: 400 });
     }
 
-    if (compressed.length > MAX_AVATAR_SIZE_BYTES) {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const compressed = await compressImageToWebp(buffer);
+    if (!compressed) {
       return NextResponse.json(
         { message: "Ukuran avatar terlalu besar setelah dikompres. Coba pilih foto lain." },
         { status: 400 },

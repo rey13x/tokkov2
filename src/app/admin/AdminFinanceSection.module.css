@@ -1,0 +1,362 @@
+.financePage {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  color: #182438;
+}
+
+.pageHeader,
+.panelHeading,
+.ordersHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.pageHeader h1 {
+  margin: 0;
+  color: #152840;
+  font-size: 1.55rem;
+}
+
+.pageHeader p,
+.panelHeading p {
+  margin: 4px 0 0;
+  color: #68758b;
+  font-size: 0.88rem;
+}
+
+.eyebrow {
+  margin: 0 0 4px !important;
+  color: #214ebd !important;
+  font-size: 0.7rem !important;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.actions,
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actions button,
+.filters select {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #d9e1ed;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f426d;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.actions button:hover:not(:disabled) { border-color: #8caad3; background: #f4f8ff; }
+.actions button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stat {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e0e6ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.stat > span {
+  color: #68758b;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.stat strong {
+  overflow-wrap: anywhere;
+  color: #17365d;
+  font-size: 1.22rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat small { color: #7b8798; font-size: 0.76rem; }
+.netStat { border-color: #b9d4ef; background: #f5f9ff; }
+
+.chartPanel,
+.panel {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e0e6ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.panelHeading h2 {
+  margin: 0;
+  color: #152840;
+  font-size: 1.02rem;
+}
+
+.panelHeading > svg { flex: 0 0 auto; color: #214ebd; }
+.chartWrap { width: 100%; height: 250px; min-width: 0; }
+.emptyChart,
+.emptyState { margin: 0; color: #758198; font-size: 0.88rem; }
+
+.chartLegend {
+  display: flex;
+  gap: 18px;
+  color: #647189;
+  font-size: 0.78rem;
+}
+
+.chartLegend span { display: inline-flex; align-items: center; gap: 7px; }
+.chartLegend i { width: 10px; height: 10px; border-radius: 3px; }
+.revenueKey { background: #214ebd; }
+.profitKey { background: #3b9b83; }
+
+.workGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.adjustmentForm { display: grid; gap: 10px; }
+.adjustmentForm > label { display: grid; gap: 5px; color: #47556c; font-size: 0.82rem; font-weight: 700; }
+.adjustmentForm input,
+.adjustmentForm select,
+.costTable input,
+.mobileCostList input,
+.searchField input {
+  width: 100%;
+  min-width: 0;
+  min-height: 39px;
+  padding: 8px 10px;
+  border: 1px solid #d9e1ed;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #1f2a3d;
+  font: inherit;
+  font-size: 0.86rem;
+  box-sizing: border-box;
+}
+
+.directionControl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #f0f3f8;
+}
+
+.directionControl button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #617087;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.directionControl .directionActive {
+  background: #ffffff;
+  color: #1f426d;
+  box-shadow: 0 1px 3px rgba(24, 39, 62, 0.12);
+}
+
+.effectHelp {
+  margin: -4px 0 0;
+  color: #708097;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 41px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #1f426d;
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primaryButton:hover:not(:disabled) { background: #214ebd; }
+.primaryButton:disabled { opacity: 0.6; cursor: wait; }
+
+.adjustmentList { display: grid; gap: 4px; margin-top: 2px; }
+.adjustmentList h3 { margin: 0 0 4px; color: #2b3c54; font-size: 0.86rem; }
+
+.adjustmentRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0;
+  border-top: 1px solid #edf0f5;
+}
+
+.adjustmentRow > div { display: grid; gap: 3px; min-width: 0; }
+.adjustmentRow > div strong { overflow: hidden; color: #29394f; font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
+.adjustmentRow > div span { color: #758198; font-size: 0.72rem; }
+.adjustmentRow > strong { font-size: 0.82rem; white-space: nowrap; }
+.positive { color: #227961 !important; }
+.negative { color: #b63543 !important; }
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #e5e9f0;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #9a3440;
+  cursor: pointer;
+}
+
+.iconButton:hover { background: #fff3f4; border-color: #e8b8bf; }
+
+.costTableWrap,
+.orderTableWrap { width: 100%; min-width: 0; overflow: auto; }
+.costTable,
+.orderTable { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; }
+.costTable { min-width: 440px; }
+.orderTable { min-width: 1260px; }
+
+.costTable th,
+.orderTable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px;
+  border-bottom: 1px solid #dfe5ee;
+  background: #f5f7fb;
+  color: #56647b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.costTable td,
+.orderTable td {
+  padding: 10px;
+  border-bottom: 1px solid #edf0f5;
+  color: #344258;
+  font-size: 0.78rem;
+  vertical-align: top;
+}
+
+.costTable td:first-child { min-width: 150px; }
+.costTable td strong,
+.costTable td small,
+.orderTable td strong,
+.orderTable td small { display: block; }
+.costTable td strong,.orderTable td strong { color: #253750; }
+.costTable td small,.orderTable td small { margin-top: 3px; color: #78859a; font-size: 0.7rem; }
+.costTable input { width: 130px; min-height: 34px; }
+.orderTable td { max-width: 260px; }
+.orderTable td:first-child { min-width: 150px; }
+.orderId { color: #59708d !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.productCell { min-width: 210px; line-height: 1.5; }
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.statusPaid { background: #e8f5f0; color: #24745f; }
+.statusPending { background: #f0f2f6; color: #69768a; }
+.emptyTable { padding: 28px !important; color: #758198 !important; text-align: center; }
+.ordersHeader { align-items: flex-end; flex-wrap: wrap; }
+.searchField { display: flex; align-items: center; gap: 7px; min-height: 38px; padding-left: 9px; border: 1px solid #d9e1ed; border-radius: 7px; color: #718096; }
+.searchField input { width: min(260px, 54vw); min-height: 36px; border: 0; outline: 0; }
+.dataLimit,.footnote { margin: -5px 0 0; color: #7b8798; font-size: 0.75rem; }
+.footnote { margin: 0; }
+.mobileCostList { display: none; }
+.screenOnly {}
+.printOnly,.printCost { display: none; }
+.loading { min-height: 220px; display: grid; place-items: center; color: #66748b; }
+.errorNotice,.successNotice { margin: 0; padding: 10px 12px; border-radius: 7px; font-size: 0.84rem; }
+.errorNotice { background: #fff1f2; color: #9f2637; }
+.successNotice { background: #edf7f3; color: #26745e; }
+
+@media (max-width: 980px) {
+  .workGrid { grid-template-columns: minmax(0, 1fr); }
+  .statGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  .pageHeader,.ordersHeader { align-items: stretch; flex-direction: column; }
+  .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .actions button { justify-content: center; }
+  .statGrid { grid-template-columns: minmax(0, 1fr); }
+  .stat { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .stat strong { grid-row: span 2; grid-column: 2; text-align: right; }
+  .stat small { grid-column: 1; }
+  .chartPanel,.panel { padding: 12px; }
+  .chartWrap { height: 220px; }
+  .filters { display: grid; grid-template-columns: minmax(0, 1fr) 150px; width: 100%; }
+  .searchField input { width: 100%; }
+  .costTableWrap { display: none; }
+  .mobileCostList { display: grid; gap: 0; }
+  .mobileCostList label { display: grid; grid-template-columns: minmax(0, 1fr) 112px; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #edf0f5; }
+  .mobileCostList label span { display: grid; gap: 3px; min-width: 0; }
+  .mobileCostList strong { overflow: hidden; color: #29394f; font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
+  .mobileCostList small { color: #78859a; font-size: 0.72rem; }
+  .directionControl button { padding-inline: 5px; font-size: 0.78rem; }
+}
+
+@media print {
+  @page { size: landscape; margin: 10mm; }
+  :global(body *) { visibility: hidden !important; }
+  .financePage,.financePage * { visibility: visible !important; }
+  .financePage { position: absolute; inset: 0; display: block; width: 100%; padding: 0; background: #ffffff; }
+  .screenOnly,.filters { display: none !important; }
+  .printOnly { display: block !important; }
+  .printCost { display: inline-block !important; }
+  .costEditorInput { display: none !important; }
+  .statGrid { grid-template-columns: repeat(3, 1fr); }
+  .chartPanel,.panel,.stat { break-inside: avoid; box-shadow: none; }
+  .orderTableWrap,.costTableWrap { overflow: visible; }
+  .orderTable,.costTable { min-width: 0; font-size: 8pt; }
+  .orderTable th,.orderTable td,.costTable th,.costTable td { padding: 5px; font-size: 7pt; }
+  .printTable { width: 100%; border-collapse: collapse; }
+  .printTable th,.printTable td { padding: 5px; border: 1px solid #d6dce5; font-size: 7pt; text-align: left; }
+  .printTable th { background: #f2f5f9; }
+  .dataLimit,.footnote { color: #333333; }
+}

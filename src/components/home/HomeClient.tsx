@@ -52,7 +52,7 @@ import type {
   StoreInformation,
   StoreMarqueeItem,
   StoreProduct,
-  StoreStoryReel,
+  PublicStoreStoryReel,
   StoreTestimonial,
 } from "@/types/store";
 import styles from "./HomeClient.module.css";
@@ -68,7 +68,7 @@ type HomeProduct = StoreProduct;
 type HomeInformation = StoreInformation;
 type HomeTestimonial = StoreTestimonial;
 type HomeMarquee = StoreMarqueeItem;
-type HomeActivity = StoreStoryReel;
+type HomeActivity = PublicStoreStoryReel;
 const POLL_VOTE_STORAGE_KEY = "tokko_poll_votes";
 const PROFILE_AVATAR_STORAGE_KEY = "tokko_profile_avatar";
 const ACCESS_LOG_THROTTLE_KEY = "tokko_last_access_log";
@@ -574,13 +574,15 @@ export default function HomeClient() {
       })
       .catch(() => {});
 
-    const handleStoreRefresh = () => {
-      clearStoreDataCache();
+    const refreshStoreData = (broadcastInvalidation: boolean) => {
+      clearStoreDataCache(broadcastInvalidation);
       void loadProducts();
+      void loadSupportingData();
     };
+    const handleStoreRefresh = () => refreshStoreData(true);
     const handleStorage = (event: StorageEvent) => {
       if (event.key === "tokko:store-data-invalidated") {
-        handleStoreRefresh();
+        refreshStoreData(false);
       }
     };
 

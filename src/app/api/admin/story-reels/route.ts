@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/server/admin";
 import { createStoryReel, listStoryReels } from "@/server/store-data";
+import { storyReelQuizSchema } from "@/lib/story-reel-quiz";
 
 const storyReelSchema = z.object({
   title: z.string().min(1).max(120),
@@ -19,6 +20,7 @@ const storyReelSchema = z.object({
       linkUrl: z.string().max(3000000).optional(),
     }),
   ).default([]),
+  quiz: storyReelQuizSchema.nullable().optional(),
   linkUrl: z.string().max(3000000).default(""),
   isActive: z.boolean().default(true),
   sortOrder: z.number().int().min(0).default(0),

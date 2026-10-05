@@ -637,6 +637,101 @@
   min-width: 0;
 }
 
+.storyQuizBuilder {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 4px 0 12px;
+  padding: 16px;
+  border: 1px solid #dbe2ee;
+  border-radius: 12px;
+  background: #f7f9fd;
+}
+
+.storyQuizBuilder legend {
+  padding: 0 6px;
+  color: #1f426d;
+  font-weight: 800;
+}
+
+.storyQuizFields,
+.storyQuizQuestionList {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.storyQuizDuration {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(90px, 140px);
+  align-items: center;
+  gap: 10px;
+  color: #59657f;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.storyQuizQuestionList {
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.storyQuizQuestion {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #dbe2ee;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.storyQuizQuestionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #1f426d;
+}
+
+.storyQuizOption {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.storyQuizOption input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: #214ebd;
+}
+
+.activityAdminCard .storyQuizOption input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+}
+
+.activityAdminCard .storyQuizBuilder > .checkField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activityAdminCard .storyQuizBuilder > .checkField input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+}
+
 .mediaGalleryAddButton {
   background: #1f4ed8;
   color: #ffffff;
@@ -790,15 +885,17 @@
 }
 
 .heroBackgroundItem {
+  display: grid;
+  gap: 10px;
   border-radius: 8px !important;
 }
 
 .heroBackgroundActions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   align-items: stretch;
   gap: 8px;
-  flex: 0 0 min(430px, 48%);
+  width: 100%;
 }
 
 .heroBackgroundActions button {
@@ -824,13 +921,11 @@
 
 @media (max-width: 760px) {
   .heroBackgroundItem {
-    flex-direction: column;
-    align-items: stretch !important;
+    gap: 8px;
   }
 
   .heroBackgroundActions {
     width: 100%;
-    flex-basis: auto;
   }
 }
 

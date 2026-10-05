@@ -204,6 +204,25 @@ export type StoreStoryMediaItem = {
   linkUrl?: string;
 };
 
+export type StoreStoryQuizQuestion = {
+  id: string;
+  prompt: string;
+  options: string[];
+  correctOption: number;
+};
+
+export type StoreStoryQuiz = {
+  title: string;
+  joinButtonText: string;
+  reward: string;
+  durationSeconds: number;
+  questions: StoreStoryQuizQuestion[];
+};
+
+export type PublicStoreStoryQuiz = Omit<StoreStoryQuiz, "questions"> & {
+  questions: Array<Omit<StoreStoryQuizQuestion, "correctOption">>;
+};
+
 export type StoreStoryReel = {
   id: string;
   title: string;
@@ -213,10 +232,15 @@ export type StoreStoryReel = {
   publishedAt: string;
   editedAt: string | null;
   mediaGallery: StoreStoryMediaItem[];
+  quiz?: StoreStoryQuiz | null;
   linkUrl: string;
   isActive: boolean;
   sortOrder: number;
   createdAt: string;
+};
+
+export type PublicStoreStoryReel = Omit<StoreStoryReel, "quiz"> & {
+  quiz?: PublicStoreStoryQuiz | null;
 };
 
 export type StorePrivacyPolicyPage = {

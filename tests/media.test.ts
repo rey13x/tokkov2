@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_MEDIA_IMAGE, getOptimizedImageSrc, resolveMediaUrl } from '../src/lib/media';
 import { shouldNotifyOrderCancellation } from '../src/lib/order-cancel';
 import { DEFAULT_IMAGE_MAX_SIZE_BYTES, getImageUploadError } from '../src/lib/upload-constraints';
+import { compressImageToWebp } from '../src/server/image-compression';
+import { randomBytes } from 'node:crypto';
+import sharp from 'sharp';
 import { buildStockDeductionSummary } from '../src/lib/stock';
 import { clearSessionCached, fetchSessionCached, PUBLIC_DATA_CACHE_KEY } from '../src/lib/public-data-cache';
 
@@ -27,15 +30,25 @@ describe('order cancellation notifications', () => {
 });
 
 describe('image upload constraints', () => {
-  it('accepts smaller images and only rejects files above the 450KB cap', () => {
+  it('accepts large source images and rejects files above the 50MB cap', () => {
     const tooLargeFile = { type: 'image/png', size: DEFAULT_IMAGE_MAX_SIZE_BYTES + 1 } as File;
     expect(getImageUploadError(tooLargeFile)).toContain('Maksimal');
 
-    const tinyFile = { type: 'image/webp', size: 300 * 1024 } as File;
-    expect(getImageUploadError(tinyFile)).toBe('');
-
-    const validFile = { type: 'image/webp', size: 450 * 1024 } as File;
+    const validFile = { type: 'image/webp', size: 20 * 1024 * 1024 } as File;
     expect(getImageUploadError(validFile)).toBe('');
+  });
+
+  it('compresses a high-detail image to the database-safe size', async () => {
+    const width = 1024;
+    const height = 1024;
+    const source = await sharp(randomBytes(width * height * 3), {
+      raw: { width, height, channels: 3 },
+    }).jpeg({ quality: 100 }).toBuffer();
+
+    const compressed = await compressImageToWebp(source);
+
+    expect(compressed).not.toBeNull();
+    expect(compressed!.length).toBeLessThanOrEqual(450 * 1024);
   });
 });
 
@@ -55,6 +68,7 @@ describe('stock deduction notifications', () => {
 describe('public data cache invalidation', () => {
   beforeEach(() => {
     const store = new Map<string, string>();
+    const localStore = new Map<string, string>();
     Object.defineProperty(globalThis, 'window', {
       value: {
         sessionStorage: {
@@ -64,6 +78,15 @@ describe('public data cache invalidation', () => {
           },
           removeItem: (key: string) => {
             store.delete(key);
+          },
+        },
+        localStorage: {
+          getItem: (key: string) => localStore.get(key) ?? null,
+          setItem: (key: string, value: string) => {
+            localStore.set(key, value);
+          },
+          removeItem: (key: string) => {
+            localStore.delete(key);
           },
         },
       },
@@ -99,5 +122,39 @@ describe('public data cache invalidation', () => {
 
     clearSessionCached(PUBLIC_DATA_CACHE_KEY.storeProducts);
     expect(window.sessionStorage.getItem(PUBLIC_DATA_CACHE_KEY.storeProducts)).toBeNull();
+  });
+
+  it('ignores the old supporting-data cache key and reloads home sections', async () => {
+    window.sessionStorage.setItem('tokko_store_supporting_cache_v1', JSON.stringify({
+      value: { storyReel: { id: 'old-detail-cache' } },
+      cachedAt: Date.now(),
+    }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        informations: [{ id: 'info-1', title: 'Informasi' }],
+        marquees: [{ id: 'logo-1', label: 'Logo Komoditas' }],
+        storyReels: [{ id: 'story-1', title: 'Sobat News' }],
+      }),
+    }));
+
+    const data = await fetchSessionCached<{
+      informations: Array<{ id: string }>;
+      marquees: Array<{ id: string }>;
+      storyReels: Array<{ id: string }>;
+    }>(PUBLIC_DATA_CACHE_KEY.storeSupporting, '/api/store?withoutProducts=1');
+
+    expect(data.informations[0].id).toBe('info-1');
+    expect(data.marquees[0].id).toBe('logo-1');
+    expect(data.storyReels[0].id).toBe('story-1');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('broadcasts a storage invalidation when supporting data is cleared', () => {
+    const setItem = vi.spyOn(window.localStorage, 'setItem');
+    clearSessionCached(PUBLIC_DATA_CACHE_KEY.storeSupporting);
+
+    expect(window.localStorage.getItem('tokko:store-data-invalidated')).not.toBeNull();
+    expect(setItem).toHaveBeenCalledTimes(1);
   });
 });

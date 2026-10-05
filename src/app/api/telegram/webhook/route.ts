@@ -18,6 +18,7 @@ import {
   notifyNativeUsers,
   sendTelegramPaymentSuccessNotification,
 } from "@/server/notifications";
+import { compressImageToWebp } from "@/server/image-compression";
 
 export const runtime = "nodejs";
 
@@ -319,7 +320,7 @@ export async function POST(request: Request) {
       await getBotState(chatId)?.set({ addProductPending: true, updatedAt: Date.now() }, { merge: true });
       await telegramRequest("sendMessage", {
         chat_id: chatId,
-        text: "📦 <b>Tambah Produk</b>\n\nKirim <b>foto produk sebagai pesan berikutnya</b> dengan caption format:\n\n<code>Nama: Paket Premium\nKategori: Digital\nHarga: 15000\nDeskripsi: Deskripsi minimal 6 karakter\nRingkas: Kalimat singkat\nDurasi: 30 hari\nTipe: jual_beli</code>\n\nWajib: Nama, Kategori, Harga, Deskripsi. Maksimal foto 450KB.",
+        text: "📦 <b>Tambah Produk</b>\n\nKirim <b>foto produk sebagai pesan berikutnya</b> dengan caption format:\n\n<code>Nama: Paket Premium\nKategori: Digital\nHarga: 15000\nDeskripsi: Deskripsi minimal 6 karakter\nRingkas: Kalimat singkat\nDurasi: 30 hari\nTipe: jual_beli</code>\n\nWajib: Nama, Kategori, Harga, Deskripsi. Foto akan dikompres otomatis.",
         parse_mode: "HTML",
       });
       return NextResponse.json({ ok: true, addProduct: true });
@@ -356,10 +357,12 @@ export async function POST(request: Request) {
       const imageResponse = await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${filePath}`, { signal: AbortSignal.timeout(15000) });
       if (!imageResponse.ok) throw new Error("Foto Telegram gagal diunduh.");
       const image = new Uint8Array(await imageResponse.arrayBuffer());
-      if (image.byteLength > 450 * 1024) throw new Error("Foto terlalu besar. Maksimal 450KB.");
+      if (image.byteLength > 20 * 1024 * 1024) throw new Error("Ukuran foto Telegram maksimal 20MB.");
+      const compressed = await compressImageToWebp(Buffer.from(image));
+      if (!compressed) throw new Error("Foto tidak dapat dikompres ke ukuran penyimpanan.");
       const product = await createProduct({
         ...parsed,
-        imageUrl: `data:image/jpeg;base64,${Buffer.from(image).toString("base64")}`,
+        imageUrl: `data:image/webp;base64,${compressed.toString("base64")}`,
       });
       if (!product) throw new Error("Produk gagal disimpan ke Firestore.");
       await state?.set({ addProductPending: false, updatedAt: Date.now() }, { merge: true });
@@ -465,7 +468,7 @@ export async function POST(request: Request) {
     await telegramRequest("answerCallbackQuery", { callback_query_id: callback.id, text: "Kirim foto + caption produk." });
     await telegramRequest("sendMessage", {
       chat_id: chatId,
-      text: "📦 <b>Tambah Produk</b>\n\nKirim foto produk dengan caption:\n\n<code>Nama: Paket Premium\nKategori: Digital\nHarga: 15000\nDeskripsi: Deskripsi minimal 6 karakter\nRingkas: Kalimat singkat\nDurasi: 30 hari\nTipe: jual_beli</code>\n\nWajib: Nama, Kategori, Harga, Deskripsi. Maksimal foto 450KB.",
+      text: "📦 <b>Tambah Produk</b>\n\nKirim foto produk dengan caption:\n\n<code>Nama: Paket Premium\nKategori: Digital\nHarga: 15000\nDeskripsi: Deskripsi minimal 6 karakter\nRingkas: Kalimat singkat\nDurasi: 30 hari\nTipe: jual_beli</code>\n\nWajib: Nama, Kategori, Harga, Deskripsi. Foto akan dikompres otomatis.",
       parse_mode: "HTML",
     });
     return NextResponse.json({ ok: true, productWizard: true });

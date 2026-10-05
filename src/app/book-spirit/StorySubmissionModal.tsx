@@ -5,6 +5,8 @@ import { IoClose } from "react-icons/io5";
 import { FiCamera } from "react-icons/fi";
 import { MdStar } from "react-icons/md";
 import { withSobat } from "@/lib/user-message";
+import { getImageUploadError, DEFAULT_IMAGE_MAX_SIZE_BYTES } from "@/lib/upload-constraints";
+import { prepareImageForUpload } from "@/lib/image-upload";
 import styles from "./StorySubmissionModal.module.css";
 
 type Props = {
@@ -73,13 +75,9 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted, ava
         continue;
       }
 
-      // Check file size: max 2MB per image
-      const maxSize = 2 * 1024 * 1024;
-      if (file.size > maxSize) {
-        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        setMessage(
-          `Foto "${file.name}" terlalu besar (${sizeMB}MB). Maksimal 2MB per foto.`
-        );
+      const validationError = getImageUploadError(file, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+      if (validationError) {
+        setMessage(validationError);
         continue;
       }
 
@@ -88,7 +86,7 @@ export default function StorySubmissionModal({ isOpen, onClose, onSubmitted, ava
         setUploadingPhotoCount((prev) => prev + 1);
         
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", await prepareImageForUpload(file));
 
         const response = await fetch("/api/story-media/upload", {
           method: "POST",

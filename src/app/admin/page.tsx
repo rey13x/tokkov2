@@ -12,12 +12,14 @@ import VerifiedBadge from "@/components/VerifiedBadge";
 import { captureReceiptAsImage } from "@/lib/receipt-capture";
 import { formatRupiah } from "@/data/products";
 import { getImageUploadError, DEFAULT_IMAGE_MAX_SIZE_BYTES } from "@/lib/upload-constraints";
+import { prepareImageForUpload } from "@/lib/image-upload";
 import { withSobat } from "@/lib/user-message";
 import { clearStoreDataCache } from "@/lib/store-client";
 import WaitLoading from "@/components/ui/WaitLoading";
 import styles from "./page.module.css";
 import { AdminProfilePhotosSection } from "./AdminProfilePhotosSection";
 import { AdminDonationActivitiesSection } from "./AdminDonationActivitiesSection";
+import { AdminFinanceSection } from "./AdminFinanceSection";
 import { StoreProduct, StoreInformation, StoreTestimonial, StoreTestimonialComment, StoreMarqueeItem, StoreStoryReel, StorePrivacyPolicyPage, StorePaymentSettings, BookStory, OrderSummary, InformationType, FooterSocialLink } from "@/types/store";
 
 const AD_POPUP_STORAGE_KEY = "adConfig";
@@ -27,6 +29,7 @@ export default AdminManagementSection;
 
 type AdminSection =
   | "overview"
+  | "finance"
   | "orders"
   | "products"
   | "informations"
@@ -74,6 +77,7 @@ const sidebarItems: Array<{ id: AdminSection; label: string; desc: string }> = [
   { id: "admins", label: "Admin", desc: "Kelola admin" },
   { id: "mapPhoto", label: "Ubah Foto", desc: "Atur foto dan radius map" },
   { id: "preview", label: "Preview", desc: "Lihat hasil realtime" },
+  { id: "finance", label: "Keuangan", desc: "HPP, laba & laporan" },
 ];
 
 const LIMITED_ADMIN_EMAIL = (process.env.NEXT_PUBLIC_LIMITED_ADMIN_EMAIL ?? process.env.LIMITED_ADMIN_EMAIL ?? "sobatpremium@gmail.com").trim().toLowerCase();
@@ -162,6 +166,14 @@ const defaultStoryReelForm = {
   mediaGallery: [] as Array<{ url: string; type?: "image" | "video" | "gif"; alt?: string; title?: string; description?: string; linkUrl?: string }>,
   linkUrl: "",
   buttonText: "",
+  quiz: {
+    enabled: false,
+    title: "",
+    joinButtonText: "Join Quiz",
+    reward: "",
+    durationSeconds: 60,
+    questions: [] as Array<{ id: string; prompt: string; options: string[]; correctOption: number }>,
+  },
   isActive: true,
   sortOrder: 0,
 };
@@ -405,6 +417,8 @@ function AdminManagementSection() {
     duration: 4000,
     sortOrder: 0,
   });
+  const [heroBackgroundInputMode, setHeroBackgroundInputMode] = useState<"url" | "upload">("url");
+  const [isUploadingHeroBackground, setIsUploadingHeroBackground] = useState(false);
   const [mapPhotoUrl, setMapPhotoUrl] = useState("");
   const [mapPhotoRadius, setMapPhotoRadius] = useState(50);
   const [marqueeBannerUrl, setMarqueeBannerUrl] = useState("");
@@ -554,6 +568,11 @@ function AdminManagementSection() {
     setError("");
     setMessage("");
 
+    if (isUploadingHeroBackground) {
+      setError("Tunggu sampai upload foto selesai.");
+      return;
+    }
+
     const trimmedUrl = heroBackgroundForm.url.trim();
     const trimmedId = heroBackgroundForm.id.trim();
 
@@ -586,6 +605,7 @@ function AdminManagementSection() {
 
       setHeroBackgroundForm({ id: "", label: "", url: "", duration: 4000, sortOrder: 0 });
       setHeroBackgroundEditId(null);
+      setHeroBackgroundInputMode("url");
       window.dispatchEvent(new Event("tokko:hero-backgrounds-updated"));
       const refreshed = await fetch("/api/admin/hero-backgrounds", { cache: "no-store" });
       if (refreshed.ok) {
@@ -600,6 +620,7 @@ function AdminManagementSection() {
 
   const onEditHeroBackground = (background: { id: string; label: string; url: string; duration: number; sortOrder: number }) => {
     setHeroBackgroundEditId(background.id);
+    setHeroBackgroundInputMode(background.url.startsWith("data:") ? "upload" : "url");
     setHeroBackgroundForm({
       id: background.id,
       label: background.label,
@@ -626,6 +647,7 @@ function AdminManagementSection() {
       setHeroBackgrounds((current) => current.filter((item) => item.id !== backgroundId));
       setHeroBackgroundForm({ id: "", label: "", url: "", duration: 8000, sortOrder: 0 });
       setHeroBackgroundEditId(null);
+      setHeroBackgroundInputMode("url");
       window.dispatchEvent(new Event("tokko:hero-backgrounds-updated"));
       setMessage("Foto hero berhasil dihapus.");
     } catch (err) {
@@ -874,7 +896,7 @@ function AdminManagementSection() {
 
   const uploadMedia = async (file: File, folder: string) => {
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", await prepareImageForUpload(file));
     formData.append("folder", folder);
 
     const response = await fetch("/api/admin/upload", {
@@ -888,6 +910,34 @@ function AdminManagementSection() {
     }
 
     return payload.url;
+  };
+
+  const onSelectHeroBackgroundImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const validationError = getImageUploadError(file, DEFAULT_IMAGE_MAX_SIZE_BYTES);
+    if (validationError) {
+      setError(validationError);
+      event.target.value = "";
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsUploadingHeroBackground(true);
+    try {
+      const uploaded = await uploadMedia(file, "hero-backgrounds");
+      setHeroBackgroundForm((current) => ({ ...current, url: uploaded }));
+      setMessage("Foto hero berhasil diupload. Simpan untuk menerapkannya di homepage.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload foto hero gagal.");
+    } finally {
+      setIsUploadingHeroBackground(false);
+      event.target.value = "";
+    }
   };
 
   const onSelectProductImage = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -2236,7 +2286,7 @@ function AdminManagementSection() {
       paymentSettingsForm.qrisImageUrl.length > MAX_QRIS_INLINE_LENGTH
     ) {
       setError(
-        "Gambar QRIS terlalu besar untuk mode inline. Upload file <= 450KB atau aktifkan bucket upload.",
+        "Foto QRIS terlalu besar setelah dikompres. Coba pilih gambar lain.",
       );
       setIsLoading(false);
       return;
@@ -2826,6 +2876,18 @@ function AdminManagementSection() {
     event.preventDefault();
     setError("");
     setMessage("");
+
+    if (storyReelForm.quiz.enabled) {
+      const questions = storyReelForm.quiz.questions;
+      if (!storyReelForm.quiz.title.trim() || !storyReelForm.quiz.joinButtonText.trim() ||
+          !storyReelForm.quiz.reward.trim() || questions.length === 0 ||
+          questions.some((question) => !question.prompt.trim() || question.options.filter((option) => option.trim()).length < 2 ||
+            !question.options[question.correctOption]?.trim())) {
+        setError("Lengkapi judul, tombol, hadiah, pertanyaan, minimal dua pilihan, dan jawaban benar di setiap soal.");
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
@@ -2838,6 +2900,18 @@ function AdminManagementSection() {
         mediaGallery: storyReelForm.mediaGallery
           .filter((item) => item.url.trim())
           .map((item, index) => index === 0 ? { ...item, title: storyReelForm.buttonText.trim() } : item),
+        quiz: storyReelForm.quiz.enabled ? {
+          title: storyReelForm.quiz.title.trim(),
+          joinButtonText: storyReelForm.quiz.joinButtonText.trim(),
+          reward: storyReelForm.quiz.reward.trim(),
+          durationSeconds: Math.max(15, Math.min(3600, Number(storyReelForm.quiz.durationSeconds) || 60)),
+          questions: storyReelForm.quiz.questions.map((question) => ({
+            id: question.id,
+            prompt: question.prompt.trim(),
+            options: question.options.map((option) => option.trim()),
+            correctOption: question.correctOption,
+          })),
+        } : null,
         linkUrl: storyReelForm.linkUrl.trim(),
         isActive: storyReelForm.isActive,
         sortOrder: storyReelForm.sortOrder,
@@ -2879,6 +2953,18 @@ function AdminManagementSection() {
       mediaGallery: storyReel.mediaGallery.length > 0 ? storyReel.mediaGallery : [{ url: "", type: "image", title: "", description: "" }],
       linkUrl: storyReel.linkUrl,
       buttonText: storyReel.mediaGallery[0]?.title || "",
+      quiz: {
+        enabled: Boolean(storyReel.quiz),
+        title: storyReel.quiz?.title || "",
+        joinButtonText: storyReel.quiz?.joinButtonText || "Join Quiz",
+        reward: storyReel.quiz?.reward || "",
+        durationSeconds: storyReel.quiz?.durationSeconds || 60,
+        questions: storyReel.quiz?.questions.map((question, index) => ({
+          ...question,
+          id: question.id || `quiz-question-${index + 1}`,
+          options: [...question.options],
+        })) || [],
+      },
       isActive: storyReel.isActive,
       sortOrder: storyReel.sortOrder,
     });
@@ -3526,6 +3612,7 @@ function AdminManagementSection() {
         </div>
       ) : activeSection !== "overview" ? (
       <section className={styles.sectionGrid}>
+        {activeSection === "finance" ? <AdminFinanceSection /> : null}
         {activeSection === "orders" ? (
         <article className={styles.card}>
           <div className={styles.cardHead}>
@@ -4016,31 +4103,63 @@ function AdminManagementSection() {
             <div className={styles.homepageMediaPanel}>
               <h3 style={{ margin: "0 0 12px", fontSize: "1rem" }}>Foto Hero Homepage</h3>
               <form className={styles.form} onSubmit={onSaveHeroBackground}>
-                <input
-                  type="url"
-                  value={heroBackgroundForm.url}
-                  onChange={(event) =>
-                    setHeroBackgroundForm((current) => ({ ...current, url: event.target.value }))
-                  }
-                  placeholder="URL foto hero (https://...)"
-                  required
-                />
-                <small className={styles.mediaUrlHint}>
-                  Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
-                </small>
+                <div className={styles.productTypeSelector} role="group" aria-label="Metode menambahkan foto hero">
+                  <label className={styles.productTypeOption}>
+                    <input
+                      type="radio"
+                      name="heroBackgroundInputMode"
+                      checked={heroBackgroundInputMode === "url"}
+                      onChange={() => setHeroBackgroundInputMode("url")}
+                    />
+                    Pakai Link
+                  </label>
+                  <label className={styles.productTypeOption}>
+                    <input
+                      type="radio"
+                      name="heroBackgroundInputMode"
+                      checked={heroBackgroundInputMode === "upload"}
+                      onChange={() => setHeroBackgroundInputMode("upload")}
+                    />
+                    Upload Foto
+                  </label>
+                </div>
+                {heroBackgroundInputMode === "url" ? (
+                  <input
+                    type="url"
+                    value={heroBackgroundForm.url}
+                    onChange={(event) =>
+                      setHeroBackgroundForm((current) => ({ ...current, url: event.target.value }))
+                    }
+                    placeholder="URL foto hero (https://...)"
+                    required
+                  />
+                ) : (
+                  <label className={styles.fileField}>
+                    Pilih foto hero dari perangkat
+                    <input type="file" accept="image/*" onChange={onSelectHeroBackgroundImage} disabled={isUploadingHeroBackground} />
+                    <small>
+                      {isUploadingHeroBackground
+                        ? "Sedang mengupload dan mengoptimalkan foto..."
+                        : heroBackgroundForm.url.startsWith("data:")
+                          ? "Foto siap digunakan. Simpan untuk menerapkannya."
+                          : "Foto dikompres otomatis. Ukuran file sumber maksimal 50MB."}
+                    </small>
+                  </label>
+                )}
                 {heroBackgroundForm.url ? (
                   <div className={styles.heroBackgroundPreview}>
                     <img src={heroBackgroundForm.url} alt="Preview foto hero" />
                   </div>
                 ) : null}
                 <div className={styles.formActions}>
-                  <button type="submit">
-                    {heroBackgroundEditId ? "Simpan Perubahan" : "Simpan Foto"}
+                  <button type="submit" disabled={isUploadingHeroBackground}>
+                    {isUploadingHeroBackground ? "Mengupload..." : heroBackgroundEditId ? "Simpan Perubahan" : "Simpan Foto"}
                   </button>
                   {heroBackgroundEditId && (
                     <button type="button" className={styles.secondaryButton} onClick={() => {
                       setHeroBackgroundEditId(null);
                       setHeroBackgroundForm({ id: "", label: "", url: "", duration: 4000, sortOrder: 0 });
+                      setHeroBackgroundInputMode("url");
                     }}>
                       Batal
                     </button>
@@ -4072,12 +4191,7 @@ function AdminManagementSection() {
                       }}
                       className={styles.heroBackgroundItem}
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: "12px",
                         padding: "10px 12px",
-                        borderRadius: "10px",
                         backgroundColor: "#fff",
                         border: "1px solid #e5e7eb",
                         cursor: "grab",
@@ -4100,7 +4214,6 @@ function AdminManagementSection() {
                           <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {background.label}
                           </div>
-                          <small style={{ color: "#666", wordBreak: "break-all" }}>{background.url}</small>
                         </div>
                       </div>
                       <div className={styles.heroBackgroundActions}>
@@ -4340,7 +4453,7 @@ function AdminManagementSection() {
                 <input type="file" accept="image/*,video/*" onChange={onSelectProductImage} />
                 <small>{isUploadingProductImage ? "Uploading..." : "Pilih file media dari device"}</small>
                 <small className={styles.mediaUrlHint}>
-                  Upload foto disini: <a href="https://imagecompressor.11zon.com/id/compress-jpg/compress-jpg-to-450kb" target="_blank" rel="noreferrer">https://imagecompressor.11zon.com</a> lalu Choose File kembali foto Sobat diatas.
+                  Foto dikompres otomatis sebelum diunggah. Ukuran file sumber maksimal 50MB.
                 </small>
               </label>
             ) : null}
@@ -4614,7 +4727,7 @@ function AdminManagementSection() {
                 <input type="file" accept="image/*,video/*" onChange={onSelectInfoImage} />
                 <small>{isUploadingInfoImage ? "Uploading..." : "Pilih file media dari device"}</small>
                 <small className={styles.mediaUrlHint}>
-                  Upload foto disini: <a href="https://imagecompressor.11zon.com/id/compress-jpg/compress-jpg-to-450kb" target="_blank" rel="noreferrer">https://imagecompressor.11zon.com</a> lalu Choose File kembali foto Sobat diatas.
+                  Foto dikompres otomatis sebelum diunggah. Ukuran file sumber maksimal 50MB.
                 </small>
               </label>
             ) : null}
@@ -4892,7 +5005,7 @@ function AdminManagementSection() {
             </select>
             <input value={testimonialForm.mediaUrl} readOnly placeholder="URL media testimoni otomatis" />
             <label className={styles.fileField}>
-              Upload Foto Testimoni (maksimal 450KB)
+              Upload Foto Testimoni
               <input type="file" accept="image/*" onChange={onSelectTestimonialMedia} />
               <small>
                 {isUploadingTestimonialMedia ? "Memproses foto..." : "Pilih foto dari device"}
@@ -6074,7 +6187,7 @@ function AdminManagementSection() {
               </small>
             </label>
             <label className={styles.mediaUrlHint} style={{ display: "block", marginTop: "8px" }}>
-              Pilih file logo lokal (maks. 1 MB)
+              Pilih file logo lokal (maks. 50 MB)
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
@@ -6083,7 +6196,7 @@ function AdminManagementSection() {
                 style={{ marginTop: "6px", width: "100%" }}
               />
               <small className={styles.mediaUrlHint}>
-                Upload foto disini: <a href="https://imagecompressor.11zon.com/id/compress-jpg/compress-jpg-to-450kb" target="_blank" rel="noreferrer">https://imagecompressor.11zon.com</a> lalu Choose File kembali foto Sobat diatas.
+                Foto dikompres otomatis sebelum diunggah. Ukuran file sumber maksimal 50MB.
               </small>
             </label>
             <div className={styles.previewCard}>
@@ -6169,6 +6282,139 @@ function AdminManagementSection() {
               placeholder="Isi Sobat News"
               rows={3}
             />
+            <fieldset className={styles.storyQuizBuilder}>
+              <legend>Quiz setelah deskripsi (opsional)</legend>
+              <label className={styles.checkField}>
+                <input
+                  type="checkbox"
+                  checked={storyReelForm.quiz.enabled}
+                  onChange={(event) => setStoryReelForm((current) => ({
+                    ...current,
+                    quiz: { ...current.quiz, enabled: event.target.checked },
+                  }))}
+                />
+                Aktifkan quiz di Sobat News
+              </label>
+              {storyReelForm.quiz.enabled ? (
+                <div className={styles.storyQuizFields}>
+                  <input
+                    value={storyReelForm.quiz.title}
+                    onChange={(event) => setStoryReelForm((current) => ({ ...current, quiz: { ...current.quiz, title: event.target.value } }))}
+                    placeholder="Judul quiz"
+                    required
+                  />
+                  <input
+                    value={storyReelForm.quiz.joinButtonText}
+                    onChange={(event) => setStoryReelForm((current) => ({ ...current, quiz: { ...current.quiz, joinButtonText: event.target.value } }))}
+                    placeholder="Teks tombol Join Quiz"
+                    required
+                  />
+                  <input
+                    value={storyReelForm.quiz.reward}
+                    onChange={(event) => setStoryReelForm((current) => ({ ...current, quiz: { ...current.quiz, reward: event.target.value } }))}
+                    placeholder="Hadiah atau reward"
+                    required
+                  />
+                  <label className={styles.storyQuizDuration}>
+                    Waktu mengerjakan (detik)
+                    <input
+                      type="number"
+                      min={15}
+                      max={3600}
+                      value={storyReelForm.quiz.durationSeconds}
+                      onChange={(event) => setStoryReelForm((current) => ({
+                        ...current,
+                        quiz: { ...current.quiz, durationSeconds: Number(event.target.value) || 60 },
+                      }))}
+                    />
+                  </label>
+                  <div className={styles.storyQuizQuestionList}>
+                    {storyReelForm.quiz.questions.map((question, questionIndex) => (
+                      <section className={styles.storyQuizQuestion} key={question.id}>
+                        <div className={styles.storyQuizQuestionHeader}>
+                          <strong>Pertanyaan {questionIndex + 1}</strong>
+                          <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={() => setStoryReelForm((current) => ({
+                              ...current,
+                              quiz: {
+                                ...current.quiz,
+                                questions: current.quiz.questions.filter((item) => item.id !== question.id),
+                              },
+                            }))}
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                        <textarea
+                          value={question.prompt}
+                          onChange={(event) => setStoryReelForm((current) => ({
+                            ...current,
+                            quiz: {
+                              ...current.quiz,
+                              questions: current.quiz.questions.map((item) => item.id === question.id ? { ...item, prompt: event.target.value } : item),
+                            },
+                          }))}
+                          placeholder="Tulis pertanyaan"
+                          required
+                        />
+                        {question.options.map((option, optionIndex) => (
+                          <label className={styles.storyQuizOption} key={`${question.id}-${optionIndex}`}>
+                            <input
+                              type="radio"
+                              name={`correct-answer-${question.id}`}
+                              checked={question.correctOption === optionIndex}
+                              onChange={() => setStoryReelForm((current) => ({
+                                ...current,
+                                quiz: {
+                                  ...current.quiz,
+                                  questions: current.quiz.questions.map((item) => item.id === question.id ? { ...item, correctOption: optionIndex } : item),
+                                },
+                              }))}
+                              aria-label={`Tandai pilihan ${optionIndex + 1} sebagai jawaban benar`}
+                            />
+                            <input
+                              value={option}
+                              onChange={(event) => setStoryReelForm((current) => ({
+                                ...current,
+                                quiz: {
+                                  ...current.quiz,
+                                  questions: current.quiz.questions.map((item) => item.id === question.id ? {
+                                    ...item,
+                                    options: item.options.map((value, currentIndex) => currentIndex === optionIndex ? event.target.value : value),
+                                  } : item),
+                                },
+                              }))}
+                              placeholder={`Pilihan ${optionIndex + 1}`}
+                              required
+                            />
+                          </label>
+                        ))}
+                      </section>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => setStoryReelForm((current) => ({
+                      ...current,
+                      quiz: {
+                        ...current.quiz,
+                        questions: [...current.quiz.questions, {
+                          id: crypto.randomUUID(),
+                          prompt: "",
+                          options: ["", "", "", ""],
+                          correctOption: 0,
+                        }],
+                      },
+                    }))}
+                  >
+                    Tambah pertanyaan
+                  </button>
+                </div>
+              ) : null}
+            </fieldset>
             <input
               value={storyReelForm.author}
               onChange={(event) => setStoryReelForm((current) => ({ ...current, author: event.target.value }))}
@@ -6253,7 +6499,7 @@ function AdminManagementSection() {
                         style={{ width: "100%" }}
                       />
                       <small className={styles.mediaUrlHint}>
-                        Upload foto disini: <a href="https://imagecompressor.11zon.com/id/compress-jpg/compress-jpg-to-450kb" target="_blank" rel="noreferrer">https://imagecompressor.11zon.com</a> lalu Choose File kembali foto Sobat diatas.
+                        Foto dikompres otomatis sebelum diunggah. Ukuran file sumber maksimal 50MB.
                       </small>
                     </label>
                     <label className={styles.storyMediaTypeField}>
@@ -6856,7 +7102,7 @@ function AdminManagementSection() {
                   {isUploadingPrivacyBanner ? "Uploading..." : "Pilih file banner dari device"}
                 </small>
                 <small className={styles.mediaUrlHint}>
-                  Upload foto disini: <a href="https://imagecompressor.11zon.com/id/compress-jpg/compress-jpg-to-450kb" target="_blank" rel="noreferrer">https://imagecompressor.11zon.com</a> lalu Choose File kembali foto Sobat diatas.
+                  Foto dikompres otomatis sebelum diunggah. Ukuran file sumber maksimal 50MB.
                 </small>
               </label>
             ) : null}

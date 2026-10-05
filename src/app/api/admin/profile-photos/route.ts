@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
 import { requireAdmin } from "@/server/admin";
+import { compressImageToWebp } from "@/server/image-compression";
 import { listProfilePhotos, createProfilePhoto, deleteProfilePhoto } from "@/server/db";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
-const MAX_IMAGE_SIZE_BYTES = 450 * 1024;
+const MAX_SOURCE_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -73,26 +73,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const buffer = Buffer.from(await fileInput.arrayBuffer());
-      let quality = 68;
-      let width = 1800;
-      let compressed = await sharp(buffer)
-        .rotate()
-        .resize({ width, withoutEnlargement: true })
-        .webp({ quality })
-        .toBuffer();
-
-      while ((compressed.length > MAX_IMAGE_SIZE_BYTES || compressed.length > 220 * 1024) && quality > 32) {
-        quality -= 8;
-        width = Math.round(width * 0.8);
-        compressed = await sharp(buffer)
-          .rotate()
-          .resize({ width, withoutEnlargement: true })
-          .webp({ quality })
-          .toBuffer();
+      if (fileInput.size > MAX_SOURCE_IMAGE_SIZE_BYTES) {
+        return NextResponse.json({ message: "Ukuran file terlalu besar. Maksimal 8MB." }, { status: 400 });
       }
 
-      if (compressed.length > MAX_IMAGE_SIZE_BYTES) {
+      const buffer = Buffer.from(await fileInput.arrayBuffer());
+      const compressed = await compressImageToWebp(buffer);
+      if (!compressed) {
         return NextResponse.json(
           { message: "Foto terlalu besar setelah dikompres. Maksimal 450KB." },
           { status: 400 },

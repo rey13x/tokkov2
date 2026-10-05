@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import WaitLoading from "@/components/ui/WaitLoading";
 import { withSobat } from "@/lib/user-message";
 import { getImageUploadError, DEFAULT_IMAGE_MAX_SIZE_BYTES } from "@/lib/upload-constraints";
+import { prepareImageForUpload } from "@/lib/image-upload";
 import styles from "./AdminProfilePhotosSection.module.css";
 
 interface ProfilePhoto {
@@ -125,7 +126,7 @@ export function AdminProfilePhotosSection() {
     try {
       setIsAdding(true);
       const formData = new FormData();
-      formData.append("file", selectedFile);
+      formData.append("file", await prepareImageForUpload(selectedFile));
 
       const response = await fetch("/api/admin/profile-photos", {
         method: "POST",
@@ -248,10 +249,7 @@ export function AdminProfilePhotosSection() {
               {isAdding ? "Mengupload..." : "Upload Foto"}
             </button>
             <small className={styles.hint}>
-              Format: PNG, JPG, GIF, WEBP | Ukuran maksimal: 1MB
-            </small>
-            <small className={styles.hint}>
-              Upload foto disini: <a href="https://catbox.moe/" target="_blank" rel="noreferrer">https://catbox.moe/</a> lalu Copy Link dan Paste kolom diatas
+              Foto dikompres otomatis sebelum disimpan. Ukuran sumber maksimal 50MB.
             </small>
           </div>
         </form>

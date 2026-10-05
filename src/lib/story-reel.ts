@@ -2,7 +2,7 @@ import type { StoreStoryMediaItem, StoreStoryReel } from "@/types/store";
 
 type StoryReelContentUpdate = Partial<Pick<
   StoreStoryReel,
-  "title" | "description" | "author" | "location" | "publishedAt" | "mediaGallery" | "linkUrl"
+  "title" | "description" | "author" | "location" | "publishedAt" | "mediaGallery" | "quiz" | "linkUrl"
 >>;
 
 function normalizeMediaGallery(items: StoreStoryMediaItem[]) {
@@ -34,6 +34,7 @@ export function hasStoryReelContentChanged(
     (update.location !== undefined && update.location.trim() !== current.location) ||
     (update.publishedAt !== undefined && !sameMinute(update.publishedAt, current.publishedAt)) ||
     (update.linkUrl !== undefined && update.linkUrl.trim() !== current.linkUrl) ||
+    (update.quiz !== undefined && JSON.stringify(update.quiz ?? null) !== JSON.stringify(current.quiz ?? null)) ||
     (update.mediaGallery !== undefined &&
       JSON.stringify(normalizeMediaGallery(update.mediaGallery)) !==
         JSON.stringify(normalizeMediaGallery(current.mediaGallery)))
@@ -51,13 +52,15 @@ export function slugifyStoryReelTitle(title: string) {
     .replace(/-+$/g, "") || "sobat-news";
 }
 
-export function getStoryReelSlug(reel: StoreStoryReel, siblings: StoreStoryReel[]) {
+type StoryReelSlugSource = Pick<StoreStoryReel, "id" | "title">;
+
+export function getStoryReelSlug(reel: StoryReelSlugSource, siblings: StoryReelSlugSource[]) {
   const baseSlug = slugifyStoryReelTitle(reel.title);
   const matchingReels = siblings.filter((item) => slugifyStoryReelTitle(item.title) === baseSlug);
   const duplicateIndex = matchingReels.findIndex((item) => item.id === reel.id);
   return duplicateIndex > 0 ? `${baseSlug}-${duplicateIndex + 1}` : baseSlug;
 }
 
-export function findStoryReelBySlug(storyReels: StoreStoryReel[], slug: string) {
+export function findStoryReelBySlug<T extends StoryReelSlugSource>(storyReels: T[], slug: string): T | null {
   return storyReels.find((reel) => getStoryReelSlug(reel, storyReels) === slug) ?? null;
 }

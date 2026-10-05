@@ -4,6 +4,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import type { DonationActivity, DonationActivityType, StoreProduct } from "@/types/store";
 import { withSobat } from "@/lib/user-message";
 import { getImageUploadError, DEFAULT_IMAGE_MAX_SIZE_BYTES } from "@/lib/upload-constraints";
+import { prepareImageForUpload } from "@/lib/image-upload";
 import styles from "./page.module.css";
 
 const labels: Record<DonationActivityType, string> = { income: "Pemasukan", expense: "Pengeluaran", refund: "Pengembalian" };
@@ -78,7 +79,7 @@ export function AdminDonationActivitiesSection() {
     setError("");
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", await prepareImageForUpload(file));
       form.append("folder", "donation-activities");
       const response = await fetch("/api/admin/upload", { method: "POST", body: form });
       const result = (await response.json()) as { url?: string; message?: string };
