@@ -40,8 +40,5 @@ export function getOptimizedImageSrc(value?: string | null) {
   if (!resolved) {
     return "";
   }
-  if (!/^https?:\/\//i.test(resolved)) {
-    return resolved;
-  }
-  return `/api/media/optimized?url=${encodeURIComponent(resolved)}`;
+  return resolved;
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { DEFAULT_MEDIA_IMAGE, getOptimizedImageSrc, isVideoMediaUrl, resolveMediaUrl } from "@/lib/media";
+import { getOptimizedImageSrc, isVideoMediaUrl, resolveMediaUrl } from "@/lib/media";
 
 type FlexibleMediaProps = {
   src?: string | null;
@@ -28,7 +28,7 @@ export default function FlexibleMedia({
   height = 72,
   priority = false,
   unoptimized = true,
-  fallbackSrc = DEFAULT_MEDIA_IMAGE,
+  fallbackSrc = "",
   controls = false,
 }: FlexibleMediaProps) {
   const [hasImageError, setHasImageError] = useState(false);

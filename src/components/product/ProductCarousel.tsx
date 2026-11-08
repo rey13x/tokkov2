@@ -18,8 +18,8 @@ export default function ProductCarousel({
 }: ProductCarouselProps) {
   // Combine primary image with gallery
   const allMedia: ProductMediaItem[] = [
-    { url: primaryImage, type: "image" },
-    ...(mediaGallery || []),
+    ...(primaryImage?.trim() ? [{ url: primaryImage.trim(), type: "image" as const }] : []),
+    ...(mediaGallery || []).filter((media) => Boolean(media.url?.trim())),
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -55,7 +55,7 @@ export default function ProductCarousel({
 
   // Progress bar animation for photos only. Videos rely on native time events.
   useEffect(() => {
-    if (isDragging || !isPlaying || isVideo) {
+    if (totalSlides === 0 || isDragging || !isPlaying || isVideo) {
       if (progressInterval.current) {
         clearInterval(progressInterval.current);
       }
@@ -79,6 +79,10 @@ export default function ProductCarousel({
     progressInterval.current = interval;
     return () => clearInterval(interval);
   }, [currentIndex, isDragging, isPlaying, isVideo, totalSlides]);
+
+  if (totalSlides === 0) {
+    return null;
+  }
 
   const handlePrevious = () => {
     setCurrentIndex((idx) => (idx - 1 + totalSlides) % totalSlides);
