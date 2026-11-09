@@ -199,6 +199,28 @@
   margin-bottom: 18px;
 }
 
+.productImageField {
+  min-width: 0;
+  text-transform: none !important;
+}
+
+.productImageField small {
+  color: #667085;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.4;
+  text-transform: none;
+}
+
+.productDraftPreview {
+  width: 100%;
+  max-height: 140px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #f7f8fb;
+}
+
 .productForm button,
 .primary,
 .secondary {
@@ -224,6 +246,14 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
+}
+
+.productListImage {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 .transaction {

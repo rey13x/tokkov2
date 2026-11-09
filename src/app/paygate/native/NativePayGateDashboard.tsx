@@ -201,11 +201,39 @@ export default function NativePayGateDashboard() {
         <form className={styles.productForm} onSubmit={saveProduct}>
           <input placeholder="Nama produk" value={productDraft.name} onChange={(e) => setProductDraft({ ...productDraft, name: e.target.value })} />
           <input type="number" placeholder="Harga" value={productDraft.price} onChange={(e) => setProductDraft({ ...productDraft, price: Number(e.target.value) })} />
-          <input placeholder="Image URL" value={productDraft.imageUrl} onChange={(e) => setProductDraft({ ...productDraft, imageUrl: e.target.value })} />
+          <label className={styles.productImageField}>
+            URL Gambar Produk
+            <input
+              type="url"
+              placeholder="https://..."
+              value={productDraft.imageUrl}
+              onChange={(e) => setProductDraft({ ...productDraft, imageUrl: e.target.value })}
+            />
+            <small>
+              Upload foto di <a href="https://catbox.moe/" target="_blank" rel="noreferrer">catbox.moe</a>, lalu paste link foto di kolom ini.
+            </small>
+            {productDraft.imageUrl.trim() ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={productDraft.imageUrl.trim()}
+                alt={`Preview ${productDraft.name || "gambar produk"}`}
+                className={styles.productDraftPreview}
+              />
+            ) : null}
+          </label>
           <button type="submit"><FiPlus /> Tambah</button>
         </form>
         <div className={styles.productList}>
-          {products.map((product) => <article key={product.id}><strong>{product.name}</strong><span>{formatRupiah(product.price)}</span></article>)}
+          {products.map((product) => (
+            <article key={product.id}>
+              {product.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={product.imageUrl} alt="" className={styles.productListImage} />
+              ) : null}
+              <strong>{product.name}</strong>
+              <span>{formatRupiah(product.price)}</span>
+            </article>
+          ))}
         </div>
       </section>
 

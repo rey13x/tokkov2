@@ -4484,6 +4484,17 @@ function AdminManagementSection() {
                     }}
                     placeholder="Link foto atau video"
                   />
+                  {media.url.trim() ? (
+                    <div className={styles.mediaGalleryPreview}>
+                      <FlexibleMedia
+                        src={media.url}
+                        alt={`Preview media tambahan ${index + 1}`}
+                        width={56}
+                        height={56}
+                        unoptimized
+                      />
+                    </div>
+                  ) : null}
                   <button
                     type="button"
                     className={styles.mediaGalleryRemoveButton}
