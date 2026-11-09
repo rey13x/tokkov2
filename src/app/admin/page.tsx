@@ -1922,11 +1922,15 @@ function AdminManagementSection() {
         setAuthState("allowed");
         const limitedAdminSession = payload.user?.adminScope === "limited" ||
           payload.user?.email?.toLowerCase() === LIMITED_ADMIN_EMAIL;
-        const requestedSection = new URLSearchParams(window.location.search).get("section");
-        const requestedAction = new URLSearchParams(window.location.search).get("action");
+        const searchParams = new URLSearchParams(window.location.search);
+        const requestedSection = searchParams.get("section");
+        const requestedAction = searchParams.get("action");
         if (sidebarItems.some((item) => item.id === requestedSection) &&
             (!limitedAdminSession || LIMITED_ADMIN_SECTIONS.has(requestedSection as AdminSection))) {
           setActiveSection(requestedSection as AdminSection);
+        }
+        if (requestedSection === "orders") {
+          setOrderSearch(searchParams.get("order") ?? "");
         }
         if (requestedSection === "products" && requestedAction === "create") {
           resetProductForm();
@@ -3637,7 +3641,7 @@ function AdminManagementSection() {
             </a>{" "}
             jika ada trouble
           </p>
-          <div className={styles.list}>
+          <div className={`${styles.list} ${styles.orderList}`}>
             {filteredOrders.map((order) => (
               <div key={order.id} className={styles.listItem}>
                 <div className={styles.listPreview}>

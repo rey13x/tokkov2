@@ -79,12 +79,28 @@ EMAIL_OTP_ENABLED = false
 NEXT_PUBLIC_EMAIL_OTP_ENABLED = false
 ```
 
-**Kategori H: TELEGRAM (Optional)**
+**Kategori H: TELEGRAM**
 
 ```
-TELEGRAM_BOT_TOKEN = [COPY DARI .env JIKA ADA]
-TELEGRAM_CHAT_ID = [KOSONGKAN ATAU ISI SESUAI KEBUTUHAN]
+TELEGRAM_BOT_TOKEN = [token bot]
+TELEGRAM_CHAT_ID = [chat ID admin]
+TELEGRAM_WEBHOOK_SECRET = [secret untuk verifikasi webhook]
+TELEGRAM_PAYMENT_CHANNEL_ID = [opsional, channel pembayaran]
 ```
+
+### Aktifkan callback tombol Telegram
+
+Endpoint callback hanya menerima update dengan header secret dari Telegram. Setelah
+environment variable tersedia, daftarkan endpoint website ke bot:
+
+```bash
+TELEGRAM_WEBHOOK_URL=https://tokkov2.vercel.app npm run telegram:webhook:set
+```
+
+Perintah ini memakai `TELEGRAM_BOT_TOKEN` dan `TELEGRAM_WEBHOOK_SECRET` dari
+environment lokal, mendaftarkan URL `TELEGRAM_WEBHOOK_URL`, lalu memverifikasi
+hasilnya ke Telegram. Jika `TELEGRAM_WEBHOOK_URL` tidak diisi, script memakai
+`NEXTAUTH_URL`. Jalankan ulang jika domain atau secret berubah.
 
 ---
 
